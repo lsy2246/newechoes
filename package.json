@@ -26,7 +26,8 @@
     "react-dom": "^19.0.0",
     "react-masonry-css": "^1.0.16",
     "tailwindcss": "^4.0.9",
-    "three": "^0.174.0"
+    "three": "^0.174.0",
+    "vercel": "^41.4.1"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16",

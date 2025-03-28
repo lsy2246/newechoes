@@ -4,8 +4,8 @@ import GitProjectCollection from '@/components/GitProjectCollection';
 import { GitPlatform, type GitConfig } from '@/components/GitProjectCollection';
 
 const giteaConfig: GitConfig = {
-  username: 'lsy',
-  url: 'https://g.lsy22.com',
+  username: 'WYC210'
+  
 };
 ---
 
@@ -13,9 +13,9 @@ const giteaConfig: GitConfig = {
   <main class="container mx-auto px-4 py-8">
     <div class="space-y-12">
       <GitProjectCollection 
-        platform={GitPlatform.GITEA}
-        username="lsy"
-        title="Gitea 个人项目"
+        platform={GitPlatform.GITHUB}
+        
+        title="GitHUB 个人项目"
         config={giteaConfig}
         client:load
       />
