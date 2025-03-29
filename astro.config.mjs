@@ -77,7 +77,7 @@ export default defineConfig({
       // 为 MDX 单独配置所需功能
       remarkPlugins: [
         // 添加表情符号支持
-        [remarkEmoji, { emoticon: true, padded: true }]
+        [remarkEmoji, { emoticon: false, padded: true }]
       ],
       rehypePlugins: [
         [rehypeExternalLinks, { target: '_blank', rel: ['nofollow', 'noopener', 'noreferrer'] }]
@@ -133,7 +133,7 @@ export default defineConfig({
   markdown: {
     syntaxHighlight: 'prism',
     remarkPlugins: [
-      [remarkEmoji, { emoticon: true, padded: true }]
+      [remarkEmoji, { emoticon: false, padded: true }]
     ],
     rehypePlugins: [
       [rehypeExternalLinks, { target: '_blank', rel: ['nofollow', 'noopener', 'noreferrer'] }]
