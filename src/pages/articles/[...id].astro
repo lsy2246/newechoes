@@ -1,9 +1,9 @@
 ---
 import { getCollection, render } from 'astro:content';
-import { contentStructure, getRelativePath, getBasename, getDirPath, getSpecialPath } from '@/content.config';
-import type { SectionStructure } from '@/content.config';
+import {  getSpecialPath } from '@/content.config';
 import Layout from '@/components/Layout.astro';
 import Breadcrumb from '@/components/Breadcrumb.astro';
+import { ARTICLE_EXPIRY_CONFIG } from '@/consts';
 
 // 添加这一行，告诉Astro预渲染这个页面
 export const prerender = true;
@@ -168,26 +168,37 @@ function getArticleUrl(articleId: string) {
     
     <!-- 文章内容区域 -->
     <div class="relative">
+      <!-- 文章过期提醒 -->
+      {(() => {
+        const publishDate = article.data.date;
+        const currentDate = new Date();
+        const daysDiff = Math.floor((currentDate.getTime() - publishDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (ARTICLE_EXPIRY_CONFIG.enabled && daysDiff > ARTICLE_EXPIRY_CONFIG.expiryDays) {
+          return (
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-yellow-700">
+                    {ARTICLE_EXPIRY_CONFIG.warningMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
+      
       <!-- 文章内容 -->
       <article class="prose prose-lg dark:prose-invert prose-primary prose-table:rounded-lg prose-table:border-separate prose-table:border-2 prose-thead:bg-primary-50 dark:prose-thead:bg-dark-surface prose-ul:list-disc prose-ol:list-decimal prose-li:my-1 prose-blockquote:border-l-4 prose-blockquote:border-primary-500 prose-blockquote:bg-gray-100 prose-blockquote:dark:bg-dark-surface prose-a:text-primary-600 prose-a:dark:text-primary-400 prose-a:no-underline prose-a:border-b prose-a:border-primary-300 prose-a:hover:border-primary-600 max-w-none mb-12">
         <Content />
       </article>
-      
-      <!-- 添加全局样式 -->
-      <style is:global>
-        /* 代码块样式 */
-        .prose pre {
-          overflow-x: auto;
-          white-space: pre-wrap;
-          word-wrap: break-word;
-        }
-        
-        /* 行内代码样式 */
-        .prose :not(pre) > code {
-          white-space: pre-wrap;
-          word-wrap: break-word;
-        }
-      </style>
       
       <!-- 固定目录面板 - 脱离文档流 -->
       <div class="hidden 2xl:block fixed right-[calc(50%-48rem)] top-20 w-64 z-30">

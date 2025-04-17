@@ -8,11 +8,12 @@
   background-color: #282c34 !important;
   border: 1px solid #374151;
   overflow: hidden;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
-.prose pre:hover {
-  /* 移除之前的transform和shadow */
-}
+
 
 /* 代码块顶部栏 - 调整颜色使其更突出 */
 .code-header {
@@ -145,6 +146,8 @@
   font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.85em;
   color: #e06c75;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 /* 暗色模式适配 */

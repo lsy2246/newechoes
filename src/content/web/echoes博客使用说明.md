@@ -92,6 +92,18 @@ tags: ["标签1", "标签2"]
 文章内容...
 ```
 
+### 文章过期提醒
+
+博客系统支持文章过期提醒功能，可以在 `src/consts.ts` 中配置：
+
+```typescript
+export const ARTICLE_EXPIRY_CONFIG = {
+    enabled: true, // 是否启用文章过期提醒
+    expiryDays: 365, // 文章过期天数
+    warningMessage: '这篇文章已经发布超过一年了，内容可能已经过时，请谨慎参考。' // 提醒消息
+};
+```
+
 ### 文章列表展示
 
 文章列表页面会自动获取所有文章并按日期排序展示，支持：
@@ -245,45 +257,62 @@ import { VISITED_PLACES } from '@/consts';
   
 ```bash
 npm run dev
-# 或者使用 pnpm
-pnpm dev
 ```
 
 访问 `http://localhost:4321` 查看效果。
 
 ## 部署说明
 
-### 本地构建部署
+### 部署方式选择
 
-```bash
-npm run build
-```
+1. **Vercel 部署（推荐）**
+   - 支持所有功能
+   - 自动部署和 HTTPS
+   - 支持 API 路由和动态数据
+   - 可配合多吉云CDN实现自动刷新缓存
 
-构建产物位于 `dist` 目录，将其部署到你的服务器即可。
+2. **静态托管（如腾讯云）**
+   - 仅支持静态文件
+   - 不支持的功能：
+     - API 路由（豆瓣数据、Git 项目等）
+     - 动态数据获取
+   - 需要手动配置和上传
 
-### Vercel 部署
+### CDN加速配置
 
-本项目完全支持 Vercel 部署，你可以通过以下步骤快速部署：
+博客支持通过多吉云CDN进行加速，并可通过GitHub Actions实现自动刷新缓存：
 
-1. Fork 本项目到你的 GitHub 账号
+1. 按照[CDN配置指南](./cdn配置)配置多吉云CDN
+2. 按照[GitHub Actions自动刷新CDN缓存指南](./github-actions自动刷新多吉云_cdn缓存)配置自动刷新
+3. 配置完成后，每次博客更新时，CDN缓存将自动刷新
 
-2. 在 Vercel 控制台中点击 "New Project"
+### 部署步骤
 
-3. 导入你 fork 的 GitHub 仓库
+#### Vercel 部署
 
-4. 配置构建选项：
-   - Framework Preset: Astro
-   - Build Command: `astro build`
-   - Output Directory: `dist`
-   - Install Command: `npm install` 或 `pnpm install`
+1. Fork 项目到 GitHub
+2. 在 Vercel 导入项目
+3. 配置环境变量（如果需要）
+4. 点击部署
 
-5. 点击 "Deploy" 开始部署
+#### 静态托管部署
 
-Vercel 会自动检测项目类型并应用正确的构建配置。每次你推送代码到 main 分支时，Vercel 都会自动重新部署。
+1. 修改 `astro.config.mjs`：
 
-#### 环境变量配置
+  ```javascript
+  export default defineConfig({
+    site: SITE_URL,
+    output: "static",
+    adapter: undefined,
+  });
+  ```
 
-如果你使用了需要环境变量的功能（如 API tokens），需要在 Vercel 项目设置中的 "Environment Variables" 部分添加相应的环境变量。
+2. 构建并上传：
+
+  ```bash
+  npm run build
+  # 上传 dist/client 目录到静态托管服务
+  ```
 
 ## 常见问题
 
@@ -298,3 +327,8 @@ Vercel 会自动检测项目类型并应用正确的构建配置。每次你推�
 3. **Git 项目无法显示**
    - 验证用户名配置
    - 确认 API 访问限制
+
+4. **静态托管部署后功能异常**
+   - 确认是否使用了需要服务器端支持的功能
+   - 检查是否已将动态数据改为静态数据
+   - 确认构建输出目录是否为 `dist/client`
