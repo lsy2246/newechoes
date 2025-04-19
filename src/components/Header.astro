@@ -34,7 +34,7 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
                             placeholder="搜索文章..."
                         />
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg class="h-4 w-4 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
@@ -53,7 +53,7 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
                         <a
                             href={link.href}
                             class:list={[
-                                'inline-flex items-center px-1 pt-1 text-sm font-medium',
+                                'inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200',
                                 normalizedPath === (link.href === '/' ? '' : link.href)
                                     ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400'
                                     : 'text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:border-b-2 hover:border-primary-300 dark:hover:border-primary-700'
@@ -71,26 +71,28 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
                     <button 
                         type="button" 
                         id="mobile-search-button"
-                        class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 mr-2"
+                        class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 mr-2 transition-colors"
                         aria-expanded="false"
+                        aria-label="搜索"
                     >
                         <span class="sr-only">搜索</span>
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </button>
 
                     <button 
                         type="button" 
-                        class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+                        class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 transition-colors"
                         id="mobile-menu-button"
                         aria-expanded="false"
+                        aria-label="打开菜单"
                     >
                         <span class="sr-only">打开菜单</span>
-                        <svg class="h-6 w-6 block" id="menu-open-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="h-6 w-6 block" id="menu-open-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
-                        <svg class="h-6 w-6 hidden" id="menu-close-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="h-6 w-6 hidden" id="menu-close-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
@@ -108,15 +110,16 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
                     placeholder="搜索文章..."
                 />
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg class="h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </div>
                 <button
                     id="mobile-search-close"
                     class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    aria-label="关闭搜索"
                 >
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
@@ -226,54 +229,55 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
 </style>
 
 <script>
-    const header = document.getElementById('header-bg');
-    const scrollThreshold = 50;
-
-    function updateHeaderBackground() {
-        if (window.scrollY > scrollThreshold) {
-            header?.classList.add('scrolled');
-        } else {
-            header?.classList.remove('scrolled');
-        }
-    }
-
-    // 初始检查
-    updateHeaderBackground();
-
-    // 添加滚动事件监听
-    window.addEventListener('scroll', updateHeaderBackground);
-
-    // 移动端菜单逻辑
-    const mobileMenuButton = document.getElementById('mobile-menu-button');
-    const mobileMenu = document.getElementById('mobile-menu');
-    const menuOpenIcon = document.getElementById('menu-open-icon');
-    const menuCloseIcon = document.getElementById('menu-close-icon');
-
-    if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
-        mobileMenuButton.addEventListener('click', () => {
-            const expanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
-            
-            // 切换菜单状态
-            mobileMenuButton.setAttribute('aria-expanded', (!expanded).toString());
-            
-            if (expanded) {
-                // 直接隐藏菜单，不使用过渡效果
-                mobileMenu.classList.add('hidden');
-            } else {
-                // 直接显示菜单，不使用过渡效果
-                mobileMenu.classList.remove('hidden');
-            }
-            
-            // 切换图标
-            menuOpenIcon.classList.toggle('hidden');
-            menuCloseIcon.classList.toggle('hidden');
-        });
-    }
+    // 确保脚本适用于视图转换
+    function initHeader() {
+        const header = document.getElementById('header-bg');
+        const scrollThreshold = 50;
     
-    // 移动端主题切换容器点击处理
-    document.addEventListener('DOMContentLoaded', () => {
-        const themeToggleContainer = document.getElementById('theme-toggle-container');
+        function updateHeaderBackground() {
+            if (window.scrollY > scrollThreshold) {
+                header?.classList.add('scrolled');
+            } else {
+                header?.classList.remove('scrolled');
+            }
+        }
+    
+        // 初始检查
+        updateHeaderBackground();
+    
+        // 添加滚动事件监听
+        window.addEventListener('scroll', updateHeaderBackground);
+    
+        // 移动端菜单逻辑
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const menuOpenIcon = document.getElementById('menu-open-icon');
+        const menuCloseIcon = document.getElementById('menu-close-icon');
+    
+        if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
+            mobileMenuButton.addEventListener('click', () => {
+                const expanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
+                
+                // 切换菜单状态
+                mobileMenuButton.setAttribute('aria-expanded', (!expanded).toString());
+                
+                if (expanded) {
+                    // 直接隐藏菜单，不使用过渡效果
+                    mobileMenu.classList.add('hidden');
+                } else {
+                    // 直接显示菜单，不使用过渡效果
+                    mobileMenu.classList.remove('hidden');
+                }
+                
+                // 切换图标
+                menuOpenIcon.classList.toggle('hidden');
+                menuCloseIcon.classList.toggle('hidden');
+            });
+        }
         
+        // 移动端主题切换容器点击处理
+        const themeToggleContainer = document.getElementById('theme-toggle-container');
+            
         if (themeToggleContainer) {
             themeToggleContainer.addEventListener('click', (e) => {
                 const target = e.target as HTMLElement;
@@ -286,10 +290,31 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
                 }
             });
         }
-    });
+        
+        // 移动端搜索按钮
+        const mobileSearchButton = document.getElementById('mobile-search-button');
+        const mobileSearchPanel = document.getElementById('mobile-search-panel');
+        const mobileSearch = document.getElementById('mobile-search');
+        const mobileSearchClose = document.getElementById('mobile-search-close');
+        
+        if (mobileSearchButton && mobileSearchPanel) {
+            mobileSearchButton.addEventListener('click', () => {
+                mobileSearchPanel.classList.remove('hidden');
+                mobileSearchPanel.classList.add('show');
+                if (mobileSearch) mobileSearch.focus();
+            });
+            
+            if (mobileSearchClose) {
+                mobileSearchClose.addEventListener('click', () => {
+                    mobileSearchPanel.classList.add('hidden');
+                    mobileSearchPanel.classList.remove('show');
+                });
+            }
+        }
+    }
     
     // 搜索功能逻辑
-    document.addEventListener('DOMContentLoaded', () => {
+    function initSearch() {
         // 搜索节流函数
         function debounce<T extends (...args: any[]) => void>(func: T, wait: number): (...args: Parameters<T>) => void {
             let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -305,13 +330,10 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
         const desktopList = document.getElementById('desktop-search-list');
         const desktopMessage = document.getElementById('desktop-search-message');
         
-        const mobileSearchButton = document.getElementById('mobile-search-button');
-        const mobileSearchPanel = document.getElementById('mobile-search-panel');
         const mobileSearch = document.getElementById('mobile-search');
         const mobileResults = document.getElementById('mobile-search-results');
         const mobileList = document.getElementById('mobile-search-list');
         const mobileMessage = document.getElementById('mobile-search-message');
-        const mobileSearchClose = document.getElementById('mobile-search-close');
         
         // 文章对象的接口定义
         interface Article {
@@ -325,15 +347,19 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
         }
         
         let articles: Article[] = [];
+        let isArticlesLoaded = false;
         
         // 获取文章数据
         async function fetchArticles() {
+            if (isArticlesLoaded && articles.length > 0) return;
+            
             try {
                 const response = await fetch('/api/search');
                 if (!response.ok) {
                     throw new Error('获取文章数据失败');
                 }
                 articles = await response.json();
+                isArticlesLoaded = true;
             } catch (error) {
                 console.error('获取文章失败:', error);
             }
@@ -481,7 +507,7 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
         if (desktopSearch && desktopResults) {
             desktopSearch.addEventListener('focus', () => {
                 desktopResults.classList.remove('hidden');
-                if (!articles.length) fetchArticles();
+                if (!isArticlesLoaded) fetchArticles();
             });
             
             desktopSearch.addEventListener('input', (e: Event) => {
@@ -508,39 +534,49 @@ const normalizedPath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : cu
         }
         
         // 移动端搜索逻辑
-        if (mobileSearchButton && mobileSearchPanel) {
-            mobileSearchButton.addEventListener('click', () => {
-                mobileSearchPanel.classList.remove('hidden');
-                mobileSearchPanel.classList.add('show');
-                if (mobileSearch) mobileSearch.focus();
-                if (!articles.length) fetchArticles();
+        if (mobileSearch && mobileResults) {
+            mobileSearch.addEventListener('input', (e: Event) => {
+                mobileResults.classList.remove('hidden');
+                const target = e.target as HTMLInputElement;
+                if (target && target.value !== undefined) {
+                    debouncedMobileSearch(target.value);
+                    if (!isArticlesLoaded) fetchArticles();
+                }
             });
             
-            if (mobileSearchClose) {
-                mobileSearchClose.addEventListener('click', () => {
-                    mobileSearchPanel.classList.add('hidden');
-                    mobileSearchPanel.classList.remove('show');
-                });
-            }
-            
-            if (mobileSearch && mobileResults) {
-                mobileSearch.addEventListener('input', (e: Event) => {
-                    mobileResults.classList.remove('hidden');
-                    const target = e.target as HTMLInputElement;
-                    if (target && target.value !== undefined) {
-                        debouncedMobileSearch(target.value);
-                    }
-                });
-                
-                // ESC键关闭搜索面板
-                mobileSearch.addEventListener('keydown', (e: KeyboardEvent) => {
-                    if (e.key === 'Escape') {
+            // ESC键关闭搜索面板
+            mobileSearch.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                    const mobileSearchPanel = document.getElementById('mobile-search-panel');
+                    if (mobileSearchPanel) {
                         mobileSearchPanel.classList.add('hidden');
                         mobileSearchPanel.classList.remove('show');
                     }
-                });
-            }
+                }
+            });
         }
+    }
+    
+    // 初始化函数
+    function setupHeader() {
+        initHeader();
+        initSearch();
+    }
+    
+    // 在文档加载时初始化一次
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupHeader);
+    } else {
+        setupHeader();
+    }
+    
+    // 支持 Astro 视图转换
+    document.addEventListener('astro:swup:page:view', setupHeader);
+    
+    // 清理
+    document.addEventListener('astro:before-swap', () => {
+        // 移除可能的全局事件监听器
+        window.removeEventListener('scroll', () => {});
     });
 </script>
 

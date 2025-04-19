@@ -9,6 +9,7 @@ import rehypeExternalLinks from "rehype-external-links";
 import sitemap from "@astrojs/sitemap";
 import fs from "node:fs";
 import path from "node:path";
+import swup from "@swup/astro"
 import { SITE_URL } from "./src/consts";
 
 import vercel from "@astrojs/vercel";
@@ -88,6 +89,7 @@ export default defineConfig({
       },
       gfm: true
     }),
+    swup(),
     react(),
     sitemap({
       filter: (page) => !page.includes("/api/"),
