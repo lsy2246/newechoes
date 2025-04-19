@@ -1,0 +1,33 @@
+/* 自定义Header组件样式 */
+
+/* 滚动效果 */
+#header-bg.scrolled {
+  backdrop-filter: blur(6px);
+  background: rgba(249, 250, 251, 0.8);
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* 黑暗模式样式 */
+[data-theme="dark"] #header-bg.scrolled {
+  background: rgba(15, 23, 42, 0.8);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* 移动端搜索面板动画 */
+.show {
+  animation: slide-down 0.2s ease-out forwards;
+}
+
+@keyframes slide-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+} 

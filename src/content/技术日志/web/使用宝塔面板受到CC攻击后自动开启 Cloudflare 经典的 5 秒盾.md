@@ -6,7 +6,7 @@ tags: [cloudflare]
 
 项目地址：[https://github.com/csh733/autouam_control](https://github.com/csh733/autouam_control)
 
-**原理：** 通过检测系统负载（cpu或load）自动开启 Cloudflare UAM 和 challenge（验证码）
+**原理：** 通过检测系统负载（cpu 或 load）自动开启 Cloudflare UAM 和 challenge（验证码）
 
 ## 宝塔面板计划任务
 
@@ -230,3 +230,4 @@ for ((;;)); do
     sleep $interval
     clear
 done
+```

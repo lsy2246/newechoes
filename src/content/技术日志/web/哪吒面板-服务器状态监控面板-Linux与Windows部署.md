@@ -33,7 +33,7 @@ tags: ["服务器探针", "cloudflare"]
 
 #### 部署面板服务
 
-github镜像
+github 镜像
 
 ```bash
 curl -L https://raw.githubusercontent.com/naiba/nezha/master/script/install.sh -o nezha.sh && chmod +x nezha.sh
@@ -94,7 +94,7 @@ proxy_set_header Host $host;
 
 [nssm](http://nssm.cc/download)
 
-下载软件后，解压到任意位置，然后按 Win + R 打开运行窗口，cd nssm解压的位置。
+下载软件后，解压到任意位置，然后按 Win + R 打开运行窗口，cd nssm 解压的位置。
 
 ### 二、设置 NSSM
 
@@ -104,7 +104,7 @@ proxy_set_header Host $host;
 nssm install <servername>
 ```
 
->如: nssm install nezha
+> 如: nssm install nezha
 
 弹出 UI，设置如下：
 
@@ -120,11 +120,11 @@ Arguments: 启动参数
 -i {AgentID} -s {Serverip}:{Port} -p {AgentKey} -d
 ```
 
->例如：
+> 例如：
 >
->-i 10 -s 8.8.8.8:55555 -p 8aeccc7babe9c3cb0 -d
+> -i 10 -s 8.8.8.8:55555 -p 8aeccc7babe9c3cb0 -d
 >
->自己对应修改，填写完毕后，点击 Install Servce。
+> 自己对应修改，填写完毕后，点击 Install Servce。
 
 ### 三、启动服务
 

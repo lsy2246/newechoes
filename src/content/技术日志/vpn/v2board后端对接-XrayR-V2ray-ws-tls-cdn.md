@@ -4,7 +4,7 @@ date: 2023-04-06T19:23:00Z
 tags: ["v2board"]
 ---
 
-确保v2board版本在1.2.5及以上
+确保 v2board 版本在 1.2.5 及以上
 
 ## 一、安装与更新
 
@@ -14,7 +14,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/XrayR-project/XrayR-release/ma
 
 ## 二、域名配置
 
-将域名托管到cloudflared
+将域名托管到 cloudflared
 
 ## 三、同步时间（重要）
 
@@ -53,20 +53,19 @@ ntpdate time.nist.gov
 
 - 节点名称：随便填写
 - 权限组：随便填写
-- 节点地址：填cf的ip或者伪装的域名
+- 节点地址：填 cf 的 ip 或者伪装的域名
 - TLS：伪装的域名
 - 端口：443
-- 传输协议：选择websocket
+- 传输协议：选择 websocket
 
 ### 配置协议
 
 ```json
 {
-    "path": "/随便",
-    "headers": 
-    {
-        "Host": "伪装的域名"
-    }
+  "path": "/随便",
+  "headers": {
+    "Host": "伪装的域名"
+  }
 }
 ```
 
@@ -78,7 +77,7 @@ ntpdate time.nist.gov
 
 ```yaml
 Log:
-  Level: warning # Log level: none, error, warning, info, debug 
+  Level: warning # Log level: none, error, warning, info, debug
   AccessPath: # /etc/XrayR/access.Log
   ErrorPath: # /etc/XrayR/error.log
 DnsConfigPath: # /etc/XrayR/dns.json # Path to dns config, check https://xtls.github.io/config/dns.html for help
@@ -92,13 +91,12 @@ ConnectionConfig:
   DownlinkOnly: 4 # Time limit when the connection is closed after the uplink is closed, Second
   BufferSize: 64 # The internal cache size of each connection, kB
 Nodes:
-  -
-    PanelType: "NewV2board" ## 对接的面板类型: SSpanel, V2board, NewV2board, PMpanel, Proxypanel, V2RaySocks
+  - PanelType: "NewV2board" ## 对接的面板类型: SSpanel, V2board, NewV2board, PMpanel, Proxypanel, V2RaySocks
     ApiConfig:
-      ApiHost: "https://****.com"  ## 面板域名地址，或自定义个专用后端对接不提供访问的域名
-      ApiKey: "*****"   ## 面板设置的通讯密钥
-      NodeID: 1  ## 前端节点id
-      NodeType: V2ray  ## 对接的节点类型:可选V2ray, Shadowsocks, Trojan
+      ApiHost: "https://****.com" ## 面板域名地址，或自定义个专用后端对接不提供访问的域名
+      ApiKey: "*****" ## 面板设置的通讯密钥
+      NodeID: 1 ## 前端节点id
+      NodeType: V2ray ## 对接的节点类型:可选V2ray, Shadowsocks, Trojan
       Timeout: 30 # Timeout for the api request
       EnableVless: false # Enable Vless for V2ray Type
       EnableXTLS: false # Enable XTLS for V2ray and Trojan
@@ -113,8 +111,8 @@ CertConfig:
   Provider: cloudflare # DNS cert provider, Get the full support list here: https://go-acme.github.io/lego/dns/
   Email: test@me.com
   DNSEnv: # DNS ENV option used by DNS provider
-    CLOUDFLARE_EMAIL: test@me.com        ##CF登录邮箱
-    CLOUDFLARE_API_KEY: 57b4d8ec82ec3e    ##CF全局api
+    CLOUDFLARE_EMAIL: test@me.com ##CF登录邮箱
+    CLOUDFLARE_API_KEY: 57b4d8ec82ec3e ##CF全局api
 ```
 
 ## 六、启动 XrayR

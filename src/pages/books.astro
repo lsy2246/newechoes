@@ -1,6 +1,6 @@
 ---
 import Layout from '@/components/Layout.astro';
-import MediaGrid from '@/components/MediaGrid.astro';
+import MediaGrid from '@/components/MediaGrid.tsx';
 import { SITE_NAME, DOUBAN_ID } from '@/consts';
 ---
 
@@ -9,5 +9,6 @@ import { SITE_NAME, DOUBAN_ID } from '@/consts';
     type="book" 
     title="我读过的书" 
     doubanId={DOUBAN_ID}
+    client:load
   />
 </Layout> 

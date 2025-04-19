@@ -25,7 +25,7 @@ tags: []
 5. 散点图:`scatter`​
 6. 条形图:`barh`​
 
-## 调整x(y)轴的刻度
+## 调整 x(y)轴的刻度
 
 ​`pyplot.xticks()`​
 
@@ -35,7 +35,7 @@ tags: []
 
 传入一个参数(包含数字的可迭代对象),步长合适即可
 
-### 添加字符串到x(y)轴
+### 添加字符串到 x(y)轴
 
 传入两个参数,分别是两个可迭代对象,数字和字符串会一一对应,只显示字符串
 
@@ -55,8 +55,8 @@ pyplot.savefig(path, transparent=True, bbox_inches='tight')
 
 ## 图形表述
 
-x轴:`pyplot.xlabel()`​  
-y轴:`pyplot.ylabel()`​  
+x 轴:`pyplot.xlabel()`​  
+y 轴:`pyplot.ylabel()`​  
 标题:`pyplot.title()`​
 
 ## 网格

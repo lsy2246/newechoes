@@ -4,29 +4,29 @@ date: 2023-12-15T20:53:00Z
 tags: []
 ---
 
-## 一、安装VMware Workstation Pro
+## 一、安装 VMware Workstation Pro
 
 官方下载链接: [VMware Workstation Pro](https://www.vmware.com/cn/products/workstation-pro/workstation-pro-evaluation.html)
 激活教程: 百度
 
-## 二、unlocker解锁VM以支持macOS系统
+## 二、unlocker 解锁 VM 以支持 macOS 系统
 
 下载链接: [Unlocker Releases](https://github.com/DrDonk/unlocker/releases)
 
-1. 完全关闭VMware
+1. 完全关闭 VMware
 2. 下载完成后，解压压缩包，右键点击`windows/unlock.exe`，选择以管理员模式运行。
 3. 提示`press enter key to continue`说明安装成功
 
 ## 三.下载 `macOS Recovery` 镜像
 
-> macOS Recovery模式可以用来给mac 电脑恢复和重新安装操作系统，而虚拟机也可以通过此模式来安装 macOS
-> 操作系统，所以我们需要下载一个 macOS Recovery 镜像来引导虚拟机进入macOS Recovery模式。
+> macOS Recovery 模式可以用来给 mac 电脑恢复和重新安装操作系统，而虚拟机也可以通过此模式来安装 macOS
+> 操作系统，所以我们需要下载一个 macOS Recovery 镜像来引导虚拟机进入 macOS Recovery 模式。
 
-### 1. 下载python(如果有可以跳过)
+### 1. 下载 python(如果有可以跳过)
 
-Python官方下载地址：[Python下载地址](https://www.python.org/downloads/)
+Python 官方下载地址：[Python 下载地址](https://www.python.org/downloads/)
 
-Microsoft下载地址: [Microsoft下载地址](https://apps.microsoft.com/search?query=pyhon&hl=zh-cn&gl=CN)
+Microsoft 下载地址: [Microsoft 下载地址](https://apps.microsoft.com/search?query=pyhon&hl=zh-cn&gl=CN)
 
 ### 2. 下载 macOS Recovery 镜像
 
@@ -44,24 +44,24 @@ curl -OL https://raw.githubusercontent.com/acidanthera/OpenCorePkg/master/Utilit
 python3 macrecovery.py -b Mac-FFE5EF870D7BA81A -m 00000000000000000 download
 ```
 
-> 下载完成后，可以看到当前文件夹多出了一个com.apple.recovery.boot
+> 下载完成后，可以看到当前文件夹多出了一个 com.apple.recovery.boot
 >
-> 文件夹，打开之后有一个BaseSystem.dmg
+> 文件夹，打开之后有一个 BaseSystem.dmg
 >
-> 文件，这就是macOSRecovery镜像；但是此镜像不能直接用来引导虚拟机，需要转换一下格式才能用来引导虚拟机。
+> 文件，这就是 macOSRecovery 镜像；但是此镜像不能直接用来引导虚拟机，需要转换一下格式才能用来引导虚拟机。
 
-下载macOSRecovery镜像的教程来自[这里](https://dortania.github.io/OpenCore-Install-Guide/installer-guide/windows-install.html)
+下载 macOSRecovery 镜像的教程来自[这里](https://dortania.github.io/OpenCore-Install-Guide/installer-guide/windows-install.html)
 
 ### 3. 转换 macOS Recovery 镜像
 
 镜像需要用到 qemu-img 工具
-下载链接: [QEMU下载链接](https://qemu.weilnetz.de/w64/)
+下载链接: [QEMU 下载链接](https://qemu.weilnetz.de/w64/)
 
 #### Ⅰ. 下载 qemu 之后，双击 qemu-w64-setup 程序进行安装
 
-安装完毕后，和之前打开命令行的方法一样,打开cmd命令行进入`com.apple.recovery.boot`文件夹
+安装完毕后，和之前打开命令行的方法一样,打开 cmd 命令行进入`com.apple.recovery.boot`文件夹
 
-Ⅱ. 打开此路径后，如果qemu-w64是默认安装就输入
+Ⅱ. 打开此路径后，如果 qemu-w64 是默认安装就输入
 
 ```bash
 c:\"Program Files"\qemu\qemu-img convert -O vmdk -o compat6 BaseSystem.dmg recovery.vmdk
@@ -85,11 +85,11 @@ CPU配置，处理器数量:1,内核数量:自定义
 
 ## 五.设置引导硬盘
 
-点击虚拟机名字->编辑虚拟机设置->添加->硬盘->磁盘类型默认->使用现在已有虚拟磁盘 ->将选择第三步生成的recovery.vmdk->选择保持原有格式->然后保存
+点击虚拟机名字->编辑虚拟机设置->添加->硬盘->磁盘类型默认->使用现在已有虚拟磁盘 ->将选择第三步生成的 recovery.vmdk->选择保持原有格式->然后保存
 
 ## 六.开始安装
 
-### 1.打开VMWare虚拟机，开启虚拟机电源，虚拟机会自动进入引导界面
+### 1.打开 VMWare 虚拟机，开启虚拟机电源，虚拟机会自动进入引导界面
 
 ### 2.选择语言
 
@@ -102,9 +102,9 @@ CPU配置，处理器数量:1,内核数量:自定义
 
 ## 七.安装完成之后
 
-安装完成进入系统之后，需要安装 vmware-tools 工具，这样才可以调整窗口分辨率以及开启 HiDPI。右键点击 VMware 虚拟机管理界面的虚拟机选项即可看到  安装 vmware-tools 工具选项，点击后虚拟机内会弹出安装界面，按照提示一步步安装，然后重启即可。
+安装完成进入系统之后，需要安装 vmware-tools 工具，这样才可以调整窗口分辨率以及开启 HiDPI。右键点击 VMware 虚拟机管理界面的虚拟机选项即可看到 安装 vmware-tools 工具选项，点击后虚拟机内会弹出安装界面，按照提示一步步安装，然后重启即可。
 
-## vmware安装苹果虚拟机卡在苹果图标位置不动或者最新AMD客户机操作系统已禁用 CPU。请关闭或重置虚拟机
+## vmware 安装苹果虚拟机卡在苹果图标位置不动或者最新 AMD 客户机操作系统已禁用 CPU。请关闭或重置虚拟机
 
 修改虚拟机目录下`macOS 13.vmx`文件末尾加入
 

@@ -1,23 +1,23 @@
 ---
 title: "服务器探针（ServerStatus探针）安装教程"
 date: 2021-07-31T10:02:00+08:00
-tags: [ "服务器探针" ]
+tags: ["服务器探针"]
 ---
 
 ## 食用方式
 
 PS：（以下使用方式二，方式一直接运行傻瓜安装即可）
 
-### 脚本进行安装（会要求安装Caddy，与Nginx不能同时安装，有能力的自行DIY）
+### 脚本进行安装（会要求安装 Caddy，与 Nginx 不能同时安装，有能力的自行 DIY）
 
 ```bash
 wget https://raw.githubusercontent.com/CokeMine/ServerStatus-Hotaru/master/status.sh
 bash status.sh
 ```
 
-### 手动编译安装，可搭配宝塔使用Nginx提供服务
+### 手动编译安装，可搭配宝塔使用 Nginx 提供服务
 
-#### 下载ServerStatus-USee
+#### 下载 ServerStatus-USee
 
 ```bash
 git clone https://gitee.com/useenet/serverTZ.git
@@ -26,7 +26,7 @@ mv serverTZ /usr/serverTZ
 
 ## 安装服务端
 
-### 使用宝塔创建一个空网页（PS：域名框使用域名或IP均可）
+### 使用宝塔创建一个空网页（PS：域名框使用域名或 IP 均可）
 
 ### 复制监控展示页到宝塔新建的网站目录中
 
@@ -58,35 +58,35 @@ vim config.json
 ```json
 {
   "servers": [
-  {
-    "username": "username",
-    "password": "password",
-    "name": "vpsname",
-    "type": "type",
-    "host": "No",
-    "location": "China",
-    "disabled": false,
-    "region": "CN"
+    {
+      "username": "username",
+      "password": "password",
+      "name": "vpsname",
+      "type": "type",
+      "host": "No",
+      "location": "China",
+      "disabled": false,
+      "region": "CN"
     },
     {
-    "username": "连接用户名",
-    "password": "连接密码",
-    "name": "监控显示名称",
-    "type": "监控显示类型",
-    "host": "No",
-    "location": "国家",
-    "disabled": false,
-    "region": "国旗"
+      "username": "连接用户名",
+      "password": "连接密码",
+      "name": "监控显示名称",
+      "type": "监控显示类型",
+      "host": "No",
+      "location": "国家",
+      "disabled": false,
+      "region": "国旗"
     }
   ]
 }
 ```
 
-### 在宝塔中打开serverTZ默认端口
+### 在宝塔中打开 serverTZ 默认端口
 
 > 35601
 
-### 编辑完成后，在server目下进行测试,webdir为web站点路径
+### 编辑完成后，在 server 目下进行测试,webdir 为 web 站点路径
 
 ```bash
 ./sergate --config=config.json --web-dir=/www/wwwroot/站点
@@ -115,14 +115,12 @@ systemctl enable serverTZs.service
 ```
 
 > #赋权  
-> #拷贝进系统服务目录
-> #重新加载系统服务
-> #启动服务端并设置开机自启  
+> #拷贝进系统服务目录 #重新加载系统服务 #启动服务端并设置开机自启
 
 ### 在配置文件中增加服务器主机后重启
 
 ```bash
-systemctl restart serverTZs.service  
+systemctl restart serverTZs.service
 ```
 
 ## 安装客户端
@@ -142,7 +140,7 @@ mv serverTZ /usr/serverTZ
 cd /usr/serverTZ/clients
 ```
 
-### 检查已安装的python版本,版本需要2.7及以上
+### 检查已安装的 python 版本,版本需要 2.7 及以上
 
 ```python
 python -V
@@ -165,7 +163,7 @@ vim status-client.py
 
 ```python
 SERVER = "127.0.0.1"        #修改为服务端地址
-PORT = 35601      
+PORT = 35601
 USER = "USER"       #客户端用户名
 PASSWORD = "USER_PASSWORD"  #客户端密码
 INTERVAL = 1        #更新间隔
@@ -193,13 +191,12 @@ cd /usr/serverTZ/systemd/
 chmod +x serverTZc.service
 cp serverTZc.service /lib/systemd/system
 systemctl daemon-reload
-systemctl start serverTZc.service  
+systemctl start serverTZc.service
 systemctl enable serverTZc.service
 ```
 
 > #赋权  
-> #拷贝进系统服务目录
-> #重新加载系统服务  
+> #拷贝进系统服务目录 #重新加载系统服务  
 > #启动服务端并设置开机自启
 
 在配置文件中增加服务器主机后重启

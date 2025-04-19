@@ -100,7 +100,7 @@ export const Countdown: React.FC<CountdownProps> = ({ targetDate, className = ''
 
     const TimeBox = ({ value, label }: { value: number; label: string }) => (
         <div className="text-center px-4">
-            <div className="text-4xl font-light transition-all duration-300">
+            <div className="text-4xl font-light">
                 {value.toString().padStart(2, '0')}
             </div>
             <div className="text-sm mt-1 text-gray-500 dark:text-gray-400">{label}</div>

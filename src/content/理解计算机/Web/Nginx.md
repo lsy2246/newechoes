@@ -27,14 +27,14 @@ events {
 http {
     include       mime.types;   #文件扩展名与文件类型映射表
     default_type  application/octet-stream; #默认文件类型，默认为text/plain
-    #access_log off; #取消服务日志  
+    #access_log off; #取消服务日志
     log_format myFormat '$remote_addr–$remote_user [$time_local] $request $status $body_bytes_sent $http_referer $http_user_agent $http_x_forwarded_for'; #自定义格式
     access_log log/access.log myFormat;  #combined为日志格式的默认值
     sendfile on;   #允许sendfile方式传输文件，默认为off，可以在http块，server块，location块。
     sendfile_max_chunk 100k;  #每个进程每次调用传输数量不能大于设定的值，默认为0，即不设上限。
     keepalive_timeout 65;  #连接超时时间，默认为75s，可以在http，server，location块。
 
-    upstream mysvr {   
+    upstream mysvr {
       server 127.0.0.1:7878;
       server 192.168.10.121:3333 backup;  #热备
     }
@@ -42,14 +42,14 @@ http {
     server {
         keepalive_requests 120; #单连接请求上限次数。
         listen       4545;   #监听端口
-        server_name  127.0.0.1;   #监听地址     
+        server_name  127.0.0.1;   #监听地址
         location  ~*^.+$ {       #请求的url过滤，正则匹配，~为区分大小写，~*为不区分大小写。
            #root path;  #根目录
            #index vv.txt;  #设置默认页
            proxy_pass  http://mysvr;  #请求转向mysvr 定义的服务器列表
            deny 127.0.0.1;  #拒绝的ip
-           allow 172.18.5.54; #允许的ip         
-        } 
+           allow 172.18.5.54; #允许的ip
+        }
     }
 }
 ```

@@ -190,7 +190,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
           </div>
           <button 
             onClick={() => fetchData()} 
-            className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-800/50 text-red-700 dark:text-red-300 rounded transition-colors"
+            className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-800/50 text-red-700 dark:text-red-300 rounded"
           >
             重试
           </button>
@@ -227,14 +227,14 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
         {items.map((item, index) => (
           <div 
             key={`${item.title}-${index}`} 
-            className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
+            className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg"
           >
             <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
               <div className="relative pb-[140%] overflow-hidden">
                 <img 
                   src={item.imageUrl} 
                   alt={item.title} 
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                  className="absolute inset-0 w-full h-full object-cover hover:scale-105"
                   loading="lazy"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
@@ -263,7 +263,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
           <button
             onClick={() => handlePageChange(pagination.current - 1)}
             disabled={!pagination.hasPrev || pagination.current <= 1 || isPageChanging}
-            className={`px-4 py-2 rounded transition-colors ${!pagination.hasPrev || pagination.current <= 1 || isPageChanging 
+            className={`px-4 py-2 rounded ${!pagination.hasPrev || pagination.current <= 1 || isPageChanging 
               ? 'bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed' 
               : 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600'}`}
             aria-label="上一页"
@@ -286,7 +286,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
           <button
             onClick={() => handlePageChange(pagination.current + 1)}
             disabled={!pagination.hasNext || pagination.current >= pagination.total || isPageChanging}
-            className={`px-4 py-2 rounded transition-colors ${!pagination.hasNext || pagination.current >= pagination.total || isPageChanging 
+            className={`px-4 py-2 rounded ${!pagination.hasNext || pagination.current >= pagination.total || isPageChanging 
               ? 'bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed' 
               : 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600'}`}
             aria-label="下一页"

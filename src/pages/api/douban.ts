@@ -59,9 +59,6 @@ export const GET: APIRoute = async ({ request }) => {
       }
     });
   }
-
-  // 添加缓存键的构建，用于区分不同的请求
-  const cacheKey = `douban_${type}_${doubanId}_${start}`;
   
   // 尝试从缓存获取数据
   try {
@@ -109,14 +106,55 @@ export const GET: APIRoute = async ({ request }) => {
         }, REQUEST_TIMEOUT);
         
         if (!response.ok) {
-          throw new Error(`豆瓣请求失败，状态码: ${response.status}`);
+          // 根据状态码提供更详细的错误信息
+          let errorMessage = `豆瓣请求失败，状态码: ${response.status}`;
+          
+          if (response.status === 403) {
+            errorMessage = `豆瓣接口返回403禁止访问，可能是请求频率受限`;
+            console.error(errorMessage);
+            
+            // 返回更友好的错误信息
+            return new Response(JSON.stringify({ 
+              error: '豆瓣接口暂时不可用', 
+              message: '请求频率过高，豆瓣服务器已限制访问，请稍后再试',
+              status: 403
+            }), {
+              status: 403,
+              headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-store, max-age=0'
+              }
+            });
+          } else if (response.status === 404) {
+            errorMessage = `未找到豆瓣用户或内容 (ID: ${doubanId})`;
+          } else if (response.status === 429) {
+            errorMessage = '豆瓣API请求过于频繁，被限流';
+          } else if (response.status >= 500) {
+            errorMessage = '豆瓣服务器内部错误';
+          }
+          
+          throw new Error(errorMessage);
         }
         
         const html = await response.text();
         
         // 检查是否包含验证码页面的特征
         if (html.includes('验证码') || html.includes('captcha') || html.includes('too many requests')) {
-          throw new Error('请求被豆瓣限制，需要验证码');
+          const errorMessage = '请求被豆瓣限制，需要验证码';
+          console.error(errorMessage);
+          
+          // 返回更友好的错误信息
+          return new Response(JSON.stringify({ 
+            error: '豆瓣接口暂时不可用', 
+            message: '请求需要验证码验证，可能是因为请求过于频繁',
+            status: 403
+          }), {
+            status: 403,
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-store, max-age=0'
+            }
+          });
         }
         
         const $ = load(html);
@@ -157,6 +195,21 @@ export const GET: APIRoute = async ({ request }) => {
             await delay(RETRY_DELAY * retries);
             continue;
           } else {
+            // 检查页面内容，判断是否是访问限制
+            if (html.includes('禁止访问') || html.includes('访问受限') || html.includes('频繁')) {
+              return new Response(JSON.stringify({ 
+                error: '豆瓣接口访问受限', 
+                message: '您的访问请求过于频繁，豆瓣已暂时限制访问',
+                status: 403
+              }), {
+                status: 403,
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Cache-Control': 'no-store, max-age=0'
+                }
+              });
+            }
+            
             throw new Error('未找到电影/图书内容，可能是页面结构已变化');
           }
         }
@@ -275,9 +328,56 @@ export const GET: APIRoute = async ({ request }) => {
     
     // 所有尝试都失败了
     console.error('所有尝试都失败了:', lastError);
+    
+    // 检查是否是常见错误类型并返回对应错误信息
+    const errorMessage = lastError?.message || '未知错误';
+    
+    // 根据错误信息判断错误类型
+    if (errorMessage.includes('403') || errorMessage.includes('禁止访问') || errorMessage.includes('频繁')) {
+      return new Response(JSON.stringify({ 
+        error: '豆瓣接口访问受限', 
+        message: '请求频率过高，豆瓣服务器已限制访问，请稍后再试',
+        status: 403
+      }), {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      });
+    }
+    
+    if (errorMessage.includes('404') || errorMessage.includes('未找到')) {
+      return new Response(JSON.stringify({ 
+        error: '未找到豆瓣内容', 
+        message: `未找到ID为 ${doubanId} 的${type === 'movie' ? '电影' : '图书'}内容`,
+        status: 404
+      }), {
+        status: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      });
+    }
+    
+    if (errorMessage.includes('超时')) {
+      return new Response(JSON.stringify({ 
+        error: '豆瓣接口请求超时', 
+        message: '请求豆瓣服务器超时，请稍后再试',
+        status: 408
+      }), {
+        status: 408,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      });
+    }
+    
     return new Response(JSON.stringify({ 
       error: '获取豆瓣数据失败', 
-      message: lastError?.message || '未知错误'
+      message: errorMessage
     }), {
       status: 500,
       headers: {

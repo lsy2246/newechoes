@@ -72,7 +72,7 @@ ssh -p 7222 -o StrictHostKeyChecking=no git@127.0.0.1 "SSH_ORIGINAL_COMMAND=\"$S
 
 ### 3. 创建`docker-compose.yml` 文件并配置
 
-> 将下面的USER_UID=1000 USER_GID=1000 换为得到uid 和 gid
+> 将下面的 USER_UID=1000 USER_GID=1000 换为得到 uid 和 gid
 
 ```yaml
 version: "3"
@@ -149,3 +149,4 @@ server {
         proxy_set_header X-Forwarded-Port $server_port;
     }
 }
+```

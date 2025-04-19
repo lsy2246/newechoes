@@ -4,41 +4,41 @@ date: 2024-05-03T20:32:15+08:00
 tags: []
 ---
 
-## 安装bypy
+## 安装 bypy
 
 ### 安装 pip 和虚拟环境
 
 1. 安装虚拟环境创建工具：
 
-    ```bash
-    sudo apt-get install python3-venv -y
-    ```
+   ```bash
+   sudo apt-get install python3-venv -y
+   ```
 
 2. 创建一个新的虚拟环境：
 
-    ```bash
-    python3 -m venv "/var/script/venv"
-    ```
+   ```bash
+   python3 -m venv "/var/script/venv"
+   ```
 
 3. 激活虚拟环境：
 
-    ```bash
-    source "/var/script/venv/bin/activate"
-    ```
+   ```bash
+   source "/var/script/venv/bin/activate"
+   ```
 
 4. 安装 Python 库
 
-    1. 安装 bypy：
+   1. 安装 bypy：
 
-        ```bash
-        pip install bypy
-        ```
+      ```bash
+      pip install bypy
+      ```
 
-    2. 安装 requests：
+   2. 安装 requests：
 
-        ```bash
-        pip install requests
-        ```
+      ```bash
+      pip install requests
+      ```
 
 ### bypy 设置
 
@@ -52,51 +52,51 @@ tags: []
 
 ##### bypy 基本操作
 
-* `bypy info`：查看空间使用信息。
-* `bypy list`：查看目录信息。
-* `bypy upload`：上传根目录所有文件。
-* `bypy downdir`：把云盘上的内容同步到本地。
-* `bypy compare`：比较本地当前目录和云盘根目录。
+- `bypy info`：查看空间使用信息。
+- `bypy list`：查看目录信息。
+- `bypy upload`：上传根目录所有文件。
+- `bypy downdir`：把云盘上的内容同步到本地。
+- `bypy compare`：比较本地当前目录和云盘根目录。
 
 ## 安装阿里网盘备份工具
 
-Github项目地址:[https://github.com/tickstep/aliyunpan](https://github.com/tickstep/aliyunpan)
+Github 项目地址:[https://github.com/tickstep/aliyunpan](https://github.com/tickstep/aliyunpan)
 
 1. 下载工具包
 
-    ```bash
-    wget -P "/var/script" https://github.com/tickstep/aliyunpan/releases/download/v0.3.2/aliyunpan-v0.3.2-linux-amd64.zip -O "/var/script/aliyunpan.zip"
-    ```
+   ```bash
+   wget -P "/var/script" https://github.com/tickstep/aliyunpan/releases/download/v0.3.2/aliyunpan-v0.3.2-linux-amd64.zip -O "/var/script/aliyunpan.zip"
+   ```
 
 2. 解压工具包
 
-    ```bash
-    unzip "/var/script/aliyunpan.zip" -d "/var/script"
-    ```
+   ```bash
+   unzip "/var/script/aliyunpan.zip" -d "/var/script"
+   ```
 
 3. 删除压缩包
 
-    ```bash
-    rm "/var/script/aliyunpan.zip"
-    ```
+   ```bash
+   rm "/var/script/aliyunpan.zip"
+   ```
 
 4. 重命名工具包名
 
-    ```bash
-    mv "/var/script/$(ls "/var/script" | grep "aliyunpan")" "/var/script/aliyunpan"
-    ```
+   ```bash
+   mv "/var/script/$(ls "/var/script" | grep "aliyunpan")" "/var/script/aliyunpan"
+   ```
 
 5. 登录阿里云盘
 
-    ```bash
-    /var/script/aliyunpan/aliyunpan login
-    ```
+   ```bash
+   /var/script/aliyunpan/aliyunpan login
+   ```
 
 ## Shell 备份脚本
 
 > 将`数据路径`，`网站根目录名称`，`数据库名称`，`数据库用户名`，`数据库密码`改为自己的
 
-### 使用于只用docker-compose搭建,只需要备份文件,并上传到网盘
+### 使用于只用 docker-compose 搭建,只需要备份文件,并上传到网盘
 
 ```bash
 #!/bin/bash
@@ -123,7 +123,7 @@ for item in "$web_path"/*; do
 done
 ```
 
-### 适用于 mysql+nginx的网站,需要备份文件和数据库,并上传到网盘
+### 适用于 mysql+nginx 的网站,需要备份文件和数据库,并上传到网盘
 
 ```bash
 #!/bin/bash
@@ -144,7 +144,7 @@ source ~/myvenv/bin/activate
 for item in "${mysql_arry[@]}"; do
     # 创建SQL备份
     mysqldump -u $user -p$password ${item} > "${item}_${date_time}.sql"
-  
+
     # 检查是否有同名的网站目录
     if [[ " ${web_arry[@]} " =~ " ${item} " ]]; then
         # 切换到网站目录进行压缩
@@ -189,7 +189,7 @@ for item in "${web_arry[@]}"; do
 done
 ```
 
-### 适用于 mysql+nginx的网站,需要备份文件和数据库
+### 适用于 mysql+nginx 的网站,需要备份文件和数据库
 
 ```bash
 #!/bin/bash
@@ -198,7 +198,7 @@ web_path="/var/www"  # 数据路径
 web_arry=("alist" "bitwarden" "blog")  # 网站根目录名称
 mysql_arry=("blog" "study") # 数据库名称
 date_time=$(date +"%Y_%m_%d")
-year=$(date +"%Y") 
+year=$(date +"%Y")
 user=""  # 数据库用户名
 password="" # 数据库密码
 

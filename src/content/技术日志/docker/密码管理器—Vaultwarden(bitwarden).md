@@ -2,7 +2,6 @@
 title: "密码管理器—Vaultwarden(bitwarden)"
 date: 2023-05-18T21:47:00+00:00
 tags: ["Docker-compose"]
-
 ---
 
 ## 1. 安装 Vaultwarden
@@ -10,7 +9,7 @@ tags: ["Docker-compose"]
 使用以下 `docker-compose.yml` 文件部署 Vaultwarden：
 
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   bitwarden:
     image: vaultwarden/server:latest
@@ -34,10 +33,10 @@ services:
 
 > **需要修改的参数**
 >
-> 1. `ssl_certificate` : SSL证书路径
-> 2. `ssl_certificate_key` : SSL证书路径
-> 3. `server_name`: 跟你前面配置的domain相同,案例中为`b.lsy22.com`
-> 4. `proxy_pass` : 运行Vaultwarden的服务器地址和端口，比如本机为127.0.0.1:6666
+> 1. `ssl_certificate` : SSL 证书路径
+> 2. `ssl_certificate_key` : SSL 证书路径
+> 3. `server_name`: 跟你前面配置的 domain 相同,案例中为`b.lsy22.com`
+> 4. `proxy_pass` : 运行 Vaultwarden 的服务器地址和端口，比如本机为 127.0.0.1:6666
 
 ```nginx
 server {
@@ -47,10 +46,10 @@ server {
     listen [::]:443 ssl http2;
 
     server_name b.lsy22.com;  # 将 your_domain.com 替换为您的域名
-  
+
     ssl_certificate /root/.acme.sh/b.lsy22.com/fullchain.cer;  # 填入SSL证书路径
     ssl_certificate_key /root/.acme.sh/b.lsy22.com/b.lsy22.com.key;# 填入SSL证书路径
-  
+
     location / {
         proxy_pass http://127.0.0.1:6666;
         proxy_http_version 1.1;

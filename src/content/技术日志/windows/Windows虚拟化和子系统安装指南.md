@@ -36,9 +36,9 @@ tags: []
 1. 以管理员身份打开 PowerShell（"开始"菜单 >"PowerShell" >右键 >"以管理员身份运行"）。
 2. 使用以下命令安装下载的 WSA 包：
 
-    ```bash
-    Add-AppxPackage "路径\下载的wsa.Msixbundle"
-    ```
+   ```bash
+   Add-AppxPackage "路径\下载的wsa.Msixbundle"
+   ```
 
 ## Windows Subsystem for Linux (WSL)
 
@@ -46,16 +46,16 @@ tags: []
 
 1. 以管理员身份打开 PowerShell 并运行：
 
-    ```bash
-    dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-    ```
+   ```bash
+   dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+   ```
 
 ### 二、检查 WSL2 的要求
 
 按 Win+R 打开运行，输入 `winver` 检查 Windows 版本要求：
 
-* 对于 x64 系统：版本 1903 或更高，内部版本 18362.1049 或更高。
-* 对于 ARM64 系统：版本 2004 或更高，内部版本 19041 或更高。
+- 对于 x64 系统：版本 1903 或更高，内部版本 18362.1049 或更高。
+- 对于 ARM64 系统：版本 2004 或更高，内部版本 19041 或更高。
 
 ### 三、启用虚拟机功能
 
@@ -79,26 +79,26 @@ wsl --set-default-version 2
 
 ### 六、安装 Linux 分发版
 
-1. 访问Microsoft Store，下载想要安装的 Linux 分发版"
+1. 访问 Microsoft Store，下载想要安装的 Linux 分发版"
 2. 切换到 root 用户登录（如需）：
 
    在 PowerShell 中运行
 
-    1. 获取linux名称
+   1. 获取 linux 名称
 
-        ```bash
-        wsl --list
-        ```
+      ```bash
+      wsl --list
+      ```
 
-    2. 切换root用户
+   2. 切换 root 用户
 
-        ```bash
-        指定的Linux分发版 config --default-user root
-        ```
+      ```bash
+      指定的Linux分发版 config --default-user root
+      ```
 
 ## 常见问题处理
 
-* **关闭 WSL 自动挂载 Windows 分区**：
+- **关闭 WSL 自动挂载 Windows 分区**：
   编辑 WSL 配置文件 `/etc/wsl.conf` 并添加内容以禁用自动挂载和 Windows 路径的添加。
 
   ```bash
@@ -111,19 +111,18 @@ wsl --set-default-version 2
   enabled = false
   ```
 
-* **解决无法定位 package screen 的问题**：
+- **解决无法定位 package screen 的问题**：
   在 Linux 分发版中运行 `apt-get update` 来更新软件包列表。
-* **WSL 卸载**：
+- **WSL 卸载**：
   查看已安装的 WSL 环境并卸载指定的 Linux 分发版。
 
   ```bash
   wsl --unregister 指定的Linux分发版
   ```
 
-* **解决 WSLRegisterDistribution 错误**：
+- **解决 WSLRegisterDistribution 错误**：
   在 PowerShell 中运行
 
   ```bash
   Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
   ```
-  

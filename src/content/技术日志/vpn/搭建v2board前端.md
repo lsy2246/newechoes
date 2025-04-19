@@ -12,7 +12,7 @@ tags: ["v2board"]
 
 安装完成后我们登陆宝塔进行环境的安装。
 
-选择使用LNMP的环境安装方式勾选如下信息：
+选择使用 LNMP 的环境安装方式勾选如下信息：
 
 - ☑️ Nginx 1.17
 - ☑️ MySQL 5.6
@@ -20,23 +20,23 @@ tags: ["v2board"]
 
 选择快速编译后进行安装。
 
-## 二、安装Redis和文件信息
+## 二、安装 Redis 和文件信息
 
-宝塔面板 > 软件商店 > 找到PHP 7.3点击设置 > 安装扩展 > `redis` `fileinfo`进行安装。
+宝塔面板 > 软件商店 > 找到 PHP 7.3 点击设置 > 安装扩展 > `redis` `fileinfo`进行安装。
 
 ## 三、解除被禁止的函数
 
-宝塔面板 > 软件商店 > 找到PHP 7.3点击设置 > 禁用功能，将 `putenv` `proc_open` `pcntl_alarm` `pcntl_signal` 从列表中删除。
+宝塔面板 > 软件商店 > 找到 PHP 7.3 点击设置 > 禁用功能，将 `putenv` `proc_open` `pcntl_alarm` `pcntl_signal` 从列表中删除。
 
 ## 四、添加站点
 
 宝塔面板 > 网站 > 添加站点：
 
 - 在域名填入你的域名
-- 在数据库中选择MySQL
+- 在数据库中选择 MySQL
 - 在 PHP 版本中选择 PHP-73
 
-## 五、安装V2Board
+## 五、安装 V2Board
 
 ### 进入站点目录
 
@@ -57,7 +57,7 @@ rm -rf .htaccess 404.html index.html .user.ini
 git clone https://github.com/v2board/v2board.git ./
 ```
 
-### 安装依赖包以及V2board
+### 安装依赖包以及 V2board
 
 ```bash
 sh init.sh
@@ -71,16 +71,16 @@ sh init.sh
    ```nginx
    location /downloads {
    }
-   
-   location / {  
-       try_files $uri $uri/ /index.php$is_args$query_string;  
+
+   location / {
+       try_files $uri $uri/ /index.php$is_args$query_string;
    }
-   
+
    location ~ .*\.(js|css)?$
    {
        expires      1h;
        error_log off;
-       access_log /dev/null; 
+       access_log /dev/null;
    }
    ```
 
@@ -97,13 +97,13 @@ sh init.sh
   php /www/wwwroot/路径/artisan schedule:run
   ```
 
-根据上述信息添加每1分钟执行一次的定时任务。
+根据上述信息添加每 1 分钟执行一次的定时任务。
 
 ## 八、启动队列服务
 
-V2board的邮件系统强依赖队列服务，你想要使用邮件验证及群发邮件必须启动队列服务。下面以宝塔中`supervisor`服务来守护队列服务作为演示。
+V2board 的邮件系统强依赖队列服务，你想要使用邮件验证及群发邮件必须启动队列服务。下面以宝塔中`supervisor`服务来守护队列服务作为演示。
 
-宝塔面板 > 软件商店 > 部署 > 找到Supervisor进行安装，安装完成后点击设置 > 添加守护进程，按照如下填写：
+宝塔面板 > 软件商店 > 部署 > 找到 Supervisor 进行安装，安装完成后点击设置 > 添加守护进程，按照如下填写：
 
 - 名称：填写 `V2board`
 - 运行目录：选择站点目录
@@ -114,11 +114,11 @@ V2board的邮件系统强依赖队列服务，你想要使用邮件验证及群�
 
 ## 常见问题
 
-### 500错误
+### 500 错误
 
 可能的原因：
 
-1. 检查站点根目录权限，递归755，保证目录有可写文件的权限。
-2. Redis扩展没有安装或者Redis没有安装造成的。
-3. 可以通过查看storage/logs下的日志来排查错误或者开启debug模式。
-4. 重启php7.3。
+1. 检查站点根目录权限，递归 755，保证目录有可写文件的权限。
+2. Redis 扩展没有安装或者 Redis 没有安装造成的。
+3. 可以通过查看 storage/logs 下的日志来排查错误或者开启 debug 模式。
+4. 重启 php7.3。

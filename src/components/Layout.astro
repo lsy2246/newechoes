@@ -1,7 +1,7 @@
 ---
 import "@/styles/global.css";
-import Header from "@/components/Header.astro";
-import Footer from "@/components/Footer.astro";
+import Header from "@/components/Header.tsx";
+import {Footer} from "@/components/Footer.tsx";
 import { ICP, PSB_ICP, PSB_ICP_URL, SITE_NAME, SITE_DESCRIPTION } from "@/consts";
 
 // 定义Props接口
@@ -55,21 +55,29 @@ const { title = SITE_NAME, description = SITE_DESCRIPTION, date, author, tags, i
 			<meta property="article:tag" content={tag} />
 		))}
 		<script is:inline>
-			// 立即执行主题初始化
-			const theme = (() => {
-				if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-					return localStorage.getItem('theme');
+			// 立即执行主题初始化，并防止变量重复声明
+			(function() {
+				// 检查变量是否已存在
+				if (typeof window.__themeInitDone === 'undefined') {
+					// 设置标志，表示初始化已完成
+					window.__themeInitDone = true;
+					
+					const theme = (() => {
+						if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
+							return localStorage.getItem('theme');
+						}
+						if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+							return 'dark';
+						}
+						return 'light';
+					})();
+					document.documentElement.dataset.theme = theme;
 				}
-				if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-					return 'dark';
-				}
-				return 'light';
 			})();
-			document.documentElement.dataset.theme = theme;
 		</script>
 	</head>
-	<body class="m-0 w-full h-full bg-gray-50 dark:bg-dark-bg transition-colors duration-300 flex flex-col min-h-screen">
-		<Header />
+	<body class="m-0 w-full h-full bg-gray-50 dark:bg-dark-bg flex flex-col min-h-screen">
+		<Header client:load/>
 		<main class="pt-16 flex-grow">
 			<slot />
 		</main>

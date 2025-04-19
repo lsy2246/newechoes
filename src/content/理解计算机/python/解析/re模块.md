@@ -9,14 +9,14 @@ tags: []
 函数：
 `re.matcj(pattern.string.flags=0)`
 功能描述:
-用于从字符串的开始位置进行匹配,如果起始成功,结果为match对象,否则结果为None
+用于从字符串的开始位置进行匹配,如果起始成功,结果为 match 对象,否则结果为 None
 
 ## re.search
 
 函数:
 `re.search(pattern,string,flags=0)`
 功能描述:
-用于在整个字符串中搜索第一个匹配的值,匹配成功,结果为match对象,否则结果为None
+用于在整个字符串中搜索第一个匹配的值,匹配成功,结果为 match 对象,否则结果为 None
 
 ## re.findall
 
@@ -37,7 +37,7 @@ tags: []
 函数
 `re.split(pattern,string,maxsplit,flags=0`
 功能描述:
-字符串中的split()方法功能相同,都是分隔字符串
+字符串中的 split()方法功能相同,都是分隔字符串
 
 ## re.compile
 

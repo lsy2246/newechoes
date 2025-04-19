@@ -4,9 +4,9 @@ date: 2024-06-06T23:48:36Z
 tags: []
 ---
 
-## 一.安装git
+## 一.安装 git
 
-[git官网下载](https://git-scm.com/downloads)
+[git 官网下载](https://git-scm.com/downloads)
 
 ## 二.建立仓库
 
@@ -21,13 +21,13 @@ cd d:
 cd D:\data\code\C
 ```
 
-### 2.变成Git可以管理的仓库
+### 2.变成 Git 可以管理的仓库
 
 ```git
 git init
 ```
 
-### 3.在GitHub （类似 Gitee 的代码托管服务）创建一个仓库
+### 3.在 GitHub （类似 Gitee 的代码托管服务）创建一个仓库
 
 ## 三.本地仓库关联 GitHub （类似 Gitee 的代码托管服务）仓库
 
@@ -65,7 +65,7 @@ git config --global user.name "Your Name"
 
 #### 2. 创建密钥
 
-在用户主目录下，看看有没有.ssh目录，如果有，再看看这个目录下有没有id_rsa和id_rsa.pub这两个文件，如果已经有了，可直接跳到下一步。如果没有，打开Shell（Windows下打开Git Bash），创建SSH Key
+在用户主目录下，看看有没有.ssh 目录，如果有，再看看这个目录下有没有 id_rsa 和 id_rsa.pub 这两个文件，如果已经有了，可直接跳到下一步。如果没有，打开 Shell（Windows 下打开 Git Bash），创建 SSH Key
 
 ```bash
 ssh-keygen -t rsa -C "youremail@example.com"
@@ -75,8 +75,8 @@ ssh-keygen -t rsa -C "youremail@example.com"
 
 #### 3. 绑定密钥
 
-登陆GitHub，打开`Account settings`，`SSH Keys`页面，点`Add SSH Key`，
-填上任意Title，在Key文本框里粘贴`id_rsa.pub`文件的内
+登陆 GitHub，打开`Account settings`，`SSH Keys`页面，点`Add SSH Key`，
+填上任意 Title，在 Key 文本框里粘贴`id_rsa.pub`文件的内
 
 #### 4. 验证远程仓库
 
@@ -106,110 +106,109 @@ git commit -m "提交注释"
 git push github master
 ```
 
-> github是之前给仓库的命名,main是分支的名称
+> github 是之前给仓库的命名,main 是分支的名称
 
 ## 常用的 Git 命令
 
-* 推送
+- 推送
 
   ```git
   git push <origin> <master>
   ```
 
-* 强制将推送本地分支
+- 强制将推送本地分支
 
   ```git
   git push -f <origin> <master>
   ```
 
-* 拉取
+- 拉取
 
   ```git
   git pull <origin> <master>
   ```
 
-* 强制将分支的最新内容拉取到本地的分支
+- 强制将分支的最新内容拉取到本地的分支
 
   ```git
   git pull --force <origin> <master>
   ```
 
-* 将本地分支重置为远程分支的最新状态
+- 将本地分支重置为远程分支的最新状态
 
   ```git
   git reset --hard <origin>/<master>
   ```
 
-* 克隆仓库
+- 克隆仓库
 
   ```git
   git clone <url>
   ```
 
-* 添加所有更改到暂存区
+- 添加所有更改到暂存区
 
   ```git
   git add .
   ```
 
-* 撤销部分文件的暂存
+- 撤销部分文件的暂存
 
   ```git
   git reset <file1> <file2>
   ```
 
-* 将文件从缓存区中移除，但物理文件仍然存在
+- 将文件从缓存区中移除，但物理文件仍然存在
 
   ```git
   git rm --cached <path>
   ```
 
-* 查看暂存区的内容
+- 查看暂存区的内容
 
   ```git
   git ls-files
   ```
 
-* 提交已暂存的更改
+- 提交已暂存的更改
 
   ```git
   git commit -m "Commit message"
   ```
 
-* 查看分支
+- 查看分支
 
   ```git
   git branch
   ```
 
-* 创建并切换到新分支
+- 创建并切换到新分支
 
   ```git
   git checkout -b <new_branch_name>
   ```
 
-* 删除本地分支
+- 删除本地分支
 
   ```git
   git branch -d <branch_nam>
   ```
 
-* 添加远程仓库
+- 添加远程仓库
 
   ```git
   git remote add <origin> <remote_repository_url>
   ```
 
-* 移除与远程仓库的关联
+- 移除与远程仓库的关联
 
   ```git
   git remote remove <origin>
   ```
 
-* 版本回退
+- 版本回退
 
-  > HEAD相当与当前、HEAD~1 退回上一个版本、HEAD~2 退回上两个版本，依次类推。
-  >
+  > HEAD 相当与当前、HEAD~1 退回上一个版本、HEAD~2 退回上两个版本，依次类推。
 
   ```git
   git reset --hard HEAD~1
@@ -269,7 +268,7 @@ git config --global core.eol crlf
 
 ### 上传需要忽略的文件
 
-在项目根目录下创建一个名为`.gitignore`​的文件，然后在文件中列出你想要忽略的文件和目录例如
+在项目根目录下创建一个名为`.gitignore`​ 的文件，然后在文件中列出你想要忽略的文件和目录例如
 
 ```git
 # 忽略 test.c 文件
@@ -280,15 +279,20 @@ practice_test/
 **/test.c
 ```
 
-在项目根目录下创建一个名为`.gitignore`​的文件，然后在文件中列出你想要忽略的文件和目
+在项目根目录下创建一个名为`.gitignore`​ 的文件，然后在文件中列出你想要忽略的文件和目
 
 ```markdown
 # 忽略 test.c 文件
+
 practice_code/test.c
+
 # 忽略 practice_test/ 目录下的文件
+
 practice_test/
-# 忽略 所有test.c 文件
-**/test.c每次提交自动同步到代码托管服务平台
+
+# 忽略 所有 test.c 文件
+
+\*\*/test.c 每次提交自动同步到代码托管服务平台
 ```
 
 #### 2.将已被追踪的文件的更改加入到暂存区
@@ -301,14 +305,14 @@ git add -u
 
 1.创建钩子
 
-在本地仓库的`.git/hooks`​目录下，你可以创建一个名为`post-commit`​的文件，该文件是在每次提交后运行的钩子
+在本地仓库的`.git/hooks`​ 目录下，你可以创建一个名为`post-commit`​ 的文件，该文件是在每次提交后运行的钩子
 
 ```git
 #!/bin/bash
-  
+
 # 自动同步到 Gitee
 git push gitee master
-  
+
 # 自动同步到 GitHub
 git push github master
 ```
@@ -329,7 +333,7 @@ git commit -m "Your commit message"
 
 #### 例如将 Git Bash 的默认工作目录设置为 `D:\data\code\C`​
 
-编辑`~/.profile`​ 或 `~/.bashrc`​文件
+编辑`~/.profile`​ 或 `~/.bashrc`​ 文件
 
 在文件末尾加上
 
@@ -337,38 +341,38 @@ git commit -m "Your commit message"
 cd d:/data/code
 ```
 
-现在，每次你打开 Git Bash，它都应该默认定位到 `D:\data`​目录。确保路径设置正确，并且没有其他地方覆盖了这个设置。
+现在，每次你打开 Git Bash，它都应该默认定位到 `D:\data`​ 目录。确保路径设置正确，并且没有其他地方覆盖了这个设置。
 
-### 保存SSH 密钥的通行短语
+### 保存 SSH 密钥的通行短语
 
-1. 启动ssh-agent
+1. 启动 ssh-agent
 
-2. 编辑 `~/.profile`​ 或  `~/.bashrc`​ 文件
+2. 编辑 `~/.profile`​ 或 `~/.bashrc`​ 文件
 
-    在文件末尾加上
+   在文件末尾加上
 
-    ```powershell
-    env=~/.ssh/agent.env
+   ```powershell
+   env=~/.ssh/agent.env
 
-    agent_load_env () { test -f "$env" && . "$env" >| /dev/null ; }
+   agent_load_env () { test -f "$env" && . "$env" >| /dev/null ; }
 
-    agent_start () {
-        (umask 077; ssh-agent >| "$env")
-        . "$env" >| /dev/null ; }
+   agent_start () {
+       (umask 077; ssh-agent >| "$env")
+       . "$env" >| /dev/null ; }
 
-    agent_load_env
+   agent_load_env
 
-    # agent_run_state: 0=agent running w/ key; 1=agent w/o key; 2=agent not running
-    agent_run_state=$(ssh-add -l >| /dev/null 2>&1; echo $?)
+   # agent_run_state: 0=agent running w/ key; 1=agent w/o key; 2=agent not running
+   agent_run_state=$(ssh-add -l >| /dev/null 2>&1; echo $?)
 
-    if [ ! "$SSH_AUTH_SOCK" ] || [ $agent_run_state = 2 ]; then
-        agent_start
-        ssh-add
-    elif [ "$SSH_AUTH_SOCK" ] && [ $agent_run_state = 1 ]; then
-        ssh-add
-    fi
+   if [ ! "$SSH_AUTH_SOCK" ] || [ $agent_run_state = 2 ]; then
+       agent_start
+       ssh-add
+   elif [ "$SSH_AUTH_SOCK" ] && [ $agent_run_state = 1 ]; then
+       ssh-add
+   fi
 
-    unset env
-    ```
+   unset env
+   ```
 
 3. 再次运行 Git Bash 时，系统将提示您输入密码

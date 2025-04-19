@@ -844,7 +844,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       />
       {hoveredCountry && (
         <div className="absolute bottom-5 left-0 right-0 text-center z-10">
-          <div className="inline-block bg-white/95 dark:bg-gray-800/95 px-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:scale-105">
+          <div className="inline-block bg-white/95 dark:bg-gray-800/95 px-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:scale-105">
             <p className="text-gray-800 dark:text-white font-medium text-lg flex items-center justify-center gap-2">
               {hoveredCountry} 
               {hoveredCountry && visitedPlaces.includes(hoveredCountry) ? (

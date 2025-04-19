@@ -22,30 +22,30 @@ tags: []
 
 ```typescript
 // 网站基本信息
-export const SITE_URL = 'https://your-domain.com';
+export const SITE_URL = "https://your-domain.com";
 export const SITE_NAME = "你的网站名称";
 export const SITE_DESCRIPTION = "网站描述";
 
 // 导航链接
 export const NAV_LINKS = [
-    { href: '/', text: '首页' },
-    { href: '/articles', text: '文章' },
-    { href: '/movies', text: '观影' },
-    { href: '/books', text: '读书' },
-    { href: '/projects', text: '项目' },
-    { href: '/other', text: '其他' }
+  { href: "/", text: "首页" },
+  { href: "/articles", text: "文章" },
+  { href: "/movies", text: "观影" },
+  { href: "/books", text: "读书" },
+  { href: "/projects", text: "项目" },
+  { href: "/other", text: "其他" },
 ];
 
 // 备案信息（如果需要）
-export const ICP = '你的ICP备案号';
-export const PSB_ICP = '你的公安备案号';
-export const PSB_ICP_URL = '备案链接';
+export const ICP = "你的ICP备案号";
+export const PSB_ICP = "你的公安备案号";
+export const PSB_ICP_URL = "备案链接";
 
 // 豆瓣配置
-export const DOUBAN_ID = '你的豆瓣ID';
+export const DOUBAN_ID = "你的豆瓣ID";
 
 // 旅行足迹
-export const VISITED_PLACES = ['中国-北京', '中国-上海', '美国-纽约'];
+export const VISITED_PLACES = ["中国-北京", "中国-上海", "美国-纽约"];
 ```
 
 ## 文章写作
@@ -98,9 +98,9 @@ tags: ["标签1", "标签2"]
 
 ```typescript
 export const ARTICLE_EXPIRY_CONFIG = {
-    enabled: true, // 是否启用文章过期提醒
-    expiryDays: 365, // 文章过期天数
-    warningMessage: '这篇文章已经发布超过一年了，内容可能已经过时，请谨慎参考。' // 提醒消息
+  enabled: true, // 是否启用文章过期提醒
+  expiryDays: 365, // 文章过期天数
+  warningMessage: "这篇文章已经发布超过一年了，内容可能已经过时，请谨慎参考。", // 提醒消息
 };
 ```
 
@@ -129,7 +129,7 @@ import GitProjectCollection from '@/components/GitProjectCollection';
 import { GitPlatform } from '@/components/GitProjectCollection';
 ---
 
-<GitProjectCollection 
+<GitProjectCollection
   platform={GitPlatform.GITEA}   // 平台类型：GITHUB、GITEA、GITEE
   username="your-username"       // 必填：用户名
   title="Git 项目"               // 可选：显示标题
@@ -146,7 +146,7 @@ import { GitPlatform } from '@/components/GitProjectCollection';
 
 `MediaGrid` 组件用于展示豆瓣的观影和读书记录。
 
-#### 基本用法
+基本用法
 
 ```astro
 ---
@@ -154,14 +154,14 @@ import MediaGrid from '@/components/MediaGrid.astro';
 ---
 
 // 展示电影记录
-<MediaGrid 
+<MediaGrid
   type="movie"              // 类型：movie 或 book
   title="我看过的电影"      // 显示标题
   doubanId={DOUBAN_ID}     // 使用配置文件中的豆瓣ID
 />
 
 // 展示读书记录
-<MediaGrid 
+<MediaGrid
   type="book"
   title="我读过的书"
   doubanId={DOUBAN_ID}
@@ -174,7 +174,7 @@ import MediaGrid from '@/components/MediaGrid.astro';
 
 `WorldHeatmap` 组件用于展示你去过的地方，以热力图的形式在世界地图上显示。
 
-#### 基本用法
+基本用法
 
 在 `src/consts.ts` 中配置你去过的地方：
 
@@ -182,13 +182,13 @@ import MediaGrid from '@/components/MediaGrid.astro';
 // 配置你去过的地方
 export const VISITED_PLACES = [
   // 国内地区格式：'中国-省份/城市'
-  '中国-黑龙江', 
-  '中国-北京', 
-  '中国-上海',
+  "中国-黑龙江",
+  "中国-北京",
+  "中国-上海",
   // 国外地区直接使用国家名
-  '马来西亚',
-  '泰国',
-  '美国'
+  "马来西亚",
+  "泰国",
+  "美国",
 ];
 ```
 
@@ -205,15 +205,14 @@ import { VISITED_PLACES } from '@/consts';
   <section>
     <h2 class="text-3xl font-semibold text-center mb-6">我的旅行足迹</h2>
     <div class="mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-      <WorldHeatmap 
-        client:only="react" 
+      <WorldHeatmap
+        client:only="react"
         visitedPlaces={VISITED_PLACES}
       />
     </div>
   </section>
 </Layout>
 ```
-
 
 ## 主题切换
 
@@ -236,28 +235,26 @@ import { VISITED_PLACES } from '@/consts';
 
 1. 克隆项目
 
- ```bash
-  git clone https://github.com/your-username/echoes.git
-  cd echoes
-  ```
+    ```bash
+    git clone https://github.com/your-username/echoes.git
+    cd echoes
+    ```
 
 2. 安装依赖
 
-  ```bash
-  npm install
-  # 或者使用 pnpm
-  pnpm install
-  ```
+    ```bash
+    npm install
+    ```
 
 3. 修改配置
 
-  编辑 `src/consts.ts` 文件，更新网站配置信息。
+    编辑 `src/consts.ts` 文件，更新网站配置信息。
 
 4. 本地运行
-  
-```bash
-npm run dev
-```
+
+    ```bash
+    npm run dev
+    ```
 
 访问 `http://localhost:4321` 查看效果。
 
@@ -266,10 +263,11 @@ npm run dev
 ### 部署方式选择
 
 1. **Vercel 部署（推荐）**
+
    - 支持所有功能
    - 自动部署和 HTTPS
    - 支持 API 路由和动态数据
-   - 可配合多吉云CDN实现自动刷新缓存
+   - 可配合多吉云 CDN 实现自动刷新缓存
 
 2. **静态托管（如腾讯云）**
    - 仅支持静态文件
@@ -278,13 +276,13 @@ npm run dev
      - 动态数据获取
    - 需要手动配置和上传
 
-### CDN加速配置
+### CDN 加速配置
 
-博客支持通过多吉云CDN进行加速，并可通过GitHub Actions实现自动刷新缓存：
+博客支持通过多吉云 CDN 进行加速，并可通过 GitHub Actions 实现自动刷新缓存：
 
-1. 按照[CDN配置指南](./cdn配置)配置多吉云CDN
-2. 按照[GitHub Actions自动刷新CDN缓存指南](./github-actions自动刷新多吉云_cdn缓存)配置自动刷新
-3. 配置完成后，每次博客更新时，CDN缓存将自动刷新
+1. 按照[CDN 配置指南](./cdn配置)配置多吉云 CDN
+2. 按照[GitHub Actions 自动刷新 CDN 缓存指南](./github-actions自动刷新多吉云_cdn缓存)配置自动刷新
+3. 配置完成后，每次博客更新时，CDN 缓存将自动刷新
 
 ### 部署步骤
 
@@ -299,32 +297,35 @@ npm run dev
 
 1. 修改 `astro.config.mjs`：
 
-  ```javascript
-  export default defineConfig({
-    site: SITE_URL,
-    output: "static",
-    adapter: undefined,
-  });
-  ```
+    ```javascript
+    export default defineConfig({
+      site: SITE_URL,
+      output: "static",
+      adapter: undefined,
+    });
+    ```
 
 2. 构建并上传：
 
-  ```bash
-  npm run build
-  # 上传 dist/client 目录到静态托管服务
-  ```
+```bash
+npm run build
+# 上传 dist/client 目录到静态托管服务
+```
 
 ## 常见问题
 
 1. **图片无法显示**
+
    - 检查图片路径是否正确
    - 确保图片已放入 `public` 目录
 
 2. **豆瓣数据无法获取**
+
    - 确认豆瓣 ID 配置正确
    - 检查豆瓣记录是否公开
 
 3. **Git 项目无法显示**
+
    - 验证用户名配置
    - 确认 API 访问限制
 

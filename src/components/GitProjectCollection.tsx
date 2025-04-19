@@ -284,7 +284,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
       </div>
       <button 
         onClick={() => fetchData(pagination.current)} 
-        className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-800/50 text-red-700 dark:text-red-300 rounded transition-colors"
+        className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-800/50 text-red-700 dark:text-red-300 rounded"
       >
         重试
       </button>
@@ -331,10 +331,10 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
             columnClassName="pl-4 bg-clip-padding"
           >
             {projects.map((project, index) => (
-              <div key={`${project.platform}-${project.owner}-${project.name}-${index}`} className="mb-4 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 shadow-lg">
+              <div key={`${project.platform}-${project.owner}-${project.name}-${index}`} className="mb-4 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 shadow-lg">
                 <a href={project.url} target="_blank" rel="noopener noreferrer" className="block p-5">
                   <div className="flex items-start">
-                    <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 group-hover:bg-primary-200 dark:group-hover:bg-primary-800/50 transition-colors">
+                    <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 group-hover:bg-primary-200 dark:group-hover:bg-primary-800/50">
                       {getPlatformIcon(project.platform as GitPlatform)}
                     </div>
                     <div className="ml-3 flex-1">
@@ -353,7 +353,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
                         <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{project.owner}</span>
                       </div>
                       
-                      <h3 className="font-bold text-base text-gray-800 dark:text-gray-100 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors line-clamp-1 mt-2">{project.name}</h3>
+                      <h3 className="font-bold text-base text-gray-800 dark:text-gray-100 group-hover:text-primary-700 dark:group-hover:text-primary-300 line-clamp-1 mt-2">{project.name}</h3>
                       
                       <div className="h-12 mb-3">
                         {project.description ? (
@@ -406,7 +406,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
           <button
             onClick={() => handlePageChange(pagination.current - 1)}
             disabled={!pagination.hasPrev || pagination.current <= 1 || isPageChanging}
-            className={`px-4 py-2 rounded transition-colors ${!pagination.hasPrev || pagination.current <= 1 || isPageChanging 
+            className={`px-4 py-2 rounded ${!pagination.hasPrev || pagination.current <= 1 || isPageChanging 
               ? 'bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed' 
               : 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600'}`}
             aria-label="上一页"
@@ -429,7 +429,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
           <button
             onClick={() => handlePageChange(pagination.current + 1)}
             disabled={!pagination.hasNext || pagination.current >= pagination.total || isPageChanging}
-            className={`px-4 py-2 rounded transition-colors ${!pagination.hasNext || pagination.current >= pagination.total || isPageChanging 
+            className={`px-4 py-2 rounded ${!pagination.hasNext || pagination.current >= pagination.total || isPageChanging 
               ? 'bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed' 
               : 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600'}`}
             aria-label="下一页"

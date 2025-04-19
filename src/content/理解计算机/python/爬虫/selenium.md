@@ -4,9 +4,8 @@ date: 2024-06-06T23:51:47Z
 tags: []
 ---
 
-
 ```python
-from selenium import webdriver  # 驱动 
+from selenium import webdriver  # 驱动
 from selenium.webdriver.common.by import By  # 解析方式
 from selenium.webdriver.common.keys import Keys  # 模拟按键
 

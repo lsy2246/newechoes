@@ -503,7 +503,7 @@ main.main {
 > 注意对照原主题,不要把重复的部分也写进去
 
 ```bash
-.......已省略,请自己对照......  
+.......已省略,请自己对照......
     {{ partialCached "footer/footer" . }}
 
     {{ partialCached "article/components/photoswipe" . }}
@@ -528,7 +528,7 @@ main.main {
 {{ end }}
 ```
 
-#### 代码块引入MacOS窗口样式
+#### 代码块引入 MacOS 窗口样式
 
 在主题目录下的`assets`文件夹中的`img`文件夹中,创建一个名为`code-header.svg`的文件,在文件中写入以下内容:
 
@@ -594,7 +594,7 @@ main.main {
     var wordCount = {{ .WordCount }};
     var link = {{ .RelPermalink}};
     var title = {{ .Title }};
-  
+
     // multiple posts in same day
     if (value == null) {
       dataMap.set(key, [{wordCount, link, title}]);
@@ -612,7 +612,7 @@ main.main {
     }
     data.push([key, (sum / 1000).toFixed(1)]);
   }
-  
+
   var startDate = new Date();
   var year_Mill = startDate.setFullYear((startDate.getFullYear() - 1));
   var startDate = +new Date(year_Mill);
@@ -623,7 +623,7 @@ main.main {
   endDate = echarts.format.formatTime('yyyy-MM-dd', endDate);
 
   // change date range according to months we want to render
-  function heatmap_width(months){           
+  function heatmap_width(months){
     var startDate = new Date();
     var mill = startDate.setMonth((startDate.getMonth() - months));
     var endDate = +new Date();
@@ -681,10 +681,10 @@ main.main {
         orient: 'horizontal',
         left: 'center',
         top: 30,
-      
-        inRange: {   
+
+        inRange: {
           //  [floor color, ceiling color]
-          color: ['#7aa8744c', '#7AA874' ] 
+          color: ['#7aa8744c', '#7AA874' ]
         },
         splitNumber: 4,
         text: ['千字', ''],
@@ -729,7 +729,7 @@ main.main {
       window.open(link, '_blank').focus();
     }
 });
-</script> 
+</script>
 ```
 
 文章里输入(将`\`删除)：

@@ -4,7 +4,6 @@ date: 2024-06-06T23:51:36Z
 tags: []
 ---
 
-
 ## 创建工程
 
 scrapy startproject (projectname)
@@ -17,14 +16,14 @@ scrapy startproject (projectname)
 
 ## 编写对应的代码在爬虫文件中
 
-1.将parse中的response解析
-想要使用数据,必须使用extract()提取数据
-extract():返回列表
-extract_first():返回一个数据
+1. parse 中的 response 解析
+   想要使用数据,必须使用 extract()提取数据
+   extract():返回列表
+   extract_first():返回一个数据
 2. 创建项目对象,将数据放入项目
-3. 用yield将项目传入管道
+3. 用 yield 将项目传入管道
 
-## 在pipeline中完成数据的储存
+## 在 pipeline 中完成数据的储存
 
 ```python
 class 类名():
@@ -34,7 +33,7 @@ class 类名():
         return item #如果不return下一个管道收不到数据
 ```
 
-## 设置setting将pipeline进行生效设置
+## 设置 setting 将 pipeline 进行生效设置
 
 ## 执行工程
 

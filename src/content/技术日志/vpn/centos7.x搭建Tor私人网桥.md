@@ -12,7 +12,7 @@ yum install tor -y
 
 ## 2. 安装 obfs4
 
-### 通过python进行编译安装
+### 通过 python 进行编译安装
 
 #### 安装所需依赖软件模块
 
@@ -26,21 +26,21 @@ yum install make automake gcc python-pip python-devel libyaml-devel
 pip install obfsproxy
 ```
 
-### 通过go进行编译安装
+### 通过 go 进行编译安装
 
-#### 下载go的obfs4项目
+#### 下载 go 的 obfs4 项目
 
 ```bash
 git clone http://www.github.com/Yawning/obfs4
 ```
 
-#### 进入obfs4目录进行编译
+#### 进入 obfs4 目录进行编译
 
 ```bash
 go build -o obfs4proxy/obfs4proxy ./obfs4proxy
 ```
 
-#### 复制bofs4proxy到系统工作目录下
+#### 复制 bofs4proxy 到系统工作目录下
 
 ```bash
 cp ./obfs4proxy/obfs4proxy /usr/bin/obfs4proxy
@@ -67,13 +67,13 @@ ExtORPort auto
 PublishServerDescriptor 0
 ```
 
-### 重启tor服务
+### 重启 tor 服务
 
 ```bash
 systemctl restart tor
 ```
 
-### 查看tor服务状态
+### 查看 tor 服务状态
 
 ```bash
 systemctl status tor
@@ -128,7 +128,7 @@ iatmode=0
 vim /etc/firewalld/zones/public.xml
 ```
 
-内容如下(本例ORPort端口 => 6666, obfs4端口 => 46396)：
+内容如下(本例 ORPort 端口 => 6666, obfs4 端口 => 46396)：
 
 ```xml
 <port protocol="tcp" port="ORPort端口"/>
@@ -143,4 +143,4 @@ vim /etc/firewalld/zones/public.xml
 firewall-cmd --complete-reload
 ```
 
-[Tor浏览器下载地址](https://www.torproject.org/download/)
+[Tor 浏览器下载地址](https://www.torproject.org/download/)

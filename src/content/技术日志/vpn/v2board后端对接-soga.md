@@ -4,7 +4,7 @@ date: 2021-07-31T01:17:00+08:00
 tags: ["v2board"]
 ---
 
-确保v2board版本在1.2.5及以上
+确保 v2board 版本在 1.2.5 及以上
 
 ## 一、安装与更新
 
@@ -49,9 +49,9 @@ ntpdate time.nist.gov
 
 - 节点名称：随便填写
 - 权限组：随便填写
-- 节点地址：填v2borad的域名或ip
-- TLS：填v2borad的域名或不填
-- 传输协议：选择websocket
+- 节点地址：填 v2borad 的域名或 ip
+- TLS：填 v2borad 的域名或不填
+- 传输协议：选择 websocket
 
 ### 配置协议
 

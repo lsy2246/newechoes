@@ -6,10 +6,10 @@ tags: []
 
 ## 1. 环境准备
 
-* [宝塔面板](https://www.bt.cn/new/index.html)
-* PHP 7.4
-* MySQL 5.7 / 8 或 MariaDB 10
-* Apache HTTP Web Server 或 Nginx
+- [宝塔面板](https://www.bt.cn/new/index.html)
+- PHP 7.4
+- MySQL 5.7 / 8 或 MariaDB 10
+- Apache HTTP Web Server 或 Nginx
 
 ## 2. 下载
 

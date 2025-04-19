@@ -13,12 +13,13 @@ tags: []
 ### 出现黄色更新弹窗
 
 1. 打开文件目录：
-    - Mac 修改文件目录：`/Applications/Adobe Photoshop (Beta)/Adobe Photoshop (Beta).app/Contents/Required/UXP/com.adobe.photoshop.inAppMessaging/js/0.js`
-    - Windows 目录（如果是 C 盘）：`C:\Program Files\Adobe\Adobe Photoshop 2023\Required\UXP\com.adobe.photoshop.inAppMessaging\js\0.js`
+
+   - Mac 修改文件目录：`/Applications/Adobe Photoshop (Beta)/Adobe Photoshop (Beta).app/Contents/Required/UXP/com.adobe.photoshop.inAppMessaging/js/0.js`
+   - Windows 目录（如果是 C 盘）：`C:\Program Files\Adobe\Adobe Photoshop 2023\Required\UXP\com.adobe.photoshop.inAppMessaging\js\0.js`
 
 2. 修改 `0.js` 文件：
-    - 搜索 `"996633",`，结果有两处。找到第一处，在后面加上 `",display:none",`（别忘了英文逗号）。
-    - 保存文件，退出 Photoshop，重启 Photoshop。提示框应消失。
+   - 搜索 `"996633",`，结果有两处。找到第一处，在后面加上 `",display:none",`（别忘了英文逗号）。
+   - 保存文件，退出 Photoshop，重启 Photoshop。提示框应消失。
 
 ### Adobe Creative Cloud 丢失或损坏提示
 

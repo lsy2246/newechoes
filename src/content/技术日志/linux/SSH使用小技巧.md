@@ -4,86 +4,86 @@ date: 2024-06-30T23:46:05+08:00
 tags: []
 ---
 
-## 更改root密码
+## 更改 root 密码
 
 > 将`password`更改为所需的密码
 
 1. 修改密码
 
-    ```bash
-    echo root:`password` |sudo chpasswd root
-    ```
+   ```bash
+   echo root:`password` |sudo chpasswd root
+   ```
 
-2. 开启root登录
+2. 开启 root 登录
 
-    ```bash
-    sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config;
-    ```
+   ```bash
+   sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config;
+   ```
 
 3. 开启密码登录
 
-    ```bash
-    sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config;
-    ```
+   ```bash
+   sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config;
+   ```
 
-4. 重启ssh服务
+4. 重启 ssh 服务
 
-    ```bash
-    systemctl restart sshd.service
-    ```
+   ```bash
+   systemctl restart sshd.service
+   ```
 
 ## 配置使用密钥登录
 
 1. 生成密钥和公钥，请执行以下命令：
 
-    ```bash
-    ssh-keygen -t rsa -b 4096 
-    ```
+   ```bash
+   ssh-keygen -t rsa -b 4096
+   ```
 
    > 连续执行回车即可生成密钥和公钥对。如果需要设置密码，请在密码提示处输入密码。
 
-2. 安装ssh公钥
+2. 安装 ssh 公钥
 
-    ```bash
-    cp "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/authorized_keys"
-    ```
+   ```bash
+   cp "$HOME/.ssh/id_rsa.pub" "$HOME/.ssh/authorized_keys"
+   ```
 
 3. 设置公钥权限
 
-    ```bash
-    chmod 600 "$HOME/.ssh/authorized_keys"
-    chmod 700 "$HOME/.ssh"
-    ```
+   ```bash
+   chmod 600 "$HOME/.ssh/authorized_keys"
+   chmod 700 "$HOME/.ssh"
+   ```
 
-4. ssh配置文件
+4. ssh 配置文件
 
    1. 开启密钥登录
 
-       ```bash
-       sudo sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
-       ```
+      ```bash
+      sudo sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
+      ```
 
    2. 关闭密码登录
 
-       ```bash
-       sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/g' /etc/ssh/sshd_config  
-       ```
+      ```bash
+      sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/g' /etc/ssh/sshd_config
+      ```
 
-5. 重启sshd服务
+5. 重启 sshd 服务
 
-    ```bash
-    systemctl restart sshd.service
-    ```
+   ```bash
+   systemctl restart sshd.service
+   ```
 
-## ssh登录后闲置时间过长而断开连接
+## ssh 登录后闲置时间过长而断开连接
 
 ```bash
 echo "ServerAliveInterval 60" >> "$HOME/.ssh/config"
 ```
 
-> ssh客户端会每隔一段60s，自动与ssh服务器通信一次
+> ssh 客户端会每隔一段 60s，自动与 ssh 服务器通信一次
 
-## 存放ssh密钥密码
+## 存放 ssh 密钥密码
 
 ### 启动`ssh-agent`
 

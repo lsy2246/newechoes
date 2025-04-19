@@ -8,15 +8,15 @@ tags: []
 
 1. 切换回经典右键菜单：
 
-    ```powershell
-    reg add "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" /f /ve
-    ```
+   ```powershell
+   reg add "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" /f /ve
+   ```
 
 2. 恢复到新版右键菜单（不建议执行）：
 
-    ```powershell
-    reg delete "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}" /f
-    ```
+   ```powershell
+   reg delete "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}" /f
+   ```
 
 然后，按下 Win+E 打开 Windows 资源管理器，接着按下 Ctrl+Shift+Esc 打开任务管理器，找到并重启 Windows 资源管理器。
 

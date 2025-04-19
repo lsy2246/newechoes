@@ -56,10 +56,10 @@ theme: 主题名字 # 主题名字，和 themes 文件夹下的一致
 1. 将 hugo 复制到站点文件夹
 2. 打开 PowerShell 进入站点文件夹
 3. 查看 Hugo 版本号
-  
-  ```powershell
-  ./hugo version
-  ```
+
+    ```powershell
+    ./hugo version
+    ```
 
 4. 设置 Hugo 版本号
 
@@ -136,10 +136,10 @@ title: "{{ replace .Name "-" " " | title }}" # 标题
 date: {{ .Date }} # 创建时间
 lastmod: {{ .Date }} # 更新时间
 author: ["Lsy"] # 作者
-categories: 
+categories:
 - 分类1
 - 分类2
-tags: 
+tags:
 - 标签1
 - 标签2
 description: "" # 描述

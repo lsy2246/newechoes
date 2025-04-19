@@ -10,9 +10,9 @@ GitHub 项目地址：[https://github.com/FranzKafkaYu/x-ui][1]
 
 1. 复制粘贴以下代码，并运行：
 
-    ```bash
-    bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/master/install.sh)
-    ```
+   ```bash
+   bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/master/install.sh)
+   ```
 
    注意：在 IPv6 Only 的 VPS 中（例如：Euserv、Hax），请先安装 warp，否则无法访问 Github API 而报错。
 

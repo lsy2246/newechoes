@@ -82,11 +82,11 @@ jobs:
       - name: 安装 Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: "3.x"
       - name: 安装依赖
         run: pip install requests
       - name: 等待源站部署
-        run: sleep 1m  # 这里用了个笨办法，等待 1 分钟后进行刷新
+        run: sleep 1m # 这里用了个笨办法，等待 1 分钟后进行刷新
       - name: 刷新 CDN
         run: python RefreshCDN.py
 ```

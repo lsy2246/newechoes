@@ -6,19 +6,19 @@ tags: ["x-ui"]
 
 ## 一、部署安装
 
-GitHub项目地址：[https://github.com/FranzKafkaYu/x-ui](https://github.com/FranzKafkaYu/x-ui)
+GitHub 项目地址：[https://github.com/FranzKafkaYu/x-ui](https://github.com/FranzKafkaYu/x-ui)
 
 1. 复制粘贴以下代码，并运行：
 
-    ```bash
-    bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/master/install.sh)
-    ```
+   ```bash
+   bash <(curl -Ls https://raw.githubusercontent.com/FranzKafkaYu/x-ui/master/install.sh)
+   ```
 
-   注意：在IPv6 Only的VPS中（例如：Euserv、Hax），请先安装warp，否则无法访问Github API而报错。
+   注意：在 IPv6 Only 的 VPS 中（例如：Euserv、Hax），请先安装 warp，否则无法访问 Github API 而报错。
 
 2. 设置用户名密码、面板访问端口。
 
-   待出现X-ui的菜单时，就已经成功一半了！
+   待出现 X-ui 的菜单时，就已经成功一半了！
 
 ## 二、配置
 
@@ -31,7 +31,7 @@ GitHub项目地址：[https://github.com/FranzKafkaYu/x-ui](https://github.com/F
   - 端口：`443`
   - reality：`开启`
   - 添加用户：+
-    - flow选择xtls-rprx-vision
+    - flow 选择 xtls-rprx-vision
     - 其他默认
 
 ## 三、使用

@@ -8,8 +8,8 @@ tags: ["Docker-compose"]
 
 ### 替换说明
 
-* 将 `/var/www/siyuan/` 替换为你的实际物理路径。
-* 将 `Password` 替换为你的访问密码。
+- 将 `/var/www/siyuan/` 替换为你的实际物理路径。
+- 将 `Password` 替换为你的访问密码。
 
 ```yaml
 version: "3.9"
@@ -30,10 +30,10 @@ services:
 
 ## 反向代理配置
 
-### Nginx配置替换说明
+### Nginx 配置替换说明
 
-* 将 `your_domain.com` 替换为你自己的域名。
-* 将 `path` 替换为你的SSL证书的实际路径。
+- 将 `your_domain.com` 替换为你自己的域名。
+- 将 `path` 替换为你的 SSL 证书的实际路径。
 
 ```nginx
 upstream siyuan {
@@ -78,3 +78,4 @@ server {
         proxy_set_header Connection 'Upgrade';  # 支持 WebSocket
     }
 }
+```
