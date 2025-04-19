@@ -6,146 +6,197 @@ interface Props {
 }
 
 const { type, title, doubanId } = Astro.props;
+// Generate unique IDs for this specific instance of the component
+const uniquePrefix = `media-${type}`;
+const mediaListId = `${uniquePrefix}-list`;
+const loadingId = `${uniquePrefix}-loading`;
+const endMessageId = `${uniquePrefix}-end-message`;
 ---
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <h1 class="text-3xl font-bold mb-6">{title}</h1>
   
-  <div id="media-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+  <div id={mediaListId} class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
     <!-- 内容将通过JS动态加载 -->
   </div>
   
-  <div id="loading" class="text-center py-8">
+  <div id={loadingId} class="text-center py-8">
     <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
     <p class="mt-2 text-gray-600">加载更多...</p>
   </div>
   
-  <div id="end-message" class="text-center py-8 hidden">
+  <div id={endMessageId} class="text-center py-8 hidden">
     <p class="text-gray-600">已加载全部内容</p>
   </div>
 </div>
 
-<script is:inline define:vars={{ type, doubanId }}>
-
-  let currentPage = 1;
-  let isLoading = false;
-  let hasMoreContent = true;
-  const itemsPerPage = 15; // 豆瓣每页显示的数量
-
-  async function fetchMedia(page = 1, append = false) {
-    if (isLoading || (!append && !hasMoreContent)) {
-      return;
-    }
-    
-    isLoading = true;
-    showLoading(true);
-    
-    const start = (page - 1) * itemsPerPage;
-    try {
-      const response = await fetch(`/api/douban?type=${type}&start=${start}&doubanId=${doubanId}`);
-      if (!response.ok) {
-        throw new Error(`获取${type === 'movie' ? '电影' : '图书'}数据失败`);
-      }
-      
-      const data = await response.json();
-      renderMedia(data.items, append);
-      
-      // 更新分页状态
-      currentPage = data.pagination.current;
-      hasMoreContent = data.pagination.hasNext;
-      
-      if (!hasMoreContent) {
-        showEndMessage(true);
-      }
-    } catch (error) {
-      const mediaList = document.getElementById('media-list');
-      if (mediaList && !append) {
-        mediaList.innerHTML = '<div class="col-span-full text-center text-red-500">获取数据失败，请稍后再试</div>';
-      }
-    } finally {
-      isLoading = false;
-      showLoading(false);
-    }
-  }
-
-  function renderMedia(items, append = false) {
-    const mediaList = document.getElementById('media-list');
-    if (!mediaList) return;
-    
-    if (!items || items.length === 0) {
-      if (!append) {
-        mediaList.innerHTML = `<div class="col-span-full text-center">暂无${type === 'movie' ? '电影' : '图书'}数据</div>`;
-      }
-      return;
+<script define:vars={{ type, doubanId, mediaListId, loadingId, endMessageId }}>
+  // Create a class with scoped methods instead of using global functions and variables
+  class MediaLoader {
+    constructor(type, doubanId, mediaListId, loadingId, endMessageId) {
+      this.type = type;
+      this.doubanId = doubanId;
+      this.mediaListId = mediaListId;
+      this.loadingId = loadingId;
+      this.endMessageId = endMessageId;
+      this.currentPage = 1;
+      this.isLoading = false;
+      this.hasMoreContent = true;
+      this.itemsPerPage = 15; // 豆瓣每页显示的数量
+      this.scrollHandler = this.handleScroll.bind(this);
     }
 
-    const mediaHTML = items.map(item => `
-      <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300">
-        <div class="relative pb-[150%] overflow-hidden">
-          <img src="${item.imageUrl}" alt="${item.title}" class="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
-          <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-            <h3 class="font-bold text-white text-sm line-clamp-2">
-              <a href="${item.link}" target="_blank" class="hover:text-blue-300 transition-colors">${item.title}</a>
-            </h3>
+    async fetchMedia(page = 1, append = false) {
+      if (this.isLoading || (!append && !this.hasMoreContent)) {
+        return;
+      }
+      
+      this.isLoading = true;
+      this.showLoading(true);
+      
+      const start = (page - 1) * this.itemsPerPage;
+      try {
+        const response = await fetch(`/api/douban?type=${this.type}&start=${start}&doubanId=${this.doubanId}`);
+        if (!response.ok) {
+          throw new Error(`获取${this.type === 'movie' ? '电影' : '图书'}数据失败`);
+        }
+        
+        const data = await response.json();
+        this.renderMedia(data.items, append);
+        
+        // 更新分页状态
+        this.currentPage = data.pagination.current;
+        this.hasMoreContent = data.pagination.hasNext;
+        
+        if (!this.hasMoreContent) {
+          this.showEndMessage(true);
+        }
+      } catch (error) {
+        const mediaList = document.getElementById(this.mediaListId);
+        if (mediaList && !append) {
+          mediaList.innerHTML = '<div class="col-span-full text-center text-red-500">获取数据失败，请稍后再试</div>';
+        }
+      } finally {
+        this.isLoading = false;
+        this.showLoading(false);
+      }
+    }
+
+    renderMedia(items, append = false) {
+      const mediaList = document.getElementById(this.mediaListId);
+      if (!mediaList) return;
+      
+      if (!items || items.length === 0) {
+        if (!append) {
+          mediaList.innerHTML = `<div class="col-span-full text-center">暂无${this.type === 'movie' ? '电影' : '图书'}数据</div>`;
+        }
+        return;
+      }
+
+      const mediaHTML = items.map(item => `
+        <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300">
+          <div class="relative pb-[150%] overflow-hidden">
+            <img src="${item.imageUrl}" alt="${item.title}" class="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+            <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+              <h3 class="font-bold text-white text-sm line-clamp-2">
+                <a href="${item.link}" target="_blank" class="hover:text-blue-300 transition-colors">${item.title}</a>
+              </h3>
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `).join('');
 
-    if (append) {
-      mediaList.innerHTML += mediaHTML;
-    } else {
-      mediaList.innerHTML = mediaHTML;
-    }
-  }
-
-  function showLoading(show) {
-    const loading = document.getElementById('loading');
-    if (loading) {
-      if (show) {
-        loading.classList.remove('hidden');
+      if (append) {
+        mediaList.innerHTML += mediaHTML;
       } else {
-        loading.classList.add('hidden');
+        mediaList.innerHTML = mediaHTML;
       }
     }
-  }
 
-  function showEndMessage(show) {
-    const endMessage = document.getElementById('end-message');
-    if (endMessage) {
-      endMessage.classList.toggle('hidden', !show);
+    showLoading(show) {
+      const loading = document.getElementById(this.loadingId);
+      if (loading) {
+        if (show) {
+          loading.classList.remove('hidden');
+        } else {
+          loading.classList.add('hidden');
+        }
+      }
+    }
+
+    showEndMessage(show) {
+      const endMessage = document.getElementById(this.endMessageId);
+      if (endMessage) {
+        endMessage.classList.toggle('hidden', !show);
+      }
+    }
+
+    setupInfiniteScroll() {
+      // 添加滚动事件
+      window.addEventListener('scroll', this.scrollHandler);
+      
+      // 初始检查一次，以防内容不足一屏
+      setTimeout(() => this.handleScroll(), 500);
+    }
+
+    handleScroll() {
+      if (this.isLoading || !this.hasMoreContent) {
+        return;
+      }
+      
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // 当滚动到距离底部300px时加载更多
+      if (scrollY + windowHeight >= documentHeight - 300) {
+        this.fetchMedia(this.currentPage + 1, true);
+      }
+    }
+
+    cleanup() {
+      // 移除滚动事件监听器
+      window.removeEventListener('scroll', this.scrollHandler);
+    }
+
+    initialize() {
+      this.fetchMedia(1, false).then(() => {
+        this.setupInfiniteScroll();
+      }).catch(err => {
+        // 错误已在fetchMedia中处理
+      });
     }
   }
 
-  function setupInfiniteScroll() {
-    // 直接使用滚动事件
-    window.addEventListener('scroll', handleScroll);
-    
-    // 初始检查一次，以防内容不足一屏
-    setTimeout(handleScroll, 500);
+  // 存储每个页面创建的媒体加载器，用于清理
+  if (!window.mediaLoaders) {
+    window.mediaLoaders = {};
   }
 
-  function handleScroll() {
-    if (isLoading || !hasMoreContent) {
-      return;
+  // 创建并初始化媒体加载器
+  function initMediaLoader() {
+    // 清理可能存在的旧实例
+    if (window.mediaLoaders[mediaListId]) {
+      window.mediaLoaders[mediaListId].cleanup();
     }
-    
-    const scrollY = window.scrollY;
-    const windowHeight = window.innerHeight;
-    const documentHeight = document.documentElement.scrollHeight;
-    
-    // 当滚动到距离底部300px时加载更多
-    if (scrollY + windowHeight >= documentHeight - 300) {
-      fetchMedia(currentPage + 1, true);
-    }
+
+    const loader = new MediaLoader(type, doubanId, mediaListId, loadingId, endMessageId);
+    window.mediaLoaders[mediaListId] = loader;
+    loader.initialize();
   }
 
-  // 初始加载
-  document.addEventListener('DOMContentLoaded', () => {
-    fetchMedia(1, false).then(() => {
-      setupInfiniteScroll();
-    }).catch(err => {
-      // 错误已在fetchMedia中处理
-    });
+  // 页面首次加载
+  document.addEventListener('astro:swup:page:view', initMediaLoader);
+  
+  // 页面卸载前清理
+  document.addEventListener('astro:before-swap', () => {
+    if (window.mediaLoaders[mediaListId]) {
+      window.mediaLoaders[mediaListId].cleanup();
+    }
   });
+
+  // 如果已经加载了 DOM，立即初始化
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initMediaLoader();
+  }
 </script> 
