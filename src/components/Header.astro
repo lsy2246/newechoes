@@ -1,0 +1,767 @@
+---
+import { SITE_NAME, NAV_LINKS } from "@/consts.ts";
+import ThemeToggle from "./ThemeToggle.astro";
+
+// 获取当前路径
+const currentPath = Astro.url.pathname;
+
+// 移除结尾的斜杠以统一路径格式（保留根路径的斜杠）
+const normalizedPath =
+  currentPath === "/"
+    ? "/"
+    : currentPath.endsWith("/")
+      ? currentPath.slice(0, -1)
+      : currentPath;
+
+// 定义导航链接
+---
+
+<header
+  class="fixed w-full top-0 z-50"
+  id="main-header"
+>
+  <div
+    class="absolute inset-0 bg-gray-50/95 dark:bg-dark-bg/95"
+    id="header-bg"
+  >
+  </div>
+  <nav class="relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <!-- Logo 部分 -->
+        <div class="flex items-center">
+          <a
+            href="/"
+            class="text-xl md:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent hover:from-primary-500 hover:to-primary-300 dark:from-primary-400 dark:to-primary-200 dark:hover:from-primary-300 dark:hover:to-primary-100"
+          >
+            {SITE_NAME}
+          </a>
+        </div>
+
+        <!-- 导航链接 -->
+        <div class="hidden md:flex md:items-center md:space-x-8">
+          <!-- 桌面端搜索框 -->
+          <div class="relative">
+            <input
+              type="text"
+              id="desktop-search"
+              class="w-48 pl-10 pr-4 py-1.5 rounded-full text-sm text-gray-700 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 bg-gray-50/80 dark:bg-gray-800/60 border border-gray-200/60 dark:border-gray-700/40 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-800 focus:border-primary-300 dark:focus:border-primary-600"
+              placeholder="搜索文章..."
+            />
+            <div
+              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+            >
+              <svg
+                class="h-4 w-4 text-gray-400 dark:text-gray-500"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                ></path>
+              </svg>
+            </div>
+
+            <!-- 搜索结果容器（默认隐藏） -->
+            <div
+              id="desktop-search-results"
+              class="absolute top-full left-0 right-0 mt-2 max-h-80 overflow-y-auto rounded-lg bg-white/95 dark:bg-gray-800/95 shadow-md border border-gray-200/70 dark:border-gray-700/70 backdrop-blur-sm z-50 hidden"
+            >
+              <!-- 结果将通过JS动态填充 -->
+              <div
+                class="p-4 text-center text-gray-500 dark:text-gray-400"
+                id="desktop-search-message"
+              >
+                <p>输入关键词开始搜索</p>
+              </div>
+              <ul
+                class="divide-y divide-gray-200/70 dark:divide-gray-700/70"
+                id="desktop-search-list"
+              >
+              </ul>
+            </div>
+          </div>
+
+          {
+            NAV_LINKS.map((link) => (
+              <a
+                href={link.href}
+                class:list={[
+                  "inline-flex items-center px-1 pt-1 text-sm font-medium",
+                  normalizedPath === link.href
+                    ? "text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400"
+                    : "text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:border-b-2 hover:border-primary-300 dark:hover:border-primary-700",
+                ]}
+              >
+                {link.text}
+              </a>
+            ))
+          }
+          <ThemeToggle />
+        </div>
+
+        <!-- 移动端菜单按钮 -->
+        <div class="flex items-center md:hidden">
+          <!-- 移动端搜索按钮 -->
+          <button
+            type="button"
+            id="mobile-search-button"
+            class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 mr-2"
+            aria-expanded="false"
+            aria-label="搜索"
+          >
+            <span class="sr-only">搜索</span>
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              ></path>
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+            id="mobile-menu-button"
+            aria-expanded="false"
+            aria-label="打开菜单"
+          >
+            <span class="sr-only">打开菜单</span>
+            <svg
+              class="h-6 w-6 block"
+              id="menu-open-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              ></path>
+            </svg>
+            <svg
+              class="h-6 w-6 hidden"
+              id="menu-close-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 移动端搜索面板 -->
+    <div
+      id="mobile-search-panel"
+      class="hidden md:hidden fixed inset-x-0 top-16 p-4 bg-white dark:bg-gray-800 shadow-md z-50 border-t border-gray-200 dark:border-gray-700"
+    >
+      <div class="relative">
+        <input
+          type="text"
+          id="mobile-search"
+          class="w-full pl-10 pr-10 py-2 rounded-full text-sm text-gray-700 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 bg-gray-50/80 dark:bg-gray-800/60 border border-gray-200/60 dark:border-gray-700/40 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-800 focus:border-primary-300 dark:focus:border-primary-600"
+          placeholder="搜索文章..."
+        />
+        <div
+          class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+        >
+          <svg
+            class="h-5 w-5 text-gray-400 dark:text-gray-500"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            ></path>
+          </svg>
+        </div>
+        <button
+          id="mobile-search-close"
+          class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          aria-label="关闭搜索"
+        >
+          <svg
+            class="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+      </div>
+      <!-- 移动端搜索结果 -->
+      <div
+        id="mobile-search-results"
+        class="mt-3 max-h-80 overflow-y-auto rounded-lg bg-white/95 dark:bg-gray-800/95 shadow-md border border-gray-200/70 dark:border-gray-700/70 backdrop-blur-sm hidden"
+      >
+        <!-- 结果将通过JS动态填充 -->
+        <div
+          class="p-4 text-center text-gray-500 dark:text-gray-400"
+          id="mobile-search-message"
+        >
+          <p>输入关键词开始搜索</p>
+        </div>
+        <ul
+          class="divide-y divide-gray-200/70 dark:divide-gray-700/70"
+          id="mobile-search-list"
+        >
+        </ul>
+      </div>
+    </div>
+
+    <!-- 移动端菜单 -->
+    <div
+      class="hidden md:hidden fixed inset-x-0 top-16 z-40"
+      id="mobile-menu"
+    >
+      <div id="mobile-menu-bg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div class="grid gap-1">
+            {
+              NAV_LINKS.map((link) => (
+                <a
+                  href={link.href}
+                  class:list={[
+                    "flex items-center px-3 py-3 rounded-lg text-base font-medium",
+                    normalizedPath === link.href
+                      ? "text-white bg-primary-600 dark:bg-primary-500 shadow-sm"
+                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70",
+                  ]}
+                >
+                  {link.text}
+                </a>
+              ))
+            }
+            <div
+              class="mt-2 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/70 rounded-lg px-3 py-2"
+              id="theme-toggle-container"
+            >
+              <span class="text-sm font-medium text-gray-600 dark:text-gray-300"
+                >切换主题</span
+              >
+              <ThemeToggle />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<script>
+  // 确保脚本适用于视图转换
+  function initHeader() {
+    const header = document.getElementById("header-bg");
+    const scrollThreshold = 50;
+
+    // 记录当前路径和导航状态
+    const currentUrl = window.location.pathname;
+    const normalizedPath =
+      currentUrl === "/"
+        ? "/"
+        : currentUrl.endsWith("/")
+          ? currentUrl.slice(0, -1)
+          : currentUrl;
+
+    // 获取所有导航链接
+    const navLinks = document.querySelectorAll("nav a[href]");
+
+    // 更新导航高亮状态
+    function updateNavHighlight() {
+      const currentUrl = window.location.pathname;
+      const normalizedPath =
+        currentUrl === "/"
+          ? "/"
+          : currentUrl.endsWith("/")
+            ? currentUrl.slice(0, -1)
+            : currentUrl;
+
+      navLinks.forEach((link) => {
+        const href = link.getAttribute("href");
+
+        if (href === normalizedPath) {
+          // 添加高亮类
+          link.classList.add(
+            "text-primary-600",
+            "dark:text-primary-400",
+            "border-b-2",
+            "border-primary-600",
+            "dark:border-primary-400",
+          );
+          link.classList.remove(
+            "text-secondary-600",
+            "dark:text-secondary-400",
+            "hover:text-primary-600",
+            "dark:hover:text-primary-400",
+            "hover:border-b-2",
+            "hover:border-primary-300",
+            "dark:hover:border-primary-700",
+          );
+        } else {
+          // 移除高亮类
+          link.classList.remove(
+            "text-primary-600",
+            "dark:text-primary-400",
+            "border-b-2",
+            "border-primary-600",
+            "dark:border-primary-400",
+          );
+          link.classList.add(
+            "text-secondary-600",
+            "dark:text-secondary-400",
+            "hover:text-primary-600",
+            "dark:hover:text-primary-400",
+            "hover:border-b-2",
+            "hover:border-primary-300",
+            "dark:hover:border-primary-700",
+          );
+        }
+      });
+    }
+
+    function updateHeaderBackground() {
+      if (window.scrollY > scrollThreshold) {
+        header?.classList.add("scrolled");
+      } else {
+        header?.classList.remove("scrolled");
+      }
+    }
+
+    // 初始检查
+    updateHeaderBackground();
+    // 初始化导航高亮
+    updateNavHighlight();
+
+    // 添加滚动事件监听
+    window.addEventListener("scroll", updateHeaderBackground);
+
+    // 移动端菜单逻辑
+    const mobileMenuButton = document.getElementById("mobile-menu-button");
+    const mobileMenu = document.getElementById("mobile-menu");
+    const menuOpenIcon = document.getElementById("menu-open-icon");
+    const menuCloseIcon = document.getElementById("menu-close-icon");
+
+    if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
+      mobileMenuButton.addEventListener("click", () => {
+        const expanded =
+          mobileMenuButton.getAttribute("aria-expanded") === "true";
+
+        // 切换菜单状态
+        mobileMenuButton.setAttribute("aria-expanded", (!expanded).toString());
+
+        if (expanded) {
+          // 直接隐藏菜单，不使用过渡效果
+          mobileMenu.classList.add("hidden");
+        } else {
+          // 直接显示菜单，不使用过渡效果
+          mobileMenu.classList.remove("hidden");
+        }
+
+        // 切换图标
+        menuOpenIcon.classList.toggle("hidden");
+        menuCloseIcon.classList.toggle("hidden");
+      });
+    }
+
+    // 移动端主题切换容器点击处理
+    const themeToggleContainer = document.getElementById(
+      "theme-toggle-container",
+    );
+
+    if (themeToggleContainer) {
+      themeToggleContainer.addEventListener("click", (e) => {
+        const target = e.target as HTMLElement;
+        const themeToggleButton =
+          themeToggleContainer.querySelector('[role="button"]');
+
+        // 如果点击的不是主题切换按钮本身，而是容器或文本
+        if (
+          themeToggleButton instanceof HTMLElement &&
+          target !== themeToggleButton &&
+          !themeToggleButton.contains(target)
+        ) {
+          // 手动触发主题切换按钮的点击
+          themeToggleButton.click();
+        }
+      });
+    }
+
+    // 移动端搜索按钮
+    const mobileSearchButton = document.getElementById("mobile-search-button");
+    const mobileSearchPanel = document.getElementById("mobile-search-panel");
+    const mobileSearch = document.getElementById("mobile-search");
+    const mobileSearchClose = document.getElementById("mobile-search-close");
+
+    if (mobileSearchButton && mobileSearchPanel) {
+      mobileSearchButton.addEventListener("click", () => {
+        mobileSearchPanel.classList.remove("hidden");
+        mobileSearchPanel.classList.add("show");
+        if (mobileSearch) mobileSearch.focus();
+      });
+
+      if (mobileSearchClose) {
+        mobileSearchClose.addEventListener("click", () => {
+          mobileSearchPanel.classList.add("hidden");
+          mobileSearchPanel.classList.remove("show");
+        });
+      }
+    }
+  }
+
+  // 搜索功能逻辑
+  function initSearch() {
+    // 搜索节流函数
+    function debounce<T extends (...args: any[]) => void>(
+      func: T,
+      wait: number,
+    ): (...args: Parameters<T>) => void {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      return function (this: any, ...args: Parameters<T>): void {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    // 获取DOM元素
+    const desktopSearch = document.getElementById("desktop-search");
+    const desktopResults = document.getElementById("desktop-search-results");
+    const desktopList = document.getElementById("desktop-search-list");
+    const desktopMessage = document.getElementById("desktop-search-message");
+
+    const mobileSearch = document.getElementById("mobile-search");
+    const mobileResults = document.getElementById("mobile-search-results");
+    const mobileList = document.getElementById("mobile-search-list");
+    const mobileMessage = document.getElementById("mobile-search-message");
+
+    // 文章对象的接口定义
+    interface Article {
+      id: string;
+      title: string;
+      date: string | Date;
+      summary?: string;
+      tags?: string[];
+      image?: string;
+      content?: string;
+    }
+
+    let articles: Article[] = [];
+    let isArticlesLoaded = false;
+
+    // 获取文章数据
+    async function fetchArticles() {
+      if (isArticlesLoaded && articles.length > 0) return;
+
+      try {
+        const response = await fetch("/api/search");
+        if (!response.ok) {
+          throw new Error("获取文章数据失败");
+        }
+        articles = await response.json();
+        isArticlesLoaded = true;
+      } catch (error) {
+        console.error("获取文章失败:", error);
+      }
+    }
+
+    // 高亮文本中的匹配部分
+    function highlightText(text: string, query: string): string {
+      if (!text || !query.trim()) return text;
+
+      // 转义正则表达式中的特殊字符
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`(${escapedQuery})`, "gi");
+
+      return text.replace(
+        regex,
+        '<mark class="bg-yellow-100 dark:bg-yellow-900/30 text-gray-900 dark:text-gray-100 px-0.5 rounded">$1</mark>',
+      );
+    }
+
+    // 搜索文章
+    function searchArticles(
+      query: string,
+      resultsList: HTMLElement,
+      resultsMessage: HTMLElement,
+    ) {
+      if (!query.trim()) {
+        resultsList.innerHTML = "";
+        resultsMessage.textContent = "输入关键词开始搜索";
+        resultsMessage.style.display = "block";
+        return;
+      }
+
+      if (articles.length === 0) {
+        resultsMessage.textContent = "正在加载数据...";
+        resultsMessage.style.display = "block";
+        return;
+      }
+
+      const lowerQuery = query.toLowerCase();
+
+      // 过滤并排序结果
+      const filteredArticles = articles
+        .filter((article: Article) => {
+          const title = article.title.toLowerCase();
+          const tags = article.tags
+            ? article.tags.map((tag: string) => tag.toLowerCase())
+            : [];
+          const summary = article.summary ? article.summary.toLowerCase() : "";
+          const content = article.content ? article.content.toLowerCase() : "";
+
+          return (
+            title.includes(lowerQuery) ||
+            tags.some((tag: string) => tag.includes(lowerQuery)) ||
+            summary.includes(lowerQuery) ||
+            content.includes(lowerQuery)
+          );
+        })
+        .sort((a: Article, b: Article) => {
+          // 标题匹配优先
+          const aTitle = a.title.toLowerCase();
+          const bTitle = b.title.toLowerCase();
+
+          if (aTitle.includes(lowerQuery) && !bTitle.includes(lowerQuery)) {
+            return -1;
+          }
+          if (!aTitle.includes(lowerQuery) && bTitle.includes(lowerQuery)) {
+            return 1;
+          }
+
+          // 内容匹配次之
+          const aContent = a.content ? a.content.toLowerCase() : "";
+          const bContent = b.content ? b.content.toLowerCase() : "";
+
+          if (aContent.includes(lowerQuery) && !bContent.includes(lowerQuery)) {
+            return -1;
+          }
+          if (!aContent.includes(lowerQuery) && bContent.includes(lowerQuery)) {
+            return 1;
+          }
+
+          // 日期排序
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        })
+        .slice(0, 10); // 限制结果数量
+
+      if (filteredArticles.length === 0) {
+        resultsList.innerHTML = "";
+        resultsMessage.textContent = "没有找到相关内容";
+        resultsMessage.style.display = "block";
+        return;
+      }
+
+      // 显示结果
+      resultsMessage.style.display = "none";
+      resultsList.innerHTML = filteredArticles
+        .map((article: Article) => {
+          // 生成匹配的内容片段
+          let contentMatch = "";
+          if (
+            article.content &&
+            article.content.toLowerCase().includes(lowerQuery)
+          ) {
+            // 找到匹配文本在内容中的位置
+            const matchIndex = article.content
+              .toLowerCase()
+              .indexOf(lowerQuery);
+            // 计算片段的起始和结束位置
+            const startPos = Math.max(0, matchIndex - 50);
+            const endPos = Math.min(article.content.length, matchIndex + 100);
+            // 提取片段
+            let snippet = article.content.substring(startPos, endPos);
+            // 如果不是从文章开头开始，添加省略号
+            if (startPos > 0) {
+              snippet = "..." + snippet;
+            }
+            // 如果不是到文章结尾，添加省略号
+            if (endPos < article.content.length) {
+              snippet = snippet + "...";
+            }
+            // 高亮匹配的文本
+            snippet = highlightText(snippet, query);
+            contentMatch = `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${snippet}</p>`;
+          }
+
+          // 高亮标题和摘要中的匹配文本
+          const highlightedTitle = highlightText(article.title, query);
+          const highlightedSummary = article.summary
+            ? highlightText(article.summary, query)
+            : "";
+
+          return `
+                <li>
+                    <a href="/articles/${article.id}" class="block px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700/70">
+                        <h3 class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">${highlightedTitle}</h3>
+                        ${article.summary ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">${highlightedSummary}</p>` : ""}
+                        ${contentMatch}
+                        ${
+                          article.tags && article.tags.length > 0
+                            ? `
+                            <div class="flex flex-wrap gap-1 mt-1.5">
+                                ${article.tags
+                                  .slice(0, 3)
+                                  .map(
+                                    (tag: string) => `
+                                    <span class="inline-block text-xs bg-primary-50/50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 py-0.5 px-1.5 rounded-full">#${tag}</span>
+                                `,
+                                  )
+                                  .join("")}
+                                ${article.tags.length > 3 ? `<span class="text-xs text-gray-400 dark:text-gray-500">+${article.tags.length - 3}</span>` : ""}
+                            </div>
+                        `
+                            : ""
+                        }
+                    </a>
+                </li>
+            `;
+        })
+        .join("");
+    }
+
+    // 节流搜索
+    const debouncedDesktopSearch = debounce((value: string) => {
+      if (desktopList && desktopMessage) {
+        searchArticles(
+          value,
+          desktopList as HTMLElement,
+          desktopMessage as HTMLElement,
+        );
+      }
+    }, 300);
+
+    const debouncedMobileSearch = debounce((value: string) => {
+      if (mobileList && mobileMessage) {
+        searchArticles(
+          value,
+          mobileList as HTMLElement,
+          mobileMessage as HTMLElement,
+        );
+      }
+    }, 300);
+
+    // 桌面端搜索逻辑
+    if (desktopSearch && desktopResults) {
+      desktopSearch.addEventListener("focus", () => {
+        desktopResults.classList.remove("hidden");
+        if (!isArticlesLoaded) fetchArticles();
+      });
+
+      desktopSearch.addEventListener("input", (e: Event) => {
+        const target = e.target as HTMLInputElement;
+        if (target && target.value !== undefined) {
+          debouncedDesktopSearch(target.value);
+        }
+      });
+
+      // 点击外部关闭结果
+      document.addEventListener("click", (e: MouseEvent) => {
+        const target = e.target as Node;
+        if (
+          desktopSearch &&
+          !desktopSearch.contains(target) &&
+          !desktopResults.contains(target)
+        ) {
+          desktopResults.classList.add("hidden");
+        }
+      });
+
+      // ESC键关闭结果
+      desktopSearch.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          desktopResults.classList.add("hidden");
+        }
+      });
+    }
+
+    // 移动端搜索逻辑
+    if (mobileSearch && mobileResults) {
+      mobileSearch.addEventListener("input", (e: Event) => {
+        mobileResults.classList.remove("hidden");
+        const target = e.target as HTMLInputElement;
+        if (target && target.value !== undefined) {
+          debouncedMobileSearch(target.value);
+          if (!isArticlesLoaded) fetchArticles();
+        }
+      });
+
+      // ESC键关闭搜索面板
+      mobileSearch.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          const mobileSearchPanel = document.getElementById(
+            "mobile-search-panel",
+          );
+          if (mobileSearchPanel) {
+            mobileSearchPanel.classList.add("hidden");
+            mobileSearchPanel.classList.remove("show");
+          }
+        }
+      });
+    }
+  }
+
+  // 初始化函数
+  function setupHeader() {
+    initHeader();
+    initSearch();
+  }
+
+  // 在文档加载时初始化一次
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupHeader);
+  } else {
+    setupHeader();
+  }
+
+  // 支持 Astro 视图转换
+  document.addEventListener("astro:after-swap", setupHeader);
+
+  document.addEventListener("astro:page-load", setupHeader);
+
+  // 原事件监听 - 保留以兼容可能的旧版本
+  document.addEventListener("astro:swup:page:view", setupHeader);
+
+  // 清理
+  document.addEventListener("astro:before-swap", () => {
+    // 移除可能的全局事件监听器
+    window.removeEventListener("scroll", () => {});
+  });
+</script>

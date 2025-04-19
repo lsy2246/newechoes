@@ -1,7 +1,7 @@
 ---
 import "@/styles/global.css";
-import Header from "@/components/Header.tsx";
-import {Footer} from "@/components/Footer.tsx";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
 import { ICP, PSB_ICP, PSB_ICP_URL, SITE_NAME, SITE_DESCRIPTION } from "@/consts";
 
 // 定义Props接口
@@ -62,22 +62,24 @@ const { title = SITE_NAME, description = SITE_DESCRIPTION, date, author, tags, i
 					// 设置标志，表示初始化已完成
 					window.__themeInitDone = true;
 					
-					const theme = (() => {
-						if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-							return localStorage.getItem('theme');
-						}
-						if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-							return 'dark';
-						}
-						return 'light';
-					})();
+					const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+					const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('theme') : null;
+					const theme = savedTheme || systemTheme;
+					
+					// 立即设置文档主题
 					document.documentElement.dataset.theme = theme;
+					
+					// 将主题信息存储在全局变量中，以便 React 组件可以立即访问
+					window.__THEME_DATA__ = {
+						currentTheme: theme,
+						systemTheme: systemTheme
+					};
 				}
 			})();
 		</script>
 	</head>
 	<body class="m-0 w-full h-full bg-gray-50 dark:bg-dark-bg flex flex-col min-h-screen">
-		<Header client:load/>
+		<Header />
 		<main class="pt-16 flex-grow">
 			<slot />
 		</main>
