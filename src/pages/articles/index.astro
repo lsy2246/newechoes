@@ -201,6 +201,9 @@ function getArticleUrl(articleId: string) {
 <Layout>
   <div class="bg-gray-50 dark:bg-dark-bg min-h-screen">
     <main class={`mx-auto px-4 sm:px-6 lg:px-8 py-6 ${viewMode === 'grid' ? 'max-w-7xl' : 'max-w-5xl'}`}>
+      <!-- 页面标题 -->
+      <h1 class="sr-only">{pageTitle}</h1>
+      
       <!-- 导航栏 -->
       <div class="bg-white dark:bg-gray-800 rounded-xl mb-4 shadow-lg border border-gray-200 dark:border-gray-700">
         <div class="px-4 py-3">
@@ -209,6 +212,7 @@ function getArticleUrl(articleId: string) {
               pageType="articles" 
               pathSegments={pathSegments} 
               tagFilter={tagFilter} 
+              client:load
             />
             
             <!-- 视图切换按钮 -->

@@ -48,9 +48,12 @@ const {
 
 <script>
   function setupThemeToggle() {
-    const themeToggleButton = document.getElementById('theme-toggle-button');
+    // 获取所有主题切换按钮
+    const themeToggleButtons = document.querySelectorAll('#theme-toggle-button');
     
-    if (!themeToggleButton) return;
+    if (!themeToggleButtons.length) {
+      return;
+    }
     
     let transitioning = false;
     let transitionTimeout: number | null = null;
@@ -62,7 +65,9 @@ const {
     
     // 切换主题
     const toggleTheme = () => {
-      if (transitioning) return;
+      if (transitioning) {
+        return;
+      }
       
       transitioning = true;
       
@@ -92,17 +97,6 @@ const {
       }, 300) as unknown as number;
     };
     
-    // 添加点击事件
-    themeToggleButton.addEventListener('click', toggleTheme);
-    
-    // 添加键盘事件
-    themeToggleButton.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        toggleTheme();
-      }
-    });
-    
     // 监听系统主题变化
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     
@@ -116,10 +110,62 @@ const {
     
     mediaQuery.addEventListener('change', handleMediaChange);
     
+    // 存储事件处理函数引用，用于清理
+    const clickHandlers = new Map();
+
+    // 为每个按钮添加点击事件
+    themeToggleButtons.forEach(button => {
+      const handler = (e: Event) => {
+        // 阻止事件冒泡
+        e.stopPropagation();
+        toggleTheme();
+      };
+      
+      clickHandlers.set(button, handler);
+      button.addEventListener('click', handler);
+      
+      // 恢复键盘事件
+      button.addEventListener('keydown', function(e) {
+        const keyEvent = e as KeyboardEvent;
+        if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+          e.preventDefault();
+          toggleTheme();
+        }
+      });
+    });
+    
+    // 处理移动端主题切换容器
+    let containerHandler: ((e: Event) => void) | null = null;
+    const themeToggleContainer = document.getElementById('theme-toggle-container');
+    if (themeToggleContainer) {
+      containerHandler = (e) => {
+        const target = e.target as HTMLElement;
+        // 如果点击的不是主题切换按钮本身，则手动触发主题切换
+        if (target.id !== 'theme-toggle-button' && !target.closest('#theme-toggle-button')) {
+          e.stopPropagation();
+          toggleTheme();
+        }
+      };
+      themeToggleContainer.addEventListener('click', containerHandler);
+    }
+    
     // 清理
     return () => {
       mediaQuery.removeEventListener('change', handleMediaChange);
-      themeToggleButton.removeEventListener('click', toggleTheme);
+      
+      // 清理按钮事件
+      themeToggleButtons.forEach(button => {
+        const handler = clickHandlers.get(button);
+        if (handler) {
+          button.removeEventListener('click', handler);
+        }
+      });
+      
+      // 清理容器事件
+      if (themeToggleContainer && containerHandler) {
+        themeToggleContainer.removeEventListener('click', containerHandler);
+      }
+      
       if (transitionTimeout) {
         clearTimeout(transitionTimeout);
       }

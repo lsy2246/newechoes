@@ -97,6 +97,13 @@ const mergedProps = {
   tag,
   view
 };
+
+// 生成页面标题
+let pageTitle = path ? path : '文章列表';
+if (tag) {
+  pageTitle = `标签: ${tag}`;
+}
 ---
 
+<h1 class="sr-only">{pageTitle}</h1>
 <ArticlesPage {...mergedProps} /> 

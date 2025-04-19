@@ -14,20 +14,4 @@
 [data-theme="dark"] #header-bg.scrolled {
   background: rgba(15, 23, 42, 0.8);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-}
-
-/* 移动端搜索面板动画 */
-.show {
-  animation: slide-down 0.2s ease-out forwards;
-}
-
-@keyframes slide-down {
-  0% {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
 } 

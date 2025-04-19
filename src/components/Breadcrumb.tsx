@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface Breadcrumb {
   name: string;
   path: string;

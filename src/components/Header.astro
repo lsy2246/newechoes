@@ -92,12 +92,11 @@ const normalizedPath =
             NAV_LINKS.map((link) => (
               <a
                 href={link.href}
-                class:list={[
-                  "inline-flex items-center px-1 pt-1 text-sm font-medium",
+                class={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
                   normalizedPath === link.href
                     ? "text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400"
-                    : "text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:border-b-2 hover:border-primary-300 dark:hover:border-primary-700",
-                ]}
+                    : "text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:border-b-2 hover:border-primary-300 dark:hover:border-primary-700"
+                }`}
               >
                 {link.text}
               </a>
@@ -253,19 +252,18 @@ const normalizedPath =
       class="hidden md:hidden fixed inset-x-0 top-16 z-40"
       id="mobile-menu"
     >
-      <div id="mobile-menu-bg">
+      <div id="mobile-menu-bg" class="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-t border-gray-200 dark:border-gray-700/50 rounded-b-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div class="grid gap-1">
             {
               NAV_LINKS.map((link) => (
                 <a
                   href={link.href}
-                  class:list={[
-                    "flex items-center px-3 py-3 rounded-lg text-base font-medium",
+                  class={`flex items-center px-3 py-3 rounded-lg text-base font-medium ${
                     normalizedPath === link.href
                       ? "text-white bg-primary-600 dark:bg-primary-500 shadow-sm"
-                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70",
-                  ]}
+                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                  }`}
                 >
                   {link.text}
                 </a>
@@ -288,22 +286,12 @@ const normalizedPath =
 </header>
 
 <script>
-  // 确保脚本适用于视图转换
   function initHeader() {
     const header = document.getElementById("header-bg");
     const scrollThreshold = 50;
 
-    // 记录当前路径和导航状态
-    const currentUrl = window.location.pathname;
-    const normalizedPath =
-      currentUrl === "/"
-        ? "/"
-        : currentUrl.endsWith("/")
-          ? currentUrl.slice(0, -1)
-          : currentUrl;
-
-    // 获取所有导航链接
-    const navLinks = document.querySelectorAll("nav a[href]");
+    // 获取桌面端导航链接（排除移动端菜单中的链接）
+    const navLinks = document.querySelectorAll('.hidden.md\\:flex a[href]');
 
     // 更新导航高亮状态
     function updateNavHighlight() {
@@ -315,46 +303,43 @@ const normalizedPath =
             ? currentUrl.slice(0, -1)
             : currentUrl;
 
+      // 更新桌面端导航链接
       navLinks.forEach((link) => {
         const href = link.getAttribute("href");
+        const isActive = href === normalizedPath;
+        
+        // 使用 classList.toggle 来切换类
+        link.classList.toggle("text-primary-600", isActive);
+        link.classList.toggle("dark:text-primary-400", isActive);
+        link.classList.toggle("border-b-2", isActive);
+        link.classList.toggle("border-primary-600", isActive);
+        link.classList.toggle("dark:border-primary-400", isActive);
+        
+        link.classList.toggle("text-secondary-600", !isActive);
+        link.classList.toggle("dark:text-secondary-400", !isActive);
+        link.classList.toggle("hover:text-primary-600", !isActive);
+        link.classList.toggle("dark:hover:text-primary-400", !isActive);
+        link.classList.toggle("hover:border-b-2", !isActive);
+        link.classList.toggle("hover:border-primary-300", !isActive);
+        link.classList.toggle("dark:hover:border-primary-700", !isActive);
+      });
 
-        if (href === normalizedPath) {
-          // 添加高亮类
-          link.classList.add(
-            "text-primary-600",
-            "dark:text-primary-400",
-            "border-b-2",
-            "border-primary-600",
-            "dark:border-primary-400",
-          );
-          link.classList.remove(
-            "text-secondary-600",
-            "dark:text-secondary-400",
-            "hover:text-primary-600",
-            "dark:hover:text-primary-400",
-            "hover:border-b-2",
-            "hover:border-primary-300",
-            "dark:hover:border-primary-700",
-          );
-        } else {
-          // 移除高亮类
-          link.classList.remove(
-            "text-primary-600",
-            "dark:text-primary-400",
-            "border-b-2",
-            "border-primary-600",
-            "dark:border-primary-400",
-          );
-          link.classList.add(
-            "text-secondary-600",
-            "dark:text-secondary-400",
-            "hover:text-primary-600",
-            "dark:hover:text-primary-400",
-            "hover:border-b-2",
-            "hover:border-primary-300",
-            "dark:hover:border-primary-700",
-          );
-        }
+      // 更新移动端导航链接
+      const mobileNavLinks = document.querySelectorAll('#mobile-menu a[href]');
+      mobileNavLinks.forEach((link) => {
+        const href = link.getAttribute("href");
+        const isActive = href === normalizedPath;
+        
+        // 使用 classList.toggle 来切换类
+        link.classList.toggle("text-white", isActive);
+        link.classList.toggle("bg-primary-600", isActive);
+        link.classList.toggle("dark:bg-primary-500", isActive);
+        link.classList.toggle("shadow-sm", isActive);
+        
+        link.classList.toggle("text-gray-700", !isActive);
+        link.classList.toggle("dark:text-gray-200", !isActive);
+        link.classList.toggle("hover:bg-gray-100", !isActive);
+        link.classList.toggle("dark:hover:bg-gray-800/70", !isActive);
       });
     }
 
@@ -368,17 +353,43 @@ const normalizedPath =
 
     // 初始检查
     updateHeaderBackground();
-    // 初始化导航高亮
     updateNavHighlight();
 
     // 添加滚动事件监听
     window.addEventListener("scroll", updateHeaderBackground);
+
+    // 监听路由变化
+    document.addEventListener('astro:page-load', updateNavHighlight);
+    document.addEventListener('astro:after-swap', updateNavHighlight);
 
     // 移动端菜单逻辑
     const mobileMenuButton = document.getElementById("mobile-menu-button");
     const mobileMenu = document.getElementById("mobile-menu");
     const menuOpenIcon = document.getElementById("menu-open-icon");
     const menuCloseIcon = document.getElementById("menu-close-icon");
+    
+    // 移动端搜索面板元素
+    const mobileSearchButton = document.getElementById("mobile-search-button");
+    const mobileSearchPanel = document.getElementById("mobile-search-panel");
+    const mobileSearch = document.getElementById("mobile-search");
+    const mobileSearchClose = document.getElementById("mobile-search-close");
+
+    // 关闭移动端菜单的函数
+    function closeMobileMenu() {
+      if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
+        mobileMenuButton.setAttribute("aria-expanded", "false");
+        mobileMenu.classList.add("hidden");
+        menuOpenIcon.classList.remove("hidden");
+        menuCloseIcon.classList.add("hidden");
+      }
+    }
+    
+    // 关闭移动端搜索面板的函数
+    function closeMobileSearch() {
+      if (mobileSearchPanel) {
+        mobileSearchPanel.classList.add("hidden");
+      }
+    }
 
     if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
       mobileMenuButton.addEventListener("click", () => {
@@ -392,6 +403,9 @@ const normalizedPath =
           // 直接隐藏菜单，不使用过渡效果
           mobileMenu.classList.add("hidden");
         } else {
+          // 打开菜单前先关闭搜索面板
+          closeMobileSearch();
+          
           // 直接显示菜单，不使用过渡效果
           mobileMenu.classList.remove("hidden");
         }
@@ -400,48 +414,36 @@ const normalizedPath =
         menuOpenIcon.classList.toggle("hidden");
         menuCloseIcon.classList.toggle("hidden");
       });
-    }
 
-    // 移动端主题切换容器点击处理
-    const themeToggleContainer = document.getElementById(
-      "theme-toggle-container",
-    );
-
-    if (themeToggleContainer) {
-      themeToggleContainer.addEventListener("click", (e) => {
-        const target = e.target as HTMLElement;
-        const themeToggleButton =
-          themeToggleContainer.querySelector('[role="button"]');
-
-        // 如果点击的不是主题切换按钮本身，而是容器或文本
-        if (
-          themeToggleButton instanceof HTMLElement &&
-          target !== themeToggleButton &&
-          !themeToggleButton.contains(target)
-        ) {
-          // 手动触发主题切换按钮的点击
-          themeToggleButton.click();
-        }
+      // 为移动端导航链接添加点击事件
+      const mobileNavLinks = document.querySelectorAll('#mobile-menu a[href]');
+      mobileNavLinks.forEach(link => {
+        link.addEventListener('click', closeMobileMenu);
       });
     }
 
     // 移动端搜索按钮
-    const mobileSearchButton = document.getElementById("mobile-search-button");
-    const mobileSearchPanel = document.getElementById("mobile-search-panel");
-    const mobileSearch = document.getElementById("mobile-search");
-    const mobileSearchClose = document.getElementById("mobile-search-close");
-
     if (mobileSearchButton && mobileSearchPanel) {
       mobileSearchButton.addEventListener("click", () => {
-        mobileSearchPanel.classList.remove("hidden");
-        mobileSearchPanel.classList.add("show");
-        if (mobileSearch) mobileSearch.focus();
+        // 检查搜索面板是否已经打开
+        const isSearchVisible = !mobileSearchPanel.classList.contains("hidden");
+        
+        if (isSearchVisible) {
+          // 如果搜索面板已打开，则关闭它
+          closeMobileSearch();
+        } else {
+          // 打开搜索面板前先关闭菜单
+          closeMobileMenu();
+          
+          // 打开搜索面板
+          mobileSearchPanel.classList.remove("hidden");
+          if (mobileSearch) mobileSearch.focus();
+        }
       });
 
       if (mobileSearchClose) {
         mobileSearchClose.addEventListener("click", () => {
-          mobileSearchPanel.classList.add("hidden");
-          mobileSearchPanel.classList.remove("show");
+          closeMobileSearch();
         });
       }
     }
@@ -731,7 +733,6 @@ const normalizedPath =
           );
           if (mobileSearchPanel) {
             mobileSearchPanel.classList.add("hidden");
-            mobileSearchPanel.classList.remove("show");
           }
         }
       });
