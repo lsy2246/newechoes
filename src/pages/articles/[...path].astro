@@ -1,6 +1,9 @@
 ---
 import ArticlesPage, { getStaticPaths as getOriginalPaths } from './index.astro';
 
+// 启用静态预渲染
+export const prerender = true;
+
 // 重新导出 getStaticPaths，处理所有路径模式
 export async function getStaticPaths() {
   const paths = await getOriginalPaths();
@@ -98,12 +101,6 @@ const mergedProps = {
   view
 };
 
-// 生成页面标题
-let pageTitle = path ? path : '文章列表';
-if (tag) {
-  pageTitle = `标签: ${tag}`;
-}
 ---
 
-<h1 class="sr-only">{pageTitle}</h1>
 <ArticlesPage {...mergedProps} /> 

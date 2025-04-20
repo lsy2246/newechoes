@@ -1,6 +1,10 @@
 ---
 import Layout from '@/components/Layout.astro';
 import { SITE_NAME } from '@/consts';
+
+// 启用静态预渲染
+export const prerender = true;
+
 ---
 
 <Layout title={`404 - 页面未找到 | ${SITE_NAME}`}>

@@ -55,25 +55,46 @@ const { title = SITE_NAME, description = SITE_DESCRIPTION, date, author, tags, i
 			<meta property="article:tag" content={tag} />
 		))}
 		<script is:inline>
-			// 立即执行主题初始化，并防止变量重复声明
+			// 立即执行主题初始化，采用"无闪烁"加载方式
 			(function() {
-				// 检查变量是否已存在
-				if (typeof window.__themeInitDone === 'undefined') {
-					// 设置标志，表示初始化已完成
-					window.__themeInitDone = true;
+				try {
+					// 获取系统首选主题
+					const getSystemTheme = () => {
+						return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+					};
 					
-					const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-					const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('theme') : null;
-					const theme = savedTheme || systemTheme;
+					const storedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('theme') : null;
+					const systemTheme = getSystemTheme();
+					let theme = 'light'; // 默认浅色主题
 					
-					// 立即设置文档主题
+					// 按照逻辑优先级应用主题
+					if (storedTheme) {
+						// 如果有存储的主题设置，则应用它
+						theme = storedTheme;
+					} else if (systemTheme) {
+						// 如果没有存储的设置，检查系统主题
+						theme = systemTheme;
+					}
+					
+					// 立即设置文档主题，在DOM渲染前应用，避免闪烁
 					document.documentElement.dataset.theme = theme;
 					
-					// 将主题信息存储在全局变量中，以便 React 组件可以立即访问
-					window.__THEME_DATA__ = {
-						currentTheme: theme,
-						systemTheme: systemTheme
+					// 监听系统主题变化（只有当主题设为跟随系统时才响应）
+					const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+					
+					const handleMediaChange = (e) => {
+						// 只有当主题设置为跟随系统时才更新主题
+						if (!localStorage.getItem('theme')) {
+							const newTheme = e.matches ? 'dark' : 'light';
+							document.documentElement.dataset.theme = newTheme;
+						}
 					};
+					
+					// 添加系统主题变化监听
+					mediaQuery.addEventListener('change', handleMediaChange);
+				} catch (error) {
+					// 出错时应用默认浅色主题，确保页面正常显示
+					document.documentElement.dataset.theme = 'light';
 				}
 			})();
 		</script>

@@ -286,7 +286,63 @@ const normalizedPath =
 </header>
 
 <script>
-  function initHeader() {
+// Header组件逻辑 - 使用"进入→绑定→退出完全清理"模式
+(function() {
+  // 生成唯一ID用于日志跟踪
+  const headerId = 'header-' + (new Date().getTime());
+  
+  // 存储所有事件监听器，便于统一清理
+  const listeners: Array<{
+    element: EventTarget;
+    eventType: string;
+    handler: EventListenerOrEventListenerObject;
+  }> = [];
+  
+  // 记录是否已加载文章数据
+  interface Article {
+    id: string;
+    title: string;
+    date: string | Date;
+    summary?: string;
+    tags?: string[];
+    image?: string;
+    content?: string;
+  }
+  
+  let articles: Article[] = [];
+  let isArticlesLoaded = false;
+  
+  // 添加事件监听器并记录，方便后续统一清理
+  function addListener<K extends keyof HTMLElementEventMap>(
+    element: EventTarget | null,
+    eventType: string,
+    handler: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions
+  ): EventListenerOrEventListenerObject | null {
+    if (!element) return null;
+    
+    element.addEventListener(eventType, handler, options);
+    listeners.push({ element, eventType, handler });
+    return handler;
+  }
+  
+  // 清理函数 - 移除所有事件监听器
+  function cleanup(): void {
+    // 移除所有监听器
+    listeners.forEach(({ element, eventType, handler }) => {
+      try {
+        element.removeEventListener(eventType, handler);
+      } catch (err) {
+        console.error(`移除Header事件监听器出错:`, err);
+      }
+    });
+    
+    // 清空数组
+    listeners.length = 0;
+  }
+  
+  // Header和导航高亮逻辑
+  function initHeader(): void {
     const header = document.getElementById("header-bg");
     const scrollThreshold = 50;
 
@@ -294,7 +350,7 @@ const normalizedPath =
     const navLinks = document.querySelectorAll('.hidden.md\\:flex a[href]');
 
     // 更新导航高亮状态
-    function updateNavHighlight() {
+    function updateNavHighlight(): void {
       const currentUrl = window.location.pathname;
       const normalizedPath =
         currentUrl === "/"
@@ -343,7 +399,8 @@ const normalizedPath =
       });
     }
 
-    function updateHeaderBackground() {
+    // 处理滚动更新背景
+    function updateHeaderBackground(): void {
       if (window.scrollY > scrollThreshold) {
         header?.classList.add("scrolled");
       } else {
@@ -356,11 +413,11 @@ const normalizedPath =
     updateNavHighlight();
 
     // 添加滚动事件监听
-    window.addEventListener("scroll", updateHeaderBackground);
+    addListener(window, "scroll", updateHeaderBackground);
 
     // 监听路由变化
-    document.addEventListener('astro:page-load', updateNavHighlight);
-    document.addEventListener('astro:after-swap', updateNavHighlight);
+    addListener(document, 'astro:page-load', updateNavHighlight);
+    addListener(document, 'astro:after-swap', updateNavHighlight);
 
     // 移动端菜单逻辑
     const mobileMenuButton = document.getElementById("mobile-menu-button");
@@ -375,7 +432,7 @@ const normalizedPath =
     const mobileSearchClose = document.getElementById("mobile-search-close");
 
     // 关闭移动端菜单的函数
-    function closeMobileMenu() {
+    function closeMobileMenu(): void {
       if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
         mobileMenuButton.setAttribute("aria-expanded", "false");
         mobileMenu.classList.add("hidden");
@@ -385,16 +442,21 @@ const normalizedPath =
     }
     
     // 关闭移动端搜索面板的函数
-    function closeMobileSearch() {
+    function closeMobileSearch(): void {
       if (mobileSearchPanel) {
         mobileSearchPanel.classList.add("hidden");
       }
     }
 
     if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
-      mobileMenuButton.addEventListener("click", () => {
-        const expanded =
-          mobileMenuButton.getAttribute("aria-expanded") === "true";
+      // 移动端菜单按钮点击事件 - 使用捕获模式确保事件优先处理
+      (mobileMenuButton as HTMLElement).style.pointerEvents = 'auto';
+      
+      addListener(mobileMenuButton, "click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const expanded = mobileMenuButton.getAttribute("aria-expanded") === "true";
 
         // 切换菜单状态
         mobileMenuButton.setAttribute("aria-expanded", (!expanded).toString());
@@ -413,18 +475,29 @@ const normalizedPath =
         // 切换图标
         menuOpenIcon.classList.toggle("hidden");
         menuCloseIcon.classList.toggle("hidden");
-      });
+      }, { capture: true });
 
       // 为移动端导航链接添加点击事件
       const mobileNavLinks = document.querySelectorAll('#mobile-menu a[href]');
       mobileNavLinks.forEach(link => {
-        link.addEventListener('click', closeMobileMenu);
+        (link as HTMLElement).style.pointerEvents = 'auto';
+        addListener(link, 'click', (e) => {
+          // 不要阻止默认行为，因为需要跳转
+          e.stopPropagation();
+          closeMobileMenu();
+        }, { capture: true });
       });
     }
 
     // 移动端搜索按钮
     if (mobileSearchButton && mobileSearchPanel) {
-      mobileSearchButton.addEventListener("click", () => {
+      // 搜索按钮点击事件 - 使用捕获模式确保事件优先处理
+      (mobileSearchButton as HTMLElement).style.pointerEvents = 'auto';
+      
+      addListener(mobileSearchButton, "click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
         // 检查搜索面板是否已经打开
         const isSearchVisible = !mobileSearchPanel.classList.contains("hidden");
         
@@ -439,25 +512,47 @@ const normalizedPath =
           mobileSearchPanel.classList.remove("hidden");
           if (mobileSearch) mobileSearch.focus();
         }
-      });
+      }, { capture: true });
 
+      // 搜索面板关闭按钮
       if (mobileSearchClose) {
-        mobileSearchClose.addEventListener("click", () => {
+        (mobileSearchClose as HTMLElement).style.pointerEvents = 'auto';
+        addListener(mobileSearchClose, "click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
           closeMobileSearch();
-        });
+        }, { capture: true });
       }
+    }
+
+    // 处理移动端主题切换容器
+    const themeToggleContainer = document.getElementById('theme-toggle-container');
+    if (themeToggleContainer) {
+      (themeToggleContainer as HTMLElement).style.pointerEvents = 'auto';
+      addListener(themeToggleContainer, 'click', (e: Event) => {
+        const target = e.target as HTMLElement;
+        // 如果点击的不是主题切换按钮本身，则手动触发主题切换
+        if (target.id !== 'theme-toggle-button' && !target.closest('#theme-toggle-button')) {
+          e.stopPropagation();
+          // 获取容器内的主题切换按钮并模拟点击
+          const toggleButton = themeToggleContainer.querySelector('#theme-toggle-button');
+          if (toggleButton) {
+            (toggleButton as HTMLElement).click();
+          }
+        }
+      }, { capture: true });
     }
   }
 
   // 搜索功能逻辑
-  function initSearch() {
+  function initSearch(): void {
     // 搜索节流函数
     function debounce<T extends (...args: any[]) => void>(
       func: T,
-      wait: number,
+      wait: number
     ): (...args: Parameters<T>) => void {
       let timeout: ReturnType<typeof setTimeout> | undefined;
-      return function (this: any, ...args: Parameters<T>): void {
+      return function(this: any, ...args: Parameters<T>): void {
         clearTimeout(timeout);
         timeout = setTimeout(() => func.apply(this, args), wait);
       };
@@ -474,22 +569,8 @@ const normalizedPath =
     const mobileList = document.getElementById("mobile-search-list");
     const mobileMessage = document.getElementById("mobile-search-message");
 
-    // 文章对象的接口定义
-    interface Article {
-      id: string;
-      title: string;
-      date: string | Date;
-      summary?: string;
-      tags?: string[];
-      image?: string;
-      content?: string;
-    }
-
-    let articles: Article[] = [];
-    let isArticlesLoaded = false;
-
     // 获取文章数据
-    async function fetchArticles() {
+    async function fetchArticles(): Promise<void> {
       if (isArticlesLoaded && articles.length > 0) return;
 
       try {
@@ -522,8 +603,8 @@ const normalizedPath =
     function searchArticles(
       query: string,
       resultsList: HTMLElement,
-      resultsMessage: HTMLElement,
-    ) {
+      resultsMessage: HTMLElement
+    ): void {
       if (!query.trim()) {
         resultsList.innerHTML = "";
         resultsMessage.textContent = "输入关键词开始搜索";
@@ -665,7 +746,7 @@ const normalizedPath =
         searchArticles(
           value,
           desktopList as HTMLElement,
-          desktopMessage as HTMLElement,
+          desktopMessage as HTMLElement
         );
       }
     }, 300);
@@ -675,19 +756,21 @@ const normalizedPath =
         searchArticles(
           value,
           mobileList as HTMLElement,
-          mobileMessage as HTMLElement,
+          mobileMessage as HTMLElement
         );
       }
     }, 300);
 
     // 桌面端搜索逻辑
     if (desktopSearch && desktopResults) {
-      desktopSearch.addEventListener("focus", () => {
+      // 聚焦时显示结果
+      addListener(desktopSearch, "focus", () => {
         desktopResults.classList.remove("hidden");
         if (!isArticlesLoaded) fetchArticles();
       });
 
-      desktopSearch.addEventListener("input", (e: Event) => {
+      // 输入时更新搜索结果
+      addListener(desktopSearch, "input", (e: Event) => {
         const target = e.target as HTMLInputElement;
         if (target && target.value !== undefined) {
           debouncedDesktopSearch(target.value);
@@ -695,7 +778,7 @@ const normalizedPath =
       });
 
       // 点击外部关闭结果
-      document.addEventListener("click", (e: MouseEvent) => {
+      const documentClickHandler = (e: MouseEvent) => {
         const target = e.target as Node;
         if (
           desktopSearch &&
@@ -704,19 +787,22 @@ const normalizedPath =
         ) {
           desktopResults.classList.add("hidden");
         }
-      });
+      };
+      
+      addListener(document, "click", documentClickHandler as EventListener);
 
       // ESC键关闭结果
-      desktopSearch.addEventListener("keydown", (e: KeyboardEvent) => {
+      addListener(desktopSearch, "keydown", ((e: KeyboardEvent) => {
         if (e.key === "Escape") {
           desktopResults.classList.add("hidden");
         }
-      });
+      }) as EventListener);
     }
 
     // 移动端搜索逻辑
     if (mobileSearch && mobileResults) {
-      mobileSearch.addEventListener("input", (e: Event) => {
+      // 输入时更新搜索结果
+      addListener(mobileSearch, "input", (e: Event) => {
         mobileResults.classList.remove("hidden");
         const target = e.target as HTMLInputElement;
         if (target && target.value !== undefined) {
@@ -726,43 +812,55 @@ const normalizedPath =
       });
 
       // ESC键关闭搜索面板
-      mobileSearch.addEventListener("keydown", (e: KeyboardEvent) => {
+      addListener(mobileSearch, "keydown", ((e: KeyboardEvent) => {
         if (e.key === "Escape") {
-          const mobileSearchPanel = document.getElementById(
-            "mobile-search-panel",
-          );
+          const mobileSearchPanel = document.getElementById("mobile-search-panel");
           if (mobileSearchPanel) {
             mobileSearchPanel.classList.add("hidden");
           }
         }
-      });
+      }) as EventListener);
     }
   }
-
-  // 初始化函数
-  function setupHeader() {
+  
+  // 注册清理函数
+  function registerCleanup(): void {
+    // Astro 事件
+    document.addEventListener('astro:before-preparation', cleanup, { once: true });
+    document.addEventListener('astro:before-swap', cleanup, { once: true });
+    
+    // Swup 事件
+    document.addEventListener('swup:willReplaceContent', cleanup, { once: true });
+    
+    // 页面卸载
+    window.addEventListener('beforeunload', cleanup, { once: true });
+  }
+  
+  // 初始化全部功能
+  function setupHeader(): void {
+    // 先清理之前的事件监听器
+    cleanup();
+    
+    // 初始化各个组件
     initHeader();
     initSearch();
+    registerCleanup();
   }
 
-  // 在文档加载时初始化一次
+  // 在页面加载时初始化
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setupHeader);
+    document.addEventListener("DOMContentLoaded", setupHeader, { once: true });
   } else {
-    setupHeader();
+    // 使用setTimeout确保处于事件队列末尾，避免可能的事件冲突
+    setTimeout(setupHeader, 0);
   }
-
-  // 支持 Astro 视图转换
-  document.addEventListener("astro:after-swap", setupHeader);
-
-  document.addEventListener("astro:page-load", setupHeader);
-
-  // 原事件监听 - 保留以兼容可能的旧版本
-  document.addEventListener("astro:swup:page:view", setupHeader);
-
-  // 清理
-  document.addEventListener("astro:before-swap", () => {
-    // 移除可能的全局事件监听器
-    window.removeEventListener("scroll", () => {});
-  });
+  
+  // 在页面转换后重新初始化
+  document.addEventListener('astro:after-swap', setupHeader);
+  document.addEventListener('astro:page-load', setupHeader);
+  
+  // Swup页面内容替换后重新初始化
+  document.addEventListener('swup:contentReplaced', setupHeader);
+})();
 </script>
+

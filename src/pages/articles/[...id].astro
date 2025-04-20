@@ -115,7 +115,7 @@ function getArticleUrl(articleId: string) {
     <!-- 阅读进度条 -->
     <div
       class="fixed top-0 left-0 w-full h-1 bg-transparent z-50"
-      id="progress-container                                                                                                                 9"
+      id="progress-container"
     >
       <div
         class="h-full w-0 bg-primary-500 transition-width duration-100"
@@ -369,80 +369,74 @@ function getArticleUrl(articleId: string) {
       </svg>
     </button>
   </div>
-</Layout>
 
-<script>
-  // 阅读进度条
-  const progressBar = document.getElementById("progress-bar");
-  const backToTopButton = document.getElementById("back-to-top");
+<script is:inline>
+(function() {
+  const listeners = [];
+  
+  function addListener(element, eventType, handler, options) {
+    if (!element) return null;
+    
+    element.addEventListener(eventType, handler, options);
+    listeners.push({ element, eventType, handler });
+    return handler;
+  }
+  
+  function setupProgressBar() {
+    const progressBar = document.getElementById("progress-bar");
+    const backToTopButton = document.getElementById("back-to-top");
+    
+    if (!progressBar) return;
+    
+    function updateReadingProgress() {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const scrollHeight = 
+        document.documentElement.scrollHeight -
+        document.documentElement.clientHeight;
+      const progress = (scrollTop / scrollHeight) * 100;
 
-  function updateReadingProgress() {
-    const scrollTop = window.scrollY || document.documentElement.scrollTop;
-    const scrollHeight =
-      document.documentElement.scrollHeight -
-      document.documentElement.clientHeight;
-    const progress = (scrollTop / scrollHeight) * 100;
-
-    if (progressBar) {
       progressBar.style.width = `${progress}%`;
-    }
 
-    // 显示/隐藏返回顶部按钮
-    if (backToTopButton) {
-      if (scrollTop > 300) {
-        backToTopButton.classList.add(
-          "opacity-100",
-          "visible",
-          "translate-y-0",
-        );
-        backToTopButton.classList.remove(
-          "opacity-0",
-          "invisible",
-          "translate-y-5",
-        );
-      } else {
-        backToTopButton.classList.add(
-          "opacity-0",
-          "invisible",
-          "translate-y-5",
-        );
-        backToTopButton.classList.remove(
-          "opacity-100",
-          "visible",
-          "translate-y-0",
-        );
+      if (backToTopButton) {
+        if (scrollTop > 300) {
+          backToTopButton.classList.add(
+            "opacity-100", "visible", "translate-y-0"
+          );
+          backToTopButton.classList.remove(
+            "opacity-0", "invisible", "translate-y-5"
+          );
+        } else {
+          backToTopButton.classList.add(
+            "opacity-0", "invisible", "translate-y-5"
+          );
+          backToTopButton.classList.remove(
+            "opacity-100", "visible", "translate-y-0"
+          );
+        }
       }
     }
-  }
-
-  // 返回顶部功能
-  if (backToTopButton) {
-    backToTopButton.addEventListener("click", () => {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
+    
+    addListener(window, "scroll", updateReadingProgress);
+    
+    if (backToTopButton) {
+      addListener(backToTopButton, "click", () => {
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
       });
-    });
+    }
+    
+    updateReadingProgress();
   }
-
-  // 监听滚动事件
-  window.addEventListener("scroll", updateReadingProgress);
-
-  // 初始化
-  updateReadingProgress();
-
-  // 目录功能
-  document.addEventListener("DOMContentLoaded", () => {
+  
+  function setupTableOfContents() {
     const tocContent = document.getElementById("toc-content");
-    const tocPanel = document.querySelector(
-      '[class*="2xl:block"][class*="fixed"]',
-    );
-
-    // 检查是否有足够空间显示目录
+    const tocPanel = document.querySelector('[class*="2xl:block"][class*="fixed"]');
+    
+    if (!tocPanel || !tocContent) return;
+    
     function checkTocVisibility() {
-      if (!tocPanel) return;
-
-      // 如果窗口宽度小于1536px (2xl breakpoint)，隐藏目录
       if (window.innerWidth < 1536) {
         tocPanel.classList.add("hidden");
         tocPanel.classList.remove("2xl:block");
@@ -451,213 +445,152 @@ function getArticleUrl(articleId: string) {
         tocPanel.classList.add("2xl:block");
       }
     }
-
-    // 监听窗口大小变化
-    window.addEventListener("resize", checkTocVisibility);
-
-    // 初始检查
+    
+    addListener(window, "resize", checkTocVisibility);
+    
     checkTocVisibility();
-
-    // 生成目录内容
-    function generateTableOfContents() {
-      // 获取文章中的所有标题元素
-      const article = document.querySelector("article");
-      if (!article || !tocContent) {
-        console.error("找不到文章内容或目录容器");
-        if (tocContent) {
-          tocContent.innerHTML =
-            '<p class="text-secondary-500 dark:text-secondary-400 italic">无法生成目录</p>';
-        }
-        return;
-      }
-
-      const headings = article.querySelectorAll("h1, h2, h3, h4, h5, h6");
-      if (headings.length === 0) {
-        tocContent.innerHTML =
-          '<p class="text-secondary-500 dark:text-secondary-400 italic">此文章没有目录</p>';
-        return;
-      }
-
-      // 创建目录列表
-      const tocList = document.createElement("ul");
-      tocList.className = "space-y-2";
-
-      // 为每个标题创建目录项
-      headings.forEach((heading, index) => {
-        // 为每个标题添加ID，如果没有的话
-        if (!heading.id) {
-          heading.id = `heading-${index}`;
-        }
-
-        // 创建目录项
-        const listItem = document.createElement("li");
-
-        // 根据标题级别设置缩进
-        const headingLevel = parseInt(heading.tagName.substring(1));
-        const indent = (headingLevel - 1) * 0.75; // 每级缩进0.75rem
-
-        // 创建链接
-        const link = document.createElement("a");
-        link.href = `#${heading.id}`;
-        link.className = `block hover:text-primary-600 dark:hover:text-primary-400 duration-50 ${headingLevel > 2 ? "text-secondary-600 dark:text-secondary-400" : "text-secondary-800 dark:text-secondary-200 font-medium"}`;
-        link.style.paddingLeft = `${indent}rem`;
-        link.textContent = heading.textContent;
-
-        // 点击链接时滚动到目标位置
-        link.addEventListener("click", (e) => {
-          // 平滑滚动到目标位置
-          e.preventDefault();
-          const targetId = link.getAttribute("href")?.substring(1);
-          if (!targetId) return;
-
-          const targetElement = document.getElementById(targetId);
-
-          if (targetElement) {
-            // 滚动到目标位置，并添加一些偏移以避免被固定导航遮挡
-            const offset = 100; // 可以根据需要调整
-            const targetPosition =
-              targetElement.getBoundingClientRect().top +
-              window.scrollY -
-              offset;
-
-            window.scrollTo({
-              top: targetPosition,
-              behavior: "smooth",
-            });
-
-            // 高亮目标标题
-            targetElement.classList.add(
-              "bg-primary-50",
-              "dark:bg-primary-900/20",
-            );
-            setTimeout(() => {
-              targetElement.classList.remove(
-                "bg-primary-50",
-                "dark:bg-primary-900/20",
-              );
-            }, 2000);
-          }
-        });
-
-        listItem.appendChild(link);
-        tocList.appendChild(listItem);
-      });
-
-      // 将目录添加到面板
-      tocContent.innerHTML = "";
-      tocContent.appendChild(tocList);
+    
+    const article = document.querySelector("article");
+    if (!article) {
+      tocContent.innerHTML = '<p class="text-secondary-500 dark:text-secondary-400 italic">无法生成目录</p>';
+      return;
     }
 
-    // 页面加载时生成目录
-    try {
-      generateTableOfContents();
+    const headings = article.querySelectorAll("h1, h2, h3, h4, h5, h6");
+    if (headings.length === 0) {
+      tocContent.innerHTML = '<p class="text-secondary-500 dark:text-secondary-400 italic">此文章没有目录</p>';
+      return;
+    }
 
-      // 添加滚动监听，更新目录高亮
-      function updateActiveHeading() {
-        const article = document.querySelector("article");
-        if (!article || !tocContent) return;
-
-        const headings = Array.from(
-          article.querySelectorAll("h1, h2, h3, h4, h5, h6"),
-        );
-        if (headings.length === 0) return;
-
-        // 获取所有目录链接
-        const tocLinks = Array.from(tocContent.querySelectorAll("a"));
-        if (tocLinks.length === 0) return;
-
-        // 移除所有活跃状态
-        tocLinks.forEach((link) => {
-          link.classList.remove(
-            "text-primary-600",
-            "dark:text-primary-400",
-            "font-medium",
-          );
-        });
-
-        // 找到当前视口中最靠近顶部的标题
-        let currentHeading = null;
-        const scrollPosition = window.scrollY + 150; // 添加一些偏移量
-
-        for (const heading of headings) {
-          const headingTop =
-            heading.getBoundingClientRect().top + window.scrollY;
-          if (headingTop <= scrollPosition) {
-            currentHeading = heading;
-          } else {
-            break;
-          }
-        }
-
-        // 如果找到当前标题，高亮对应的目录项
-        if (currentHeading) {
-          const activeLink = tocLinks.find(
-            (link) => link.getAttribute("href") === `#${currentHeading.id}`,
-          );
-          if (activeLink) {
-            activeLink.classList.add(
-              "text-primary-600",
-              "dark:text-primary-400",
-              "font-medium",
-            );
-          }
-        }
+    const tocList = document.createElement("ul");
+    tocList.className = "space-y-2";
+    
+    headings.forEach((heading, index) => {
+      if (!heading.id) {
+        heading.id = `heading-${index}`;
       }
 
-      // 监听滚动事件，使用节流函数优化性能
-      let ticking = false;
-      window.addEventListener("scroll", () => {
-        if (!ticking) {
-          window.requestAnimationFrame(() => {
-            updateActiveHeading();
-            ticking = false;
+      const listItem = document.createElement("li");
+      const headingLevel = parseInt(heading.tagName.substring(1));
+      const indent = (headingLevel - 1) * 0.75;
+
+      const link = document.createElement("a");
+      link.href = `#${heading.id}`;
+      link.className = `block hover:text-primary-600 dark:hover:text-primary-400 duration-50 ${
+        headingLevel > 2 
+          ? "text-secondary-600 dark:text-secondary-400" 
+          : "text-secondary-800 dark:text-secondary-200 font-medium"
+      }`;
+      link.style.paddingLeft = `${indent}rem`;
+      link.textContent = heading.textContent;
+
+      addListener(link, "click", (e) => {
+        e.preventDefault();
+        const targetId = link.getAttribute("href")?.substring(1);
+        if (!targetId) return;
+
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+          const offset = 100;
+          const targetPosition =
+            targetElement.getBoundingClientRect().top +
+            window.scrollY -
+            offset;
+
+          window.scrollTo({
+            top: targetPosition,
+            behavior: "smooth",
           });
-          ticking = true;
+
+          targetElement.classList.add(
+            "bg-primary-50", "dark:bg-primary-900/20"
+          );
+          setTimeout(() => {
+            targetElement.classList.remove(
+              "bg-primary-50", "dark:bg-primary-900/20"
+            );
+          }, 2000);
         }
       });
 
-      // 初始化高亮
-      updateActiveHeading();
-    } catch (error) {
-      console.error("生成目录时发生错误:", error);
-      if (tocContent) {
-        tocContent.innerHTML =
-          '<p class="text-secondary-500 dark:text-secondary-400 italic">生成目录时发生错误</p>';
+      listItem.appendChild(link);
+      tocList.appendChild(listItem);
+    });
+
+    tocContent.innerHTML = "";
+    tocContent.appendChild(tocList);
+    
+    let ticking = false;
+    
+    function updateActiveHeading() {
+      const currentHeadings = Array.from(article.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+      const tocLinks = Array.from(tocContent.querySelectorAll("a"));
+      
+      tocLinks.forEach(link => {
+        link.classList.remove(
+          "text-primary-600", "dark:text-primary-400", "font-medium"
+        );
+      });
+
+      const scrollPosition = window.scrollY + 150;
+      let currentHeading = null;
+
+      for (const heading of currentHeadings) {
+        const headingTop = heading.getBoundingClientRect().top + window.scrollY;
+        if (headingTop <= scrollPosition) {
+          currentHeading = heading;
+        } else {
+          break;
+        }
+      }
+
+      if (currentHeading) {
+        const activeLink = tocLinks.find(
+          link => link.getAttribute("href") === `#${currentHeading.id}`
+        );
+        if (activeLink) {
+          activeLink.classList.add(
+            "text-primary-600", "dark:text-primary-400", "font-medium"
+          );
+        }
       }
     }
-  });
-
-  // 代码块增强功能
-  document.addEventListener("DOMContentLoaded", () => {
-    // 处理所有代码块
+    
+    addListener(window, "scroll", () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          updateActiveHeading();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+    
+    updateActiveHeading();
+  }
+  
+  function setupCodeBlocks() {
     const codeBlocks = document.querySelectorAll("pre");
-
-    codeBlocks.forEach((pre) => {
-      // 获取代码语言
+    if (!codeBlocks.length) return;
+    
+    codeBlocks.forEach(pre => {
       const code = pre.querySelector("code");
-      if (!code) return;
+      if (!code || pre.querySelector('.code-header')) return;
 
-      // 从类名中提取语言
       const className = code.className;
       const languageMatch = className.match(/language-(\w+)/);
       const language = languageMatch ? languageMatch[1] : "text";
 
-      // 创建顶部栏
       const header = document.createElement("div");
-      header.className =
-        "code-header flex justify-between items-center text-xs px-4 py-2 bg-secondary-800 dark:bg-dark-card text-secondary-300 dark:text-secondary-400 rounded-t-lg";
+      header.className = "code-header flex justify-between items-center text-xs px-4 py-2 bg-secondary-800 dark:bg-dark-card text-secondary-300 dark:text-secondary-400 rounded-t-lg";
 
-      // 创建语言标签
       const languageLabel = document.createElement("span");
       languageLabel.className = "code-language font-mono";
       languageLabel.textContent = language;
 
-      // 创建复制按钮
       const copyButton = document.createElement("button");
-      copyButton.className =
-        "code-copy-button flex items-center gap-1 hover:text-white dark:hover:text-primary-400 transition-colors";
+      copyButton.className = "code-copy-button flex items-center gap-1 hover:text-white dark:hover:text-primary-400 transition-colors";
 
-      // 创建SVG图标和文本
       const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
       const successIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M20 6L9 17l-5-5"></path></svg>`;
       const errorIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
@@ -666,33 +599,23 @@ function getArticleUrl(articleId: string) {
       copyButton.setAttribute("aria-label", "复制代码");
       copyButton.setAttribute("title", "复制代码到剪贴板");
 
-      // 添加复制功能
-      copyButton.addEventListener("click", (e) => {
+      addListener(copyButton, "click", (e) => {
         e.stopPropagation();
-
-        // 获取代码文本
-        const codeText = code.textContent || "";
-
-        // 复制到剪贴板
-        navigator.clipboard
-          .writeText(codeText)
+        
+        navigator.clipboard.writeText(code.textContent || "")
           .then(() => {
-            // 复制成功，更改按钮文本
             copyButton.innerHTML = `${successIcon}<span>已复制</span>`;
             copyButton.classList.add("text-green-400");
-
-            // 2秒后恢复按钮文本
+            
             setTimeout(() => {
               copyButton.innerHTML = `${copyIcon}<span>复制</span>`;
               copyButton.classList.remove("text-green-400");
             }, 2000);
           })
           .catch(() => {
-            // 复制失败，更改按钮文本
             copyButton.innerHTML = `${errorIcon}<span>失败</span>`;
             copyButton.classList.add("text-red-400");
-
-            // 2秒后恢复按钮文本
+            
             setTimeout(() => {
               copyButton.innerHTML = `${copyIcon}<span>复制</span>`;
               copyButton.classList.remove("text-red-400");
@@ -700,17 +623,48 @@ function getArticleUrl(articleId: string) {
           });
       });
 
-      // 将语言标签和复制按钮添加到顶部栏
       header.appendChild(languageLabel);
       header.appendChild(copyButton);
-
-      // 将顶部栏插入到代码块的最前面
       pre.insertBefore(header, pre.firstChild);
-
-      // 调整代码块样式
+      
       pre.classList.add("rounded-b-lg", "mt-0");
       pre.style.marginTop = "0";
     });
-  });
+  }
+  
+  function cleanup() {
+    listeners.forEach(({ element, eventType, handler }) => {
+      try {
+        element.removeEventListener(eventType, handler);
+      } catch (err) {}
+    });
+    
+    listeners.length = 0;
+  }
+  
+  function init() {
+    if (!document.querySelector("article")) return;
+    
+    setupProgressBar();
+    setupTableOfContents();
+    setupCodeBlocks();
+  }
+  
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
+  
+  function registerCleanup() {
+    document.addEventListener("astro:before-preparation", cleanup, { once: true });
+    document.addEventListener("astro:before-swap", cleanup, { once: true });
+    document.addEventListener("swup:willReplaceContent", cleanup, { once: true });
+    window.addEventListener("beforeunload", cleanup, { once: true });
+  }
+  
+  registerCleanup();
+})();
 </script>
 
+</Layout>

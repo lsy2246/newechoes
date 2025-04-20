@@ -81,11 +81,9 @@ export const Countdown: React.FC<CountdownProps> = ({ targetDate, className = ''
             setTimeLeft(newTimeLeft);
             
             // 如果已经到期，清除计时器
-            if (newTimeLeft.expired) {
-                if (timerRef.current !== null) {
-                    clearInterval(timerRef.current);
-                    timerRef.current = null;
-                }
+            if (newTimeLeft.expired && timerRef.current !== null) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
             }
         }, 1000);
 

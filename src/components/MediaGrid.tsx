@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 
 interface MediaGridProps {
   type: "movie" | "book";
@@ -21,6 +21,9 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
   const itemsPerPage = 15;
   const mediaListRef = useRef<HTMLDivElement>(null);
   const lastScrollTime = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const scrollDetectorRef = useRef<HTMLDivElement | null>(null);
 
   // 使用ref来跟踪关键状态，避免闭包问题
   const stateRef = useRef({
@@ -30,8 +33,8 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
     error: null as string | null,
   });
 
-  // 封装fetch函数但不使用useCallback以避免依赖循环
-  const fetchMedia = async (page = 1, append = false) => {
+  // 封装fetch函数使用useCallback避免重新创建
+  const fetchMedia = useCallback(async (page = 1, append = false) => {
     // 使用ref中的最新状态
     if (
       stateRef.current.isLoading ||
@@ -40,6 +43,14 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
     ) {
       return;
     }
+
+    // 取消之前的请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // 创建新的AbortController
+    abortControllerRef.current = new AbortController();
 
     // 更新状态和ref
     setIsLoading(true);
@@ -55,6 +66,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
     try {
       const response = await fetch(
         `/api/douban?type=${type}&start=${start}&doubanId=${doubanId}`,
+        { signal: abortControllerRef.current.signal }
       );
       if (!response.ok) {
         // 解析响应内容，获取详细错误信息
@@ -127,6 +139,11 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
         stateRef.current.hasMoreContent = newHasMoreContent;
       }
     } catch (error) {
+      // 如果是取消的请求，不显示错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      
       // 只有在非追加模式下才清空已加载的内容
       if (!append) {
         setItems([]);
@@ -136,10 +153,10 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
       setIsLoading(false);
       stateRef.current.isLoading = false;
     }
-  };
+  }, [type, doubanId]);
 
   // 处理滚动事件
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     // 获取关键滚动值
     const scrollY = window.scrollY;
     const windowHeight = window.innerHeight;
@@ -167,7 +184,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
     if (scrollPosition >= threshold) {
       fetchMedia(stateRef.current.currentPage + 1, true);
     }
-  };
+  }, [fetchMedia]);
 
   // 更新ref值以跟踪状态变化
   useEffect(() => {
@@ -185,6 +202,58 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
   useEffect(() => {
     stateRef.current.error = error;
   }, [error]);
+
+  // 设置和清理IntersectionObserver
+  const setupIntersectionObserver = useCallback(() => {
+    // 清理旧的Observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    
+    // 清理旧的检测元素
+    if (scrollDetectorRef.current) {
+      scrollDetectorRef.current.remove();
+      scrollDetectorRef.current = null;
+    }
+
+    // 创建新的IntersectionObserver
+    const observerOptions = {
+      root: null,
+      rootMargin: "300px",
+      threshold: 0.1,
+    };
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+
+      if (
+        entry.isIntersecting &&
+        !stateRef.current.isLoading &&
+        stateRef.current.hasMoreContent &&
+        !stateRef.current.error
+      ) {
+        fetchMedia(stateRef.current.currentPage + 1, true);
+      }
+    }, observerOptions);
+
+    // 创建并添加检测底部的元素
+    const footer = document.createElement("div");
+    footer.id = "scroll-detector";
+    footer.style.width = "100%";
+    footer.style.height = "10px";
+    scrollDetectorRef.current = footer;
+
+    // 确保mediaListRef有父元素
+    if (mediaListRef.current && mediaListRef.current.parentElement) {
+      // 插入到grid后面而不是内部
+      mediaListRef.current.parentElement.insertBefore(
+        footer,
+        mediaListRef.current.nextSibling,
+      );
+      observerRef.current.observe(footer);
+    }
+  }, [fetchMedia]);
 
   // 组件初始化和依赖变化时重置
   useEffect(() => {
@@ -204,69 +273,50 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
     // 清空列表
     setItems([]);
 
+    // 取消可能存在的请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     // 加载第一页数据
     fetchMedia(1, false);
 
-    // 管理滚动事件
-    const scrollListener = handleScroll;
-
-    // 移除任何现有监听器
-    window.removeEventListener("scroll", scrollListener);
-
-    // 添加滚动事件监听器 - 使用passive: true可提高滚动性能
-    window.addEventListener("scroll", scrollListener, { passive: true });
-
-    // 创建一个IntersectionObserver作为备选检测方案
-    const observerOptions = {
-      root: null,
-      rootMargin: "300px",
-      threshold: 0.1,
-    };
-
-    const intersectionObserver = new IntersectionObserver((entries) => {
-      const entry = entries[0];
-
-      if (
-        entry.isIntersecting &&
-        !stateRef.current.isLoading &&
-        stateRef.current.hasMoreContent &&
-        !stateRef.current.error
-      ) {
-        fetchMedia(stateRef.current.currentPage + 1, true);
-      }
-    }, observerOptions);
-
-    // 添加检测底部的元素 - 放在grid容器的后面而不是内部
-    const footer = document.createElement("div");
-    footer.id = "scroll-detector";
-    footer.style.width = "100%";
-    footer.style.height = "10px";
-
-    // 确保mediaListRef有父元素
-    if (mediaListRef.current && mediaListRef.current.parentElement) {
-      // 插入到grid后面而不是内部
-      mediaListRef.current.parentElement.insertBefore(
-        footer,
-        mediaListRef.current.nextSibling,
-      );
-      intersectionObserver.observe(footer);
-    }
+    // 设置滚动事件监听器
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    
+    // 设置IntersectionObserver
+    setupIntersectionObserver();
 
     // 初始检查一次，以防内容不足一屏
     const timeoutId = setTimeout(() => {
       if (stateRef.current.hasMoreContent && !stateRef.current.isLoading) {
-        scrollListener();
+        handleScroll();
       }
     }, 500);
 
     // 清理函数
     return () => {
       clearTimeout(timeoutId);
-      window.removeEventListener("scroll", scrollListener);
-      intersectionObserver.disconnect();
-      document.getElementById("scroll-detector")?.remove();
+      window.removeEventListener("scroll", handleScroll);
+      
+      // 清理IntersectionObserver
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+      
+      // 清理scroll detector元素
+      if (scrollDetectorRef.current) {
+        scrollDetectorRef.current.remove();
+        scrollDetectorRef.current = null;
+      }
+      
+      // 取消正在进行的请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
-  }, [type, doubanId]); // 只在关键属性变化时执行
+  }, [type, doubanId, handleScroll, fetchMedia, setupIntersectionObserver]);
 
   // 错误提示组件
   const ErrorMessage = () => {
@@ -345,6 +395,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
                   src={item.imageUrl}
                   alt={item.title}
                   className="absolute top-0 left-0 w-full h-full object-cover hover:scale-105"
+                  loading="lazy"
                 />
                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
                   <h3 className="font-bold text-white text-sm line-clamp-2">

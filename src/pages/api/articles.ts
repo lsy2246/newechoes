@@ -32,7 +32,6 @@ export const GET: APIRoute = async ({ request }) => {
   if (path) {
     const normalizedPath = path.toLowerCase();
     filteredArticles = filteredArticles.filter(article => {
-      const articlePath = article.id.split('/');
       return article.id.toLowerCase().includes(normalizedPath);
     });
   }
