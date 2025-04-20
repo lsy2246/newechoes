@@ -49,22 +49,9 @@ const {
 <script is:inline>
 // 主题切换逻辑
 (function() {
-  const DEBUG = true; // 调试模式开关
-  
-  // 调试日志
-  function logDebug(...args) {
-    if (DEBUG) {
-      console.log('[ThemeToggle]', ...args);
-    }
-  }
-
-  logDebug('主题切换脚本初始化');
   
   // 页面导航计数器（跟踪页面跳转次数）
   let pageNavigationCount = 0;
-  
-  // 存储所有主题切换按钮的引用和它们的处理函数，帮助直接清理
-  const buttonHandlers = new WeakMap();
   
   // 存储事件监听器，便于统一清理
   const listeners = [];
@@ -182,14 +169,11 @@ const {
     
     element.addEventListener(eventType, handler, options);
     listeners.push({ element, eventType, handler, options });
-    logDebug(`添加事件监听器: ${eventType}`);
     return handler;
   }
   
   // 清理函数 - 移除所有事件监听器
   function cleanup() {
-    logDebug(`清理前事件监听器数量: ${listeners.length}`);
-    
     // 先直接从按钮清理事件
     cleanupButtonListeners();
     
@@ -198,7 +182,7 @@ const {
       try {
         element.removeEventListener(eventType, handler, options);
       } catch (err) {
-        console.error(`移除主题切换事件监听器出错:`, err);
+        // 忽略错误
       }
     });
     
@@ -210,21 +194,15 @@ const {
       clearTimeout(transitionTimeout);
       transitionTimeout = null;
     }
-    
-    logDebug('所有事件监听器已清理');
   }
   
   // 初始化主题切换功能
   function setupThemeToggle() {
-    logDebug(`设置主题切换，页面导航计数: ${pageNavigationCount}`);
-    
     // 确保当前没有活动的主题切换按钮事件
     cleanup();
     
     // 获取所有主题切换按钮
     const themeToggleButtons = document.querySelectorAll('#theme-toggle-button');
-    
-    logDebug(`找到 ${themeToggleButtons.length} 个主题切换按钮`);
     
     if (!themeToggleButtons.length) {
       return;
@@ -242,8 +220,6 @@ const {
       const storedTheme = localStorage.getItem('theme');
       const systemTheme = getSystemTheme();
       
-      logDebug(`初始化主题: 存储主题=${storedTheme}, 系统主题=${systemTheme}`);
-      
       // 按照逻辑优先级应用主题
       if (storedTheme) {
         document.documentElement.dataset.theme = storedTheme;
@@ -252,16 +228,11 @@ const {
       } else {
         document.documentElement.dataset.theme = 'light';
       }
-      
-      logDebug(`应用主题: ${document.documentElement.dataset.theme}`);
     };
     
     // 切换主题
     const toggleTheme = () => {
-      logDebug('尝试切换主题, 状态:', { transitioning });
-      
       if (transitioning) {
-        logDebug('主题正在切换中，忽略请求');
         return;
       }
       
@@ -271,8 +242,6 @@ const {
       const currentTheme = document.documentElement.dataset.theme;
       const newTheme = currentTheme === 'light' ? 'dark' : 'light';
       
-      logDebug(`切换主题: ${currentTheme} => ${newTheme}`);
-      
       // 更新 HTML 属性
       document.documentElement.dataset.theme = newTheme;
       
@@ -281,10 +250,8 @@ const {
       
       if (newTheme === systemTheme) {
         localStorage.removeItem('theme');
-        logDebug('移除本地存储的主题（使用系统主题）');
       } else {
         localStorage.setItem('theme', newTheme);
-        logDebug(`保存主题到本地存储: ${newTheme}`);
       }
       
       // 添加防抖
@@ -294,7 +261,6 @@ const {
       
       transitionTimeout = setTimeout(() => {
         transitioning = false;
-        logDebug('主题切换冷却结束');
       }, 300);
     };
     
@@ -302,11 +268,9 @@ const {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     
     const handleMediaChange = (e) => {
-      logDebug(`系统主题变化: ${e.matches ? 'dark' : 'light'}`);
       if (!localStorage.getItem('theme')) {
         const newTheme = e.matches ? 'dark' : 'light';
         document.documentElement.dataset.theme = newTheme;
-        logDebug(`应用系统主题: ${newTheme}`);
       }
     };
     
@@ -329,11 +293,8 @@ const {
         // 忽略样式错误
       }
       
-      logDebug(`设置按钮 #${index} 事件`);
-      
       // 创建点击处理函数
       const clickHandler = (e) => {
-        logDebug(`按钮 #${index} 被点击`, e);
         e.preventDefault();
         e.stopPropagation();
         toggleTheme();
@@ -345,7 +306,6 @@ const {
       // 键盘事件
       const keydownHandler = (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
-          logDebug(`按钮 #${index} 键盘触发: ${e.key}`);
           e.preventDefault();
           toggleTheme();
         }
@@ -361,12 +321,9 @@ const {
         themeToggleContainer.removeEventListener('click', themeToggleContainer._clickHandler);
       }
       
-      logDebug('设置主题切换容器事件');
-      
       const containerClickHandler = (e) => {
         const target = e.target;
         if (target.id !== 'theme-toggle-button' && !target.closest('#theme-toggle-button')) {
-          logDebug('主题切换容器被点击');
           e.stopPropagation();
           toggleTheme();
         }
@@ -381,8 +338,6 @@ const {
   
   // 注册清理函数 - 确保在每次页面转换前清理事件
   function registerCleanup() {
-    logDebug('注册清理函数');
-    
     const cleanupEvents = [
       'astro:before-preparation',
       'astro:before-swap',
@@ -392,7 +347,6 @@ const {
     // 为每个事件注册一次性清理函数
     cleanupEvents.forEach(eventName => {
       const handler = () => {
-        logDebug(`触发 ${eventName} - 执行清理`);
         cleanup();
       };
       
@@ -401,7 +355,6 @@ const {
     
     // 页面卸载时清理
     window.addEventListener('beforeunload', () => {
-      logDebug('触发 beforeunload');
       cleanup();
     }, { once: true });
   }
@@ -409,8 +362,6 @@ const {
   // 初始化函数
   function init() {
     pageNavigationCount++;
-    logDebug(`初始化主题切换 (页面导航 #${pageNavigationCount})`);
-    
     setupThemeToggle();
     registerCleanup();
   }
@@ -441,7 +392,6 @@ const {
     // 设置每个页面转换事件
     pageTransitionEvents.forEach(({ name, delay }) => {
       setupUniqueEvent(name, () => {
-        logDebug(`${name} 事件触发`);
         cleanupButtonListeners(); // 立即清理按钮上的事件
         
         // 延迟初始化，确保DOM完全更新
@@ -454,12 +404,8 @@ const {
     
     // 特别处理 swup:pageView 事件
     setupUniqueEvent('swup:pageView', () => {
-      logDebug('swup:pageView 事件触发');
-      
       // 对于偶数次页面跳转，特别确保事件被正确重新绑定
       if (pageNavigationCount % 2 === 0) {
-        logDebug('偶数次页面跳转，强制重新初始化');
-        
         setTimeout(() => {
           const buttons = document.querySelectorAll('#theme-toggle-button');
           if (buttons.length > 0) {
@@ -469,13 +415,6 @@ const {
         }, 50);
       }
     });
-    
-    // 监控其他Swup事件（仅调试用）
-    if (DEBUG) {
-      ['swup:animationInStart', 'swup:animationInDone', 'swup:animationOutStart', 'swup:animationOutDone'].forEach(event => {
-        setupUniqueEvent(event, () => logDebug(`${event} 事件触发`));
-      });
-    }
   }
   
   // 设置页面转换事件监听
@@ -484,12 +423,10 @@ const {
   // 在页面加载后初始化
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      logDebug('DOMContentLoaded 事件触发');
       init();
     }, { once: true });
   } else {
     setTimeout(() => {
-      logDebug('延迟初始化');
       init();
     }, 0);
   }
