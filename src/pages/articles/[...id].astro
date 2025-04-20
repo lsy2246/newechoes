@@ -81,16 +81,68 @@ const breadcrumbs = section ? section.split("/") : [];
 
 // 获取相关文章
 const allArticles = await getCollection("articles");
-const relatedArticles = allArticles
+
+// 1. 尝试通过标签匹配相关文章
+let relatedArticles = allArticles
   .filter(
-    (a) =>
-      a.id !== article.id &&
-      a.data.tags &&
-      article.data.tags &&
-      a.data.tags.some((tag) => article.data.tags?.includes(tag)),
+    (a) => {
+      const hasCommonTags = a.id !== article.id &&
+        a.data.tags &&
+        article.data.tags &&
+        a.data.tags.length > 0 &&
+        article.data.tags.length > 0 &&
+        a.data.tags.some((tag) => article.data.tags?.includes(tag));
+      
+      return hasCommonTags;
+    }
   )
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
   .slice(0, 3);
+
+// 跟踪相关文章的匹配方式: "tag", "directory", "latest"
+let relatedArticlesMatchType = relatedArticles.length > 0 ? "tag" : "";
+
+// 2. 如果标签匹配没有找到足够的相关文章，尝试根据目录结构匹配
+if (relatedArticles.length < 3) {
+  // 获取当前文章的目录路径
+  const currentPath = article.id.includes('/') 
+    ? article.id.substring(0, article.id.lastIndexOf('/')) 
+    : '';
+  
+  // 如果有目录路径，查找同目录的其他文章
+  if (currentPath) {
+    // 收集同目录下的文章，但排除已经通过标签匹配的和当前文章
+    const dirRelatedArticles = allArticles
+      .filter(a => 
+        a.id !== article.id && 
+        a.id.startsWith(currentPath + '/') &&
+        !relatedArticles.some(r => r.id === a.id)
+      )
+      .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+      .slice(0, 3 - relatedArticles.length);
+    
+    if (dirRelatedArticles.length > 0) {
+      relatedArticles = [...relatedArticles, ...dirRelatedArticles];
+      relatedArticlesMatchType = relatedArticles.length > 0 && !relatedArticlesMatchType ? "directory" : relatedArticlesMatchType;
+    }
+  }
+}
+
+// 3. 如果仍然没有找到足够的相关文章，则选择最新的文章（排除当前文章和已选择的文章）
+if (relatedArticles.length < 3) {
+  const latestArticles = allArticles
+    .filter(a => 
+      a.id !== article.id && 
+      !relatedArticles.some(r => r.id === a.id)
+    )
+    .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+    .slice(0, 3 - relatedArticles.length);
+  
+  if (latestArticles.length > 0) {
+    relatedArticles = [...relatedArticles, ...latestArticles];
+    relatedArticlesMatchType = relatedArticles.length > 0 && !relatedArticlesMatchType ? "latest" : relatedArticlesMatchType;
+  }
+}
 
 // 准备文章描述
 const description =
@@ -147,6 +199,7 @@ function getArticleUrl(articleId: string) {
             <a
               href={`/articles${view ? `/${view}` : ""}`}
               class="text-secondary-500 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center text-sm"
+              data-astro-prefetch="hover"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -196,7 +249,6 @@ function getArticleUrl(articleId: string) {
           {article.data.date.toLocaleDateString("zh-CN")}
         </time>
 
-        {/* 显示文章所在目录 */}
         {
           section && (
             <span class="flex items-center">
@@ -232,6 +284,7 @@ function getArticleUrl(articleId: string) {
               <a
                 href={`/articles?tag=${tag}`}
                 class="text-xs bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 py-1 px-2 rounded hover:bg-primary-100 dark:hover:bg-primary-800/30"
+                data-astro-prefetch="hover"
               >
                 #{tag}
               </a>
@@ -322,13 +375,15 @@ function getArticleUrl(articleId: string) {
       relatedArticles.length > 0 && (
         <div class="mt-12 pt-8 border-t border-secondary-200 dark:border-dark-border">
           <h2 class="text-2xl font-bold mb-6 text-primary-900 dark:text-primary-100">
-            相关文章
+            {relatedArticlesMatchType === "tag" ? "相关文章" : 
+             relatedArticlesMatchType === "directory" ? "同类文章" : "推荐阅读"}
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             {relatedArticles.map((relatedArticle) => (
               <a
                 href={getArticleUrl(relatedArticle.id)}
                 class="block p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-dark-card hover:shadow-xl hover:-translate-y-1 shadow-lg"
+                data-astro-prefetch="viewport"
               >
                 <h3 class="font-bold text-lg mb-2 line-clamp-2 text-gray-800 dark:text-gray-200 hover:text-primary-700 dark:hover:text-primary-400">
                   {relatedArticle.data.title}

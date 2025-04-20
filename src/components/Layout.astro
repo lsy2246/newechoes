@@ -105,5 +105,36 @@ const { title = SITE_NAME, description = SITE_DESCRIPTION, date, author, tags, i
 			<slot />
 		</main>
 		<Footer icp={ICP} psbIcp={PSB_ICP} psbIcpUrl={PSB_ICP_URL} />
+		
+		<!-- 预获取脚本 -->
+		<script>
+			// 在DOM加载完成后执行
+			document.addEventListener('astro:page-load', () => {
+				// 获取所有视口预获取链接
+				const viewportLinks = document.querySelectorAll('[data-astro-prefetch="viewport"]');
+				
+				if (viewportLinks.length > 0) {
+					// 创建一个交叉观察器 
+					const observer = new IntersectionObserver((entries) => {
+						entries.forEach(entry => {
+							if (entry.isIntersecting) {
+								const link = entry.target;
+								// 进入视口时，添加data-astro-prefetch="true"属性触发预获取
+								if (link.getAttribute('data-astro-prefetch') === 'viewport') {
+									link.setAttribute('data-astro-prefetch', 'true');
+								}
+								// 一旦预获取，就不再观察这个链接
+								observer.unobserve(link);
+							}
+						});
+					});
+					
+					// 观察所有视口预获取链接
+					viewportLinks.forEach(link => {
+						observer.observe(link);
+					});
+				}
+			});
+		</script>
 	</body>
 </html>
