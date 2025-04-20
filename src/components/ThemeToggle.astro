@@ -99,119 +99,135 @@ const {
     // 确保当前没有活动的主题切换按钮事件
     cleanup();
     
-    // 获取所有主题切换按钮
-    const themeToggleButtons = document.querySelectorAll('#theme-toggle-button');
-    
-    if (!themeToggleButtons.length) {
-      return;
-    }
-    
-    let transitioning = false;
-    
-    // 获取系统首选主题
-    const getSystemTheme = (): string => {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    };
-
-    // 初始化主题
-    const initializeTheme = (): void => {
-      const storedTheme = localStorage.getItem('theme');
-      const systemTheme = getSystemTheme();
+    // 添加延时确保DOM已准备好
+    setTimeout(() => {
+      // 获取所有主题切换按钮
+      const themeToggleButtons = document.querySelectorAll('#theme-toggle-button');
       
-      // 按照逻辑优先级应用主题
-      if (storedTheme) {
-        document.documentElement.dataset.theme = storedTheme;
-      } else if (systemTheme) {
-        document.documentElement.dataset.theme = systemTheme;
-      } else {
-        document.documentElement.dataset.theme = 'light';
-      }
-    };
-    
-    // 切换主题
-    const toggleTheme = (): void => {
-      if (transitioning) {
+      if (!themeToggleButtons.length) {
+        // 如果找不到按钮，再尝试一次延迟初始化
+        setTimeout(setupThemeToggle, 50);
         return;
       }
       
-      transitioning = true;
+      let transitioning = false;
       
-      // 获取当前主题
-      const currentTheme = document.documentElement.dataset.theme;
-      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-      
-      // 更新 HTML 属性
-      document.documentElement.dataset.theme = newTheme;
-      
-      // 更新本地存储
-      const systemTheme = getSystemTheme();
-      
-      if (newTheme === systemTheme) {
-        localStorage.removeItem('theme');
-      } else {
-        localStorage.setItem('theme', newTheme);
-      }
-      
-      // 添加防抖
-      if (transitionTimeout) {
-        clearTimeout(transitionTimeout);
-      }
-      
-      transitionTimeout = setTimeout(() => {
-        transitioning = false;
-      }, 300);
-    };
-    
-    // 监听系统主题变化
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
-    const handleMediaChange = (e: MediaQueryListEvent): void => {
-      if (!localStorage.getItem('theme')) {
-        const newTheme = e.matches ? 'dark' : 'light';
-        document.documentElement.dataset.theme = newTheme;
-      }
-    };
-    
-    // 添加系统主题变化监听
-    addListener(mediaQuery, 'change', handleMediaChange as EventListener);
+      // 获取系统首选主题
+      const getSystemTheme = (): string => {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      };
 
-    // 为每个按钮添加事件
-    themeToggleButtons.forEach(button => {
-      (button as HTMLElement).style.pointerEvents = 'auto';
-      
-      // 创建点击处理函数
-      const clickHandler = (e: Event) => {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleTheme();
+      // 初始化主题
+      const initializeTheme = (): void => {
+        const storedTheme = localStorage.getItem('theme');
+        const systemTheme = getSystemTheme();
+        
+        // 按照逻辑优先级应用主题
+        if (storedTheme) {
+          document.documentElement.dataset.theme = storedTheme;
+        } else if (systemTheme) {
+          document.documentElement.dataset.theme = systemTheme;
+        } else {
+          document.documentElement.dataset.theme = 'light';
+        }
       };
       
-      // 点击事件 - 使用捕获模式
-      addListener(button, 'click', clickHandler, { capture: true });
-      
-      // 键盘事件
-      addListener(button, 'keydown', ((e: KeyboardEvent) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          toggleTheme();
+      // 切换主题
+      const toggleTheme = (): void => {
+        if (transitioning) {
+          return;
         }
-      }) as EventListener);
-    });
-    
-    // 处理移动端主题切换容器
-    const themeToggleContainer = document.getElementById('theme-toggle-container');
-    if (themeToggleContainer) {
-      addListener(themeToggleContainer, 'click', (e: Event) => {
+        
+        transitioning = true;
+        
+        // 获取当前主题
+        const currentTheme = document.documentElement.dataset.theme;
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        // 更新 HTML 属性
+        document.documentElement.dataset.theme = newTheme;
+        
+        // 更新本地存储
+        const systemTheme = getSystemTheme();
+        
+        if (newTheme === systemTheme) {
+          localStorage.removeItem('theme');
+        } else {
+          localStorage.setItem('theme', newTheme);
+        }
+        
+        // 添加防抖
+        if (transitionTimeout) {
+          clearTimeout(transitionTimeout);
+        }
+        
+        transitionTimeout = setTimeout(() => {
+          transitioning = false;
+        }, 300);
+      };
+      
+      // 监听系统主题变化
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      
+      const handleMediaChange = (e: MediaQueryListEvent): void => {
+        if (!localStorage.getItem('theme')) {
+          const newTheme = e.matches ? 'dark' : 'light';
+          document.documentElement.dataset.theme = newTheme;
+        }
+      };
+      
+      // 添加系统主题变化监听
+      addListener(mediaQuery, 'change', handleMediaChange as EventListener);
+
+      // 为每个按钮添加事件
+      themeToggleButtons.forEach(button => {
+        (button as HTMLElement).style.pointerEvents = 'auto';
+        
+        // 创建点击处理函数
+        const clickHandler = (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleTheme();
+        };
+        
+        // 点击事件 - 使用捕获模式
+        addListener(button, 'click', clickHandler, { capture: true, passive: false });
+        
+        // 键盘事件
+        addListener(button, 'keydown', ((e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleTheme();
+          }
+        }) as EventListener);
+      });
+      
+      // 处理移动端主题切换容器
+      const themeToggleContainer = document.getElementById('theme-toggle-container');
+      if (themeToggleContainer) {
+        addListener(themeToggleContainer, 'click', (e: Event) => {
+          const target = e.target as HTMLElement;
+          if (target.id !== 'theme-toggle-button' && !target.closest('#theme-toggle-button')) {
+            e.stopPropagation();
+            toggleTheme();
+          }
+        }, { capture: true, passive: false });
+      }
+      
+      // 添加事件代理，确保即使在DOM重建后点击事件也能正常工作
+      addListener(document.body, 'click', (e: Event) => {
         const target = e.target as HTMLElement;
-        if (target.id !== 'theme-toggle-button' && !target.closest('#theme-toggle-button')) {
+        // 检查是否点击了主题切换按钮
+        if (target.id === 'theme-toggle-button' || target.closest('#theme-toggle-button')) {
+          e.preventDefault();
           e.stopPropagation();
           toggleTheme();
         }
-      });
-    }
-    
-    // 初始化主题
-    initializeTheme();
+      }, { capture: true, passive: false });
+      
+      // 初始化主题
+      initializeTheme();
+    }, 0);
   }
   
   // 注册清理函数
@@ -229,8 +245,14 @@ const {
   
   // 初始化函数
   function init(): void {
-    setupThemeToggle();
-    registerCleanup();
+    // 确保先清理之前的事件
+    cleanup();
+    
+    // 设置延时确保DOM已完全更新
+    setTimeout(() => {
+      setupThemeToggle();
+      registerCleanup();
+    }, 10);
   }
   
   // 在页面加载后初始化
@@ -245,6 +267,19 @@ const {
   document.addEventListener('astro:page-load', init);
   
   // Swup页面内容替换后重新初始化
-  document.addEventListener('swup:contentReplaced', init);
+  document.addEventListener('swup:contentReplaced', () => {
+    // 先清理现有事件
+    cleanup();
+    
+    // 确保在微任务队列后执行，让DOM完全更新
+    Promise.resolve().then(() => {
+      // 再次确保事件已清理
+      cleanup();
+      // 重新设置主题切换
+      setupThemeToggle();
+      // 注册新的清理函数
+      registerCleanup();
+    });
+  });
 })();
 </script> 

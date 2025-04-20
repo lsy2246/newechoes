@@ -288,8 +288,6 @@ const normalizedPath =
 <script>
 // Header组件逻辑 - 使用"进入→绑定→退出完全清理"模式
 (function() {
-  // 生成唯一ID用于日志跟踪
-  const headerId = 'header-' + (new Date().getTime());
   
   // 存储所有事件监听器，便于统一清理
   const listeners: Array<{
