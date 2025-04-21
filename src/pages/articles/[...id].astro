@@ -2,7 +2,7 @@
 import { getCollection, render } from "astro:content";
 import { getSpecialPath } from "@/content.config";
 import Layout from "@/components/Layout.astro";
-import { Breadcrumb } from "@/components/Breadcrumb.tsx";
+import Breadcrumb from "@/components/Breadcrumb.astro";
 import { ARTICLE_EXPIRY_CONFIG } from "@/consts";
 
 // 添加这一行，告诉Astro预渲染这个页面
@@ -10,7 +10,6 @@ export const prerender = true;
 
 export async function getStaticPaths() {
   const articles = await getCollection("articles");
-  const views = ["grid", "timeline"];
 
   // 为每篇文章生成路由参数
   const paths = [];
@@ -34,7 +33,6 @@ export async function getStaticPaths() {
 
     // 为每个可能的路径生成路由
     for (const path of possiblePaths) {
-      // 添加基本路由
       paths.push({
         params: { id: path },
         props: {
@@ -43,24 +41,8 @@ export async function getStaticPaths() {
             ? article.id.split("/").slice(0, -1).join("/")
             : "",
           originalId: path !== article.id ? article.id : undefined,
-          view: undefined,
         },
       });
-
-      // 为每个视图添加路由
-      for (const view of views) {
-        paths.push({
-          params: { id: `${path}/${view}` },
-          props: {
-            article,
-            section: article.id.includes("/")
-              ? article.id.split("/").slice(0, -1).join("/")
-              : "",
-            originalId: path !== article.id ? article.id : undefined,
-            view,
-          },
-        });
-      }
     }
   }
 
@@ -68,7 +50,10 @@ export async function getStaticPaths() {
 }
 
 // 获取文章内容
-const { article, section, originalId, view } = Astro.props;
+const { article, section, originalId } = Astro.props;
+
+// 获取搜索参数
+const searchParams = new URLSearchParams(Astro.url.search);
 
 // 如果有原始ID，使用它来渲染内容
 const articleToRender = originalId ? { ...article, id: originalId } : article;
@@ -76,8 +61,8 @@ const articleToRender = originalId ? { ...article, id: originalId } : article;
 // 渲染文章内容
 const { Content } = await render(articleToRender);
 
-// 获取面包屑导航
-const breadcrumbs = section ? section.split("/") : [];
+// 获取面包屑路径段
+const pathSegments = section ? section.split("/") : [];
 
 // 获取相关文章
 const allArticles = await getCollection("articles");
@@ -151,17 +136,16 @@ const description =
 
 // 处理特殊ID的函数
 function getArticleUrl(articleId: string) {
-  return `/articles/${getSpecialPath(articleId)}${view ? `/${view}` : ""}`;
+  return `/articles/${getSpecialPath(articleId)}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
 }
+
 ---
 
 <Layout
   title={article.data.title}
   description={description}
   date={article.data.date}
-  author={article.data.author}
   tags={article.data.tags}
-  image={article.data.image}
 >
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- 阅读进度条 -->
@@ -180,43 +164,17 @@ function getArticleUrl(articleId: string) {
     <header class="mb-8">
       <!-- 导航区域 -->
       <div
-        class="bg-white dark:bg-dark-card rounded-xl p-4 mb-6 shadow-lg border border-gray-200 dark:border-gray-700"
+        class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 shadow-lg border border-gray-200 dark:border-gray-700 relative z-10"
       >
-        <div
-          class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-        >
-          <div class="overflow-x-auto">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="w-full overflow-hidden">
             <Breadcrumb
               pageType="article"
-              pathSegments={breadcrumbs}
+              pathSegments={pathSegments}
+              searchParams={searchParams}
               articleTitle={article.data.title}
-              client:load
+              path={section}
             />
-          </div>
-
-          <div class="flex items-center shrink-0">
-            {/* 返回按钮 */}
-            <a
-              href={`/articles${view ? `/${view}` : ""}`}
-              class="text-secondary-500 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center text-sm"
-              data-astro-prefetch="hover"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-4 w-4 mr-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                ></path>
-              </svg>
-              返回文章列表
-            </a>
           </div>
         </div>
       </div>
@@ -267,7 +225,7 @@ function getArticleUrl(articleId: string) {
                 />
               </svg>
               <a
-                href={`/articles?path=${encodeURIComponent(section)}`}
+                href={`/articles/${section}/`}
                 class="hover:text-indigo-600 break-all"
               >
                 {section}
@@ -282,7 +240,7 @@ function getArticleUrl(articleId: string) {
           <div class="flex flex-wrap gap-2 mb-6">
             {article.data.tags.map((tag) => (
               <a
-                href={`/articles?tag=${tag}`}
+                href={`/articles?tags=${tag}`}
                 class="text-xs bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 py-1 px-2 rounded hover:bg-primary-100 dark:hover:bg-primary-800/30"
                 data-astro-prefetch="hover"
               >
@@ -341,7 +299,7 @@ function getArticleUrl(articleId: string) {
 
       <!-- 文章内容 -->
       <article
-        class="prose prose-lg dark:prose-invert prose-primary prose-table:rounded-lg prose-table:border-separate prose-table:border-2 prose-thead:bg-primary-50 dark:prose-thead:bg-dark-surface prose-ul:list-disc prose-ol:list-decimal prose-li:my-1 prose-blockquote:border-l-4 prose-blockquote:border-primary-500 prose-blockquote:bg-gray-100 prose-blockquote:dark:bg-dark-surface prose-a:text-primary-600 prose-a:dark:text-primary-400 prose-a:no-underline prose-a:border-b prose-a:border-primary-300 prose-a:hover:border-primary-600 max-w-none mb-12"
+        class="prose prose-lg dark:prose-invert prose-primary prose-table:rounded-lg prose-table:border-separate prose-table:border-2 prose-thead:bg-primary-50 dark:prose-thead:bg-gray-800 prose-ul:list-disc prose-ol:list-decimal prose-li:my-1 prose-blockquote:border-l-4 prose-blockquote:border-primary-500 prose-blockquote:bg-gray-100 prose-blockquote:dark:bg-gray-800 prose-a:text-primary-600 prose-a:dark:text-primary-400 prose-a:no-underline prose-a:border-b prose-a:border-primary-300 prose-a:hover:border-primary-600 max-w-none mb-12"
       >
         <Content />
       </article>
@@ -351,10 +309,10 @@ function getArticleUrl(articleId: string) {
         class="hidden 2xl:block fixed right-[calc(50%-48rem)] top-20 w-64 z-30"
       >
         <div
-          class="bg-white dark:bg-dark-card rounded-lg shadow-lg p-4 max-h-[calc(100vh-8rem)] overflow-y-auto border border-gray-200 dark:border-gray-700"
+          class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col"
         >
           <div
-            class="border-b border-secondary-100 dark:border-dark-border pb-2 mb-3 sticky top-0 bg-white dark:bg-dark-card"
+            class="border-b border-secondary-100 dark:border-gray-700 p-4 pb-2 sticky top-0 bg-white dark:bg-gray-800 z-10"
           >
             <h3 class="font-bold text-primary-700 dark:text-primary-400">
               文章目录
@@ -362,7 +320,7 @@ function getArticleUrl(articleId: string) {
           </div>
           <div
             id="toc-content"
-            class="text-sm"
+            class="text-sm p-4 pt-0 overflow-y-auto max-h-[calc(100vh-8rem-42px)]"
           >
             <!-- 目录内容将通过JavaScript动态生成 -->
           </div>
@@ -373,7 +331,7 @@ function getArticleUrl(articleId: string) {
     <!-- 相关文章 -->
     {
       relatedArticles.length > 0 && (
-        <div class="mt-12 pt-8 border-t border-secondary-200 dark:border-dark-border">
+        <div class="mt-12 pt-8 border-t border-secondary-200 dark:border-gray-700">
           <h2 class="text-2xl font-bold mb-6 text-primary-900 dark:text-primary-100">
             {relatedArticlesMatchType === "tag" ? "相关文章" : 
              relatedArticlesMatchType === "directory" ? "同类文章" : "推荐阅读"}
@@ -382,7 +340,7 @@ function getArticleUrl(articleId: string) {
             {relatedArticles.map((relatedArticle) => (
               <a
                 href={getArticleUrl(relatedArticle.id)}
-                class="block p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-dark-card hover:shadow-xl hover:-translate-y-1 shadow-lg"
+                class="block p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 shadow-lg"
                 data-astro-prefetch="viewport"
               >
                 <h3 class="font-bold text-lg mb-2 line-clamp-2 text-gray-800 dark:text-gray-200 hover:text-primary-700 dark:hover:text-primary-400">
@@ -637,7 +595,7 @@ function getArticleUrl(articleId: string) {
       const language = languageMatch ? languageMatch[1] : "text";
 
       const header = document.createElement("div");
-      header.className = "code-header flex justify-between items-center text-xs px-4 py-2 bg-secondary-800 dark:bg-dark-card text-secondary-300 dark:text-secondary-400 rounded-t-lg";
+      header.className = "code-header flex justify-between items-center text-xs px-4 py-2 bg-secondary-800 dark:bg-gray-900 text-secondary-300 dark:text-secondary-400 rounded-t-lg";
 
       const languageLabel = document.createElement("span");
       languageLabel.className = "code-language font-mono";
@@ -687,16 +645,6 @@ function getArticleUrl(articleId: string) {
     });
   }
   
-  function cleanup() {
-    listeners.forEach(({ element, eventType, handler }) => {
-      try {
-        element.removeEventListener(eventType, handler);
-      } catch (err) {}
-    });
-    
-    listeners.length = 0;
-  }
-  
   function init() {
     if (!document.querySelector("article")) return;
     
@@ -716,6 +664,16 @@ function getArticleUrl(articleId: string) {
     document.addEventListener("astro:before-swap", cleanup, { once: true });
     document.addEventListener("swup:willReplaceContent", cleanup, { once: true });
     window.addEventListener("beforeunload", cleanup, { once: true });
+  }
+  
+  function cleanup() {
+    listeners.forEach(({ element, eventType, handler }) => {
+      try {
+        element.removeEventListener(eventType, handler);
+      } catch (err) {}
+    });
+    
+    listeners.length = 0;
   }
   
   registerCleanup();

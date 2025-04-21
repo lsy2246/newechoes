@@ -9,16 +9,14 @@ interface Props {
 	title?: string;
 	description?: string;
 	date?: Date;
-	author?: string;
 	tags?: string[];
-	image?: string;
 }
 
 // 获取完整的 URL
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
 // 从props中获取页面特定信息
-const { title = SITE_NAME, description = SITE_DESCRIPTION, date, author, tags, image } = Astro.props;
+const { title = SITE_NAME, description = SITE_DESCRIPTION, date, tags } = Astro.props;
 ---
 <!doctype html>
 <html lang="zh-CN" class="m-0 w-full h-full">
@@ -39,18 +37,15 @@ const { title = SITE_NAME, description = SITE_DESCRIPTION, date, author, tags, i
 		<meta property="og:url" content={canonicalURL} />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description || `${SITE_NAME} - 个人博客`} />
-		{image && <meta property="og:image" content={new URL(image, Astro.site)} />}
 		
 		<!-- Twitter -->
 		<meta property="twitter:card" content="summary_large_image" />
 		<meta property="twitter:url" content={canonicalURL} />
 		<meta property="twitter:title" content={title} />
 		<meta property="twitter:description" content={description || `${SITE_NAME} - 个人博客`} />
-		{image && <meta property="twitter:image" content={new URL(image, Astro.site)} />}
 		
 		<!-- 文章特定元数据 -->
 		{date && <meta property="article:published_time" content={date.toISOString()} />}
-		{author && <meta name="author" content={author} />}
 		{tags && tags.map(tag => (
 			<meta property="article:tag" content={tag} />
 		))}

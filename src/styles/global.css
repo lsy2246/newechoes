@@ -12,6 +12,26 @@
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
+/* 专门为卡片元素添加过渡属性，修复悬停问题 */
+.recent-article,
+[class*="hover:-translate-y"] {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  /* 添加transform-style属性以优化渲染 */
+  transform-style: preserve-3d;
+  /* 添加will-change提示浏览器将使用GPU加速 */
+  will-change: transform;
+  /* 确保初始状态是稳定的 */
+  transform: translateY(0);
+  /* 防止鼠标在卡片内移动时触发重新计算 */
+  backface-visibility: hidden;
+}
+
+/* 使用更具体的选择器优先级来控制悬停行为 */
+.recent-article:hover,
+[class*="hover:-translate-y"]:hover {
+  transform: translateY(-0.25rem) !important;
+}
+
 @theme {
   /* 主色调 - 使用更现代的蓝紫色 */
   --color-primary-50: #f5f7ff;

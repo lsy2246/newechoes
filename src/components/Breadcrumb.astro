@@ -1,0 +1,399 @@
+---
+interface Breadcrumb {
+  name: string;
+  path: string;
+}
+
+export interface Props {
+  pageType: 'filter' | 'grid' | 'article'; 
+  pathSegments?: string[]; // 路径段数组
+  searchParams?: URLSearchParams; // 搜索参数
+  articleTitle?: string; // 文章标题（仅在文章详情页使用）
+  path?: string; // 当前路径
+}
+
+const {
+  pageType,
+  pathSegments = [],
+  searchParams = new URLSearchParams(),
+  articleTitle = '',
+  path = ''
+} = Astro.props;
+
+// 计算面包屑
+const breadcrumbs: Breadcrumb[] = pathSegments
+  .filter(segment => segment.trim() !== '')
+  .map((segment, index, array) => {
+    const path = array.slice(0, index + 1).join('/');
+    return { name: segment, path };
+  });
+---
+
+<div class="flex items-center justify-between w-full flex-wrap sm:flex-nowrap">
+  <div class="flex items-center text-sm overflow-hidden">
+    <!-- 文章列表链接 - 根据当前页面类型决定链接 -->
+    <a href={'/articles/'} class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center flex-shrink-0">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+      </svg>
+      文章
+    </a>
+
+    <!-- 网格视图或文章详情中的目录路径 -->
+    {(pageType === 'grid' || (pageType === 'article' && breadcrumbs.length > 0)) && (
+      <div class="flex items-center overflow-hidden">
+        <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+        
+        <!-- 移动端使用智能截断 -->
+        <div class="flex md:hidden items-center">
+          {breadcrumbs.length > 2 ? (
+            <>
+              <!-- 第一个路径段 -->
+              <a 
+                href={`/articles/${breadcrumbs[0].path}/`} 
+                class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[100px] flex-shrink-0"
+              >
+                {breadcrumbs[0].name}
+              </a>
+              
+              <!-- 省略号 -->
+              <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">...</span>
+              
+              <!-- 最后一个路径段 -->
+              {breadcrumbs.length > 1 && (
+                <a 
+                  href={`/articles/${breadcrumbs[breadcrumbs.length - 1].path}/`} 
+                  class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[120px] flex-shrink-0"
+                >
+                  {breadcrumbs[breadcrumbs.length - 1].name}
+                </a>
+              )}
+            </>
+          ) : (
+            breadcrumbs.map((crumb: Breadcrumb, index: number) => {
+              const crumbPath = breadcrumbs.slice(0, index + 1).map((b: Breadcrumb) => b.name).join('/');
+              return (
+                <span class="flex items-center flex-shrink-0">
+                  {index > 0 && <span class="mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
+                  <a 
+                    href={`/articles/${crumbPath}/`} 
+                    class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[100px] sm:max-w-[150px]"
+                  >
+                    {crumb.name}
+                  </a>
+                </span>
+              );
+            })
+          )}
+        </div>
+        
+        <!-- 桌面端显示全部路径段 -->
+        <div class="hidden md:flex items-center flex-wrap">
+          {breadcrumbs.map((crumb: Breadcrumb, index: number) => {
+            const crumbPath = breadcrumbs.slice(0, index + 1).map((b: Breadcrumb) => b.name).join('/');
+            return (
+              <span class="flex items-center flex-shrink-0">
+                {index > 0 && <span class="mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
+                <a 
+                  href={`/articles/${crumbPath}/`} 
+                  class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[200px] lg:max-w-[250px] xl:max-w-[300px]"
+                >
+                  {crumb.name}
+                </a>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    <!-- 筛选视图中的搜索参数展示 -->
+    {pageType === 'filter' && searchParams.toString() && (
+      <div class="flex items-center overflow-hidden">
+        <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+        <span class="text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
+          搜索结果
+        </span>
+      </div>
+    )}
+
+    <!-- 文章标题 - 仅在文章详情页显示 -->
+    {pageType === 'article' && articleTitle && (
+      <>
+        <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+        <span class="text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">{articleTitle}</span>
+      </>
+    )}
+  </div>
+
+  <!-- 视图切换按钮 - 仅在文章列表页面显示 -->
+  {(pageType === 'filter' || pageType === 'grid') && (
+    <div class="flex items-center gap-px flex-shrink-0 ml-auto">
+      <a href={`/articles${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+         class={`px-3 py-1.5 flex items-center gap-1 ${
+           pageType === 'filter' 
+             ? 'text-primary-600 dark:text-primary-400 font-medium' 
+             : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
+         }`}
+         data-astro-prefetch="hover">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+        <span class="hidden sm:inline text-xs">筛选</span>
+      </a>
+      <a href={path ? `/articles/${path}/` : `/articles/`}
+         class={`px-3 py-1.5 flex items-center gap-1 ${
+           pageType === 'grid' 
+             ? 'text-primary-600 dark:text-primary-400 font-medium' 
+             : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
+         }`}
+         data-astro-prefetch="hover">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+        </svg>
+        <span class="hidden sm:inline text-xs">网格</span>
+      </a>
+    </div>
+  )}
+  
+  <!-- 文章详情页的返回按钮 -->
+  {pageType === 'article' && (
+    <div class="flex items-center shrink-0 ml-auto">
+      <a
+        href={`/articles/${path}/`}
+        class="text-secondary-500 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center text-sm back-button"
+        data-astro-prefetch="hover"
+        data-path={`/articles/${path}/`}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4 mr-1"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M10 19l-7-7m0 0l7-7m-7 7h18"
+          ></path>
+        </svg>
+        返回文章列表
+      </a>
+    </div>
+  )}
+</div> 
+
+<script is:inline>
+  // 返回按钮点击事件处理
+  (function() {
+    // 页面导航计数器
+    let pageNavigationCount = 0;
+    
+    // 存储事件监听器，便于统一清理
+    const listeners = [];
+    
+    // 清理按钮事件监听器
+    function cleanupButtonListeners() {
+      // 查找所有返回按钮
+      const buttons = document.querySelectorAll('.back-button');
+      
+      buttons.forEach(button => {
+        // 移除所有可能的事件
+        if (button._clickHandler) {
+          button.removeEventListener('click', button._clickHandler);
+          delete button._clickHandler;
+        }
+        
+        // 清除其他可能的事件
+        const otherClickHandlers = button.__backButtonClickHandlers || [];
+        otherClickHandlers.forEach(handler => {
+          try {
+            button.removeEventListener('click', handler);
+          } catch (e) {
+            // 忽略错误
+          }
+        });
+        
+        // 重置处理函数数组
+        button.__backButtonClickHandlers = [];
+      });
+    }
+    
+    // 添加事件监听器并记录，方便后续统一清理
+    function addListener(element, eventType, handler, options) {
+      if (!element) return null;
+      
+      // 确保先移除可能已存在的同类型事件处理函数
+      if (eventType === 'click' && element.classList.contains('back-button')) {
+        if (element._clickHandler) {
+          element.removeEventListener('click', element._clickHandler);
+        }
+        element._clickHandler = handler;
+        
+        // 保存到数组中以便清理
+        if (!element.__backButtonClickHandlers) {
+          element.__backButtonClickHandlers = [];
+        }
+        element.__backButtonClickHandlers.push(handler);
+      }
+      
+      element.addEventListener(eventType, handler, options);
+      listeners.push({ element, eventType, handler, options });
+      return handler;
+    }
+    
+    // 清理函数 - 移除所有事件监听器
+    function cleanup() {
+      // 先直接从按钮清理事件
+      cleanupButtonListeners();
+      
+      // 移除所有监听器
+      listeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          // 忽略错误
+        }
+      });
+      
+      // 清空数组
+      listeners.length = 0;
+    }
+    
+    // 设置返回按钮事件
+    function setupBackButton() {
+      // 确保当前没有活动的返回按钮事件
+      cleanup();
+      
+      const backButton = document.querySelector('.back-button');
+      
+      if (!backButton) {
+        return;
+      }
+      
+      try {
+        backButton.style.pointerEvents = 'auto';
+      } catch (e) {
+        // 忽略样式错误
+      }
+      
+      const clickHandler = (e) => {
+        e.preventDefault();
+        
+        const url = new URL(window.location.href);
+        const searchParams = url.search;
+        
+        // 检查URL中是否有查询参数
+        if (searchParams) {
+          // 有查询参数，返回筛选页面
+          window.location.href = `/articles${searchParams}`;
+        } else {
+          // 没有查询参数，返回默认路径
+          const defaultPath = backButton.getAttribute('data-path') || '';
+          window.location.href = defaultPath;
+        }
+      };
+      
+      // 添加点击事件监听
+      addListener(backButton, 'click', clickHandler);
+    }
+    
+    // 注册清理函数 - 确保在每次页面转换前清理事件
+    function registerCleanup() {
+      const cleanupEvents = [
+        'astro:before-preparation',
+        'astro:before-swap',
+        'astro:beforeload',
+        'swup:willReplaceContent'
+      ];
+      
+      // 为每个事件注册一次性清理函数
+      cleanupEvents.forEach(eventName => {
+        const handler = () => {
+          cleanup();
+        };
+        
+        document.addEventListener(eventName, handler, { once: true });
+      });
+      
+      // 页面卸载时清理
+      window.addEventListener('beforeunload', () => {
+        cleanup();
+      }, { once: true });
+    }
+    
+    // 初始化函数
+    function init() {
+      pageNavigationCount++;
+      setupBackButton();
+      registerCleanup();
+    }
+    
+    // 监听页面转换事件
+    function setupPageTransitionEvents() {
+      // 确保事件处理程序唯一性的函数
+      function setupUniqueEvent(eventName, callback) {
+        const eventKey = `__back_button_event_${eventName.replace(/:/g, '_')}`;
+        
+        // 移除可能存在的旧处理函数
+        if (window[eventKey]) {
+          document.removeEventListener(eventName, window[eventKey]);
+        }
+        
+        // 保存新处理函数并注册
+        window[eventKey] = callback;
+        document.addEventListener(eventName, window[eventKey]);
+      }
+      
+      // 页面转换后事件
+      const pageTransitionEvents = [
+        { name: 'astro:after-swap', delay: 10 },
+        { name: 'astro:page-load', delay: 10 },
+        { name: 'swup:contentReplaced', delay: 10 }
+      ];
+      
+      // 设置每个页面转换事件
+      pageTransitionEvents.forEach(({ name, delay }) => {
+        setupUniqueEvent(name, () => {
+          cleanupButtonListeners(); // 立即清理按钮上的事件
+          
+          // 延迟初始化，确保DOM完全更新
+          setTimeout(() => {
+            cleanupButtonListeners(); // 再次清理，确保没有遗漏
+            init();
+          }, delay);
+        });
+      });
+      
+      // 特别处理 swup:pageView 事件
+      setupUniqueEvent('swup:pageView', () => {
+        // 对于偶数次页面跳转，特别确保事件被正确重新绑定
+        if (pageNavigationCount % 2 === 0) {
+          setTimeout(() => {
+            const buttons = document.querySelectorAll('.back-button');
+            if (buttons.length > 0) {
+              cleanupButtonListeners();
+              setupBackButton();
+            }
+          }, 50);
+        }
+      });
+    }
+    
+    // 设置页面转换事件监听
+    setupPageTransitionEvents();
+    
+    // 在页面加载后初始化
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        init();
+      }, { once: true });
+    } else {
+      setTimeout(() => {
+        init();
+      }, 0);
+    }
+  })();
+</script> 

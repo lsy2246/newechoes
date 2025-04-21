@@ -291,7 +291,7 @@ const normalizedPath =
 </header>
 
 <script>
-  // Header组件逻辑 - 使用"进入→绑定→退出完全清理"模式
+  // Header组件逻辑
   (function () {
     // 存储所有事件监听器，便于统一清理
     const listeners: Array<{
@@ -330,7 +330,6 @@ const normalizedPath =
 
     // 清理函数 - 移除所有事件监听器
     function cleanup(): void {
-      // 移除所有监听器
       listeners.forEach(({ element, eventType, handler }) => {
         try {
           element.removeEventListener(eventType, handler);
@@ -338,16 +337,11 @@ const normalizedPath =
           console.error(`移除Header事件监听器出错:`, err);
         }
       });
-
-      // 清空数组
       listeners.length = 0;
     }
 
     // Header和导航高亮逻辑
     function initHeader(): void {
-      const header = document.getElementById("header-bg");
-      const scrollThreshold = 50;
-
       // 获取桌面端导航链接（排除移动端菜单中的链接）
       const navLinks = document.querySelectorAll(".hidden.md\\:flex a[href]");
 
@@ -365,8 +359,6 @@ const normalizedPath =
         if (currentPath.startsWith("/articles/") && navPath === "/articles") {
           return true;
         }
-
-        // 可以添加其他特殊情况的处理逻辑
 
         return false;
       }
@@ -427,21 +419,8 @@ const normalizedPath =
         });
       }
 
-      // 处理滚动更新背景
-      function updateHeaderBackground(): void {
-        if (window.scrollY > scrollThreshold) {
-          header?.classList.add("scrolled");
-        } else {
-          header?.classList.remove("scrolled");
-        }
-      }
-
       // 初始检查
-      updateHeaderBackground();
       updateNavHighlight();
-
-      // 添加滚动事件监听
-      addListener(window, "scroll", updateHeaderBackground);
 
       // 监听路由变化
       addListener(document, "astro:page-load", updateNavHighlight);
@@ -479,7 +458,7 @@ const normalizedPath =
       }
 
       if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
-        // 移动端菜单按钮点击事件 - 使用捕获模式确保事件优先处理
+        // 移动端菜单按钮点击事件
         (mobileMenuButton as HTMLElement).style.pointerEvents = "auto";
 
         addListener(
@@ -492,24 +471,18 @@ const normalizedPath =
             const expanded =
               mobileMenuButton.getAttribute("aria-expanded") === "true";
 
-            // 切换菜单状态
             mobileMenuButton.setAttribute(
               "aria-expanded",
               (!expanded).toString(),
             );
 
             if (expanded) {
-              // 直接隐藏菜单，不使用过渡效果
               mobileMenu.classList.add("hidden");
             } else {
-              // 打开菜单前先关闭搜索面板
               closeMobileSearch();
-
-              // 直接显示菜单，不使用过渡效果
               mobileMenu.classList.remove("hidden");
             }
 
-            // 切换图标
             menuOpenIcon.classList.toggle("hidden");
             menuCloseIcon.classList.toggle("hidden");
           },
@@ -526,7 +499,6 @@ const normalizedPath =
             link,
             "click",
             (e) => {
-              // 不要阻止默认行为，因为需要跳转
               e.stopPropagation();
               closeMobileMenu();
             },
@@ -537,7 +509,6 @@ const normalizedPath =
 
       // 移动端搜索按钮
       if (mobileSearchButton && mobileSearchPanel) {
-        // 搜索按钮点击事件 - 使用捕获模式确保事件优先处理
         (mobileSearchButton as HTMLElement).style.pointerEvents = "auto";
 
         addListener(
@@ -547,18 +518,13 @@ const normalizedPath =
             e.preventDefault();
             e.stopPropagation();
 
-            // 检查搜索面板是否已经打开
             const isSearchVisible =
               !mobileSearchPanel.classList.contains("hidden");
 
             if (isSearchVisible) {
-              // 如果搜索面板已打开，则关闭它
               closeMobileSearch();
             } else {
-              // 打开搜索面板前先关闭菜单
               closeMobileMenu();
-
-              // 打开搜索面板
               mobileSearchPanel.classList.remove("hidden");
               if (mobileSearch) mobileSearch.focus();
             }
@@ -593,13 +559,11 @@ const normalizedPath =
           "click",
           (e: Event) => {
             const target = e.target as HTMLElement;
-            // 如果点击的不是主题切换按钮本身，则手动触发主题切换
             if (
               target.id !== "theme-toggle-button" &&
               !target.closest("#theme-toggle-button")
             ) {
               e.stopPropagation();
-              // 获取容器内的主题切换按钮并模拟点击
               const toggleButton = themeToggleContainer.querySelector(
                 "#theme-toggle-button",
               );
@@ -637,7 +601,6 @@ const normalizedPath =
       const mobileResults = document.getElementById("mobile-search-results");
       const mobileList = document.getElementById("mobile-search-list");
       const mobileMessage = document.getElementById("mobile-search-message");
-      const mobileSearchPanel = document.getElementById("mobile-search-panel");
 
       // 获取文章数据
       async function fetchArticles(): Promise<void> {
@@ -659,7 +622,6 @@ const normalizedPath =
       function highlightText(text: string, query: string): string {
         if (!text || !query.trim()) return text;
 
-        // 转义正则表达式中的特殊字符
         const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const regex = new RegExp(`(${escapedQuery})`, "gi");
 
@@ -761,15 +723,12 @@ const normalizedPath =
               const endPos = Math.min(article.content.length, matchIndex + 100);
               // 提取片段
               let snippet = article.content.substring(startPos, endPos);
-              // 如果不是从文章开头开始，添加省略号
               if (startPos > 0) {
                 snippet = "..." + snippet;
               }
-              // 如果不是到文章结尾，添加省略号
               if (endPos < article.content.length) {
                 snippet = snippet + "...";
               }
-              // 高亮匹配的文本
               snippet = highlightText(snippet, query);
               contentMatch = `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${snippet}</p>`;
             }
@@ -900,13 +859,11 @@ const normalizedPath =
 
     // 关闭所有搜索面板的函数
     function closeSearchPanels(): void {
-      // 关闭桌面端搜索结果
       const desktopSearchResults = document.getElementById("desktop-search-results");
       if (desktopSearchResults) {
         desktopSearchResults.classList.add("hidden");
       }
       
-      // 关闭移动端搜索面板
       const mobileSearchPanel = document.getElementById("mobile-search-panel");
       if (mobileSearchPanel) {
         mobileSearchPanel.classList.add("hidden");
@@ -915,13 +872,10 @@ const normalizedPath =
     
     // 为搜索结果链接添加点击事件
     function addSearchResultsClickListeners(): void {
-      // 获取所有搜索结果链接
       const searchResultLinks = document.querySelectorAll('.search-result-link');
       
-      // 为每个链接添加点击事件
       searchResultLinks.forEach(link => {
         addListener(link, 'click', () => {
-          // 点击搜索结果后关闭所有搜索面板
           closeSearchPanels();
         });
       });
@@ -929,27 +883,19 @@ const normalizedPath =
 
     // 注册清理函数
     function registerCleanup(): void {
-      // Astro 事件
       document.addEventListener("astro:before-preparation", cleanup, {
         once: true,
       });
       document.addEventListener("astro:before-swap", cleanup, { once: true });
-
-      // Swup 事件
       document.addEventListener("swup:willReplaceContent", cleanup, {
         once: true,
       });
-
-      // 页面卸载
       window.addEventListener("beforeunload", cleanup, { once: true });
     }
 
     // 初始化全部功能
     function setupHeader(): void {
-      // 先清理之前的事件监听器
       cleanup();
-      
-      // 初始化各个组件
       initHeader();
       initSearch();
       registerCleanup();
@@ -957,7 +903,6 @@ const normalizedPath =
       // 在页面路由变化时关闭搜索面板
       addListener(document, 'astro:page-load', closeSearchPanels);
       addListener(document, 'astro:after-swap', closeSearchPanels);
-      addListener(document, 'swup:contentReplaced', closeSearchPanels);
     }
 
     // 在页面加载时初始化
@@ -966,15 +911,11 @@ const normalizedPath =
         once: true,
       });
     } else {
-      // 使用setTimeout确保处于事件队列末尾，避免可能的事件冲突
       setTimeout(setupHeader, 0);
     }
 
     // 在页面转换后重新初始化
     document.addEventListener("astro:after-swap", setupHeader);
     document.addEventListener("astro:page-load", setupHeader);
-
-    // Swup页面内容替换后重新初始化
-    document.addEventListener("swup:contentReplaced", setupHeader);
   })();
 </script>

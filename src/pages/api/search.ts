@@ -26,7 +26,6 @@ export async function GET() {
           date: article.data.date,
           summary: article.data.summary || '',
           tags: article.data.tags || [],
-          image: article.data.image || '',
           content: contentText // 添加文章内容
         };
       })

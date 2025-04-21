@@ -135,11 +135,7 @@ const articles = defineCollection({
     date: z.date(),
     tags: z.array(z.string()).optional(),
     summary: z.string().optional(),
-    image: z.string().optional(),
-    author: z.string().optional(),
     draft: z.boolean().optional().default(false),
-    section: z.string().optional(),
-    weight: z.number().optional(),
   }),
 });
 

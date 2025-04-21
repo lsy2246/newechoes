@@ -2,69 +2,62 @@ import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { getSpecialPath } from '../../content.config';
 
+// 从文章内容中提取摘要的函数
+function extractSummary(content: string, length = 150) {
+  // 移除 Markdown 标记
+  const plainText = content
+    .replace(/---[\s\S]*?---/, '') // 移除 frontmatter
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // 将链接转换为纯文本
+    .replace(/[#*`~>]/g, '') // 移除特殊字符
+    .replace(/\n+/g, ' ') // 将换行转换为空格
+    .trim();
+
+  return plainText.length > length 
+    ? plainText.slice(0, length).trim() + '...'
+    : plainText;
+}
+
 // 处理特殊ID的函数
 function getArticleUrl(articleId: string) {
   return `/articles/${getSpecialPath(articleId)}`;
 }
 
 export const GET: APIRoute = async ({ request }) => {
-  // 获取查询参数
-  const url = new URL(request.url);
-  const page = parseInt(url.searchParams.get('page') || '1');
-  const limit = parseInt(url.searchParams.get('limit') || '10');
-  const tag = url.searchParams.get('tag') || '';
-  const path = url.searchParams.get('path') || '';
-  
-  // 获取所有文章
-  const articles = await getCollection('articles');
-  
-  // 根据条件过滤文章
-  let filteredArticles = articles;
-  
-  // 如果有标签过滤
-  if (tag) {
-    filteredArticles = filteredArticles.filter(article => 
-      article.data.tags && article.data.tags.includes(tag)
-    );
-  }
-  
-  // 如果有路径过滤，直接使用文章ID来判断
-  if (path) {
-    const normalizedPath = path.toLowerCase();
-    filteredArticles = filteredArticles.filter(article => {
-      return article.id.toLowerCase().includes(normalizedPath);
+  try {
+    // 获取所有文章
+    const articles = await getCollection('articles');
+    // 格式化文章数据
+    const formattedArticles = articles.map(article => ({
+      id: article.id,
+      title: article.data.title,
+      date: article.data.date,
+      tags: article.data.tags || [],
+      summary: article.data.summary || (article.body ? extractSummary(article.body) : ''),
+      url: getArticleUrl(article.id) // 使用特殊ID处理函数
+    }));
+    
+    return new Response(JSON.stringify({
+      articles: formattedArticles,
+      total: formattedArticles.length,
+      success: true
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        // 添加缓存头，缓存1小时
+        'Cache-Control': 'public, max-age=3600'
+      }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ 
+      error: '获取文章数据失败',
+      success: false,
+      articles: [],
+      total: 0
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
   }
-  
-  // 按日期排序（最新的在前面）
-  const sortedArticles = filteredArticles.sort(
-    (a, b) => b.data.date.getTime() - a.data.date.getTime()
-  );
-  
-  // 计算分页
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedArticles = sortedArticles.slice(startIndex, endIndex);
-  
-  // 格式化文章数据
-  const formattedArticles = paginatedArticles.map(article => ({
-    id: article.id,
-    title: article.data.title,
-    date: article.data.date,
-    tags: article.data.tags || [],
-    summary: article.data.summary || '',
-    url: getArticleUrl(article.id) // 使用特殊ID处理函数
-  }));
-  
-  return new Response(JSON.stringify({
-    articles: formattedArticles,
-    total: sortedArticles.length,
-    page,
-    limit,
-    totalPages: Math.ceil(sortedArticles.length / limit)
-  }), {
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  });
 }; 

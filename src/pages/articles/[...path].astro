@@ -1,106 +1,65 @@
 ---
-import ArticlesPage, { getStaticPaths as getOriginalPaths } from './index.astro';
+import ArticlesPage from './index.astro';
+import { getCollection } from 'astro:content';
 
 // 启用静态预渲染
 export const prerender = true;
 
-// 重新导出 getStaticPaths，处理所有路径模式
+// 获取目录结构
 export async function getStaticPaths() {
-  const paths = await getOriginalPaths();
-  const allPaths = paths.map(({ props }) => {
-    const results = [];
-    
-    // 1. 如果有标签，添加标签路径
-    if (props.tag) {
-      // 标签主页
-      results.push({
-        params: { path: `tag/${props.tag}` },
-        props: { ...props }
-      });
-      // 标签视图页
-      results.push({
-        params: { path: `tag/${props.tag}/grid` },
-        props: { ...props, view: 'grid' }
-      });
-      results.push({
-        params: { path: `tag/${props.tag}/timeline` },
-        props: { ...props, view: 'timeline' }
-      });
+  const articles = await getCollection('articles');
+  
+  // 从文章ID中提取所有目录路径
+  const directories = new Set<string>();
+  
+  articles.forEach(article => {
+    if (article.id.includes('/')) {
+      // 获取所有层级的目录
+      const parts = article.id.split('/');
+      let currentPath = '';
+      
+      // 逐级构建目录路径
+      for (let i = 0; i < parts.length - 1; i++) {
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+        directories.add(currentPath);
+      }
     }
-    
-    // 2. 如果有路径，添加目录路径
-    if (props.path) {
-      // 目录主页
-      results.push({
-        params: { path: props.path },
-        props: { ...props }
-      });
-      // 目录视图页
-      results.push({
-        params: { path: `${props.path}/grid` },
-        props: { ...props, view: 'grid' }
-      });
-      results.push({
-        params: { path: `${props.path}/timeline` },
-        props: { ...props, view: 'timeline' }
-      });
-    }
-    
-    return results;
-  }).flat();
-
-  // 添加顶级视图路径
-  allPaths.push(
-    {
-      params: { path: 'grid' },
-      props: { path: '', tag: '', view: 'grid' }
+  });
+  
+  // 准备路径数组
+  const paths = [];
+  
+  // 为每个目录创建一个路由
+  for (const path of directories) {
+    paths.push({
+      params: { 
+        // 对于 [...path] 参数，Astro 需要接收单个字符串
+        path: path
+      },
+      props: { 
+        path,
+        pageType: 'grid'
+      }
+    });
+  }
+  
+  // 添加根路径 (即 /articles/)
+  paths.push({
+    params: { 
+      path: undefined 
     },
-    {
-      params: { path: 'timeline' },
-      props: { path: '', tag: '', view: 'timeline' }
+    props: {
+      path: '',
+      pageType: 'grid'
     }
-  );
-
-  return allPaths;
+  });
+  
+  return paths;
 }
 
 // 使用主页面组件
-const { props } = Astro;
-
-// 解析路径参数
-const pathParts = (Astro.params.path as string | undefined)?.split('/') || [];
-
-// 初始化变量
-let path = '';
-let tag = '';
-let view = 'grid';
-
-if (pathParts[0] === 'tag' && pathParts.length >= 2) {
-  // 标签路径处理
-  tag = pathParts[1];
-  view = pathParts[2] || 'grid';
-} else {
-  // 处理普通路径和视图
-  const lastPart = pathParts[pathParts.length - 1];
-  
-  if (['grid', 'timeline'].includes(lastPart)) {
-    // 如果最后一部分是视图类型，则移除它并设置视图
-    view = lastPart;
-    pathParts.pop();
-  }
-  
-  // 剩余的部分都作为路径
-  path = pathParts.join('/');
-}
-
-// 合并属性
-const mergedProps = {
-  ...props,
-  path,
-  tag,
-  view
-};
+const { path, pageType = 'grid' } = Astro.props;
 
 ---
 
-<ArticlesPage {...mergedProps} /> 
+<ArticlesPage pageType={pageType} path={path} /> 
