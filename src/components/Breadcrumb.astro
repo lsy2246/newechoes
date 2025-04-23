@@ -112,7 +112,8 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       <div class="flex items-center overflow-hidden">
         <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
         <span class="text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
-          搜索结果
+          筛选
+          {searchParams.toString() && <span class="ml-1">- 搜索结果</span>}
         </span>
       </div>
     )}
@@ -129,7 +130,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
   <!-- 视图切换按钮 - 仅在文章列表页面显示 -->
   {(pageType === 'filter' || pageType === 'grid') && (
     <div class="flex items-center gap-px flex-shrink-0 ml-auto">
-      <a href={`/articles${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+      <a href={`/filtered${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
          class={`px-3 py-1.5 flex items-center gap-1 ${
            pageType === 'filter' 
              ? 'text-primary-600 dark:text-primary-400 font-medium' 
@@ -288,7 +289,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
         // 检查URL中是否有查询参数
         if (searchParams) {
           // 有查询参数，返回筛选页面
-          window.location.href = `/articles${searchParams}`;
+          window.location.href = `/filtered${searchParams}`;
         } else {
           // 没有查询参数，返回默认路径
           const defaultPath = backButton.getAttribute('data-path') || '';
