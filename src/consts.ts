@@ -4,8 +4,8 @@ export const SITE_DESCRIPTION = "记录生活，分享所思";
 
 export const NAV_LINKS = [
     { href: '/', text: '首页' },
-    { href: '/articles', text: '文章' },
     { href: '/filtered', text: '筛选' },
+    { href: '/articles', text: '文章' },
     { href: '/movies', text: '观影' },
     { href: '/books', text: '读书' },
     { href: '/projects', text: '项目' },

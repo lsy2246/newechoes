@@ -1,6 +1,7 @@
 ---
 import { SITE_NAME, NAV_LINKS } from "@/consts.ts";
-import ThemeToggle from "./ThemeToggle.astro";
+import { Toggle } from "astro-theme-toggle";
+import Search from "astro-pagefind/components/Search";
 
 // 获取当前路径
 const currentPath = Astro.url.pathname;
@@ -41,52 +42,24 @@ const normalizedPath =
         <!-- 导航链接 -->
         <div class="hidden md:flex md:items-center md:space-x-8">
           <!-- 桌面端搜索框 -->
-          <div class="relative">
-            <input
-              type="text"
-              id="desktop-search"
-              class="w-48 pl-10 pr-4 py-1.5 rounded-full text-sm text-gray-700 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 bg-gray-50/80 dark:bg-gray-800/60 border border-gray-200/60 dark:border-gray-700/40 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-800 focus:border-primary-300 dark:focus:border-primary-600"
-              placeholder="搜索文章..."
-            />
-            <div
-              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-            >
-              <svg
-                class="h-4 w-4 text-gray-400 dark:text-gray-500"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </div>
-
-            <!-- 搜索结果容器（默认隐藏） -->
-            <div
-              id="desktop-search-results"
-              class="absolute top-full left-0 right-0 mt-2 max-h-80 overflow-y-auto rounded-lg bg-white/95 dark:bg-gray-800/95 shadow-md border border-gray-200/70 dark:border-gray-700/70 backdrop-blur-sm z-50 hidden"
-            >
-              <!-- 结果将通过JS动态填充 -->
-              <div
-                class="p-4 text-center text-gray-500 dark:text-gray-400"
-                id="desktop-search-message"
-              >
-                <p>输入关键词开始搜索</p>
-              </div>
-              <ul
-                class="divide-y divide-gray-200/70 dark:divide-gray-700/70"
-                id="desktop-search-list"
-              >
-              </ul>
-            </div>
-          </div>
+          <Search
+            className="pagefind-ui"
+            uiOptions={{
+              showImages: false,
+              resetStyles: false,
+              showSubResults: true,
+              translations: {
+                placeholder: "搜索文章...",
+                clear_search: "清除",
+                load_more: "加载更多结果",
+                search_label: "搜索网站",
+                filters_label: "筛选",
+                zero_results: "未找到 [SEARCH_TERM] 的结果",
+                many_results: "找到 [COUNT] 个 [SEARCH_TERM] 的结果",
+                one_result: "找到 [COUNT] 个 [SEARCH_TERM] 的结果",
+              },
+            }}
+          />
 
           {
             NAV_LINKS.map((link) => (
@@ -103,7 +76,40 @@ const normalizedPath =
               </a>
             ))
           }
-          <ThemeToggle />
+          <div
+            class="inline-flex items-center justify-center cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 group relative mt-1.5 w-8 h-8"
+          >
+            <Toggle class="flex items-center justify-center h-full w-full">
+              <Fragment
+                slot="icon-light"
+                class="flex items-center justify-center h-full w-full"
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  class="w-4 h-4 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 fill-current flex-shrink-0 m-auto absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"
+                  ></path>
+                </svg>
+              </Fragment>
+              <Fragment
+                slot="icon-dark"
+                class="flex items-center justify-center h-full w-full"
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  class="w-4 h-4 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 fill-current flex-shrink-0 m-auto absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"
+                  ></path>
+                </svg>
+              </Fragment>
+            </Toggle>
+          </div>
         </div>
 
         <!-- 移动端菜单按钮 -->
@@ -181,70 +187,25 @@ const normalizedPath =
       id="mobile-search-panel"
       class="hidden md:hidden fixed inset-x-0 top-16 p-4 bg-white dark:bg-gray-800 shadow-md z-50 border-t border-gray-200 dark:border-gray-700"
     >
-      <div class="relative">
-        <input
-          type="text"
-          id="mobile-search"
-          class="w-full pl-10 pr-10 py-2 rounded-full text-sm text-gray-700 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 bg-gray-50/80 dark:bg-gray-800/60 border border-gray-200/60 dark:border-gray-700/40 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:focus:ring-primary-500 focus:bg-white dark:focus:bg-gray-800 focus:border-primary-300 dark:focus:border-primary-600"
-          placeholder="搜索文章..."
+      <div>
+        <Search
+          className="pagefind-ui"
+          uiOptions={{
+            showImages: false,
+            resetStyles: false,
+            showSubResults: true,
+            translations: {
+              placeholder: "搜索文章...",
+              clear_search: "清除",
+              load_more: "加载更多结果",
+              search_label: "搜索网站",
+              filters_label: "筛选",
+              zero_results: "未找到 [SEARCH_TERM] 的结果",
+              many_results: "找到 [COUNT] 个 [SEARCH_TERM] 的结果",
+              one_result: "找到 [COUNT] 个 [SEARCH_TERM] 的结果",
+            },
+          }}
         />
-        <div
-          class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-        >
-          <svg
-            class="h-5 w-5 text-gray-400 dark:text-gray-500"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            ></path>
-          </svg>
-        </div>
-        <button
-          id="mobile-search-close"
-          class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          aria-label="关闭搜索"
-        >
-          <svg
-            class="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            ></path>
-          </svg>
-        </button>
-      </div>
-      <!-- 移动端搜索结果 -->
-      <div
-        id="mobile-search-results"
-        class="mt-3 max-h-80 overflow-y-auto rounded-lg bg-white/95 dark:bg-gray-800/95 shadow-md border border-gray-200/70 dark:border-gray-700/70 backdrop-blur-sm hidden"
-      >
-        <!-- 结果将通过JS动态填充 -->
-        <div
-          class="p-4 text-center text-gray-500 dark:text-gray-400"
-          id="mobile-search-message"
-        >
-          <p>输入关键词开始搜索</p>
-        </div>
-        <ul
-          class="divide-y divide-gray-200/70 dark:divide-gray-700/70"
-          id="mobile-search-list"
-        >
-        </ul>
       </div>
     </div>
 
@@ -281,7 +242,40 @@ const normalizedPath =
               <span class="text-sm font-medium text-gray-600 dark:text-gray-300"
                 >切换主题</span
               >
-              <ThemeToggle />
+              <div
+                class="group relative w-7 h-7 mt-1 flex items-center justify-center"
+              >
+                <Toggle class="flex items-center justify-center h-full w-full">
+                  <Fragment
+                    slot="icon-light"
+                    class="flex items-center justify-center h-full w-full"
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      class="w-3.5 h-3.5 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 fill-current flex-shrink-0 m-auto absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"
+                      ></path>
+                    </svg>
+                  </Fragment>
+                  <Fragment
+                    slot="icon-dark"
+                    class="flex items-center justify-center h-full w-full"
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      class="w-3.5 h-3.5 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 fill-current flex-shrink-0 m-auto absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"
+                      ></path>
+                    </svg>
+                  </Fragment>
+                </Toggle>
+              </div>
             </div>
           </div>
         </div>
@@ -299,20 +293,6 @@ const normalizedPath =
       eventType: string;
       handler: EventListenerOrEventListenerObject;
     }> = [];
-
-    // 记录是否已加载文章数据
-    interface Article {
-      id: string;
-      title: string;
-      date: string | Date;
-      summary?: string;
-      tags?: string[];
-      image?: string;
-      content?: string;
-    }
-
-    let articles: Article[] = [];
-    let isArticlesLoaded = false;
 
     // 添加事件监听器并记录，方便后续统一清理
     function addListener<K extends keyof HTMLElementEventMap>(
@@ -437,7 +417,6 @@ const normalizedPath =
         "mobile-search-button",
       );
       const mobileSearchPanel = document.getElementById("mobile-search-panel");
-      const mobileSearch = document.getElementById("mobile-search");
       const mobileSearchClose = document.getElementById("mobile-search-close");
 
       // 关闭移动端菜单的函数
@@ -455,6 +434,130 @@ const normalizedPath =
         if (mobileSearchPanel) {
           mobileSearchPanel.classList.add("hidden");
         }
+      }
+
+      // 清空桌面搜索框的函数
+      function clearDesktopSearch(): void {
+        // 获取关键元素
+        const searchInput = document.querySelector('.pagefind-ui__search-input');
+        const clearButton = document.querySelector('.pagefind-ui__search-clear');
+        const resultsContainer = document.querySelector('.pagefind-ui__results');
+        
+        // 隐藏搜索结果面板
+        if (resultsContainer) {
+          // 直接隐藏结果容器
+          resultsContainer.setAttribute('style', 'display: none !important');
+        }
+        
+        // 如果有清除按钮，点击它清空输入框
+        if (clearButton) {
+          (clearButton as HTMLElement).click();
+        } else if (searchInput) {
+          // 备选方案，设置输入框为空
+          (searchInput as HTMLInputElement).value = '';
+          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+
+      // 监听搜索结果链接点击事件
+      function setupSearchResultListeners(): void {
+        // 使用事件委托，监听整个搜索容器
+        const searchContainer = document.querySelector(".pagefind-ui");
+        if (searchContainer) {
+          // 移除之前可能存在的事件监听器
+          const existingHandler = (searchContainer as any)._clickHandler;
+          if (existingHandler) {
+            searchContainer.removeEventListener("click", existingHandler);
+          }
+
+          // 添加新的事件监听器
+          const clickHandler = (e: Event) => {
+            const target = e.target as HTMLElement;
+            // 检查是否点击了搜索结果链接或其父元素
+            const linkElement = target.closest(
+              ".pagefind-ui__result-link, .pagefind-ui__result-title, .pagefind-ui__results a",
+            );
+
+            if (linkElement && linkElement.tagName === "A") {
+              // 不做任何处理，避免干扰导航
+              // 让路由变化后的处理函数来隐藏搜索面板
+            }
+          };
+
+          // 存储处理函数以便后续可能的移除
+          (searchContainer as any)._clickHandler = clickHandler;
+
+          // 添加事件监听
+          addListener(searchContainer, "click", clickHandler, {
+            capture: true,
+          });
+        } else {
+          console.warn("[Header] 未找到搜索容器，无法添加点击事件");
+        }
+
+        // 直接为文档添加事件监听，确保能捕获到所有点击
+        addListener(
+          document.body,
+          "click",
+          (e) => {
+            const target = e.target as HTMLElement;
+            const isSearchResult = target.closest(
+              ".pagefind-ui__result-link, .pagefind-ui__result-title, .pagefind-ui__results a",
+            );
+
+            if (isSearchResult && isSearchResult.tagName === "A") {
+              // 不做任何处理，避免干扰导航
+              // 让路由变化后的处理函数来隐藏搜索面板
+              
+              // 只关闭移动端搜索面板，因为它不影响导航
+              closeMobileSearch();
+            }
+          },
+          { capture: true },
+        );
+      }
+
+      // 初始化搜索功能并设置页面加载后的变化监听
+      function initSearch(): void {
+        setupSearchResultListeners();
+
+        // Pagefind可能在页面加载后动态添加内容，添加MutationObserver以监视这些变化
+        const pageObserver = new MutationObserver((mutations) => {
+          for (const mutation of mutations) {
+            if (mutation.addedNodes.length > 0) {
+              // 检查是否有新添加的搜索容器或结果
+              const hasNewSearchElements = Array.from(mutation.addedNodes).some(
+                (node) => {
+                  if (node.nodeType === Node.ELEMENT_NODE) {
+                    const element = node as HTMLElement;
+                    return (
+                      element.classList?.contains("pagefind-ui") ||
+                      element.querySelector(".pagefind-ui") !== null ||
+                      element.classList?.contains("pagefind-ui__results") ||
+                      element.querySelector(".pagefind-ui__results") !== null
+                    );
+                  }
+                  return false;
+                },
+              );
+
+              if (hasNewSearchElements) {
+                setupSearchResultListeners();
+              }
+            }
+          }
+        });
+
+        // 观察整个body以捕获所有变化
+        pageObserver.observe(document.body, { childList: true, subtree: true });
+
+        // 添加导航后清空搜索框的监听
+        addListener(document, "astro:page-load", () => {
+          // 页面加载后清空搜索框和隐藏结果面板
+          setTimeout(() => {
+            clearDesktopSearch();
+          }, 100); // 短暂延迟确保搜索组件已加载
+        });
       }
 
       if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
@@ -526,7 +629,6 @@ const normalizedPath =
             } else {
               closeMobileMenu();
               mobileSearchPanel.classList.remove("hidden");
-              if (mobileSearch) mobileSearch.focus();
             }
           },
           { capture: true },
@@ -548,6 +650,9 @@ const normalizedPath =
         }
       }
 
+      // 初始化搜索功能
+      initSearch();
+
       // 处理移动端主题切换容器
       const themeToggleContainer = document.getElementById(
         "theme-toggle-container",
@@ -560,13 +665,12 @@ const normalizedPath =
           (e: Event) => {
             const target = e.target as HTMLElement;
             if (
-              target.id !== "theme-toggle-button" &&
-              !target.closest("#theme-toggle-button")
+              target.tagName !== "ASTRO-THEME-TOGGLE" &&
+              !target.closest("astro-theme-toggle")
             ) {
               e.stopPropagation();
-              const toggleButton = themeToggleContainer.querySelector(
-                "#theme-toggle-button",
-              );
+              const toggleButton =
+                themeToggleContainer.querySelector("astro-theme-toggle");
               if (toggleButton) {
                 (toggleButton as HTMLElement).click();
               }
@@ -575,309 +679,47 @@ const normalizedPath =
           { capture: true },
         );
       }
-    }
 
-    // 搜索功能逻辑
-    function initSearch(): void {
-      // 搜索节流函数
-      function debounce<T extends (...args: any[]) => void>(
-        func: T,
-        wait: number
-      ): (...args: Parameters<T>) => void {
-        let timeout: ReturnType<typeof setTimeout> | undefined;
-        return function(this: any, ...args: Parameters<T>): void {
-          clearTimeout(timeout);
-          timeout = setTimeout(() => func.apply(this, args), wait);
-        };
-      }
-
-      // 获取DOM元素
-      const desktopSearch = document.getElementById("desktop-search");
-      const desktopResults = document.getElementById("desktop-search-results");
-      const desktopList = document.getElementById("desktop-search-list");
-      const desktopMessage = document.getElementById("desktop-search-message");
-
-      const mobileSearch = document.getElementById("mobile-search");
-      const mobileResults = document.getElementById("mobile-search-results");
-      const mobileList = document.getElementById("mobile-search-list");
-      const mobileMessage = document.getElementById("mobile-search-message");
-
-      // 获取文章数据
-      async function fetchArticles(): Promise<void> {
-        if (isArticlesLoaded && articles.length > 0) return;
-
-        try {
-          const response = await fetch("/api/search");
-          if (!response.ok) {
-            throw new Error("获取文章数据失败");
-          }
-          articles = await response.json();
-          isArticlesLoaded = true;
-        } catch (error) {
-          console.error("获取文章失败:", error);
-        }
-      }
-
-      // 高亮文本中的匹配部分
-      function highlightText(text: string, query: string): string {
-        if (!text || !query.trim()) return text;
-
-        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const regex = new RegExp(`(${escapedQuery})`, "gi");
-
-        return text.replace(
-          regex,
-          '<mark class="bg-yellow-100 dark:bg-yellow-900/30 text-gray-900 dark:text-gray-100 px-0.5 rounded">$1</mark>',
-        );
-      }
-
-      // 搜索文章
-      function searchArticles(
-        query: string,
-        resultsList: HTMLElement,
-        resultsMessage: HTMLElement
-      ): void {
-        if (!query.trim()) {
-          resultsList.innerHTML = "";
-          resultsMessage.textContent = "输入关键词开始搜索";
-          resultsMessage.style.display = "block";
-          return;
-        }
-
-        if (articles.length === 0) {
-          resultsMessage.textContent = "正在加载数据...";
-          resultsMessage.style.display = "block";
-          return;
-        }
-
-        const lowerQuery = query.toLowerCase();
-
-        // 过滤并排序结果
-        const filteredArticles = articles
-          .filter((article: Article) => {
-            const title = article.title.toLowerCase();
-            const tags = article.tags
-              ? article.tags.map((tag: string) => tag.toLowerCase())
-              : [];
-            const summary = article.summary ? article.summary.toLowerCase() : "";
-            const content = article.content ? article.content.toLowerCase() : "";
-
-            return (
-              title.includes(lowerQuery) ||
-              tags.some((tag: string) => tag.includes(lowerQuery)) ||
-              summary.includes(lowerQuery) ||
-              content.includes(lowerQuery)
-            );
-          })
-          .sort((a: Article, b: Article) => {
-            // 标题匹配优先
-            const aTitle = a.title.toLowerCase();
-            const bTitle = b.title.toLowerCase();
-
-            if (aTitle.includes(lowerQuery) && !bTitle.includes(lowerQuery)) {
-              return -1;
-            }
-            if (!aTitle.includes(lowerQuery) && bTitle.includes(lowerQuery)) {
-              return 1;
-            }
-
-            // 内容匹配次之
-            const aContent = a.content ? a.content.toLowerCase() : "";
-            const bContent = b.content ? b.content.toLowerCase() : "";
-
-            if (aContent.includes(lowerQuery) && !bContent.includes(lowerQuery)) {
-              return -1;
-            }
-            if (!aContent.includes(lowerQuery) && bContent.includes(lowerQuery)) {
-              return 1;
-            }
-
-            // 日期排序
-            return new Date(b.date).getTime() - new Date(a.date).getTime();
-          })
-          .slice(0, 10); // 限制结果数量
-
-        if (filteredArticles.length === 0) {
-          resultsList.innerHTML = "";
-          resultsMessage.textContent = "没有找到相关内容";
-          resultsMessage.style.display = "block";
-          return;
-        }
-
-        // 显示结果
-        resultsMessage.style.display = "none";
-        resultsList.innerHTML = filteredArticles
-          .map((article: Article) => {
-            // 生成匹配的内容片段
-            let contentMatch = "";
-            if (
-              article.content &&
-              article.content.toLowerCase().includes(lowerQuery)
-            ) {
-              // 找到匹配文本在内容中的位置
-              const matchIndex = article.content
-                .toLowerCase()
-                .indexOf(lowerQuery);
-              // 计算片段的起始和结束位置
-              const startPos = Math.max(0, matchIndex - 50);
-              const endPos = Math.min(article.content.length, matchIndex + 100);
-              // 提取片段
-              let snippet = article.content.substring(startPos, endPos);
-              if (startPos > 0) {
-                snippet = "..." + snippet;
-              }
-              if (endPos < article.content.length) {
-                snippet = snippet + "...";
-              }
-              snippet = highlightText(snippet, query);
-              contentMatch = `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${snippet}</p>`;
-            }
-
-            // 高亮标题和摘要中的匹配文本
-            const highlightedTitle = highlightText(article.title, query);
-            const highlightedSummary = article.summary
-              ? highlightText(article.summary, query)
-              : "";
-
-            return `
-                <li>
-                    <a href="/articles/${article.id}" class="block px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700/70 search-result-link">
-                        <h3 class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">${highlightedTitle}</h3>
-                        ${article.summary ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">${highlightedSummary}</p>` : ""}
-                        ${contentMatch}
-                        ${
-                          article.tags && article.tags.length > 0
-                            ? `
-                            <div class="flex flex-wrap gap-1 mt-1.5">
-                                ${article.tags
-                                  .slice(0, 3)
-                                  .map(
-                                    (tag: string) => `
-                                    <span class="inline-block text-xs bg-primary-50/50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 py-0.5 px-1.5 rounded-full">#${tag}</span>
-                                `,
-                                  )
-                                  .join("")}
-                                ${article.tags.length > 3 ? `<span class="text-xs text-gray-400 dark:text-gray-500">+${article.tags.length - 3}</span>` : ""}
-                            </div>
-                        `
-                            : ""
-                        }
-                    </a>
-                </li>
-            `;
-          })
-          .join("");
+      // 路由变化时处理
+      const routeEvents = [
+        "astro:page-load",   // Astro路由导航完成
+        "astro:after-swap"   // Astro视图变化后
+      ];
+      
+      routeEvents.forEach(eventName => {
+        addListener(document, eventName, () => {
+          // 页面加载后清空搜索框和隐藏结果面板
+          clearDesktopSearch();
+          closeMobileSearch();
+        });
+      });
+      
+      // 直接监听popstate和pushstate事件
+      addListener(window, "popstate", () => {
+        clearDesktopSearch();
+        closeMobileSearch();
+      });
+      
+      // 添加自定义监听处理history API
+      const originalPushState = history.pushState;
+      history.pushState = function(...args) {
+        // 调用原始方法
+        const result = originalPushState.apply(this, args as [any, string, string | URL | null]);
         
-        // 为搜索结果链接添加点击事件，点击后关闭搜索面板
-        addSearchResultsClickListeners();
-      }
-
-      // 节流搜索
-      const debouncedDesktopSearch = debounce((value: string) => {
-        if (desktopList && desktopMessage) {
-          searchArticles(
-            value,
-            desktopList as HTMLElement,
-            desktopMessage as HTMLElement,
-          );
-        }
-      }, 300);
-
-      const debouncedMobileSearch = debounce((value: string) => {
-        if (mobileList && mobileMessage) {
-          searchArticles(
-            value,
-            mobileList as HTMLElement,
-            mobileMessage as HTMLElement,
-          );
-        }
-      }, 300);
-
-      // 桌面端搜索逻辑
-      if (desktopSearch && desktopResults) {
-        // 聚焦时显示结果
-        addListener(desktopSearch, "focus", () => {
-          desktopResults.classList.remove("hidden");
-          if (!isArticlesLoaded) fetchArticles();
-        });
-
-        // 输入时更新搜索结果
-        addListener(desktopSearch, "input", (e: Event) => {
-          const target = e.target as HTMLInputElement;
-          if (target && target.value !== undefined) {
-            debouncedDesktopSearch(target.value);
-          }
-        });
-
-        // 点击外部关闭结果
-        const documentClickHandler = (e: MouseEvent) => {
-          const target = e.target as Node;
-          if (
-            desktopSearch &&
-            !desktopSearch.contains(target) &&
-            !desktopResults.contains(target)
-          ) {
-            desktopResults.classList.add("hidden");
-          }
-        };
-
-        addListener(document, "click", documentClickHandler as EventListener);
-
-        // ESC键关闭结果
-        addListener(desktopSearch, "keydown", ((e: KeyboardEvent) => {
-          if (e.key === "Escape") {
-            desktopResults.classList.add("hidden");
-          }
-        }) as EventListener);
-      }
-
-      // 移动端搜索逻辑
-      if (mobileSearch && mobileResults) {
-        // 输入时更新搜索结果
-        addListener(mobileSearch, "input", (e: Event) => {
-          mobileResults.classList.remove("hidden");
-          const target = e.target as HTMLInputElement;
-          if (target && target.value !== undefined) {
-            debouncedMobileSearch(target.value);
-            if (!isArticlesLoaded) fetchArticles();
-          }
-        });
-
-        // ESC键关闭搜索面板
-        addListener(mobileSearch, "keydown", ((e: KeyboardEvent) => {
-          if (e.key === "Escape") {
-            const mobileSearchPanel = document.getElementById(
-              "mobile-search-panel",
-            );
-            if (mobileSearchPanel) {
-              mobileSearchPanel.classList.add("hidden");
-            }
-          }
-        }) as EventListener);
-      }
-    }
-
-    // 关闭所有搜索面板的函数
-    function closeSearchPanels(): void {
-      const desktopSearchResults = document.getElementById("desktop-search-results");
-      if (desktopSearchResults) {
-        desktopSearchResults.classList.add("hidden");
-      }
+        // 触发自定义事件
+        const event = new Event("pushstate");
+        window.dispatchEvent(event);
+        
+        // 在pushstate时清空搜索面板
+        clearDesktopSearch();
+        closeMobileSearch();
+        
+        return result;
+      };
       
-      const mobileSearchPanel = document.getElementById("mobile-search-panel");
-      if (mobileSearchPanel) {
-        mobileSearchPanel.classList.add("hidden");
-      }
-    }
-    
-    // 为搜索结果链接添加点击事件
-    function addSearchResultsClickListeners(): void {
-      const searchResultLinks = document.querySelectorAll('.search-result-link');
-      
-      searchResultLinks.forEach(link => {
-        addListener(link, 'click', () => {
-          closeSearchPanels();
-        });
+      addListener(window, "pushstate", () => {
+        clearDesktopSearch();
+        closeMobileSearch();
       });
     }
 
@@ -897,12 +739,7 @@ const normalizedPath =
     function setupHeader(): void {
       cleanup();
       initHeader();
-      initSearch();
       registerCleanup();
-
-      // 在页面路由变化时关闭搜索面板
-      addListener(document, 'astro:page-load', closeSearchPanels);
-      addListener(document, 'astro:after-swap', closeSearchPanels);
     }
 
     // 在页面加载时初始化

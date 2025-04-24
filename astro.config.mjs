@@ -11,8 +11,14 @@ import fs from "node:fs";
 import path from "node:path";
 import swup from "@swup/astro"
 import { SITE_URL } from "./src/consts";
+import pagefind from "astro-pagefind";
+import compressor from "astro-compressor";
 
 import vercel from "@astrojs/vercel";
+
+import expressiveCode from "astro-expressive-code";
+import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers";
+import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections";
 
 function getArticleDate(articleId) {
   try {
@@ -47,50 +53,55 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
-    build: {
-      rollupOptions: {
-        output: {
-          // 手动分块配置
-          manualChunks: {
-            // 将地图组件单独打包
-            "world-heatmap": ["./src/components/WorldHeatmap.tsx"],
-            // 将 React 相关库单独打包
-            "react-vendor": ["react", "react-dom"],
-            // 其他大型依赖也可以单独打包
-            "chart-vendor": ["chart.js"],
-            // 将 ECharts 单独打包
-            "echarts-vendor": ["echarts"],
-            // 将其他组件打包到一起
-            components: ["./src/components"],
-          },
-        },
-      },
-      // 提高警告阈值，避免不必要的警告
-      chunkSizeWarningLimit: 1000,
-    },
   },
 
   integrations: [
-    // MDX 集成配置
-    mdx({
-      // 不使用共享的 markdown 配置
-      extendMarkdownConfig: false,
-      // 为 MDX 单独配置所需功能
-      remarkPlugins: [
-        // 添加表情符号支持
-        [remarkEmoji, { emoticon: false, padded: true }]
+    expressiveCode({
+      themes: ['github-light', 'dracula'],
+      themeCssSelector: (theme) => 
+        theme.name === 'dracula' ? '[data-theme=dark]' : '[data-theme=light]',
+      useDarkModeMediaQuery: false,
+      
+      plugins: [
+        pluginLineNumbers(),
+        pluginCollapsibleSections(),
       ],
-      rehypePlugins: [
-        [rehypeExternalLinks, { target: '_blank', rel: ['nofollow', 'noopener', 'noreferrer'] }]
-      ],
-      // 设置代码块处理行为
-      remarkRehype: { 
-        allowDangerousHtml: false // 不解析 HTML
+      defaultProps: {
+        showLineNumbers: true,
+        collapseStyle: 'collapsible-auto',
       },
-      gfm: true
+      frames: {
+        extractFileNameFromCode: true,
+      },
+      styleOverrides: {
+        // 核心样式设置
+        borderRadius: '0.5rem',
+        borderWidth: '0.5px',
+        codeFontSize: '0.9rem',
+        codeFontFamily: "'JetBrains Mono', Menlo, Monaco, Consolas, 'Courier New', monospace",
+        codeLineHeight: '1.5',
+        codePaddingInline: '1.5rem',
+        codePaddingBlock: '1.2rem',
+        // 框架样式设置
+        frames: {
+          shadowColor: 'rgba(0, 0, 0, 0.12)',
+          editorActiveTabBackground: '#ffffff',
+          editorTabBarBackground: '#f5f5f5',
+          terminalBackground: '#1a1a1a',
+          terminalTitlebarBackground: '#333333',
+        },
+        // 文本标记样式
+        textMarkers: {
+          defaultChroma: 'rgba(255, 255, 0, 0.2)',
+        },
+      },
     }),
+    
+    // MDX 集成配置
+    mdx(),
     swup(),
     react(),
+    pagefind(),
     sitemap({
       filter: (page) => !page.includes("/api/"),
       serialize(item) {
@@ -129,11 +140,13 @@ export default defineConfig({
         }
       },
     }),
+    // 添加压缩插件 (必须放在最后位置)
+    compressor()
   ],
 
   // Markdown 配置
   markdown: {
-    syntaxHighlight: 'prism',
+    syntaxHighlight: false, // 禁用默认的语法高亮，使用expressiveCode代替
     remarkPlugins: [
       [remarkEmoji, { emoticon: false, padded: true }]
     ],
@@ -147,11 +160,6 @@ export default defineConfig({
       allowDangerousHtml: true,
       // 确保代码块内容不被解析
       passThrough: ['code']
-    },
-    shikiConfig: {
-      theme: "github-dark",
-      langs: [],
-      wrap: true,
     },
   },
 

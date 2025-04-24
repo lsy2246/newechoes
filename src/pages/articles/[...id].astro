@@ -582,75 +582,11 @@ function getArticleUrl(articleId: string) {
     updateActiveHeading();
   }
   
-  function setupCodeBlocks() {
-    const codeBlocks = document.querySelectorAll("pre");
-    if (!codeBlocks.length) return;
-    
-    codeBlocks.forEach(pre => {
-      const code = pre.querySelector("code");
-      if (!code || pre.querySelector('.code-header')) return;
-
-      const className = code.className;
-      const languageMatch = className.match(/language-(\w+)/);
-      const language = languageMatch ? languageMatch[1] : "text";
-
-      const header = document.createElement("div");
-      header.className = "code-header flex justify-between items-center text-xs px-4 py-2 bg-secondary-800 dark:bg-gray-900 text-secondary-300 dark:text-secondary-400 rounded-t-lg";
-
-      const languageLabel = document.createElement("span");
-      languageLabel.className = "code-language font-mono";
-      languageLabel.textContent = language;
-
-      const copyButton = document.createElement("button");
-      copyButton.className = "code-copy-button flex items-center gap-1 hover:text-white dark:hover:text-primary-400 transition-colors";
-
-      const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-      const successIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M20 6L9 17l-5-5"></path></svg>`;
-      const errorIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
-
-      copyButton.innerHTML = `${copyIcon}<span>复制</span>`;
-      copyButton.setAttribute("aria-label", "复制代码");
-      copyButton.setAttribute("title", "复制代码到剪贴板");
-
-      addListener(copyButton, "click", (e) => {
-        e.stopPropagation();
-        
-        navigator.clipboard.writeText(code.textContent || "")
-          .then(() => {
-            copyButton.innerHTML = `${successIcon}<span>已复制</span>`;
-            copyButton.classList.add("text-green-400");
-            
-            setTimeout(() => {
-              copyButton.innerHTML = `${copyIcon}<span>复制</span>`;
-              copyButton.classList.remove("text-green-400");
-            }, 2000);
-          })
-          .catch(() => {
-            copyButton.innerHTML = `${errorIcon}<span>失败</span>`;
-            copyButton.classList.add("text-red-400");
-            
-            setTimeout(() => {
-              copyButton.innerHTML = `${copyIcon}<span>复制</span>`;
-              copyButton.classList.remove("text-red-400");
-            }, 2000);
-          });
-      });
-
-      header.appendChild(languageLabel);
-      header.appendChild(copyButton);
-      pre.insertBefore(header, pre.firstChild);
-      
-      pre.classList.add("rounded-b-lg", "mt-0");
-      pre.style.marginTop = "0";
-    });
-  }
-  
   function init() {
     if (!document.querySelector("article")) return;
     
     setupProgressBar();
     setupTableOfContents();
-    setupCodeBlocks();
   }
   
   if (document.readyState === "loading") {
