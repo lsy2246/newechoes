@@ -1,7 +1,4 @@
 @import "tailwindcss";
-@import "./content-styles.css";
-@import "./table-styles.css";
-@import "./header.css";
 
 /* 定义深色模式选择器 */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));

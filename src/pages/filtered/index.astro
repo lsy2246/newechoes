@@ -324,21 +324,18 @@ function getArticleUrl(articleId: string) {
       <script is:inline>
         // 使用"进入→绑定→退出完全清理"模式
         (function () {
-          // 脚本实例ID，用于跟踪当前实例
-          const SCRIPT_INSTANCE_ID = Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+          // 统一管理所有事件监听器
+          const listeners = [];
           
           // 标记脚本是否已销毁
           let isDestroyed = false;
           
-          // 统一管理所有事件监听器
-          const listeners = [];
-          
           // 添加事件监听器并记录，方便后续统一清理
           function addListener(element, eventType, handler, options) {
-            if (!element) return null;
+            if (!element || isDestroyed) return null;
             
             element.addEventListener(eventType, handler, options);
-            listeners.push({ element, eventType, handler });
+            listeners.push({ element, eventType, handler, options });
             
             return handler;
           }
@@ -351,9 +348,9 @@ function getArticleUrl(articleId: string) {
             isDestroyed = true;
             
             // 移除所有监听器
-            listeners.forEach(({ element, eventType, handler }) => {
+            listeners.forEach(({ element, eventType, handler, options }) => {
               try {
-                element.removeEventListener(eventType, handler);
+                element.removeEventListener(eventType, handler, options);
               } catch (err) {
                 // 忽略错误
               }
@@ -362,15 +359,8 @@ function getArticleUrl(articleId: string) {
             // 清空数组
             listeners.length = 0;
             
-            // 移除页面转换监听器
-            document.removeEventListener("astro:after-swap", onPageTransition);
-            document.removeEventListener("astro:page-load", onPageTransition);
-            document.removeEventListener("swup:contentReplaced", onPageTransition);
-            
-            // 从全局范围中移除自身引用
-            if (window.__filteredPageInstances) {
-              window.__filteredPageInstances = window.__filteredPageInstances.filter(id => id !== SCRIPT_INSTANCE_ID);
-            }
+            // 移除页面可见性监听
+            document.removeEventListener('visibilitychange', onPageVisibilityChange);
           }
           
           // 跟踪页面离开，确保完全清理
@@ -403,7 +393,7 @@ function getArticleUrl(articleId: string) {
             endDate: urlParams.get('endDate') || ''
           };
           
-          // 储存所有文章数据（全局缓存）
+          // 储存所有文章数据
           let allArticles = [];
           let isArticlesLoaded = false;
           
@@ -1362,54 +1352,71 @@ function getArticleUrl(articleId: string) {
               return;
             }
             
-            // 如果仍在筛选页面但脚本已销毁，重新初始化
+            // 如果当前页面是筛选页面，重新初始化
             if (isDestroyed) {
               isDestroyed = false;
-              init();
-              return;
             }
             
-            // 如果仍在筛选页面且脚本未销毁，可能是路由切换，重新初始化
+            // 重新初始化
             init();
           }
           
           // 初始化函数
           function init() {
-            // 设置功能
+            // 如果已销毁，立即退出
+            if (isDestroyed) return;
+            
+            // 首先清理可能存在的旧监听器
+            listeners.forEach(({ element, eventType, handler, options }) => {
+              try {
+                element.removeEventListener(eventType, handler, options);
+              } catch (err) {
+                // 忽略错误
+              }
+            });
+            listeners.length = 0;
+            
+            // 设置筛选功能
             setupArticlesFilter();
             
             // 注册清理函数
-            const cleanupEvents = [
-              "astro:before-preparation",
-              "astro:before-swap",
-              "swup:willReplaceContent", 
-              "beforeunload"
-            ];
-            
-            // 为每个事件类型注册一次性清理
-            cleanupEvents.forEach(eventType => {
-              const target = eventType === "beforeunload" ? window : document;
-              target.addEventListener(eventType, () => {
-                cleanup();
-              }, { once: true });
-            });
+            registerCleanup();
             
             // 添加页面可见性变化监听
+            document.removeEventListener('visibilitychange', onPageVisibilityChange);
             document.addEventListener('visibilitychange', onPageVisibilityChange);
           }
           
-          // 页面转换时检查
+          // 注册清理函数 - 确保在页面转换前清理事件
+          function registerCleanup() {
+            const cleanupEvents = [
+              "astro:before-preparation",
+              "astro:before-swap",
+              "swup:willReplaceContent"
+            ];
+
+            // 为每个事件注册一次性清理函数
+            cleanupEvents.forEach((eventName) => {
+              document.addEventListener(eventName, cleanup, { once: true });
+            });
+
+            // 页面卸载时清理
+            window.addEventListener("beforeunload", cleanup, { once: true });
+          }
+          
+          // 监听页面转换
+          document.removeEventListener("astro:after-swap", onPageTransition);
+          document.removeEventListener("astro:page-load", onPageTransition);
+          document.removeEventListener("swup:contentReplaced", onPageTransition);
+          
           document.addEventListener("astro:after-swap", onPageTransition);
           document.addEventListener("astro:page-load", onPageTransition);
           document.addEventListener("swup:contentReplaced", onPageTransition);
           
-          // 初始化
+          // 在页面加载后初始化
           if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", init, {
-              once: true,
-            });
+            document.addEventListener("DOMContentLoaded", init, { once: true });
           } else {
-            // 使用setTimeout确保处于事件队列末尾，避免可能的事件冲突
             setTimeout(init, 0);
           }
         })();

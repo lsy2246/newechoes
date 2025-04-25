@@ -95,6 +95,49 @@ const {
     <script is:inline>
       // 立即执行主题初始化，采用"无闪烁"加载方式
       (function () {
+        // 存储事件监听器，便于清理
+        const listeners = [];
+        
+        // 添加事件监听器并记录，方便后续统一清理
+        function addListener(element, eventType, handler, options) {
+          if (!element) return null;
+          
+          element.addEventListener(eventType, handler, options);
+          listeners.push({ element, eventType, handler, options });
+          return handler;
+        }
+        
+        // 清理函数 - 移除所有事件监听器
+        function cleanup() {
+          listeners.forEach(({ element, eventType, handler, options }) => {
+            try {
+              element.removeEventListener(eventType, handler, options);
+            } catch (err) {
+              // 忽略错误
+            }
+          });
+          
+          // 清空数组
+          listeners.length = 0;
+        }
+        
+        // 注册清理函数 - 确保在页面转换前清理事件
+        function registerCleanup() {
+          const cleanupEvents = [
+            "astro:before-preparation",
+            "astro:before-swap",
+            "swup:willReplaceContent"
+          ];
+
+          // 为每个事件注册一次性清理函数
+          cleanupEvents.forEach((eventName) => {
+            document.addEventListener(eventName, cleanup, { once: true });
+          });
+
+          // 页面卸载时清理
+          window.addEventListener("beforeunload", cleanup, { once: true });
+        }
+
         try {
           // 获取系统首选主题
           const getSystemTheme = () => {
@@ -121,6 +164,8 @@ const {
 
           // 立即设置文档主题，在DOM渲染前应用，避免闪烁
           document.documentElement.dataset.theme = theme;
+          // 确保同步classList，提高兼容性
+          document.documentElement.classList.toggle('dark', theme === 'dark');
 
           // 监听系统主题变化（只有当主题设为跟随系统时才响应）
           const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -130,14 +175,37 @@ const {
             if (!localStorage.getItem("theme")) {
               const newTheme = e.matches ? "dark" : "light";
               document.documentElement.dataset.theme = newTheme;
+              document.documentElement.classList.toggle('dark', e.matches);
             }
           };
 
           // 添加系统主题变化监听
-          mediaQuery.addEventListener("change", handleMediaChange);
+          addListener(mediaQuery, "change", handleMediaChange);
+          
+          // 注册清理函数
+          registerCleanup();
+          
+          // 监听页面转换事件，确保在页面转换后重新初始化
+          function onPageTransition() {
+            // 重新初始化主题
+            if (storedTheme) {
+              document.documentElement.dataset.theme = storedTheme;
+              document.documentElement.classList.toggle('dark', storedTheme === 'dark');
+            } else {
+              const systemTheme = getSystemTheme();
+              document.documentElement.dataset.theme = systemTheme;
+              document.documentElement.classList.toggle('dark', systemTheme === 'dark');
+            }
+          }
+          
+          // 设置页面转换事件监听
+          document.addEventListener("astro:page-load", onPageTransition);
+          document.addEventListener("astro:after-swap", onPageTransition);
+          
         } catch (error) {
           // 出错时应用默认浅色主题，确保页面正常显示
           document.documentElement.dataset.theme = "light";
+          document.documentElement.classList.remove('dark');
         }
       })();
     </script>
@@ -156,7 +224,7 @@ const {
     />
 
     <!-- 预获取脚本 -->
-    <script>
+    <script is:inline>
       // 在DOM加载完成后执行
       document.addEventListener("astro:page-load", () => {
         // 获取所有视口预获取链接

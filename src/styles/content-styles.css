@@ -1,3 +1,5 @@
+@import "./table-styles.css";
+
 /* 增强列表样式 */
 .prose ul {
   list-style-type: disc;

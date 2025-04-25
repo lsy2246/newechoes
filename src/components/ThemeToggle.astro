@@ -914,36 +914,5 @@ const {
       }, 0);
     }
     
-    // 全局暴露主题切换函数和配置，方便调试和高级用法
-    window.__themeToggle = {
-      modes: TRANSITION_MODES,
-      getMode: getThemeTransitionMode,
-      setMode: saveThemeTransitionMode,
-      // 添加新的帮助方法：切换动画模式
-      toggleMode: function() {
-        const currentMode = getThemeTransitionMode();
-        const modes = Object.values(TRANSITION_MODES);
-        const currentIndex = modes.indexOf(currentMode);
-        const nextIndex = (currentIndex + 1) % modes.length;
-        const nextMode = modes[nextIndex];
-        saveThemeTransitionMode(nextMode);
-        return nextMode;
-      },
-      // 描述当前模式
-      describeModeEffect: function() {
-        const mode = getThemeTransitionMode();
-        const currentTheme = document.documentElement.dataset.theme || 'light';
-        const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
-        
-        // 确定将使用的动画类型
-        const animationType = determineAnimationType(mode, currentTheme, nextTheme);
-        
-        if (animationType === TRANSITION_MODES.EXPAND) {
-          return `当前模式: ${mode}, ${currentTheme}→${nextTheme} 将使用扩散效果`;
-        } else {
-          return `当前模式: ${mode}, ${currentTheme}→${nextTheme} 将使用收缩效果`;
-        }
-      }
-    };
   })();
 </script>
