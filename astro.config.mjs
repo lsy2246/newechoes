@@ -13,9 +13,7 @@ import swup from "@swup/astro"
 import { SITE_URL } from "./src/consts";
 import pagefind from "astro-pagefind";
 import compressor from "astro-compressor";
-
 import vercel from "@astrojs/vercel";
-
 import expressiveCode from "astro-expressive-code";
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers";
 import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections";
@@ -69,6 +67,9 @@ export default defineConfig({
       defaultProps: {
         showLineNumbers: true,
         collapseStyle: 'collapsible-auto',
+        wrap: true,
+        preserveIndent: true,
+        hangingIndent: 2,
       },
       frames: {
         extractFileNameFromCode: true,

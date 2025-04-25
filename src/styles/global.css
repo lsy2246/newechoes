@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "./content-styles.css";
 @import "./table-styles.css";
-@import "./emoji.css";
 @import "./header.css";
 
 /* 定义深色模式选择器 */

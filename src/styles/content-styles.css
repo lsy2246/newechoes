@@ -38,37 +38,39 @@
   color: #6b7280;
 }
 
-/* 增强代码块样式 */
-.prose pre {
-  margin: 1.5em 0;
-  padding: 1em;
-  border-radius: 0.375rem;
-  overflow-x: auto;
-}
-
+/* 行内代码样式 */
 .prose :not(pre) > code {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--color-primary-700);
   padding: 0.2em 0.4em;
-  border-radius: 0.25em;
-  font-weight: 400;
-  white-space: nowrap;
+  border-radius: 0.375em;
+  font-weight: 500;
+  font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 0.875em;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  letter-spacing: -0.025em;
+  transition: all 0.2s ease;
 }
 
-/* 移除 Tailwind Typography 添加的引号 */
-.prose code::before,
-.prose code::after {
-  content: none !important;
+.prose :not(pre) > code:hover {
+  background-color: rgba(var(--color-primary-600-rgb), 0.08);
+  border-color: rgba(var(--color-primary-400-rgb), 0.2);
 }
 
-/* 表情符号样式 */
-.prose img.emoji {
-  height: 1em;
-  width: 1em;
-  margin: 0 0.05em 0 0.1em;
-  vertical-align: -0.1em;
-  display: inline-block;
-  border: none;
-  box-shadow: none;
+[data-theme="dark"] .prose :not(pre) > code {
+  background-color: rgba(255, 255, 255, 0.07);
+  color: var(--color-primary-300);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .prose :not(pre) > code:hover {
+  background-color: rgba(var(--color-primary-500-rgb), 0.15);
+  border-color: rgba(var(--color-primary-300-rgb), 0.3);
 }
 
 /* 标题样式 */

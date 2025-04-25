@@ -1,7 +1,7 @@
 ---
 import { SITE_NAME, NAV_LINKS } from "@/consts.ts";
-import { Toggle } from "astro-theme-toggle";
 import Search from "astro-pagefind/components/Search";
+import ThemeToggle from "@/components/ThemeToggle.astro";
 
 // 获取当前路径
 const currentPath = Astro.url.pathname;
@@ -76,39 +76,9 @@ const normalizedPath =
               </a>
             ))
           }
-          <div
-            class="inline-flex items-center justify-center cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 group relative mt-1.5 w-8 h-8"
-          >
-            <Toggle class="flex items-center justify-center h-full w-full">
-              <Fragment
-                slot="icon-light"
-                class="flex items-center justify-center h-full w-full"
-              >
-                <svg
-                  viewBox="0 0 16 16"
-                  class="w-4 h-4 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 fill-current flex-shrink-0 m-auto absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"
-                  ></path>
-                </svg>
-              </Fragment>
-              <Fragment
-                slot="icon-dark"
-                class="flex items-center justify-center h-full w-full"
-              >
-                <svg
-                  viewBox="0 0 16 16"
-                  class="w-4 h-4 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 fill-current flex-shrink-0 m-auto absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"
-                  ></path>
-                </svg>
-              </Fragment>
-            </Toggle>
+          <!-- 使用自定义主题切换组件 -->
+          <div class="mt-1.5">
+            <ThemeToggle className="group" />
           </div>
         </div>
 
@@ -245,36 +215,11 @@ const normalizedPath =
               <div
                 class="group relative w-7 h-7 mt-1 flex items-center justify-center"
               >
-                <Toggle class="flex items-center justify-center h-full w-full">
-                  <Fragment
-                    slot="icon-light"
-                    class="flex items-center justify-center h-full w-full"
-                  >
-                    <svg
-                      viewBox="0 0 16 16"
-                      class="w-3.5 h-3.5 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 fill-current flex-shrink-0 m-auto absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"
-                      ></path>
-                    </svg>
-                  </Fragment>
-                  <Fragment
-                    slot="icon-dark"
-                    class="flex items-center justify-center h-full w-full"
-                  >
-                    <svg
-                      viewBox="0 0 16 16"
-                      class="w-3.5 h-3.5 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 fill-current flex-shrink-0 m-auto absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"
-                      ></path>
-                    </svg>
-                  </Fragment>
-                </Toggle>
+                <ThemeToggle
+                  width={14}
+                  height={14}
+                  className="group"
+                />
               </div>
             </div>
           </div>
@@ -439,23 +384,29 @@ const normalizedPath =
       // 清空桌面搜索框的函数
       function clearDesktopSearch(): void {
         // 获取关键元素
-        const searchInput = document.querySelector('.pagefind-ui__search-input');
-        const clearButton = document.querySelector('.pagefind-ui__search-clear');
-        const resultsContainer = document.querySelector('.pagefind-ui__results');
-        
+        const searchInput = document.querySelector(
+          ".pagefind-ui__search-input",
+        );
+        const clearButton = document.querySelector(
+          ".pagefind-ui__search-clear",
+        );
+        const resultsContainer = document.querySelector(
+          ".pagefind-ui__results",
+        );
+
         // 隐藏搜索结果面板
         if (resultsContainer) {
           // 直接隐藏结果容器
-          resultsContainer.setAttribute('style', 'display: none !important');
+          resultsContainer.setAttribute("style", "display: none !important");
         }
-        
+
         // 如果有清除按钮，点击它清空输入框
         if (clearButton) {
           (clearButton as HTMLElement).click();
         } else if (searchInput) {
           // 备选方案，设置输入框为空
-          (searchInput as HTMLInputElement).value = '';
-          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+          (searchInput as HTMLInputElement).value = "";
+          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
         }
       }
 
@@ -508,7 +459,7 @@ const normalizedPath =
             if (isSearchResult && isSearchResult.tagName === "A") {
               // 不做任何处理，避免干扰导航
               // 让路由变化后的处理函数来隐藏搜索面板
-              
+
               // 只关闭移动端搜索面板，因为它不影响导航
               closeMobileSearch();
             }
@@ -653,70 +604,46 @@ const normalizedPath =
       // 初始化搜索功能
       initSearch();
 
-      // 处理移动端主题切换容器
-      const themeToggleContainer = document.getElementById(
-        "theme-toggle-container",
-      );
-      if (themeToggleContainer) {
-        (themeToggleContainer as HTMLElement).style.pointerEvents = "auto";
-        addListener(
-          themeToggleContainer,
-          "click",
-          (e: Event) => {
-            const target = e.target as HTMLElement;
-            if (
-              target.tagName !== "ASTRO-THEME-TOGGLE" &&
-              !target.closest("astro-theme-toggle")
-            ) {
-              e.stopPropagation();
-              const toggleButton =
-                themeToggleContainer.querySelector("astro-theme-toggle");
-              if (toggleButton) {
-                (toggleButton as HTMLElement).click();
-              }
-            }
-          },
-          { capture: true },
-        );
-      }
-
       // 路由变化时处理
       const routeEvents = [
-        "astro:page-load",   // Astro路由导航完成
-        "astro:after-swap"   // Astro视图变化后
+        "astro:page-load", // Astro路由导航完成
+        "astro:after-swap", // Astro视图变化后
       ];
-      
-      routeEvents.forEach(eventName => {
+
+      routeEvents.forEach((eventName) => {
         addListener(document, eventName, () => {
           // 页面加载后清空搜索框和隐藏结果面板
           clearDesktopSearch();
           closeMobileSearch();
         });
       });
-      
+
       // 直接监听popstate和pushstate事件
       addListener(window, "popstate", () => {
         clearDesktopSearch();
         closeMobileSearch();
       });
-      
+
       // 添加自定义监听处理history API
       const originalPushState = history.pushState;
-      history.pushState = function(...args) {
+      history.pushState = function (...args) {
         // 调用原始方法
-        const result = originalPushState.apply(this, args as [any, string, string | URL | null]);
-        
+        const result = originalPushState.apply(
+          this,
+          args as [any, string, string | URL | null],
+        );
+
         // 触发自定义事件
         const event = new Event("pushstate");
         window.dispatchEvent(event);
-        
+
         // 在pushstate时清空搜索面板
         clearDesktopSearch();
         closeMobileSearch();
-        
+
         return result;
       };
-      
+
       addListener(window, "pushstate", () => {
         clearDesktopSearch();
         closeMobileSearch();

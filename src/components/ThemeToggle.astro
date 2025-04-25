@@ -1,0 +1,949 @@
+---
+interface Props {
+  height?: number;
+  width?: number;
+  fill?: string;
+  className?: string;
+  // 更新主题过渡动画模式配置
+  transitionMode?: "expand" | "shrink" | "auto" | "reverse-auto";
+}
+
+const {
+  height = 16,
+  width = 16,
+  fill = "currentColor",
+  className = "",
+  transitionMode = "auto", // 默认为自动模式
+} = Astro.props;
+
+---
+
+<button
+  id="theme-toggle-button"
+  class={`inline-flex items-center justify-center h-8 w-8 cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 ${className} overflow-hidden relative`}
+  aria-label="切换主题"
+  role="button"
+  tabindex="0"
+  data-transition-mode={transitionMode}
+>
+  <!-- 月亮图标 (暗色模式) -->
+  <svg
+    id="dark-icon"
+    style={`height: ${height}px; width: ${width}px;`}
+    fill={fill}
+    viewBox="0 0 16 16"
+    class="hover:scale-110 hidden dark:block relative z-10"
+    aria-hidden="true"
+  >
+    <path
+      d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"
+    ></path>
+  </svg>
+
+  <!-- 太阳图标 (亮色模式) -->
+  <svg
+    id="light-icon"
+    style={`height: ${height}px; width: ${width}px;`}
+    fill={fill}
+    viewBox="0 0 16 16"
+    class="hover:scale-110 block dark:hidden relative z-10"
+    aria-hidden="true"
+  >
+    <path
+      d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"
+    ></path>
+  </svg>
+  
+  <!-- 波纹效果容器 -->
+  <span id="ripple-container" class="absolute inset-0 pointer-events-none z-0"></span>
+</button>
+
+<style is:global>
+  /* 波纹效果相关样式 */
+  @keyframes ripple-effect {
+    from {
+      transform: scale(0);
+      opacity: 0.8;
+    }
+    to {
+      transform: scale(10);
+      opacity: 0;
+    }
+  }
+  
+  .theme-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background-color: rgba(var(--theme-ripple-color, 100, 100, 100), 0.15);
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    transform-origin: center;
+    animation: ripple-effect 800ms ease-out forwards;
+  }
+  
+  /* 暗色模式下使用不同颜色变量 */
+  .dark .theme-ripple {
+    background-color: rgba(var(--theme-ripple-color, 200, 200, 200), 0.15);
+  }
+  
+  /* View Transitions 样式控制 */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+    mix-blend-mode: normal !important;
+    isolation: auto !important;
+  }
+  
+  /* 新增特殊模式样式 */
+  html.theme-transition-active {
+    transition: none !important;
+  }
+
+  ::view-transition-old(root) {
+    z-index: 999 !important;
+  }
+  
+  ::view-transition-new(root) {
+    z-index: 1000 !important;
+  }
+  
+  /* 设置主题容器在移动设备上的样式 */
+  #theme-toggle-container {
+    position: relative;
+    overflow: hidden;
+  }
+</style>
+
+<script is:inline>
+  // 主题切换逻辑
+  (function () {
+    // 页面导航计数器（跟踪页面跳转次数）
+    let pageNavigationCount = 0;
+
+    // 存储事件监听器，便于统一清理
+    const listeners = [];
+
+    // 定时器
+    let transitionTimeout = null;
+    
+    // 波纹动画定时器
+    let rippleTimeout = null;
+    
+    // 主题过渡模式 - 从localStorage读取，如果没有则使用默认值
+    const TRANSITION_MODES = {
+      EXPAND: 'expand',     // 扩散模式
+      SHRINK: 'shrink',     // 收缩模式
+      AUTO: 'auto',         // 自动模式（根据切换方向选择）
+      REVERSE_AUTO: 'reverse-auto'  // 反向自动模式
+    };
+    
+    // 从本地存储获取主题过渡模式，如果没有则使用默认值
+    function getThemeTransitionMode() {
+      const savedMode = localStorage.getItem('theme-transition-mode');
+      return Object.values(TRANSITION_MODES).includes(savedMode) 
+        ? savedMode 
+        : TRANSITION_MODES.AUTO;
+    }
+    
+    // 保存主题过渡模式到本地存储
+    function saveThemeTransitionMode(mode) {
+      if (Object.values(TRANSITION_MODES).includes(mode)) {
+        localStorage.setItem('theme-transition-mode', mode);
+      }
+    }
+
+    // 直接从按钮移除事件监听器
+    function cleanupButtonListeners() {
+      // 查找所有主题切换按钮
+      const buttons = document.querySelectorAll("#theme-toggle-button");
+
+      buttons.forEach((button) => {
+        // 移除所有可能的事件
+        if (button._clickHandler) {
+          button.removeEventListener("click", button._clickHandler, {
+            capture: true,
+          });
+          delete button._clickHandler;
+        }
+
+        if (button._keydownHandler) {
+          button.removeEventListener("keydown", button._keydownHandler);
+          delete button._keydownHandler;
+        }
+
+        // 清除其他可能的事件
+        const otherClickHandlers = button.__themeToggleClickHandlers || [];
+        otherClickHandlers.forEach((handler) => {
+          try {
+            button.removeEventListener("click", handler, { capture: true });
+          } catch (e) {
+            // 忽略错误
+          }
+        });
+
+        const otherKeydownHandlers = button.__themeToggleKeydownHandlers || [];
+        otherKeydownHandlers.forEach((handler) => {
+          try {
+            button.removeEventListener("keydown", handler);
+          } catch (e) {
+            // 忽略错误
+          }
+        });
+
+        // 重置处理函数数组
+        button.__themeToggleClickHandlers = [];
+        button.__themeToggleKeydownHandlers = [];
+      });
+
+      // 清理容器
+      const container = document.getElementById("theme-toggle-container");
+      if (container) {
+        if (container._clickHandler) {
+          container.removeEventListener("click", container._clickHandler);
+          delete container._clickHandler;
+        }
+
+        // 清除其他可能的事件
+        const otherClickHandlers = container.__themeToggleClickHandlers || [];
+        otherClickHandlers.forEach((handler) => {
+          try {
+            container.removeEventListener("click", handler);
+          } catch (e) {
+            // 忽略错误
+          }
+        });
+
+        // 重置处理函数数组
+        container.__themeToggleClickHandlers = [];
+      }
+    }
+
+    // 添加事件监听器并记录，方便后续统一清理
+    function addListener(element, eventType, handler, options) {
+      if (!element) return null;
+
+      // 确保先移除可能已存在的同类型事件处理函数
+      if (eventType === "click" && element.id === "theme-toggle-button") {
+        if (element._clickHandler) {
+          element.removeEventListener("click", element._clickHandler, {
+            capture: true,
+          });
+        }
+        element._clickHandler = handler;
+
+        // 保存到数组中以便清理
+        if (!element.__themeToggleClickHandlers) {
+          element.__themeToggleClickHandlers = [];
+        }
+        element.__themeToggleClickHandlers.push(handler);
+      }
+
+      if (eventType === "keydown" && element.id === "theme-toggle-button") {
+        if (element._keydownHandler) {
+          element.removeEventListener("keydown", element._keydownHandler);
+        }
+        element._keydownHandler = handler;
+
+        // 保存到数组中以便清理
+        if (!element.__themeToggleKeydownHandlers) {
+          element.__themeToggleKeydownHandlers = [];
+        }
+        element.__themeToggleKeydownHandlers.push(handler);
+      }
+
+      if (eventType === "click" && element.id === "theme-toggle-container") {
+        if (element._clickHandler) {
+          element.removeEventListener("click", element._clickHandler);
+        }
+        element._clickHandler = handler;
+
+        // 保存到数组中以便清理
+        if (!element.__themeToggleClickHandlers) {
+          element.__themeToggleClickHandlers = [];
+        }
+        element.__themeToggleClickHandlers.push(handler);
+      }
+
+      element.addEventListener(eventType, handler, options);
+      listeners.push({ element, eventType, handler, options });
+      return handler;
+    }
+
+    // 清理函数 - 移除所有事件监听器
+    function cleanup() {
+      // 先直接从按钮清理事件
+      cleanupButtonListeners();
+
+      // 移除所有监听器
+      listeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          // 忽略错误
+        }
+      });
+
+      // 清空数组
+      listeners.length = 0;
+
+      // 清理任何定时器
+      if (transitionTimeout) {
+        clearTimeout(transitionTimeout);
+        transitionTimeout = null;
+      }
+      
+      if (rippleTimeout) {
+        clearTimeout(rippleTimeout);
+        rippleTimeout = null;
+      }
+    }
+    
+    // 创建波纹动画元素
+    function createRippleEffect(x, y, element) {
+      // 清理旧的波纹元素
+      const container = element.querySelector("#ripple-container") || element;
+      const oldRipples = container.querySelectorAll(".theme-ripple");
+      oldRipples.forEach(ripple => ripple.remove());
+      
+      // 创建新的波纹元素
+      const ripple = document.createElement("span");
+      ripple.classList.add("theme-ripple");
+      
+      // 设置波纹位置
+      const rect = element.getBoundingClientRect();
+      const relativeX = x - rect.left;
+      const relativeY = y - rect.top;
+      
+      ripple.style.left = `${relativeX}px`;
+      ripple.style.top = `${relativeY}px`;
+      
+      // 添加波纹到容器
+      container.appendChild(ripple);
+      
+      // 自动清理波纹元素
+      rippleTimeout = setTimeout(() => {
+        ripple.remove();
+      }, 1000);
+      
+      return ripple;
+    }
+    
+    // 确定应该使用的动画类型
+    function determineAnimationType(transitionMode, fromTheme, toTheme) {
+      // 如果是固定模式，直接返回
+      if (transitionMode === TRANSITION_MODES.EXPAND || 
+          transitionMode === TRANSITION_MODES.SHRINK) {
+        return transitionMode;
+      }
+      
+      // 如果是自动模式，根据切换方向决定
+      if (transitionMode === TRANSITION_MODES.AUTO) {
+        // 默认自动模式：亮色->暗色用扩散，暗色->亮色用收缩
+        return (fromTheme === 'light' && toTheme === 'dark') 
+          ? TRANSITION_MODES.EXPAND 
+          : TRANSITION_MODES.SHRINK;
+      }
+      
+      // 如果是反向自动模式，反向选择
+      if (transitionMode === TRANSITION_MODES.REVERSE_AUTO) {
+        // 反向自动模式：亮色->暗色用收缩，暗色->亮色用扩散
+        return (fromTheme === 'light' && toTheme === 'dark') 
+          ? TRANSITION_MODES.SHRINK 
+          : TRANSITION_MODES.EXPAND;
+      }
+      
+      // 默认返回扩散模式
+      return TRANSITION_MODES.EXPAND;
+    }
+    
+    // 使用View Transitions API创建全屏过渡效果
+    function createViewTransition(callback, x, y, fromTheme, toTheme, transitionMode) {
+      // 检查浏览器是否支持View Transitions API
+      if (!document.startViewTransition) {
+        // 尝试使用简单的回退动画
+        try {
+          // 创建一个圆形蒙版元素
+          const mask = document.createElement('div');
+          mask.style.position = 'fixed';
+          mask.style.zIndex = '9999';
+          mask.style.top = '0';
+          mask.style.left = '0';
+          mask.style.width = '100vw';
+          mask.style.height = '100vh';
+          mask.style.pointerEvents = 'none';
+          
+          // 设置当前主题的背景颜色
+          if (fromTheme === 'dark') {
+            mask.style.backgroundColor = '#1a1a1a'; // 暗色主题背景色
+          } else {
+            mask.style.backgroundColor = '#ffffff'; // 亮色主题背景色
+          }
+          
+          // 创建圆形过渡裁剪区域
+          const clipType = determineAnimationType(transitionMode, fromTheme, toTheme);
+          
+          if (clipType === TRANSITION_MODES.EXPAND) {
+            // 扩散效果 - 从点击位置向外扩散
+            mask.style.clipPath = `circle(0px at ${x}px ${y}px)`;
+            document.body.appendChild(mask);
+            
+            // 先执行回调改变主题
+            callback();
+            
+            // 然后执行动画
+            setTimeout(() => {
+              mask.style.transition = 'clip-path 0.7s ease-out';
+              mask.style.clipPath = `circle(150vmax at ${x}px ${y}px)`;
+              
+              // 动画结束后删除遮罩
+              setTimeout(() => {
+                mask.remove();
+              }, 700);
+            }, 20);
+          } else {
+            // 收缩效果 - 从全屏向点击位置收缩
+            mask.style.clipPath = `circle(150vmax at ${x}px ${y}px)`;
+            document.body.appendChild(mask);
+            
+            // 添加过渡样式
+            mask.style.transition = 'clip-path 0.7s ease-in';
+            
+            // 强制回流
+            void mask.offsetWidth;
+            
+            // 设置目标状态
+            mask.style.clipPath = `circle(0px at ${x}px ${y}px)`;
+            
+            // 等待动画结束后切换主题并移除遮罩
+            setTimeout(() => {
+              callback();
+              mask.remove();
+            }, 700);
+          }
+          
+          return new Promise(resolve => setTimeout(resolve, 800));
+        } catch (e) {
+          // 如果回退方案也失败，直接执行回调
+          callback();
+          return Promise.resolve();
+        }
+      }
+      
+      try {
+        // 计算从点击位置到页面四个角的最大距离
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        
+        // 计算最大半径，确保覆盖整个屏幕
+        const maxDistance = Math.max(
+          Math.hypot(x, y),                  // 左上角
+          Math.hypot(w - x, y),              // 右上角
+          Math.hypot(x, h - y),              // 左下角
+          Math.hypot(w - x, h - y)           // 右下角
+        );
+        
+        // 设置CSS变量用于波纹颜色
+        document.documentElement.style.setProperty(
+          '--theme-ripple-color',
+          toTheme === 'dark' ? '230, 230, 230' : '20, 20, 20'
+        );
+        
+        // 添加主题过渡标记类
+        document.documentElement.classList.add('theme-transition-active');
+        
+        // 确定动画类型
+        const animationType = determineAnimationType(transitionMode, fromTheme, toTheme);
+        
+        // 启动视图过渡
+        const transition = document.startViewTransition(() => {
+          // 执行主题切换回调
+          callback();
+          
+          // 确保DOM已更新
+          document.documentElement.classList.toggle('dark', toTheme === 'dark');
+        });
+        
+        // 生成动画需要的SVG资源
+        const gradientOffset = 0.75;
+        const maskSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><defs><radialGradient id="toggle-theme-gradient"><stop offset="${gradientOffset}"/><stop offset="1" stop-opacity="0"/></radialGradient></defs><circle cx="4" cy="4" r="4" fill="url(#toggle-theme-gradient)"/></svg>`;
+        const maskUrl = `data:image/svg+xml;base64,${btoa(maskSvg)}`;
+        
+        // 计算动画需要多大才能覆盖整个屏幕
+        const maxRadius = Math.ceil(maxDistance / gradientOffset);
+        
+        // 过渡开始后，应用自定义动画
+        transition.ready.then(() => {
+          // 应用基础样式到document
+          const style = document.createElement('style');
+          style.id = 'theme-transition-temp-style';
+          
+          if (animationType === TRANSITION_MODES.EXPAND) {
+            // 扩散效果 - 新主题从点击位置向外扩散
+            style.textContent = `
+              ::view-transition-new(root) {
+                animation: none !important;
+                -webkit-mask-image: url('${maskUrl}') !important;
+                mask-image: url('${maskUrl}') !important;
+                -webkit-mask-repeat: no-repeat !important;
+                mask-repeat: no-repeat !important;
+                -webkit-mask-position: ${x}px ${y}px !important;
+                mask-position: ${x}px ${y}px !important;
+                -webkit-mask-size: 0 !important;
+                mask-size: 0 !important;
+                z-index: 1000 !important;
+              }
+            `;
+            document.head.appendChild(style);
+            
+            // 强制重新计算样式
+            window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
+            
+            // 立即设置最终状态
+            setTimeout(() => {
+              style.textContent = `
+                ::view-transition-new(root) {
+                  animation: none !important;
+                  -webkit-mask-image: url('${maskUrl}') !important;
+                  mask-image: url('${maskUrl}') !important;
+                  -webkit-mask-repeat: no-repeat !important;
+                  mask-repeat: no-repeat !important;
+                  -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                  mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                  -webkit-mask-size: ${maxRadius * 2}px !important;
+                  mask-size: ${maxRadius * 2}px !important;
+                  z-index: 1000 !important;
+                  transition: -webkit-mask-position 0.7s ease-out, -webkit-mask-size 0.7s ease-out,
+                             mask-position 0.7s ease-out, mask-size 0.7s ease-out !important;
+                }
+              `;
+            }, 20);
+            
+            // 清理临时样式
+            setTimeout(() => {
+              if (document.getElementById('theme-transition-temp-style')) {
+                document.getElementById('theme-transition-temp-style').remove();
+              }
+            }, 1000);
+            
+          } else {
+            // 收缩效果 - 旧主题从全屏向点击位置收缩
+            style.textContent = `
+              ::view-transition-old(root) {
+                animation: none !important;
+                -webkit-mask-image: url('${maskUrl}') !important;
+                mask-image: url('${maskUrl}') !important;
+                -webkit-mask-repeat: no-repeat !important;
+                mask-repeat: no-repeat !important;
+                -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                -webkit-mask-size: ${maxRadius * 2}px !important;
+                mask-size: ${maxRadius * 2}px !important;
+                z-index: 999 !important;
+              }
+              ::view-transition-new(root) {
+                z-index: 998 !important;
+              }
+            `;
+            document.head.appendChild(style);
+            
+            // 强制重新计算样式
+            window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
+            
+            // 立即设置最终状态
+            setTimeout(() => {
+              style.textContent = `
+                ::view-transition-old(root) {
+                  animation: none !important;
+                  -webkit-mask-image: url('${maskUrl}') !important;
+                  mask-image: url('${maskUrl}') !important;
+                  -webkit-mask-repeat: no-repeat !important;
+                  mask-repeat: no-repeat !important;
+                  -webkit-mask-position: ${x}px ${y}px !important;
+                  mask-position: ${x}px ${y}px !important;
+                  -webkit-mask-size: 0 !important;
+                  mask-size: 0 !important;
+                  z-index: 999 !important;
+                  transition: -webkit-mask-position 0.7s ease-in, -webkit-mask-size 0.7s ease-in,
+                             mask-position 0.7s ease-in, mask-size 0.7s ease-in !important;
+                }
+                ::view-transition-new(root) {
+                  z-index: 998 !important;
+                }
+              `;
+            }, 20);
+            
+            // 清理临时样式
+            setTimeout(() => {
+              if (document.getElementById('theme-transition-temp-style')) {
+                document.getElementById('theme-transition-temp-style').remove();
+              }
+            }, 1000);
+          }
+        }).catch(error => {
+          console.error('过渡动画错误', error);
+        });
+        
+        // 返回过渡完成的Promise
+        return transition.finished.then(() => {
+          // 移除主题过渡标记类
+          document.documentElement.classList.remove('theme-transition-active');
+        }).catch(error => {
+          console.error('过渡动画错误', error);
+          // 确保标记类被移除
+          document.documentElement.classList.remove('theme-transition-active');
+        });
+      } catch (error) {
+        console.error('主题切换错误', error);
+        // 在出错时也要执行回调
+        callback();
+        // 确保标记类被移除
+        document.documentElement.classList.remove('theme-transition-active');
+        return Promise.resolve();
+      }
+    }
+
+    // 初始化主题切换功能
+    function setupThemeToggle() {
+      // 确保当前没有活动的主题切换按钮事件
+      cleanup();
+
+      // 获取所有主题切换按钮
+      const themeToggleButtons = document.querySelectorAll(
+        "#theme-toggle-button",
+      );
+
+      if (!themeToggleButtons.length) {
+        return;
+      }
+
+      let transitioning = false;
+
+      // 获取系统首选主题
+      const getSystemTheme = () => {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+      };
+
+      // 初始化主题
+      const initializeTheme = () => {
+        const storedTheme = localStorage.getItem("theme");
+        const systemTheme = getSystemTheme();
+
+        // 按照逻辑优先级应用主题
+        if (storedTheme) {
+          document.documentElement.dataset.theme = storedTheme;
+        } else if (systemTheme) {
+          document.documentElement.dataset.theme = systemTheme;
+        } else {
+          document.documentElement.dataset.theme = "light";
+        }
+        
+        // 确保同步类名
+        document.documentElement.classList.toggle('dark', 
+          document.documentElement.dataset.theme === 'dark');
+      };
+
+      // 切换主题
+      const toggleTheme = (e) => {
+        if (transitioning) {
+          return;
+        }
+
+        transitioning = true;
+        
+        // 记录点击坐标
+        const clickX = e instanceof Event ? e.clientX : window.innerWidth / 2;
+        const clickY = e instanceof Event ? e.clientY : window.innerHeight / 2;
+        
+        // 在按钮上创建小波纹效果
+        if (e instanceof Event && e.target) {
+          const button = e.target.closest("#theme-toggle-button");
+          if (button) {
+            createRippleEffect(clickX, clickY, button);
+          }
+        }
+
+        // 获取当前主题
+        const currentTheme = document.documentElement.dataset.theme;
+        const newTheme = currentTheme === "light" ? "dark" : "light";
+        
+        // 获取过渡模式
+        const button = e.target?.closest("#theme-toggle-button");
+        // 首先尝试从按钮属性获取过渡模式，如果没有则从本地存储获取
+        const transitionMode = button?.dataset?.transitionMode || getThemeTransitionMode();
+        
+        // 使用视图过渡API切换主题
+        createViewTransition(
+          () => {
+            // 更新 HTML 属性
+            document.documentElement.dataset.theme = newTheme;
+            
+            // 更新本地存储
+            const systemTheme = getSystemTheme();
+            
+            if (newTheme === systemTheme) {
+              localStorage.removeItem("theme");
+            } else {
+              localStorage.setItem("theme", newTheme);
+            }
+          }, 
+          clickX, 
+          clickY, 
+          currentTheme, 
+          newTheme,
+          transitionMode
+        ).then(() => {
+          // 过渡完成后恢复状态
+          setTimeout(() => {
+            transitioning = false;
+          }, 50);
+        }).catch(error => {
+          console.error('过渡动画错误', error);
+          transitioning = false;
+        });
+
+        // 添加防抖
+        if (transitionTimeout) {
+          clearTimeout(transitionTimeout);
+        }
+
+        transitionTimeout = setTimeout(() => {
+          transitioning = false;
+        }, 800); // 延长时间以匹配动画持续时间
+      };
+
+      // 监听系统主题变化
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+      const handleMediaChange = (e) => {
+        if (!localStorage.getItem("theme")) {
+          const newTheme = e.matches ? "dark" : "light";
+          document.documentElement.dataset.theme = newTheme;
+          document.documentElement.classList.toggle('dark', e.matches);
+        }
+      };
+
+      // 添加系统主题变化监听
+      addListener(mediaQuery, "change", handleMediaChange);
+
+      // 为每个按钮添加事件
+      themeToggleButtons.forEach((button, index) => {
+        // 确保移除旧的事件监听
+        if (button._clickHandler) {
+          button.removeEventListener("click", button._clickHandler, {
+            capture: true,
+          });
+        }
+        if (button._keydownHandler) {
+          button.removeEventListener("keydown", button._keydownHandler);
+        }
+
+        try {
+          button.style.pointerEvents = "auto";
+        } catch (e) {
+          // 忽略样式错误
+        }
+
+        // 创建点击处理函数
+        const clickHandler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleTheme(e);
+        };
+
+        // 点击事件 - 使用捕获模式并保存引用
+        addListener(button, "click", clickHandler, { capture: true });
+
+        // 键盘事件
+        const keydownHandler = (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            // 为键盘事件创建模拟点击事件，使其中心点位于按钮中央
+            const rect = button.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // 创建模拟事件对象
+            const simulatedEvent = {
+              clientX: centerX,
+              clientY: centerY,
+              target: button,
+              preventDefault: () => {},
+              stopPropagation: () => {}
+            };
+            
+            toggleTheme(simulatedEvent);
+          }
+        };
+        addListener(button, "keydown", keydownHandler);
+      });
+
+      // 处理移动端主题切换容器
+      const themeToggleContainer = document.getElementById(
+        "theme-toggle-container",
+      );
+      if (themeToggleContainer) {
+        // 确保移除旧的事件监听
+        if (themeToggleContainer._clickHandler) {
+          themeToggleContainer.removeEventListener(
+            "click",
+            themeToggleContainer._clickHandler,
+          );
+        }
+
+        const containerClickHandler = (e) => {
+          const target = e.target;
+          if (
+            target.id !== "theme-toggle-button" &&
+            !target.closest("#theme-toggle-button")
+          ) {
+            e.stopPropagation();
+            toggleTheme(e);
+          }
+        };
+
+        addListener(themeToggleContainer, "click", containerClickHandler);
+      }
+
+      // 初始化主题
+      initializeTheme();
+    }
+
+    // 注册清理函数 - 确保在每次页面转换前清理事件
+    function registerCleanup() {
+      const cleanupEvents = [
+        "astro:before-preparation",
+        "astro:before-swap",
+        "swup:willReplaceContent",
+      ];
+
+      // 为每个事件注册一次性清理函数
+      cleanupEvents.forEach((eventName) => {
+        const handler = () => {
+          cleanup();
+        };
+
+        document.addEventListener(eventName, handler, { once: true });
+      });
+
+      // 页面卸载时清理
+      window.addEventListener(
+        "beforeunload",
+        () => {
+          cleanup();
+        },
+        { once: true },
+      );
+    }
+
+    // 初始化函数
+    function init() {
+      pageNavigationCount++;
+      setupThemeToggle();
+      registerCleanup();
+    }
+
+    // 监听页面转换事件
+    function setupPageTransitionEvents() {
+      // 确保事件处理程序唯一性的函数
+      function setupUniqueEvent(eventName, callback) {
+        const eventKey = `__theme_toggle_event_${eventName.replace(/:/g, "_")}`;
+
+        // 移除可能存在的旧处理函数
+        if (window[eventKey]) {
+          document.removeEventListener(eventName, window[eventKey]);
+        }
+
+        // 保存新处理函数并注册
+        window[eventKey] = callback;
+        document.addEventListener(eventName, window[eventKey]);
+      }
+
+      // 页面转换后事件
+      const pageTransitionEvents = [
+        { name: "astro:after-swap", delay: 10 },
+        { name: "astro:page-load", delay: 10 },
+        { name: "swup:contentReplaced", delay: 10 },
+      ];
+
+      // 设置每个页面转换事件
+      pageTransitionEvents.forEach(({ name, delay }) => {
+        setupUniqueEvent(name, () => {
+          cleanupButtonListeners(); // 立即清理按钮上的事件
+
+          // 延迟初始化，确保DOM完全更新
+          setTimeout(() => {
+            cleanupButtonListeners(); // 再次清理，确保没有遗漏
+            init();
+          }, delay);
+        });
+      });
+
+      // 特别处理 swup:pageView 事件
+      setupUniqueEvent("swup:pageView", () => {
+        // 对于偶数次页面跳转，特别确保事件被正确重新绑定
+        if (pageNavigationCount % 2 === 0) {
+          setTimeout(() => {
+            const buttons = document.querySelectorAll("#theme-toggle-button");
+            if (buttons.length > 0) {
+              cleanupButtonListeners();
+              setupThemeToggle();
+            }
+          }, 50);
+        }
+      });
+    }
+
+    // 设置页面转换事件监听
+    setupPageTransitionEvents();
+
+    // 在页面加载后初始化
+    if (document.readyState === "loading") {
+      document.addEventListener(
+        "DOMContentLoaded",
+        () => {
+          init();
+        },
+        { once: true },
+      );
+    } else {
+      setTimeout(() => {
+        init();
+      }, 0);
+    }
+    
+    // 全局暴露主题切换函数和配置，方便调试和高级用法
+    window.__themeToggle = {
+      modes: TRANSITION_MODES,
+      getMode: getThemeTransitionMode,
+      setMode: saveThemeTransitionMode,
+      // 添加新的帮助方法：切换动画模式
+      toggleMode: function() {
+        const currentMode = getThemeTransitionMode();
+        const modes = Object.values(TRANSITION_MODES);
+        const currentIndex = modes.indexOf(currentMode);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        const nextMode = modes[nextIndex];
+        saveThemeTransitionMode(nextMode);
+        return nextMode;
+      },
+      // 描述当前模式
+      describeModeEffect: function() {
+        const mode = getThemeTransitionMode();
+        const currentTheme = document.documentElement.dataset.theme || 'light';
+        const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        // 确定将使用的动画类型
+        const animationType = determineAnimationType(mode, currentTheme, nextTheme);
+        
+        if (animationType === TRANSITION_MODES.EXPAND) {
+          return `当前模式: ${mode}, ${currentTheme}→${nextTheme} 将使用扩散效果`;
+        } else {
+          return `当前模式: ${mode}, ${currentTheme}→${nextTheme} 将使用收缩效果`;
+        }
+      }
+    };
+  })();
+</script>

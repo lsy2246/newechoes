@@ -2,105 +2,190 @@
 import "@/styles/global.css";
 import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
-import { ICP, PSB_ICP, PSB_ICP_URL, SITE_NAME, SITE_DESCRIPTION } from "@/consts";
-import { ThemeScript } from 'astro-theme-toggle';
-import { AstroSeo } from '@astrolib/seo';
+import {
+  ICP,
+  PSB_ICP,
+  PSB_ICP_URL,
+  SITE_NAME,
+  SITE_DESCRIPTION,
+} from "@/consts";
+import { AstroSeo } from "@astrolib/seo";
 
 // 定义Props接口
 interface Props {
-	title?: string;
-	description?: string;
-	date?: Date;
-	tags?: string[];
+  title?: string;
+  description?: string;
+  date?: Date;
+  tags?: string[];
 }
 
 // 获取完整的 URL
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
 // 从props中获取页面特定信息
-const { title = SITE_NAME, description = SITE_DESCRIPTION, date, tags } = Astro.props;
+const {
+  title = SITE_NAME,
+  description = SITE_DESCRIPTION,
+  date,
+  tags,
+} = Astro.props;
 ---
+
 <!doctype html>
-<html lang="zh-CN" class="m-0 w-full h-full">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="referrer" content="no-referrer" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="generator" content={Astro.generator} />
-		
-		<!-- 使用 AstroSeo 组件替换原有的 SEO 标签 -->
-		<AstroSeo
-			title={title}
-			description={description || `${SITE_NAME} - 个人博客`}
-			canonical={canonicalURL.toString()}
-			openGraph={{
-				type: 'article',
-				url: canonicalURL.toString(),
-				title: title,
-				description: description || `${SITE_NAME} - 个人博客`,
-				site_name: SITE_NAME,
-				...(date && { article: { 
-					publishedTime: date.toISOString(),
-					tags: tags || []
-				}}),
-			}}
-			twitter={{
-				cardType: 'summary_large_image',
-				site: SITE_NAME,
-				handle: SITE_NAME,
-			}}
-			additionalMetaTags={[
-				{
-					property: 'article:published_time',
-					content: date ? date.toISOString() : '',
-				},
-				...(tags?.map(tag => ({
-					property: 'article:tag',
-					content: tag,
-				})) || []),
-			]}
-		/>
-		
-		<!-- 主题切换脚本 -->
-		<ThemeScript />
-	</head>
-	<body class="m-0 w-full h-full bg-gray-50 dark:bg-dark-bg flex flex-col min-h-screen">
-		<Header />
-		<main class="pt-16 flex-grow">
-			<slot />
-		</main>
-		<Footer icp={ICP} psbIcp={PSB_ICP} psbIcpUrl={PSB_ICP_URL} />
-		
-		<!-- 预获取脚本 -->
-		<script>
-			// 在DOM加载完成后执行
-			document.addEventListener('astro:page-load', () => {
-				// 获取所有视口预获取链接
-				const viewportLinks = document.querySelectorAll('[data-astro-prefetch="viewport"]');
-				
-				if (viewportLinks.length > 0) {
-					// 创建一个交叉观察器 
-					const observer = new IntersectionObserver((entries) => {
-						entries.forEach(entry => {
-							if (entry.isIntersecting) {
-								const link = entry.target;
-								// 进入视口时，添加data-astro-prefetch="true"属性触发预获取
-								if (link.getAttribute('data-astro-prefetch') === 'viewport') {
-									link.setAttribute('data-astro-prefetch', 'true');
-								}
-								// 一旦预获取，就不再观察这个链接
-								observer.unobserve(link);
-							}
-						});
-					});
-					
-					// 观察所有视口预获取链接
-					viewportLinks.forEach(link => {
-						observer.observe(link);
-					});
-				}
-			});
-		</script>
-	</body>
+<html
+  lang="zh-CN"
+  class="m-0 w-full h-full"
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width"
+    />
+    <meta
+      name="referrer"
+      content="no-referrer"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon.svg"
+    />
+    <meta
+      name="generator"
+      content={Astro.generator}
+    />
+
+    <!-- 使用 AstroSeo 组件替换原有的 SEO 标签 -->
+    <AstroSeo
+      title={title}
+      description={description || `${SITE_NAME} - 个人博客`}
+      canonical={canonicalURL.toString()}
+      openGraph={{
+        type: "article",
+        url: canonicalURL.toString(),
+        title: title,
+        description: description || `${SITE_NAME} - 个人博客`,
+        site_name: SITE_NAME,
+        ...(date && {
+          article: {
+            publishedTime: date.toISOString(),
+            tags: tags || [],
+          },
+        }),
+      }}
+      twitter={{
+        cardType: "summary_large_image",
+        site: SITE_NAME,
+        handle: SITE_NAME,
+      }}
+      additionalMetaTags={[
+        {
+          property: "article:published_time",
+          content: date ? date.toISOString() : "",
+        },
+        ...(tags?.map((tag) => ({
+          property: "article:tag",
+          content: tag,
+        })) || []),
+      ]}
+    />
+
+    <!-- 主题切换脚本 -->
+    <script is:inline>
+      // 立即执行主题初始化，采用"无闪烁"加载方式
+      (function () {
+        try {
+          // 获取系统首选主题
+          const getSystemTheme = () => {
+            return window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          };
+
+          const storedTheme =
+            typeof localStorage !== "undefined"
+              ? localStorage.getItem("theme")
+              : null;
+          const systemTheme = getSystemTheme();
+          let theme = "light"; // 默认浅色主题
+
+          // 按照逻辑优先级应用主题
+          if (storedTheme) {
+            // 如果有存储的主题设置，则应用它
+            theme = storedTheme;
+          } else if (systemTheme) {
+            // 如果没有存储的设置，检查系统主题
+            theme = systemTheme;
+          }
+
+          // 立即设置文档主题，在DOM渲染前应用，避免闪烁
+          document.documentElement.dataset.theme = theme;
+
+          // 监听系统主题变化（只有当主题设为跟随系统时才响应）
+          const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+          const handleMediaChange = (e) => {
+            // 只有当主题设置为跟随系统时才更新主题
+            if (!localStorage.getItem("theme")) {
+              const newTheme = e.matches ? "dark" : "light";
+              document.documentElement.dataset.theme = newTheme;
+            }
+          };
+
+          // 添加系统主题变化监听
+          mediaQuery.addEventListener("change", handleMediaChange);
+        } catch (error) {
+          // 出错时应用默认浅色主题，确保页面正常显示
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+  </head>
+  <body
+    class="m-0 w-full h-full bg-gray-50 dark:bg-dark-bg flex flex-col min-h-screen"
+  >
+    <Header />
+    <main class="pt-16 flex-grow">
+      <slot />
+    </main>
+    <Footer
+      icp={ICP}
+      psbIcp={PSB_ICP}
+      psbIcpUrl={PSB_ICP_URL}
+    />
+
+    <!-- 预获取脚本 -->
+    <script>
+      // 在DOM加载完成后执行
+      document.addEventListener("astro:page-load", () => {
+        // 获取所有视口预获取链接
+        const viewportLinks = document.querySelectorAll(
+          '[data-astro-prefetch="viewport"]',
+        );
+
+        if (viewportLinks.length > 0) {
+          // 创建一个交叉观察器
+          const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                const link = entry.target;
+                // 进入视口时，添加data-astro-prefetch="true"属性触发预获取
+                if (link.getAttribute("data-astro-prefetch") === "viewport") {
+                  link.setAttribute("data-astro-prefetch", "true");
+                }
+                // 一旦预获取，就不再观察这个链接
+                observer.unobserve(link);
+              }
+            });
+          });
+
+          // 观察所有视口预获取链接
+          viewportLinks.forEach((link) => {
+            observer.observe(link);
+          });
+        }
+      });
+    </script>
+  </body>
 </html>
