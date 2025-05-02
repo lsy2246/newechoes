@@ -66,40 +66,36 @@ table {
     background-color: #f5f7ff;
   }
   
-  /* 响应式表格 */
-  @media (max-width: 640px) {
-    table {
-      display: block;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    
-    th, td {
-      white-space: nowrap;
-      padding: 0.75rem 1rem;
-    }
+  /* 特定表格类型样式 */
+  table.feature-comparison td,
+  .feature-table td,
+  .function-table td,
+  .comparison-table td {
+    text-align: center;
   }
   
-  /* 特定针对于内联样式的表格 */
-  table[style] th,
-  table[style] td {
-    border: 1px solid #e2e8f0 !important;
+  table.feature-comparison td:first-child,
+  .feature-table td:first-child,
+  .function-table td:first-child,
+  .comparison-table td:first-child {
+    text-align: left;
+    font-weight: 500;
   }
   
-  /* 处理嵌套样式的情况 */
-  .prose table {
-    border-collapse: collapse !important;
-    border-radius: 0.5rem !important;
-    overflow: hidden !important;
+  .feature-table th,
+  .function-table th,
+  .comparison-table th {
+    text-align: center;
   }
   
-  .prose table th,
-  .prose table td {
-    border: 1px solid #e2e8f0 !important;
+  .feature-table th:first-child,
+  .function-table th:first-child,
+  .comparison-table th:first-child {
+    text-align: left;
   }
   
-  /* 勾号和叉号样式 - 通用方式 */
-  .tick, .yes, .true {
+  /* 勾号和叉号样式 */
+  .tick, .yes, .true, .check-mark, .checkmark, .check, .✓ {
     display: inline-block;
     text-align: center;
     color: #059669;
@@ -107,7 +103,7 @@ table {
     font-size: 1.25em;
   }
   
-  .cross, .no, .false {
+  .cross, .no, .false, .cross-mark, .crossmark, .cross-symbol, .✗ {
     display: inline-block;
     text-align: center;
     color: #dc2626;
@@ -124,21 +120,6 @@ table {
     content: "✗";
   }
   
-  /* 直接使用✓或✗的样式 */
-  .check-mark {
-    color: #059669;
-    font-weight: bold;
-    font-size: 1.25em;
-    text-align: center;
-  }
-  
-  .cross-mark {
-    color: #dc2626;
-    font-weight: bold;
-    font-size: 1.25em;
-    text-align: center;
-  }
-  
   /* 状态标识符号样式 */
   td:has(> :is(svg[aria-label="yes"], .yes, .tick, .true)) {
     color: #047857;
@@ -148,21 +129,12 @@ table {
     color: #b91c1c;
   }
   
-  /* 对表格中直接使用的✓和✗符号进行样式处理 */
+  /* 单个单元格居中 */
   td:only-child {
     text-align: center;
   }
   
-  /* 检查整个表格的样式 */
-  table.feature-comparison td {
-    text-align: center;
-  }
-  
-  table.feature-comparison td:first-child {
-    text-align: left;
-  }
-  
-  /* 添加全局样式识别 */
+  /* 全局状态颜色 */
   .text-success, 
   .text-green,
   .success-mark {
@@ -177,415 +149,84 @@ table {
     font-weight: bold;
   }
   
-  /* 直接针对表格中的✓和✗符号 - 移除不兼容的:contains选择器 */
-  /* 改用更通用的选择器和类 */
+  /* Prose 内表格样式 */
+  .prose table {
+    border-collapse: collapse !important;
+    border-radius: 0.5rem !important;
+    overflow: hidden !important;
+  }
   
-  /* 针对行内样式的表格 */
+  .prose table th,
+  .prose table td {
+    border: 1px solid #e2e8f0 !important;
+  }
+  
+  /* 表格内行内样式覆盖 */
+  table[style] th,
+  table[style] td {
+    border: 1px solid #e2e8f0 !important;
+  }
+  
   table[style] td {
     vertical-align: middle;
   }
   
-  /* 使用属性选择器 */
-  td[align="center"] {
-    text-align: center;
-  }
-  
-  /* 为常见的功能对比表格添加专用样式 */
-  .feature-table th,
-  .function-table th,
-  .comparison-table th {
-    text-align: center;
-  }
-  
-  .feature-table th:first-child,
-  .function-table th:first-child,
-  .comparison-table th:first-child {
-    text-align: left;
-  }
-  
-  .feature-table td,
-  .function-table td,
-  .comparison-table td {
-    text-align: center;
-  }
-  
-  .feature-table td:first-child,
-  .function-table td:first-child,
-  .comparison-table td:first-child {
-    text-align: left;
-    font-weight: 500;
-  }
-  
-  /* 直接样式化 ✓ 和 ✗ 字符 */
-  .checkmark, .check, .✓ {
-    color: #059669;
-    font-weight: bold;
-    font-size: 1.25em;
-  }
-  
-  .crossmark, .cross-symbol, .✗ {
-    color: #dc2626;
-    font-weight: bold;
-    font-size: 1.25em;
-  }
-  
-  /* 暗色模式 - 只使用 [data-theme="dark"] 选择器 */
-  [data-theme="dark"] {
+  /* 响应式表格样式 */
+  @media (max-width: 640px) {
+    /* 表格容器 */
     table {
-      box-shadow: 0 4px 12px -1px rgba(0, 0, 0, 0.3), 0 2px 6px -1px rgba(0, 0, 0, 0.2);
-      border-color: #475569;
-      background-color: #0f172a;
+      display: table;
+      table-layout: fixed;
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     
-    table, th, td {
-      border-color: #475569;
+    /* 表格包装容器 - 注意：需要在HTML中添加div.table-wrapper包围表格 */
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      max-width: 100%;
+      margin: 1.5em 0;
     }
     
-    table[style] th,
-    table[style] td,
-    .prose table th,
-    .prose table td {
-      border-color: #475569 !important;
+    /* 确保标题和内容宽度一致 */
+    table th,
+    table td {
+      min-width: 8rem;
+      padding: 0.75rem;
+      white-space: nowrap;
     }
-    
-    thead {
-      background-color:  #1a2e6a;
-      border-bottom: 2px solid #4b6bff;
-    }
-    
-    th {
-      border-bottom-color: #4b6bff;
-      color: #adc2ff;
-      background-color: transparent;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-    
-    th:not(:last-child) {
-      border-right-color: #374151;
-    }
-    
-    td {
-      color: #e2e8f0;
-    }
-    
-    td:not(:last-child) {
-      border-right-color: #374151;
-    }
-    
-    tbody tr:nth-child(even) {
-      background-color: #1e293b;
-    }
-    
-    tbody tr:nth-child(odd) {
-      background-color: #111827;
-    }
-    
-    tbody tr:hover {
-      background-color: #272f45;
-      box-shadow: inset 0 0 0 2px rgba(75, 107, 255, 0.3);
-    }
-    
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
-    
-    /* 表格圆角样式在暗色模式下的处理 */
-    table {
-      border-radius: 0.5rem;
-      overflow: hidden;
-    }
-    
-    /* 勾号和叉号颜色调整 */
-    .tick, .yes, .true, .check-mark {
-      color: #10b981;
-      text-shadow: 0 0 5px rgba(16, 185, 129, 0.3);
-    }
-    
-    .cross, .no, .false, .cross-mark {
-      color: #ef4444;
-      text-shadow: 0 0 5px rgba(239, 68, 68, 0.3);
-    }
-    
-    .text-success, 
-    .text-green,
-    .success-mark {
-      color: #10b981 !important;
-      text-shadow: 0 0 5px rgba(16, 185, 129, 0.3);
-    }
-  
-    .text-danger,
-    .text-red,
-    .danger-mark {
-      color: #ef4444 !important;
-      text-shadow: 0 0 5px rgba(239, 68, 68, 0.3);
-    }
-    
-    .checkmark, .check, .✓ {
-      color: #10b981;
-      text-shadow: 0 0 5px rgba(16, 185, 129, 0.3);
-    }
-    
-    .crossmark, .cross-symbol, .✗ {
-      color: #ef4444;
-      text-shadow: 0 0 5px rgba(239, 68, 68, 0.3);
-    }
-  }/* 表格基础样式 */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1.5em 0;
-  font-size: 0.95rem;
-  box-shadow: 0 4px 10px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-  border-radius: 0.5rem;
-}
-
-/* 表格边框样式 */
-table, th, td {
-  border: 1px solid #e2e8f0;
-}
-
-/* 表头样式 */
-thead {
-  background-color: #f0f5ff;
-}
-
-th {
-  padding: 1rem;
-  font-weight: 600;
-  text-align: left;
-  vertical-align: middle;
-  border-bottom: 2px solid #d6e0ff;
-  color: #3451db;
-}
-
-/* 表格单元格样式 */
-td {
-  padding: 0.875rem 1rem;
-  vertical-align: middle;
-  color: #1e293b;
-  position: relative;
-}
-
-/* 内容对齐方式 */
-th[align="center"],
-td[align="center"] {
-  text-align: center;
-}
-
-th[align="right"],
-td[align="right"] {
-  text-align: right;
-}
-
-th[align="left"],
-td[align="left"] {
-  text-align: left;
-}
-
-/* 表格行交替颜色 */
-tbody tr:nth-child(even) {
-  background-color: #f8fafc;
-}
-
-tbody tr:nth-child(odd) {
-  background-color: #ffffff;
-}
-
-/* 鼠标悬停效果 */
-tbody tr:hover {
-  background-color: #f5f7ff;
-}
-
-/* 响应式表格 */
-@media (max-width: 640px) {
-  table {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
   
-  th, td {
-    white-space: nowrap;
-    padding: 0.75rem 1rem;
-  }
-}
-
-/* 特定针对于内联样式的表格 */
-table[style] th,
-table[style] td {
-  border: 1px solid #e2e8f0 !important;
-}
-
-/* 处理嵌套样式的情况 */
-.prose table {
-  border-collapse: collapse !important;
-  border-radius: 0.5rem !important;
-  overflow: hidden !important;
-}
-
-.prose table th,
-.prose table td {
-  border: 1px solid #e2e8f0 !important;
-}
-
-/* 勾号和叉号样式 - 通用方式 */
-.tick, .yes, .true {
-  display: inline-block;
-  text-align: center;
-  color: #059669;
-  font-weight: bold;
-  font-size: 1.25em;
-}
-
-.cross, .no, .false {
-  display: inline-block;
-  text-align: center;
-  color: #dc2626;
-  font-weight: bold;
-  font-size: 1.25em;
-}
-
-/* 添加内容 */
-.tick::before, .yes::before, .true::before {
-  content: "✓";
-}
-
-.cross::before, .no::before, .false::before {
-  content: "✗";
-}
-
-/* 直接使用✓或✗的样式 */
-.check-mark {
-  color: #059669;
-  font-weight: bold;
-  font-size: 1.25em;
-  text-align: center;
-}
-
-.cross-mark {
-  color: #dc2626;
-  font-weight: bold;
-  font-size: 1.25em;
-  text-align: center;
-}
-
-/* 状态标识符号样式 */
-td:has(> :is(svg[aria-label="yes"], .yes, .tick, .true)) {
-  color: #047857;
-}
-
-td:has(> :is(svg[aria-label="no"], .no, .cross, .false)) {
-  color: #b91c1c;
-}
-
-/* 对表格中直接使用的✓和✗符号进行样式处理 */
-td:only-child {
-  text-align: center;
-}
-
-/* 检查整个表格的样式 */
-table.feature-comparison td {
-  text-align: center;
-}
-
-table.feature-comparison td:first-child {
-  text-align: left;
-}
-
-/* 添加全局样式识别 */
-.text-success, 
-.text-green,
-.success-mark {
-  color: #059669 !important;
-  font-weight: bold;
-}
-
-.text-danger,
-.text-red,
-.danger-mark {
-  color: #dc2626 !important;
-  font-weight: bold;
-}
-
-/* 直接针对表格中的✓和✗符号 - 移除不兼容的:contains选择器 */
-/* 改用更通用的选择器和类 */
-
-/* 针对行内样式的表格 */
-table[style] td {
-  vertical-align: middle;
-}
-
-/* 使用属性选择器 */
-td[align="center"] {
-  text-align: center;
-}
-
-/* 为常见的功能对比表格添加专用样式 */
-.feature-table th,
-.function-table th,
-.comparison-table th {
-  text-align: center;
-}
-
-.feature-table th:first-child,
-.function-table th:first-child,
-.comparison-table th:first-child {
-  text-align: left;
-}
-
-.feature-table td,
-.function-table td,
-.comparison-table td {
-  text-align: center;
-}
-
-.feature-table td:first-child,
-.function-table td:first-child,
-.comparison-table td:first-child {
-  text-align: left;
-  font-weight: 500;
-}
-
-/* 直接样式化 ✓ 和 ✗ 字符 */
-.checkmark, .check, .✓ {
-  color: #059669;
-  font-weight: bold;
-  font-size: 1.25em;
-}
-
-.crossmark, .cross-symbol, .✗ {
-  color: #dc2626;
-  font-weight: bold;
-  font-size: 1.25em;
-}
-
-/* 暗色模式 - 只使用 [data-theme="dark"] 选择器 */
-[data-theme="dark"] {
-  table {
+  /* 暗色模式 */
+  [data-theme="dark"] table {
     box-shadow: 0 4px 12px -1px rgba(0, 0, 0, 0.3), 0 2px 6px -1px rgba(0, 0, 0, 0.2);
     border-color: #475569;
     background-color: #0f172a;
+    border-radius: 0.5rem;
+    overflow: hidden;
   }
   
-  table, th, td {
+  [data-theme="dark"] table, 
+  [data-theme="dark"] th, 
+  [data-theme="dark"] td {
     border-color: #475569;
   }
   
-  table[style] th,
-  table[style] td,
-  .prose table th,
-  .prose table td {
+  [data-theme="dark"] table[style] th,
+  [data-theme="dark"] table[style] td,
+  [data-theme="dark"] .prose table th,
+  [data-theme="dark"] .prose table td {
     border-color: #475569 !important;
   }
   
-  thead {
+  [data-theme="dark"] thead {
     background-color: #1e293b;
     border-bottom: 2px solid #4b6bff;
   }
   
-  th {
+  [data-theme="dark"] th {
     border-bottom-color: #4b6bff;
     color: #adc2ff;
     background-color: transparent;
@@ -593,73 +234,60 @@ td[align="center"] {
     letter-spacing: 0.5px;
   }
   
-  th:not(:last-child) {
+  [data-theme="dark"] th:not(:last-child) {
     border-right-color: #374151;
   }
   
-  td {
+  [data-theme="dark"] td {
     color: #e2e8f0;
   }
   
-  td:not(:last-child) {
+  [data-theme="dark"] td:not(:last-child) {
     border-right-color: #374151;
   }
   
-  tbody tr:nth-child(even) {
+  [data-theme="dark"] tbody tr:nth-child(even) {
     background-color: #1e293b;
   }
   
-  tbody tr:nth-child(odd) {
+  [data-theme="dark"] tbody tr:nth-child(odd) {
     background-color: #111827;
   }
   
-  tbody tr:hover {
+  [data-theme="dark"] tbody tr:hover {
     background-color: #272f45;
     box-shadow: inset 0 0 0 2px rgba(75, 107, 255, 0.3);
   }
   
-  tbody tr:last-child td {
+  [data-theme="dark"] tbody tr:last-child td {
     border-bottom: none;
   }
   
-  /* 表格圆角样式在暗色模式下的处理 */
-  table {
-    border-radius: 0.5rem;
-    overflow: hidden;
-  }
-  
-  /* 勾号和叉号颜色调整 */
-  .tick, .yes, .true, .check-mark {
-    color: #10b981;
-    text-shadow: 0 0 5px rgba(16, 185, 129, 0.3);
-  }
-  
-  .cross, .no, .false, .cross-mark {
-    color: #ef4444;
-    text-shadow: 0 0 5px rgba(239, 68, 68, 0.3);
-  }
-  
-  .text-success, 
-  .text-green,
-  .success-mark {
+  /* 暗色模式下的勾叉符号 */
+  [data-theme="dark"] .tick, 
+  [data-theme="dark"] .yes, 
+  [data-theme="dark"] .true, 
+  [data-theme="dark"] .check-mark,
+  [data-theme="dark"] .checkmark, 
+  [data-theme="dark"] .check, 
+  [data-theme="dark"] .✓,
+  [data-theme="dark"] .text-success, 
+  [data-theme="dark"] .text-green,
+  [data-theme="dark"] .success-mark {
     color: #10b981 !important;
     text-shadow: 0 0 5px rgba(16, 185, 129, 0.3);
   }
-
-  .text-danger,
-  .text-red,
-  .danger-mark {
+  
+  [data-theme="dark"] .cross, 
+  [data-theme="dark"] .no, 
+  [data-theme="dark"] .false, 
+  [data-theme="dark"] .cross-mark,
+  [data-theme="dark"] .crossmark, 
+  [data-theme="dark"] .cross-symbol, 
+  [data-theme="dark"] .✗,
+  [data-theme="dark"] .text-danger,
+  [data-theme="dark"] .text-red,
+  [data-theme="dark"] .danger-mark {
     color: #ef4444 !important;
     text-shadow: 0 0 5px rgba(239, 68, 68, 0.3);
   }
-  
-  .checkmark, .check, .✓ {
-    color: #10b981;
-    text-shadow: 0 0 5px rgba(16, 185, 129, 0.3);
-  }
-  
-  .crossmark, .cross-symbol, .✗ {
-    color: #ef4444;
-    text-shadow: 0 0 5px rgba(239, 68, 68, 0.3);
-  }
-}

@@ -1,9 +1,6 @@
 ---
 import ArticlesPage from './index.astro';
-import { getCollection } from 'astro:content';
-
-// 启用静态预渲染
-export const prerender = true;
+import { getCollection, type CollectionEntry } from 'astro:content';
 
 // 获取目录结构
 export async function getStaticPaths() {
@@ -12,7 +9,7 @@ export async function getStaticPaths() {
   // 从文章ID中提取所有目录路径
   const directories = new Set<string>();
   
-  articles.forEach(article => {
+  articles.forEach((article: CollectionEntry<'articles'>) => {
     if (article.id.includes('/')) {
       // 获取所有层级的目录
       const parts = article.id.split('/');

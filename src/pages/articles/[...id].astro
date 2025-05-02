@@ -6,8 +6,23 @@ import Breadcrumb from "@/components/Breadcrumb.astro";
 import { ARTICLE_EXPIRY_CONFIG } from "@/consts";
 import "@/styles/content-styles.css";
 
-// 添加这一行，告诉Astro预渲染这个页面
-export const prerender = true;
+// 定义文章类型
+interface ArticleEntry {
+  id: string;
+  data: {
+    title: string;
+    date: Date;
+    tags?: string[];
+    summary?: string;
+  };
+}
+
+// 定义标题类型
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
 
 export async function getStaticPaths() {
   const articles = await getCollection("articles");
@@ -60,7 +75,7 @@ const searchParams = new URLSearchParams(Astro.url.search);
 const articleToRender = originalId ? { ...article, id: originalId } : article;
 
 // 渲染文章内容
-const { Content } = await render(articleToRender);
+const { Content, headings } = await render(articleToRender);
 
 // 获取面包屑路径段
 const pathSegments = section ? section.split("/") : [];
@@ -70,19 +85,18 @@ const allArticles = await getCollection("articles");
 
 // 1. 尝试通过标签匹配相关文章
 let relatedArticles = allArticles
-  .filter(
-    (a) => {
-      const hasCommonTags = a.id !== article.id &&
-        a.data.tags &&
-        article.data.tags &&
-        a.data.tags.length > 0 &&
-        article.data.tags.length > 0 &&
-        a.data.tags.some((tag) => article.data.tags?.includes(tag));
-      
-      return hasCommonTags;
-    }
-  )
-  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .filter((a: ArticleEntry) => {
+    const hasCommonTags =
+      a.id !== article.id &&
+      a.data.tags &&
+      article.data.tags &&
+      a.data.tags.length > 0 &&
+      article.data.tags.length > 0 &&
+      a.data.tags.some((tag: string) => article.data.tags?.includes(tag));
+
+    return hasCommonTags;
+  })
+  .sort((a: ArticleEntry, b: ArticleEntry) => b.data.date.getTime() - a.data.date.getTime())
   .slice(0, 3);
 
 // 跟踪相关文章的匹配方式: "tag", "directory", "latest"
@@ -91,25 +105,29 @@ let relatedArticlesMatchType = relatedArticles.length > 0 ? "tag" : "";
 // 2. 如果标签匹配没有找到足够的相关文章，尝试根据目录结构匹配
 if (relatedArticles.length < 3) {
   // 获取当前文章的目录路径
-  const currentPath = article.id.includes('/') 
-    ? article.id.substring(0, article.id.lastIndexOf('/')) 
-    : '';
-  
+  const currentPath = article.id.includes("/")
+    ? article.id.substring(0, article.id.lastIndexOf("/"))
+    : "";
+
   // 如果有目录路径，查找同目录的其他文章
   if (currentPath) {
     // 收集同目录下的文章，但排除已经通过标签匹配的和当前文章
     const dirRelatedArticles = allArticles
-      .filter(a => 
-        a.id !== article.id && 
-        a.id.startsWith(currentPath + '/') &&
-        !relatedArticles.some(r => r.id === a.id)
+      .filter(
+        (a: ArticleEntry) =>
+          a.id !== article.id &&
+          a.id.startsWith(currentPath + "/") &&
+          !relatedArticles.some((r: ArticleEntry) => r.id === a.id),
       )
-      .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+      .sort((a: ArticleEntry, b: ArticleEntry) => b.data.date.getTime() - a.data.date.getTime())
       .slice(0, 3 - relatedArticles.length);
-    
+
     if (dirRelatedArticles.length > 0) {
       relatedArticles = [...relatedArticles, ...dirRelatedArticles];
-      relatedArticlesMatchType = relatedArticles.length > 0 && !relatedArticlesMatchType ? "directory" : relatedArticlesMatchType;
+      relatedArticlesMatchType =
+        relatedArticles.length > 0 && !relatedArticlesMatchType
+          ? "directory"
+          : relatedArticlesMatchType;
     }
   }
 }
@@ -117,16 +135,18 @@ if (relatedArticles.length < 3) {
 // 3. 如果仍然没有找到足够的相关文章，则选择最新的文章（排除当前文章和已选择的文章）
 if (relatedArticles.length < 3) {
   const latestArticles = allArticles
-    .filter(a => 
-      a.id !== article.id && 
-      !relatedArticles.some(r => r.id === a.id)
+    .filter(
+      (a: ArticleEntry) => a.id !== article.id && !relatedArticles.some((r: ArticleEntry) => r.id === a.id),
     )
-    .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+    .sort((a: ArticleEntry, b: ArticleEntry) => b.data.date.getTime() - a.data.date.getTime())
     .slice(0, 3 - relatedArticles.length);
-  
+
   if (latestArticles.length > 0) {
     relatedArticles = [...relatedArticles, ...latestArticles];
-    relatedArticlesMatchType = relatedArticles.length > 0 && !relatedArticlesMatchType ? "latest" : relatedArticlesMatchType;
+    relatedArticlesMatchType =
+      relatedArticles.length > 0 && !relatedArticlesMatchType
+        ? "latest"
+        : relatedArticlesMatchType;
   }
 }
 
@@ -137,9 +157,47 @@ const description =
 
 // 处理特殊ID的函数
 function getArticleUrl(articleId: string) {
-  return `/articles/${getSpecialPath(articleId)}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  return `/articles/${getSpecialPath(articleId)}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 }
 
+// 预先生成目录结构
+function generateTableOfContents(headings: Heading[]) {
+  if (!headings || headings.length === 0) {
+    return '<p class="text-secondary-500 dark:text-secondary-400 italic">此文章没有目录</p>';
+  }
+  
+  // 查找最低级别的标题（数值最小）
+  const minDepth = Math.min(...headings.map(h => h.depth));
+  
+  let tocHtml = '<ul class="space-y-2">';
+  
+  headings.forEach((heading) => {
+    // 计算相对缩进，以最小深度为基准
+    const relativeDepth = heading.depth - minDepth;
+    const indent = relativeDepth * 0.75;
+    
+    // 基于相对深度而非绝对深度决定样式
+    const isHigherLevel = relativeDepth <= 1; // 仅最高级和次高级标题使用较重的样式
+    
+    tocHtml += `<li>
+      <a href="#${heading.slug}" 
+         class="block hover:text-primary-600 dark:hover:text-primary-400 duration-50 ${
+           isHigherLevel
+             ? "text-secondary-800 dark:text-secondary-200 font-medium"
+             : "text-secondary-600 dark:text-secondary-400"
+         }"
+         style="padding-left: ${indent}rem;">
+        ${heading.text}
+      </a>
+    </li>`;
+  });
+  
+  tocHtml += '</ul>';
+  return tocHtml;
+}
+
+// 生成目录HTML
+const tableOfContents = generateTableOfContents(headings);
 ---
 
 <Layout
@@ -147,8 +205,10 @@ function getArticleUrl(articleId: string) {
   description={description}
   date={article.data.date}
   tags={article.data.tags}
+  skipSrTitle={false}
+  pageType="article"
 >
-  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="max-w-5xl py-8">
     <!-- 阅读进度条 -->
     <div
       class="fixed top-0 left-0 w-full h-1 bg-transparent z-50"
@@ -167,7 +227,9 @@ function getArticleUrl(articleId: string) {
       <div
         class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 shadow-lg border border-gray-200 dark:border-gray-700 relative z-10"
       >
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div
+          class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+        >
           <div class="w-full overflow-hidden">
             <Breadcrumb
               pageType="article"
@@ -179,6 +241,49 @@ function getArticleUrl(articleId: string) {
           </div>
         </div>
       </div>
+
+      <!-- 文章过期提醒 -->
+      {
+        (() => {
+          const publishDate = article.data.date;
+          const currentDate = new Date();
+          const daysDiff = Math.floor(
+            (currentDate.getTime() - publishDate.getTime()) /
+              (1000 * 60 * 60 * 24),
+          );
+
+          if (
+            ARTICLE_EXPIRY_CONFIG.enabled &&
+            daysDiff > ARTICLE_EXPIRY_CONFIG.expiryDays
+          ) {
+            return (
+              <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                <div class="flex">
+                  <div class="flex-shrink-0">
+                    <svg
+                      class="h-5 w-5 text-yellow-400"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                      {ARTICLE_EXPIRY_CONFIG.warningMessage}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()
+      }
 
       <h1 class="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">
         {article.data.title}
@@ -239,7 +344,7 @@ function getArticleUrl(articleId: string) {
       {
         article.data.tags && article.data.tags.length > 0 && (
           <div class="flex flex-wrap gap-2 mb-6">
-            {article.data.tags.map((tag) => (
+            {article.data.tags.map((tag: string) => (
               <a
                 href={`/articles?tags=${tag}`}
                 class="text-xs bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 py-1 px-2 rounded hover:bg-primary-100 dark:hover:bg-primary-800/30"
@@ -253,112 +358,93 @@ function getArticleUrl(articleId: string) {
       }
     </header>
 
-    <!-- 文章内容区域 -->
-    <div class="relative">
-      <!-- 文章过期提醒 -->
-      {
-        (() => {
-          const publishDate = article.data.date;
-          const currentDate = new Date();
-          const daysDiff = Math.floor(
-            (currentDate.getTime() - publishDate.getTime()) /
-              (1000 * 60 * 60 * 24),
-          );
-
-          if (
-            ARTICLE_EXPIRY_CONFIG.enabled &&
-            daysDiff > ARTICLE_EXPIRY_CONFIG.expiryDays
-          ) {
-            return (
-              <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                <div class="flex">
-                  <div class="flex-shrink-0">
-                    <svg
-                      class="h-5 w-5 text-yellow-400"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div class="ml-3">
-                    <p class="text-sm text-yellow-700">
-                      {ARTICLE_EXPIRY_CONFIG.warningMessage}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()
-      }
-
-      <!-- 文章内容 -->
-      <article
-        class="prose prose-lg dark:prose-invert prose-primary prose-table:rounded-lg prose-table:border-separate prose-table:border-2 prose-thead:bg-primary-50 dark:prose-thead:bg-gray-800 prose-ul:list-disc prose-ol:list-decimal prose-li:my-1 prose-blockquote:border-l-4 prose-blockquote:border-primary-500 prose-blockquote:bg-gray-100 prose-blockquote:dark:bg-gray-800 prose-a:text-primary-600 prose-a:dark:text-primary-400 prose-a:no-underline prose-a:border-b prose-a:border-primary-300 prose-a:hover:border-primary-600 max-w-none mb-12"
-      >
-        <Content />
-      </article>
-
-      <!-- 固定目录面板 - 脱离文档流 -->
+    <!-- 文章内容 -->
+    <article
+      class="prose prose-lg dark:prose-invert prose-primary prose-table:rounded-lg prose-table:border-separate prose-table:border-2 prose-thead:bg-primary-50 dark:prose-thead:bg-gray-800 prose-ul:list-disc prose-ol:list-decimal prose-li:my-1 prose-blockquote:border-l-4 prose-blockquote:border-primary-500 prose-blockquote:bg-gray-100 prose-blockquote:dark:bg-gray-800 prose-a:text-primary-600 prose-a:dark:text-primary-400 prose-a:no-underline prose-a:border-b prose-a:border-primary-300 prose-a:hover:border-primary-600 max-w-none mb-12"
+    >
+      <Content />
+    </article>
+    
+    <!-- 目录 -->
+    <section
+      class="hidden 2xl:block fixed right-[calc(50%-44rem)] top-20 w-64 z-30"
+      id="toc-panel"
+    >
       <div
-        class="hidden 2xl:block fixed right-[calc(50%-48rem)] top-20 w-64 z-30"
+        class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95"
       >
         <div
-          class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col"
+          class="border-b border-secondary-100 dark:border-gray-700 p-4 pb-3 sticky top-0 bg-white dark:bg-gray-800 bg-opacity-95 dark:bg-opacity-95 backdrop-filter backdrop-blur-sm z-10 rounded-t-xl"
         >
-          <div
-            class="border-b border-secondary-100 dark:border-gray-700 p-4 pb-2 sticky top-0 bg-white dark:bg-gray-800 z-10"
-          >
-            <h3 class="font-bold text-primary-700 dark:text-primary-400">
-              文章目录
-            </h3>
-          </div>
-          <div
-            id="toc-content"
-            class="text-sm p-4 pt-0 overflow-y-auto max-h-[calc(100vh-8rem-42px)]"
-          >
-            <!-- 目录内容将通过JavaScript动态生成 -->
-          </div>
+          <h3 class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
+            文章目录
+          </h3>
+        </div>
+        <div
+          id="toc-content"
+          class="text-sm p-4 pt-2 overflow-y-auto max-h-[calc(100vh-8rem-42px)] scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
+          set:html={tableOfContents}
+        >
+          <!-- 目录内容在服务端生成 -->
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- 相关文章 -->
     {
       relatedArticles.length > 0 && (
-        <div class="mt-12 pt-8 border-t border-secondary-200 dark:border-gray-700">
+        <aside class="mt-12 pt-8 border-t border-secondary-200 dark:border-gray-700">
           <h2 class="text-2xl font-bold mb-6 text-primary-900 dark:text-primary-100">
-            {relatedArticlesMatchType === "tag" ? "相关文章" : 
-             relatedArticlesMatchType === "directory" ? "同类文章" : "推荐阅读"}
+            {relatedArticlesMatchType === "tag"
+              ? "相关文章"
+              : relatedArticlesMatchType === "directory"
+                ? "同类文章"
+                : "推荐阅读"}
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {relatedArticles.map((relatedArticle) => (
+            {relatedArticles.map((relatedArticle: ArticleEntry) => (
               <a
                 href={getArticleUrl(relatedArticle.id)}
-                class="block p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 shadow-lg"
+                class="article-card"
                 data-astro-prefetch="viewport"
               >
-                <h3 class="font-bold text-lg mb-2 line-clamp-2 text-gray-800 dark:text-gray-200 hover:text-primary-700 dark:hover:text-primary-400">
-                  {relatedArticle.data.title}
-                </h3>
-                <p class="text-sm text-secondary-600 dark:text-secondary-400 mb-2">
-                  {relatedArticle.data.date.toLocaleDateString("zh-CN")}
-                </p>
-                {relatedArticle.data.summary && (
-                  <p class="text-sm text-secondary-700 dark:text-secondary-300 line-clamp-3">
-                    {relatedArticle.data.summary}
-                  </p>
-                )}
+                <div class="article-card-content">
+                  <div class="article-card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
+                    </svg>
+                  </div>
+                  <div class="article-card-body">
+                    <h3 class="article-card-title">
+                      {relatedArticle.data.title}
+                    </h3>
+                    <p class="article-card-date">
+                      {relatedArticle.data.date.toLocaleDateString("zh-CN")}
+                    </p>
+                    {relatedArticle.data.summary && (
+                      <p class="article-card-summary">
+                        {relatedArticle.data.summary}
+                      </p>
+                    )}
+                    <div class="article-card-footer">
+                      <time datetime={relatedArticle.data.date.toISOString()} class="article-card-date">
+                        {relatedArticle.data.date.toLocaleDateString("zh-CN", {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </time>
+                      <span class="article-card-read-more">阅读全文</span>
+                    </div>
+                  </div>
+                </div>
               </a>
             ))}
           </div>
-        </div>
+        </aside>
       )
     }
 
@@ -383,238 +469,373 @@ function getArticleUrl(articleId: string) {
       </svg>
     </button>
   </div>
+</Layout>
 
+<!-- 文章页面脚本 -->
 <script is:inline>
-(function() {
-  const listeners = [];
-  
-  function addListener(element, eventType, handler, options) {
-    if (!element) return null;
-    
-    element.addEventListener(eventType, handler, options);
-    listeners.push({ element, eventType, handler });
-    return handler;
-  }
-  
-  function setupProgressBar() {
-    const progressBar = document.getElementById("progress-bar");
-    const backToTopButton = document.getElementById("back-to-top");
-    
-    if (!progressBar) return;
-    
-    function updateReadingProgress() {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop;
-      const scrollHeight = 
-        document.documentElement.scrollHeight -
-        document.documentElement.clientHeight;
-      const progress = (scrollTop / scrollHeight) * 100;
+  // 文章页面交互脚本
+  (function () {
+    // 存储事件监听器，便于统一清理
+    const listeners = [];
 
-      progressBar.style.width = `${progress}%`;
+    // 添加事件监听器并记录，方便后续统一清理
+    function addListener(element, eventType, handler, options) {
+      if (!element) return null;
+
+      element.addEventListener(eventType, handler, options);
+      listeners.push({ element, eventType, handler, options });
+      return handler;
+    }
+
+    // 清理函数，移除所有事件监听器
+    function cleanup() {
+      listeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          // 忽略错误
+        }
+      });
+
+      listeners.length = 0;
+    }
+
+    // 1. 应用高亮代码
+    function applyCodeHighlighting() {
+      const codeElements = document.querySelectorAll('code[data-highlighted]');
+      
+      codeElements.forEach(codeElement => {
+        const highlightedCode = codeElement.getAttribute('data-highlighted');
+        if (highlightedCode) {
+          codeElement.innerHTML = highlightedCode;
+          codeElement.removeAttribute('data-highlighted');
+        }
+      });
+    }
+    
+    // 2. 加载Mermaid SVG内容
+    function loadMermaidSvg() {
+      const mermaidContainers = document.querySelectorAll('.mermaid-figure [data-mermaid-src], .mermaid-svg-container[data-mermaid-src]');
+      
+      mermaidContainers.forEach(container => {
+        const svgSrc = container.getAttribute('data-mermaid-src');
+        if (svgSrc) {
+          fetch(svgSrc)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('SVG加载失败: ' + response.status);
+              }
+              return response.text();
+            })
+            .then(svgContent => {
+              // 直接插入SVG内容，而不是作为图像
+              container.innerHTML = svgContent;
+              
+              // 确保SVG元素正确应用样式
+              const svgElement = container.querySelector('svg');
+              if (svgElement) {
+                // 设置高度为auto以允许CSS控制
+                svgElement.setAttribute('height', 'auto');
+                
+                // 确保viewBox属性存在并正确设置
+                if (!svgElement.hasAttribute('viewBox') || 
+                    !svgElement.getAttribute('viewBox')?.match(/^\d+\s+\d+\s+\d+\s+\d+$/)) {
+                  // 如果没有有效的viewBox，尝试从宽高创建一个
+                  const width = svgElement.getAttribute('width');
+                  const height = svgElement.getAttribute('height');
+                  if (width && height && !isNaN(parseFloat(width)) && !isNaN(parseFloat(height))) {
+                    svgElement.setAttribute('viewBox', `0 0 ${parseFloat(width)} ${parseFloat(height)}`);
+                  } else {
+                    // 使用默认viewBox
+                    svgElement.setAttribute('viewBox', '0 0 100 100');
+                  }
+                }
+                
+                // 确保具有mermaid-svg类
+                svgElement.classList.add('mermaid-svg');
+              }
+              
+              // 移除data属性避免重复加载
+              container.removeAttribute('data-mermaid-src');
+            })
+            .catch(error => {
+              console.error('加载SVG失败:', error);
+              container.innerHTML = '<div class="mermaid-error-message">图表加载失败</div>';
+            });
+        }
+      });
+    }
+    
+    // 3. 处理代码复制功能
+    function setupCodeCopy() {
+      const handleCopyClick = (e) => {
+        const target = e.target;
+        const copyButton = target.closest('[data-copy]');
+        if (!copyButton) return;
+        
+        const container = copyButton.closest('.code-block-container');
+        if (!container) return;
+        
+        const codeElement = container.querySelector('pre code');
+        if (!codeElement) return;
+        
+        const code = codeElement.textContent || '';
+        
+        navigator.clipboard.writeText(code)
+          .then(() => {
+            const originalText = copyButton.textContent || '';
+            copyButton.textContent = '已复制!';
+            copyButton.disabled = true;
+            
+            setTimeout(() => {
+              copyButton.textContent = originalText;
+              copyButton.disabled = false;
+            }, 2000);
+          })
+          .catch(err => {
+            console.error('复制失败:', err);
+            alert('复制失败，请手动复制');
+          });
+      };
+      
+      addListener(document, 'click', handleCopyClick);
+    }
+
+    // 4. 设置阅读进度条
+    function setupProgressBar() {
+      const progressBar = document.getElementById("progress-bar");
+      const backToTopButton = document.getElementById("back-to-top");
+
+      if (!progressBar) return;
+
+      function updateReadingProgress() {
+        const scrollTop = window.scrollY || document.documentElement.scrollTop;
+        const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const progress = (scrollTop / scrollHeight) * 100;
+
+        progressBar.style.width = `${progress}%`;
+
+        if (backToTopButton) {
+          if (scrollTop > 300) {
+            backToTopButton.classList.add(
+              "opacity-100",
+              "visible",
+              "translate-y-0"
+            );
+            backToTopButton.classList.remove(
+              "opacity-0",
+              "invisible",
+              "translate-y-5"
+            );
+          } else {
+            backToTopButton.classList.add(
+              "opacity-0",
+              "invisible",
+              "translate-y-5"
+            );
+            backToTopButton.classList.remove(
+              "opacity-100",
+              "visible",
+              "translate-y-0"
+            );
+          }
+        }
+      }
+
+      addListener(window, "scroll", updateReadingProgress);
 
       if (backToTopButton) {
-        if (scrollTop > 300) {
-          backToTopButton.classList.add(
-            "opacity-100", "visible", "translate-y-0"
-          );
-          backToTopButton.classList.remove(
-            "opacity-0", "invisible", "translate-y-5"
-          );
-        } else {
-          backToTopButton.classList.add(
-            "opacity-0", "invisible", "translate-y-5"
-          );
-          backToTopButton.classList.remove(
-            "opacity-100", "visible", "translate-y-0"
-          );
-        }
-      }
-    }
-    
-    addListener(window, "scroll", updateReadingProgress);
-    
-    if (backToTopButton) {
-      addListener(backToTopButton, "click", () => {
-        window.scrollTo({
-          top: 0,
-          behavior: "smooth",
-        });
-      });
-    }
-    
-    updateReadingProgress();
-  }
-  
-  function setupTableOfContents() {
-    const tocContent = document.getElementById("toc-content");
-    const tocPanel = document.querySelector('[class*="2xl:block"][class*="fixed"]');
-    
-    if (!tocPanel || !tocContent) return;
-    
-    function checkTocVisibility() {
-      if (window.innerWidth < 1536) {
-        tocPanel.classList.add("hidden");
-        tocPanel.classList.remove("2xl:block");
-      } else {
-        tocPanel.classList.remove("hidden");
-        tocPanel.classList.add("2xl:block");
-      }
-    }
-    
-    addListener(window, "resize", checkTocVisibility);
-    
-    checkTocVisibility();
-    
-    const article = document.querySelector("article");
-    if (!article) {
-      tocContent.innerHTML = '<p class="text-secondary-500 dark:text-secondary-400 italic">无法生成目录</p>';
-      return;
-    }
-
-    const headings = article.querySelectorAll("h1, h2, h3, h4, h5, h6");
-    if (headings.length === 0) {
-      tocContent.innerHTML = '<p class="text-secondary-500 dark:text-secondary-400 italic">此文章没有目录</p>';
-      return;
-    }
-
-    const tocList = document.createElement("ul");
-    tocList.className = "space-y-2";
-    
-    headings.forEach((heading, index) => {
-      if (!heading.id) {
-        heading.id = `heading-${index}`;
-      }
-
-      const listItem = document.createElement("li");
-      const headingLevel = parseInt(heading.tagName.substring(1));
-      const indent = (headingLevel - 1) * 0.75;
-
-      const link = document.createElement("a");
-      link.href = `#${heading.id}`;
-      link.className = `block hover:text-primary-600 dark:hover:text-primary-400 duration-50 ${
-        headingLevel > 2 
-          ? "text-secondary-600 dark:text-secondary-400" 
-          : "text-secondary-800 dark:text-secondary-200 font-medium"
-      }`;
-      link.style.paddingLeft = `${indent}rem`;
-      link.textContent = heading.textContent;
-
-      addListener(link, "click", (e) => {
-        e.preventDefault();
-        const targetId = link.getAttribute("href")?.substring(1);
-        if (!targetId) return;
-
-        const targetElement = document.getElementById(targetId);
-        if (targetElement) {
-          const offset = 100;
-          const targetPosition =
-            targetElement.getBoundingClientRect().top +
-            window.scrollY -
-            offset;
-
+        addListener(backToTopButton, "click", () => {
           window.scrollTo({
-            top: targetPosition,
+            top: 0,
             behavior: "smooth",
           });
-
-          targetElement.classList.add(
-            "bg-primary-50", "dark:bg-primary-900/20"
-          );
-          setTimeout(() => {
-            targetElement.classList.remove(
-              "bg-primary-50", "dark:bg-primary-900/20"
-            );
-          }, 2000);
-        }
-      });
-
-      listItem.appendChild(link);
-      tocList.appendChild(listItem);
-    });
-
-    tocContent.innerHTML = "";
-    tocContent.appendChild(tocList);
-    
-    let ticking = false;
-    
-    function updateActiveHeading() {
-      const currentHeadings = Array.from(article.querySelectorAll("h1, h2, h3, h4, h5, h6"));
-      const tocLinks = Array.from(tocContent.querySelectorAll("a"));
-      
-      tocLinks.forEach(link => {
-        link.classList.remove(
-          "text-primary-600", "dark:text-primary-400", "font-medium"
-        );
-      });
-
-      const scrollPosition = window.scrollY + 150;
-      let currentHeading = null;
-
-      for (const heading of currentHeadings) {
-        const headingTop = heading.getBoundingClientRect().top + window.scrollY;
-        if (headingTop <= scrollPosition) {
-          currentHeading = heading;
-        } else {
-          break;
-        }
-      }
-
-      if (currentHeading) {
-        const activeLink = tocLinks.find(
-          link => link.getAttribute("href") === `#${currentHeading.id}`
-        );
-        if (activeLink) {
-          activeLink.classList.add(
-            "text-primary-600", "dark:text-primary-400", "font-medium"
-          );
-        }
-      }
-    }
-    
-    addListener(window, "scroll", () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          updateActiveHeading();
-          ticking = false;
         });
-        ticking = true;
       }
-    });
-    
-    updateActiveHeading();
-  }
-  
-  function init() {
-    if (!document.querySelector("article")) return;
-    
-    setupProgressBar();
-    setupTableOfContents();
-  }
-  
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init, { once: true });
-  } else {
-    init();
-  }
-  
-  function registerCleanup() {
-    document.addEventListener("astro:before-preparation", cleanup, { once: true });
-    document.addEventListener("astro:before-swap", cleanup, { once: true });
-    document.addEventListener("swup:willReplaceContent", cleanup, { once: true });
-    window.addEventListener("beforeunload", cleanup, { once: true });
-  }
-  
-  function cleanup() {
-    listeners.forEach(({ element, eventType, handler }) => {
-      try {
-        element.removeEventListener(eventType, handler);
-      } catch (err) {}
-    });
-    
-    listeners.length = 0;
-  }
-  
-  registerCleanup();
-})();
-</script>
 
-</Layout>
+      updateReadingProgress();
+    }
+
+    // 5. 管理目录交互
+    function setupTableOfContents() {
+      const tocContent = document.getElementById("toc-content");
+      const tocPanel = document.querySelector("#toc-panel");
+
+      if (!tocPanel || !tocContent) return;
+
+      // 检查窗口大小调整目录面板显示
+      function checkTocVisibility() {
+        if (window.innerWidth < 1536) {
+          tocPanel.classList.add("hidden");
+          tocPanel.classList.remove("2xl:block");
+        } else {
+          tocPanel.classList.remove("hidden");
+          tocPanel.classList.add("2xl:block");
+        }
+      }
+
+      addListener(window, "resize", checkTocVisibility);
+      checkTocVisibility();
+
+      // 处理目录链接点击跳转
+      const tocLinks = tocContent.querySelectorAll("a");
+      tocLinks.forEach(link => {
+        addListener(link, "click", (e) => {
+          e.preventDefault();
+          const targetId = link.getAttribute("href")?.substring(1);
+          if (!targetId) return;
+
+          const targetElement = document.getElementById(targetId);
+          if (targetElement) {
+            const offset = 100;
+            const targetPosition = targetElement.getBoundingClientRect().top + window.scrollY - offset;
+
+            window.scrollTo({
+              top: targetPosition,
+              behavior: "smooth",
+            });
+
+            targetElement.classList.add("bg-primary-50", "dark:bg-primary-900/20");
+            setTimeout(() => {
+              targetElement.classList.remove("bg-primary-50", "dark:bg-primary-900/20");
+            }, 2000);
+          }
+        });
+      });
+
+      // 监听滚动以更新当前活动的目录项
+      const article = document.querySelector("article");
+      if (!article) return;
+
+      let ticking = false;
+
+      function updateActiveHeading() {
+        const headings = Array.from(article.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+        const tocLinks = Array.from(tocContent.querySelectorAll("a"));
+
+        // 清除所有活动状态
+        tocLinks.forEach((link) => {
+          link.classList.remove("text-primary-600", "dark:text-primary-400", "font-medium");
+        });
+
+        // 找出当前可见的标题
+        const scrollPosition = window.scrollY + 150;
+        let currentHeading = null;
+
+        for (const heading of headings) {
+          const headingTop = heading.getBoundingClientRect().top + window.scrollY;
+          if (headingTop <= scrollPosition) {
+            currentHeading = heading;
+          } else {
+            break;
+          }
+        }
+
+        // 高亮当前标题对应的目录项
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          if (id) {
+            const activeLink = tocLinks.find(
+              (link) => link.getAttribute("href") === `#${id}`
+            );
+            if (activeLink) {
+              // 高亮当前目录项
+              activeLink.classList.add("text-primary-600", "dark:text-primary-400", "font-medium");
+              
+              // 可选: 确保当前激活的目录项在可视区域内
+              const tocContainer = tocContent.querySelector('ul');
+              if (tocContainer) {
+                const linkOffsetTop = activeLink.offsetTop;
+                const containerScrollTop = tocContainer.scrollTop;
+                const containerHeight = tocContainer.clientHeight;
+                
+                // 如果当前项不在视口内，滚动目录
+                if (linkOffsetTop < containerScrollTop || 
+                    linkOffsetTop > containerScrollTop + containerHeight) {
+                  tocContainer.scrollTop = linkOffsetTop - containerHeight / 2;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      addListener(window, "scroll", () => {
+        if (!ticking) {
+          window.requestAnimationFrame(() => {
+            updateActiveHeading();
+            ticking = false;
+          });
+          ticking = true;
+        }
+      });
+
+      updateActiveHeading();
+    }
+
+    // 初始化所有功能
+    function init() {
+      if (!document.querySelector("article")) return;
+      
+      // 应用代码高亮
+      applyCodeHighlighting();
+      
+      // 加载Mermaid SVG图表
+      loadMermaidSvg();
+      
+      // 设置代码复制功能
+      setupCodeCopy();
+      
+      // 设置阅读进度条
+      setupProgressBar();
+      
+      // 设置目录交互
+      setupTableOfContents();
+    }
+
+    // 注册清理函数
+    function registerCleanup() {
+      // 使用 once: true 确保事件只触发一次
+      document.addEventListener("astro:before-preparation", cleanup, { once: true });
+      document.addEventListener("astro:before-swap", cleanup, { once: true });
+      document.addEventListener("swup:willReplaceContent", cleanup, { once: true });
+      window.addEventListener("beforeunload", cleanup, { once: true });
+    }
+
+    // 处理页面跳转事件
+    function setupPageTransitionEvents() {
+      // 页面转换后事件
+      const pageTransitionEvents = [
+        { name: "astro:after-swap", delay: 10 },
+        { name: "astro:page-load", delay: 10 },
+        { name: "swup:contentReplaced", delay: 10 },
+      ];
+
+      // 设置每个页面转换事件
+      pageTransitionEvents.forEach(({ name, delay }) => {
+        document.addEventListener(name, () => {
+          cleanup(); // 立即清理
+
+          // 延迟初始化，确保DOM完全更新
+          setTimeout(() => {
+            cleanup(); // 再次清理，确保没有遗漏
+            init();
+          }, delay);
+        });
+      });
+    }
+
+    // 页面加载后初始化
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
+        init();
+        registerCleanup();
+        setupPageTransitionEvents();
+      }, { once: true });
+    } else {
+      init();
+      registerCleanup();
+      setupPageTransitionEvents();
+    }
+  })();
+</script>

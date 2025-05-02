@@ -145,13 +145,6 @@ const {
         ? savedMode 
         : TRANSITION_MODES.AUTO;
     }
-    
-    // 保存主题过渡模式到本地存储
-    function saveThemeTransitionMode(mode) {
-      if (Object.values(TRANSITION_MODES).includes(mode)) {
-        localStorage.setItem('theme-transition-mode', mode);
-      }
-    }
 
     // 直接从按钮移除事件监听器
     function cleanupButtonListeners() {

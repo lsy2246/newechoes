@@ -1,4 +1,6 @@
 @import "./table-styles.css";
+@import "./code-blocks.css";
+@import "./mermaid-themes.css";
 
 /* 增强列表样式 */
 .prose ul {

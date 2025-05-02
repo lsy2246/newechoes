@@ -17,6 +17,8 @@ interface Props {
   description?: string;
   date?: Date;
   tags?: string[];
+  skipSrTitle?: boolean; // 控制是否跳过屏幕阅读器标题
+  pageType?: "page" | "article" | "directory" ; // 更有语义的页面类型
 }
 
 // 获取完整的 URL
@@ -28,6 +30,8 @@ const {
   description = SITE_DESCRIPTION,
   date,
   tags,
+  skipSrTitle = false, // 默认显示屏幕阅读器标题
+  pageType = "page", // 默认为普通页面
 } = Astro.props;
 ---
 
@@ -56,23 +60,18 @@ const {
       content={Astro.generator}
     />
 
+
     <!-- 使用 AstroSeo 组件替换原有的 SEO 标签 -->
     <AstroSeo
       title={title}
       description={description || `${SITE_NAME} - 个人博客`}
       canonical={canonicalURL.toString()}
       openGraph={{
-        type: "article",
+        type: pageType,
         url: canonicalURL.toString(),
         title: title,
         description: description || `${SITE_NAME} - 个人博客`,
         site_name: SITE_NAME,
-        ...(date && {
-          article: {
-            publishedTime: date.toISOString(),
-            tags: tags || [],
-          },
-        }),
       }}
       twitter={{
         cardType: "summary_large_image",
@@ -80,14 +79,16 @@ const {
         handle: SITE_NAME,
       }}
       additionalMetaTags={[
-        {
+        // 仅对文章类型添加标准OpenGraph文章标记
+        ...(date && pageType === "article" ? [{
           property: "article:published_time",
-          content: date ? date.toISOString() : "",
-        },
-        ...(tags?.map((tag) => ({
+          content: date.toISOString(),
+        }] : []),
+        // 文章标签使用标准格式
+        ...(pageType === "article" && tags ? tags.map((tag) => ({
           property: "article:tag",
           content: tag,
-        })) || []),
+        })) : []),
       ]}
     />
 
@@ -214,7 +215,8 @@ const {
     class="m-0 w-full h-full bg-gray-50 dark:bg-dark-bg flex flex-col min-h-screen"
   >
     <Header />
-    <main class="pt-16 flex-grow">
+    <main class="pt-16 flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+      {!skipSrTitle && <h1 class="sr-only">{title}</h1>}
       <slot />
     </main>
     <Footer

@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 
 interface MediaGridProps {
   type: "movie" | "book";
-  title: string;
   doubanId: string;
 }
 
@@ -12,7 +11,7 @@ interface MediaItem {
   link: string;
 }
 
-const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
+const MediaGrid: React.FC<MediaGridProps> = ({ type, doubanId }) => {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMoreContent, setHasMoreContent] = useState(true);
@@ -375,9 +374,7 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, title, doubanId }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold mb-6">{title}</h1>
-
+    <div className="w-full">
       <div
         ref={mediaListRef}
         className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"

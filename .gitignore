@@ -23,4 +23,8 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 
+# wasm
+**/target/*
+**/pkg/*
+
 .vercel

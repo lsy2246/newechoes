@@ -1,0 +1,25 @@
+[package]
+name = "search-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WebAssembly module for article search functionality"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+js-sys.workspace = true
+bincode.workspace = true
+flate2.workspace = true
+console_error_panic_hook.workspace = true
+web-sys = { workspace = true, features = ["console", "Window", "Performance"] }
+regex.workspace = true
+utils-common = { path = "../utils-common" }
+
+# 优化WebAssembly二进制大小
+[profile.release]
+lto = true
+opt-level = "s" 

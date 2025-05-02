@@ -3,11 +3,6 @@
 /* 定义深色模式选择器 */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
-/* 为所有元素添加统一的主题过渡效果 */
-* {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
 
 @theme {
   /* 主色调 - 使用更现代的蓝紫色 */
@@ -122,4 +117,136 @@
 
 [data-theme='dark'] * {
   scrollbar-color: var(--scrollbar-dark-thumb) var(--scrollbar-dark-track);
+}
+
+/* 统一的文章卡片样式 - 纯CSS实现 */
+.article-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.25rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 0.75rem;
+  background-color: white;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.article-card:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateY(-0.25rem);
+}
+
+/* 黑暗模式卡片样式 */
+[data-theme='dark'] .article-card {
+  background-color: var(--color-gray-800);
+  border-color: var(--color-gray-700);
+}
+
+.article-card-link {
+  display: block;
+  flex-grow: 1;
+}
+
+.article-card-content {
+  display: flex;
+  align-items: flex-start;
+}
+
+.article-card-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background-color: var(--color-primary-100);
+  color: var(--color-primary-600);
+}
+
+[data-theme='dark'] .article-card-icon {
+  background-color: rgba(75, 107, 255, 0.2);
+  color: var(--color-primary-400);
+}
+
+.article-card:hover .article-card-icon {
+  background-color: var(--color-primary-200);
+}
+
+[data-theme='dark'] .article-card:hover .article-card-icon {
+  background-color: rgba(75, 107, 255, 0.3);
+}
+
+.article-card-body {
+  margin-left: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.article-card-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-gray-800);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+[data-theme='dark'] .article-card-title {
+  color: var(--color-gray-100);
+}
+
+.article-card:hover .article-card-title {
+  color: var(--color-primary-700);
+}
+
+[data-theme='dark'] .article-card:hover .article-card-title {
+  color: var(--color-primary-300);
+}
+
+.article-card-summary {
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  margin-top: 0.25rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+[data-theme='dark'] .article-card-summary {
+  color: var(--color-gray-400);
+}
+
+.article-card-footer {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.article-card-date {
+  color: var(--color-gray-500);
+}
+
+[data-theme='dark'] .article-card-date {
+  color: var(--color-gray-400);
+}
+
+.article-card-read-more {
+  color: var(--color-primary-600);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 0.5rem;
+}
+
+[data-theme='dark'] .article-card-read-more {
+  color: var(--color-primary-400);
 }

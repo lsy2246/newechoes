@@ -1,7 +1,7 @@
 ---
-import { SITE_NAME, NAV_LINKS } from "@/consts.ts";
-import Search from "astro-pagefind/components/Search";
+import { SITE_NAME, NAV_STRUCTURE } from "@/consts.ts";
 import ThemeToggle from "@/components/ThemeToggle.astro";
+import Search from "@/components/Search.tsx";
 import "@/styles/header.css";
 // 获取当前路径
 const currentPath = Astro.url.pathname;
@@ -15,6 +15,51 @@ const normalizedPath =
       : currentPath;
 
 // 定义导航链接
+
+// 在服务器端预先查找激活项
+let activeItem = null;
+let activeSubItem = null;
+let activeGroupId = null;
+
+// 首先检查子菜单项匹配
+for (const item of NAV_STRUCTURE) {
+  if (item.items) {
+    for (const subItem of item.items) {
+      if (subItem.href === normalizedPath || 
+         (normalizedPath.startsWith(subItem.href) && subItem.href !== '/')) {
+        activeSubItem = subItem;
+        activeGroupId = item.id;
+        break;
+      }
+    }
+  }
+  if (activeSubItem) break;
+}
+
+// 如果没有找到子菜单项匹配，检查主菜单项
+if (!activeSubItem) {
+  for (const item of NAV_STRUCTURE) {
+    if (item.href && (
+      item.href === normalizedPath || 
+      (normalizedPath.startsWith(item.href) && item.href !== '/')
+    )) {
+      activeItem = item;
+      break;
+    }
+  }
+}
+
+// 样式变量 - 用于设置高亮背景的默认属性
+let primaryHighlightStyle = activeItem || activeGroupId ? "opacity: 1;" : "opacity: 0;";
+let secondaryHighlightStyle = activeSubItem ? "opacity: 1;" : "opacity: 0;";
+
+// 导航选择器样式设置
+const activeClass = "font-medium";
+const itemClass = "px-4 py-2 text-sm font-medium";
+const primaryHighlightClass = "bg-primary-100 dark:bg-primary-800/30 rounded-xl shadow-md backdrop-blur-sm";
+const secondaryHighlightClass = "bg-primary-300/80 dark:bg-primary-700/60 rounded-md shadow-md backdrop-blur-sm";
+const transitionDuration = 300;
+const navSelectorClassName = "mr-4";
 ---
 
 <header
@@ -39,56 +84,86 @@ const normalizedPath =
           </a>
         </div>
 
-        <!-- 导航链接 -->
-        <div class="hidden md:flex md:items-center md:space-x-8">
-          <!-- 桌面端搜索框 -->
-          <Search
-            className="pagefind-ui"
-            uiOptions={{
-              showImages: false,
-              resetStyles: false,
-              showSubResults: true,
-              translations: {
-                placeholder: "搜索文章...",
-                clear_search: "清除",
-                load_more: "加载更多结果",
-                search_label: "搜索网站",
-                filters_label: "筛选",
-                zero_results: "未找到 [SEARCH_TERM] 的结果",
-                many_results: "找到 [COUNT] 个 [SEARCH_TERM] 的结果",
-                one_result: "找到 [COUNT] 个 [SEARCH_TERM] 的结果",
-              },
-            }}
-          />
+        <!-- 搜索框 - 桌面显示 -->
+        <div class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-xs ml-auto mr-4">
+          <Search client:load placeholder="搜索文章..." maxResults={5} />
+        </div>
 
-          {
-            NAV_LINKS.map((link) => (
-              <a
-                href={link.href}
-                class={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
-                  normalizedPath === link.href
-                    ? "text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400"
-                    : "text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:border-b-2 hover:border-primary-300 dark:hover:border-primary-700"
-                }`}
-                data-astro-prefetch="hover"
-              >
-                {link.text}
-              </a>
-            ))
-          }
+        <!-- 导航链接 - 集成NavSelector组件 -->
+        <div class="hidden md:flex md:items-center md:space-x-4">
+          <!-- 集成的NavSelector代码 -->
+          <nav class={`nav-selector relative ${navSelectorClassName}`} style="--primary-highlight-bg: transparent; --secondary-highlight-bg: transparent;" data-duration={transitionDuration} data-has-active={Boolean(activeItem || activeGroupId || activeSubItem).toString()}>
+            <!-- 高亮背景元素 -->
+            <div id="nav-primary-highlight" 
+                class={`absolute z-0 hover:shadow-lg rounded-xl ${primaryHighlightClass}`} 
+                style={primaryHighlightStyle}></div>
+            <div id="nav-secondary-highlight" 
+                class={`absolute z-10 hover:shadow-lg rounded-md ${secondaryHighlightClass}`}
+                style={secondaryHighlightStyle}></div>
+            
+            <!-- 导航菜单项 -->
+            <div class="flex items-center relative z-20 space-x-8">
+              {NAV_STRUCTURE.map((item) => (
+                <>
+                  {!item.items ? (
+                    <!-- 单项导航 -->
+                    <a 
+                      href={item.href} 
+                      class={`nav-item relative flex items-center justify-center h-10 ${itemClass} ${activeItem && activeItem.id === item.id ? activeClass + ' active font-semibold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
+                      data-item-id={item.id}
+                      data-astro-prefetch="hover"
+                    >
+                      {item.text}
+                    </a>
+                  ) : (
+                    <!-- 带子菜单的导航组 -->
+                    <div class={`nav-group relative flex items-center min-h-10 ${activeGroupId === item.id ? 'active rounded-xl' : ''}`} data-group-id={item.id}>
+                      <!-- 一级菜单按钮 -->
+                      <button 
+                        type="button"
+                        class={`nav-group-toggle relative flex items-center justify-center h-10 ${itemClass} ${activeGroupId === item.id ? 'menu-up font-semibold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
+                        data-toggle-id={item.id}
+                        data-height-reference="true"
+                      >
+                        {item.text}
+                      </button>
+                      
+                      <!-- 二级菜单容器 -->
+                      <div class={`nav-group-items relative min-w-full ${activeGroupId === item.id ? 'menu-visible' : 'hidden'}`}>
+                        <div class="flex flex-row flex-wrap gap-2 justify-center items-center">
+                          {item.items.map((subItem) => (
+                            <a 
+                              href={subItem.href} 
+                              class={`nav-subitem relative flex items-center justify-center h-10 ${itemClass} ${activeSubItem && activeSubItem.id === subItem.id ? activeClass + ' active font-semibold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
+                              data-subitem-id={`${item.id}-${subItem.id}`}
+                              data-parent-id={item.id}
+                              data-astro-prefetch="hover"
+                            >
+                              {subItem.text}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ))}
+            </div>
+          </nav>
+          
           <!-- 使用自定义主题切换组件 -->
           <div class="mt-1.5">
             <ThemeToggle className="group" />
           </div>
         </div>
 
-        <!-- 移动端菜单按钮 -->
-        <div class="flex items-center md:hidden">
+        <!-- 移动端按钮区域 -->
+        <div class="flex items-center md:hidden space-x-1">
           <!-- 移动端搜索按钮 -->
           <button
             type="button"
+            class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
             id="mobile-search-button"
-            class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 mr-2"
             aria-expanded="false"
             aria-label="搜索"
           >
@@ -108,7 +183,8 @@ const normalizedPath =
               ></path>
             </svg>
           </button>
-
+          
+          <!-- 移动端菜单按钮 -->
           <button
             type="button"
             class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
@@ -152,34 +228,23 @@ const normalizedPath =
       </div>
     </div>
 
-    <!-- 移动端搜索面板 -->
+    <!-- 移动端搜索框 -->
     <div
-      id="mobile-search-panel"
-      class="hidden md:hidden fixed inset-x-0 top-16 p-4 bg-white dark:bg-gray-800 shadow-md z-50 border-t border-gray-200 dark:border-gray-700"
+      class="hidden md:hidden fixed inset-x-0 top-16 z-40"
+      id="mobile-search"
     >
-      <div>
-        <Search
-          className="pagefind-ui"
-          uiOptions={{
-            showImages: false,
-            resetStyles: false,
-            showSubResults: true,
-            translations: {
-              placeholder: "搜索文章...",
-              clear_search: "清除",
-              load_more: "加载更多结果",
-              search_label: "搜索网站",
-              filters_label: "筛选",
-              zero_results: "未找到 [SEARCH_TERM] 的结果",
-              many_results: "找到 [COUNT] 个 [SEARCH_TERM] 的结果",
-              one_result: "找到 [COUNT] 个 [SEARCH_TERM] 的结果",
-            },
-          }}
-        />
+      <div
+        class="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-t border-gray-200 dark:border-gray-700/50 rounded-b-lg"
+      >
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div class="relative">
+            <Search client:load placeholder="搜索文章..." maxResults={5} />
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- 移动端菜单 -->
+    <!-- 移动端菜单 - 使用新的NAV_STRUCTURE结构 -->
     <div
       class="hidden md:hidden fixed inset-x-0 top-16 z-40"
       id="mobile-menu"
@@ -189,20 +254,56 @@ const normalizedPath =
         class="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-t border-gray-200 dark:border-gray-700/50 rounded-b-lg"
       >
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div class="grid gap-1">
+          <div class="grid gap-1 mt-2">
             {
-              NAV_LINKS.map((link) => (
-                <a
-                  href={link.href}
-                  class={`flex items-center px-3 py-3 rounded-lg text-base font-medium ${
-                    normalizedPath === link.href
-                      ? "text-white bg-primary-600 dark:bg-primary-500 shadow-sm"
-                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70"
-                  }`}
-                  data-astro-prefetch="hover"
-                >
-                  {link.text}
-                </a>
+              NAV_STRUCTURE.map((item) => (
+                !item.items ? (
+                  // 普通导航项
+                  <a
+                    href={item.href}
+                    class={`flex items-center px-3 py-3 rounded-lg text-base font-medium ${
+                      normalizedPath === item.href
+                        ? "text-white bg-primary-600 dark:bg-primary-500 shadow-sm"
+                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                    }`}
+                    data-astro-prefetch="hover"
+                  >
+                    {item.text}
+                  </a>
+                ) : (
+                  // 带子菜单的分组
+                  <div class="mt-1 mb-2">
+                    <div 
+                      class="flex items-center justify-between px-3 py-2 rounded-lg text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70 cursor-pointer"
+                      data-mobile-menu-toggle={item.id}
+                    >
+                      <span>{item.text}</span>
+                      <svg 
+                        class="mobile-menu-arrow h-5 w-5 text-gray-500 dark:text-gray-400" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </div>
+                    <div class="mobile-submenu pl-4 border-l-2 border-gray-200 dark:border-gray-700 hidden overflow-hidden" data-parent-id={item.id}>
+                      {item.items.map(subItem => (
+                        <a
+                          href={subItem.href}
+                          class={`flex items-center px-3 py-2 rounded-lg text-base font-medium ${
+                            normalizedPath === subItem.href
+                              ? "text-white bg-primary-600 dark:bg-primary-500 shadow-sm"
+                              : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                          }`}
+                          data-astro-prefetch="hover"
+                        >
+                          {subItem.text}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )
               ))
             }
             <div
@@ -229,457 +330,1206 @@ const normalizedPath =
   </nav>
 </header>
 
-<script>
-  // Header组件逻辑
-  (function () {
+
+<script is:inline>
+// 自执行函数封装所有导航逻辑
+(function initNavSelector() {
+  // 创建一个共享的计算高亮位置的函数
+  function calculateHighlightPositions(options = {}) {
+    const { navSelector, immediate = false } = options;
+    if (!navSelector) return null;
+    
+    const primaryHighlight = document.getElementById('nav-primary-highlight');
+    const secondaryHighlight = document.getElementById('nav-secondary-highlight');
+    
+    if (!primaryHighlight || !secondaryHighlight) return null;
+    
+    // 获取标准高度
+    const getStandardHeight = () => {
+      // 尝试获取普通菜单项的高度作为标准
+      const standardItem = document.querySelector('.nav-item');
+      if (standardItem) {
+        return standardItem.offsetHeight;
+      }
+      // 如果没有普通菜单项，使用默认值
+      return 40; // 2.5rem 约等于 40px
+    };
+    
+    const standardHeight = getStandardHeight();
+    
+    // 查找活动元素
+    const activeItem = document.querySelector('.nav-item.active');
+    const activeGroup = document.querySelector('.nav-group.active');
+    const activeSubItem = document.querySelector('.nav-subitem.active');
+    
+    // 计算一级高亮目标
+    let primaryTarget = activeItem;
+    let isGroupActive = false;
+    
+    if (!primaryTarget && activeGroup) {
+      primaryTarget = activeGroup.querySelector('.nav-group-toggle[data-height-reference="true"]') || activeGroup;
+      isGroupActive = true;
+    }
+    
+    // 计算二级高亮目标
+    const secondaryTarget = activeSubItem;
+    
+    // 高亮位置结果
+    const result = {
+      primaryTarget,
+      secondaryTarget,
+      positions: {
+        primary: null,
+        secondary: null
+      },
+      applyPositions: function(applyImmediate = false) {
+        // 获取持续时间
+        const duration = parseInt(navSelector.dataset.duration || 300);
+        
+        // 应用一级高亮位置
+        if (this.positions.primary && primaryHighlight) {
+          const { left, top, width, height } = this.positions.primary;
+          
+          if (applyImmediate || immediate) {
+            // 立即模式，不使用过渡效果
+            primaryHighlight.style.transition = 'none';
+            primaryHighlight.style.left = `${left}px`;
+            primaryHighlight.style.top = `${top}px`;
+            primaryHighlight.style.width = `${width}px`;
+            primaryHighlight.style.height = `${height}px`;
+            
+            // 强制重排以确保过渡效果被重置
+            primaryHighlight.offsetHeight;
+            
+            // 恢复过渡属性
+            requestAnimationFrame(() => {
+              primaryHighlight.style.transition = `left ${duration}ms ease, top ${duration}ms ease, width ${duration}ms ease, height ${duration}ms ease, opacity ${duration}ms ease`;
+            });
+          } else {
+            // 非立即模式，使用过渡效果
+            primaryHighlight.style.transition = `left ${duration}ms ease, top ${duration}ms ease, width ${duration}ms ease, height ${duration}ms ease, opacity ${duration}ms ease`;
+            primaryHighlight.style.left = `${left}px`;
+            primaryHighlight.style.top = `${top}px`;
+            primaryHighlight.style.width = `${width}px`;
+            primaryHighlight.style.height = `${height}px`;
+          }
+          
+          // 确保高亮可见
+          primaryHighlight.style.opacity = '1';
+          navSelector.setAttribute('data-has-active', 'true');
+        } else if (primaryHighlight) {
+          // 隐藏高亮背景
+          primaryHighlight.style.opacity = '0';
+          
+          // 如果没有二级高亮也处于活动状态，更新data-has-active
+          if (!secondaryTarget || !secondaryHighlight || secondaryHighlight.style.opacity === '0') {
+            navSelector.setAttribute('data-has-active', 'false');
+          }
+        }
+        
+        // 应用二级高亮位置
+        if (this.positions.secondary && secondaryHighlight) {
+          const { left, top, width, height } = this.positions.secondary;
+          
+          if (applyImmediate || immediate) {
+            // 立即模式，不使用过渡效果
+            secondaryHighlight.style.transition = 'none';
+            secondaryHighlight.style.left = `${left}px`;
+            secondaryHighlight.style.top = `${top}px`;
+            secondaryHighlight.style.width = `${width}px`;
+            secondaryHighlight.style.height = `${height}px`;
+            
+            // 强制重排以确保过渡效果被重置
+            secondaryHighlight.offsetHeight;
+            
+            // 恢复过渡属性
+            requestAnimationFrame(() => {
+              secondaryHighlight.style.transition = `left ${duration}ms ease, top ${duration}ms ease, width ${duration}ms ease, height ${duration}ms ease, opacity ${duration}ms ease`;
+            });
+          } else {
+            // 非立即模式，使用过渡效果
+            secondaryHighlight.style.transition = `left ${duration}ms ease, top ${duration}ms ease, width ${duration}ms ease, height ${duration}ms ease, opacity ${duration}ms ease`;
+            secondaryHighlight.style.left = `${left}px`;
+            secondaryHighlight.style.top = `${top}px`;
+            secondaryHighlight.style.width = `${width}px`;
+            secondaryHighlight.style.height = `${height}px`;
+          }
+          
+          // 确保高亮可见
+          secondaryHighlight.style.opacity = '1';
+          navSelector.setAttribute('data-has-active', 'true');
+        } else if (secondaryHighlight) {
+          // 隐藏高亮背景
+          secondaryHighlight.style.opacity = '0';
+          
+          // 如果没有一级高亮也处于活动状态，更新data-has-active
+          if (!primaryTarget || !primaryHighlight || primaryHighlight.style.opacity === '0') {
+            navSelector.setAttribute('data-has-active', 'false');
+          }
+        }
+      }
+    };
+    
+    // 如果有活动元素，计算位置
+    const navRect = navSelector.getBoundingClientRect();
+    
+    // 计算一级高亮位置
+    if (primaryTarget) {
+      const rect = primaryTarget.getBoundingClientRect();
+      
+      // 如果是激活的导航组且有二级菜单展开，计算包含整个二级菜单的区域
+      if (isGroupActive && activeGroup) {
+        const groupRect = activeGroup.getBoundingClientRect();
+        const subMenuContainer = activeGroup.querySelector('.nav-group-items.menu-visible');
+        
+        if (subMenuContainer) {
+          const subMenuRect = subMenuContainer.getBoundingClientRect();
+          
+          // 计算包含组和二级菜单的组合高度
+          const totalHeight = subMenuRect.bottom - groupRect.top;
+          
+          // 计算位置和大小，确保包含整个二级菜单
+          result.positions.primary = {
+            left: groupRect.left - navRect.left,
+            top: groupRect.top - navRect.top,
+            width: Math.max(groupRect.width, subMenuRect.width),
+            height: totalHeight
+          };
+        } else {
+          // 如果没有展开的二级菜单，使用标准高度
+          result.positions.primary = {
+            left: rect.left - navRect.left,
+            top: rect.top - navRect.top - (standardHeight - rect.height) / 2,
+            width: rect.width,
+            height: standardHeight
+          };
+        }
+      } else {
+        // 对于普通一级菜单项，计算元素中心点，使用标准高度
+        const centerY = rect.top - navRect.top + rect.height / 2;
+        
+        result.positions.primary = {
+          left: rect.left - navRect.left,
+          top: centerY - standardHeight / 2,
+          width: rect.width,
+          height: standardHeight
+        };
+      }
+    }
+    
+    // 计算二级高亮位置
+    if (secondaryTarget) {
+      const rect = secondaryTarget.getBoundingClientRect();
+      
+      // 计算元素中心点，使用与一级菜单相同的标准高度
+      const centerY = rect.top - navRect.top + rect.height / 2;
+      
+      result.positions.secondary = {
+        left: rect.left - navRect.left,
+        top: centerY - standardHeight / 2,
+        width: rect.width,
+        height: standardHeight
+      };
+    }
+    
+    return result;
+  }
+  
+  // 在DOMContentLoaded前预先执行一次定位，减少闪烁
+  (function prePositionHighlights() {
+    const navSelector = document.querySelector('.nav-selector');
+    if (!navSelector) return;
+    
+    // 如果有活动项，尝试预先定位高亮
+    if (navSelector.getAttribute('data-has-active') === 'true') {
+      const highlightPositions = calculateHighlightPositions({
+        navSelector,
+        immediate: true
+      });
+      
+      if (highlightPositions) {
+        highlightPositions.applyPositions(true);
+      }
+    }
+  })();
+  
+  // DOM加载完成后执行
+  document.addEventListener('DOMContentLoaded', function() {
     // 存储所有事件监听器，便于统一清理
-    const listeners: Array<{
-      element: EventTarget;
-      eventType: string;
-      handler: EventListenerOrEventListenerObject;
-    }> = [];
-
+    const listeners = [];
+    
     // 添加事件监听器并记录，方便后续统一清理
-    function addListener<K extends keyof HTMLElementEventMap>(
-      element: EventTarget | null,
-      eventType: string,
-      handler: EventListenerOrEventListenerObject,
-      options?: boolean | AddEventListenerOptions,
-    ): EventListenerOrEventListenerObject | null {
+    function addListener(element, eventType, handler, options) {
       if (!element) return null;
-
       element.addEventListener(eventType, handler, options);
-      listeners.push({ element, eventType, handler });
+      listeners.push({ element, eventType, handler, options });
       return handler;
     }
-
+    
     // 清理函数 - 移除所有事件监听器
-    function cleanup(): void {
-      listeners.forEach(({ element, eventType, handler }) => {
+    function cleanup() {
+      listeners.forEach(({ element, eventType, handler, options }) => {
         try {
-          element.removeEventListener(eventType, handler);
+          element.removeEventListener(eventType, handler, options);
         } catch (err) {
-          console.error(`移除Header事件监听器出错:`, err);
+          console.error('移除导航事件监听器出错:', err);
         }
       });
       listeners.length = 0;
     }
-
-    // Header和导航高亮逻辑
-    function initHeader(): void {
-      // 获取桌面端导航链接（排除移动端菜单中的链接）
-      const navLinks = document.querySelectorAll(".hidden.md\\:flex a[href]");
-
-      // 检查路径是否匹配导航项
-      function isPathMatchingNavItem(
-        currentPath: string,
-        navPath: string,
-      ): boolean {
-        // 精确匹配
-        if (currentPath === navPath) {
-          return true;
-        }
-
-        // 文章页面特殊处理 - 如果当前路径以 "/articles/" 开头，则匹配 "/articles" 导航
-        if (currentPath.startsWith("/articles/") && navPath === "/articles") {
-          return true;
-        }
-
-        return false;
+    
+    // 初始化导航选择器
+    function setupNavSelector() {
+      // 获取DOM元素
+      const navSelector = document.querySelector('.nav-selector');
+      if (!navSelector) return;
+      
+      const primaryHighlight = document.getElementById('nav-primary-highlight');
+      const secondaryHighlight = document.getElementById('nav-secondary-highlight');
+      const navItems = document.querySelectorAll('.nav-item');
+      const navGroups = document.querySelectorAll('.nav-group');
+      const navToggles = document.querySelectorAll('.nav-group-toggle');
+      const navSubItems = document.querySelectorAll('.nav-subitem');
+      
+      // 获取过渡动画持续时间
+      const transitionDuration = parseInt(navSelector.dataset.duration || 300);
+      const activeClass = "font-medium";
+      
+      // 当前活动项的状态 - 从DOM中提取当前激活状态
+      let activeItemId = null;
+      let activeSubItemId = null;
+      let activeGroupId = null;
+      
+      // 读取初始激活状态
+      const activeItemElement = document.querySelector('.nav-item.active');
+      if (activeItemElement) {
+        activeItemId = activeItemElement.dataset.itemId;
       }
-
-      // 更新导航高亮状态
-      function updateNavHighlight(): void {
-        const currentUrl = window.location.pathname;
-        const normalizedPath =
-          currentUrl === "/"
-            ? "/"
-            : currentUrl.endsWith("/")
-              ? currentUrl.slice(0, -1)
-              : currentUrl;
-
-        // 更新桌面端导航链接
-        navLinks.forEach((link) => {
-          const href = link.getAttribute("href");
-          const isActive = href
-            ? isPathMatchingNavItem(normalizedPath, href)
-            : false;
-
-          // 使用 classList.toggle 来切换类
-          link.classList.toggle("text-primary-600", isActive);
-          link.classList.toggle("dark:text-primary-400", isActive);
-          link.classList.toggle("border-b-2", isActive);
-          link.classList.toggle("border-primary-600", isActive);
-          link.classList.toggle("dark:border-primary-400", isActive);
-
-          link.classList.toggle("text-secondary-600", !isActive);
-          link.classList.toggle("dark:text-secondary-400", !isActive);
-          link.classList.toggle("hover:text-primary-600", !isActive);
-          link.classList.toggle("dark:hover:text-primary-400", !isActive);
-          link.classList.toggle("hover:border-b-2", !isActive);
-          link.classList.toggle("hover:border-primary-300", !isActive);
-          link.classList.toggle("dark:hover:border-primary-700", !isActive);
-        });
-
-        // 更新移动端导航链接
-        const mobileNavLinks = document.querySelectorAll(
-          "#mobile-menu a[href]",
-        );
-        mobileNavLinks.forEach((link) => {
-          const href = link.getAttribute("href");
-          const isActive = href
-            ? isPathMatchingNavItem(normalizedPath, href)
-            : false;
-
-          // 使用 classList.toggle 来切换类
-          link.classList.toggle("text-white", isActive);
-          link.classList.toggle("bg-primary-600", isActive);
-          link.classList.toggle("dark:bg-primary-500", isActive);
-          link.classList.toggle("shadow-sm", isActive);
-
-          link.classList.toggle("text-gray-700", !isActive);
-          link.classList.toggle("dark:text-gray-200", !isActive);
-          link.classList.toggle("hover:bg-gray-100", !isActive);
-          link.classList.toggle("dark:hover:bg-gray-800/70", !isActive);
-        });
+      
+      const activeSubItemElement = document.querySelector('.nav-subitem.active');
+      if (activeSubItemElement) {
+        activeSubItemId = activeSubItemElement.dataset.subitemId;
+        activeGroupId = activeSubItemElement.dataset.parentId;
       }
-
-      // 初始检查
-      updateNavHighlight();
-
-      // 监听路由变化
-      addListener(document, "astro:page-load", updateNavHighlight);
-      addListener(document, "astro:after-swap", updateNavHighlight);
-
-      // 移动端菜单逻辑
-      const mobileMenuButton = document.getElementById("mobile-menu-button");
-      const mobileMenu = document.getElementById("mobile-menu");
-      const menuOpenIcon = document.getElementById("menu-open-icon");
-      const menuCloseIcon = document.getElementById("menu-close-icon");
-
-      // 移动端搜索面板元素
-      const mobileSearchButton = document.getElementById(
-        "mobile-search-button",
-      );
-      const mobileSearchPanel = document.getElementById("mobile-search-panel");
-      const mobileSearchClose = document.getElementById("mobile-search-close");
-
-      // 关闭移动端菜单的函数
-      function closeMobileMenu(): void {
-        if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
-          mobileMenuButton.setAttribute("aria-expanded", "false");
-          mobileMenu.classList.add("hidden");
-          menuOpenIcon.classList.remove("hidden");
-          menuCloseIcon.classList.add("hidden");
+      
+      const activeGroupElement = document.querySelector('.nav-group.active');
+      if (activeGroupElement && !activeSubItemId) {
+        activeGroupId = activeGroupElement.dataset.groupId;
+      }
+      
+      // 设置CSS变量
+      function setCssVariables() {
+        // 从primaryHighlight和secondaryHighlight中提取背景色
+        if (primaryHighlight && secondaryHighlight) {
+          const primaryStyle = window.getComputedStyle(primaryHighlight);
+          const secondaryStyle = window.getComputedStyle(secondaryHighlight);
+          
+          // 设置CSS变量
+          navSelector.style.setProperty('--primary-highlight-bg', primaryStyle.backgroundColor);
+          navSelector.style.setProperty('--secondary-highlight-bg', secondaryStyle.backgroundColor);
         }
       }
-
-      // 关闭移动端搜索面板的函数
-      function closeMobileSearch(): void {
-        if (mobileSearchPanel) {
-          mobileSearchPanel.classList.add("hidden");
-        }
-      }
-
-      // 清空桌面搜索框的函数
-      function clearDesktopSearch(): void {
-        // 获取关键元素
-        const searchInput = document.querySelector(
-          ".pagefind-ui__search-input",
-        );
-        const clearButton = document.querySelector(
-          ".pagefind-ui__search-clear",
-        );
-        const resultsContainer = document.querySelector(
-          ".pagefind-ui__results",
-        );
-
-        // 隐藏搜索结果面板
-        if (resultsContainer) {
-          // 直接隐藏结果容器
-          resultsContainer.setAttribute("style", "display: none !important");
-        }
-
-        // 如果有清除按钮，点击它清空输入框
-        if (clearButton) {
-          (clearButton as HTMLElement).click();
-        } else if (searchInput) {
-          // 备选方案，设置输入框为空
-          (searchInput as HTMLInputElement).value = "";
-          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-      }
-
-      // 监听搜索结果链接点击事件
-      function setupSearchResultListeners(): void {
-        // 使用事件委托，监听整个搜索容器
-        const searchContainer = document.querySelector(".pagefind-ui");
-        if (searchContainer) {
-          // 移除之前可能存在的事件监听器
-          const existingHandler = (searchContainer as any)._clickHandler;
-          if (existingHandler) {
-            searchContainer.removeEventListener("click", existingHandler);
+      
+      // 初始调用一次设置CSS变量
+      setCssVariables();
+      
+      // 重置所有菜单状态
+      function resetAllMenus() {
+        // 关闭所有二级菜单
+        navGroups.forEach(group => {
+          const items = group.querySelector('.nav-group-items');
+          const toggle = group.querySelector('.nav-group-toggle');
+          
+          if (items) {
+            items.classList.remove('menu-visible');
+            items.classList.add('hidden');
+            items.classList.remove('menu-hidden');
           }
-
-          // 添加新的事件监听器
-          const clickHandler = (e: Event) => {
-            const target = e.target as HTMLElement;
-            // 检查是否点击了搜索结果链接或其父元素
-            const linkElement = target.closest(
-              ".pagefind-ui__result-link, .pagefind-ui__result-title, .pagefind-ui__results a",
-            );
-
-            if (linkElement && linkElement.tagName === "A") {
-              // 不做任何处理，避免干扰导航
-              // 让路由变化后的处理函数来隐藏搜索面板
-            }
-          };
-
-          // 存储处理函数以便后续可能的移除
-          (searchContainer as any)._clickHandler = clickHandler;
-
-          // 添加事件监听
-          addListener(searchContainer, "click", clickHandler, {
-            capture: true,
-          });
-        } else {
-          console.warn("[Header] 未找到搜索容器，无法添加点击事件");
-        }
-
-        // 直接为文档添加事件监听，确保能捕获到所有点击
-        addListener(
-          document.body,
-          "click",
-          (e) => {
-            const target = e.target as HTMLElement;
-            const isSearchResult = target.closest(
-              ".pagefind-ui__result-link, .pagefind-ui__result-title, .pagefind-ui__results a",
-            );
-
-            if (isSearchResult && isSearchResult.tagName === "A") {
-              // 不做任何处理，避免干扰导航
-              // 让路由变化后的处理函数来隐藏搜索面板
-
-              // 只关闭移动端搜索面板，因为它不影响导航
-              closeMobileSearch();
-            }
-          },
-          { capture: true },
-        );
+          
+          if (toggle) {
+            toggle.classList.remove('menu-up');
+          }
+          
+          // 移除组的激活状态
+          group.classList.remove('active');
+        });
       }
-
-      // 初始化搜索功能并设置页面加载后的变化监听
-      function initSearch(): void {
-        setupSearchResultListeners();
-
-        // Pagefind可能在页面加载后动态添加内容，添加MutationObserver以监视这些变化
-        const pageObserver = new MutationObserver((mutations) => {
-          for (const mutation of mutations) {
-            if (mutation.addedNodes.length > 0) {
-              // 检查是否有新添加的搜索容器或结果
-              const hasNewSearchElements = Array.from(mutation.addedNodes).some(
-                (node) => {
-                  if (node.nodeType === Node.ELEMENT_NODE) {
-                    const element = node as HTMLElement;
-                    return (
-                      element.classList?.contains("pagefind-ui") ||
-                      element.querySelector(".pagefind-ui") !== null ||
-                      element.classList?.contains("pagefind-ui__results") ||
-                      element.querySelector(".pagefind-ui__results") !== null
-                    );
-                  }
-                  return false;
-                },
-              );
-
-              if (hasNewSearchElements) {
-                setupSearchResultListeners();
+      
+      // 兼容swup的导航方法
+      function navigateTo(href) {
+        // 如果使用swup
+        if (window.swup) {
+          try {
+            // 正确使用swup的API
+            window.swup.navigate(href);
+            return;
+          } catch (err) {
+            // 尝试使用swup的替代方法
+            try {
+              window.swup.loadPage({
+                url: href
+              });
+              return;
+            } catch (err2) {
+              console.error("Swup替代导航也出错:", err2);
+            }
+          }
+        }
+        
+        // 检查是否有匹配的链接，使用其点击事件可能会触发注册在链接上的swup事件
+        const existingLink = document.querySelector(`a[href="${href}"]`);
+        if (existingLink) {
+          existingLink.click();
+          return;
+        }
+        
+        // 以下是在swup不可用或出错时的回退方案
+        
+        // 如果使用Astro的View Transitions
+        if (document.startViewTransition) {
+          document.startViewTransition(() => {
+            window.location.href = href;
+          });
+          return;
+        }
+        
+        // 最后的回退：普通导航
+        window.location.href = href;
+      }
+      
+      // 更新高亮背景
+      function updateHighlights(immediate = false) {
+        requestAnimationFrame(() => {
+          const highlightPositions = calculateHighlightPositions({
+            navSelector,
+            immediate
+          });
+          
+          if (highlightPositions) {
+            highlightPositions.applyPositions(immediate);
+          }
+        });
+      }
+      
+      // 设置激活的一级菜单项
+      function setActiveItem(itemId) {
+        // 清除所有菜单状态
+        resetAllMenus();
+        
+        // 清除所有激活状态
+        navItems.forEach(item => {
+          item.classList.remove(...activeClass.split(' '));
+          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        });
+        
+        navSubItems.forEach(item => {
+          item.classList.remove(...activeClass.split(' '));
+          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        });
+        
+        // 清除所有组的激活状态和按钮样式
+        navGroups.forEach(group => {
+          group.classList.remove('active');
+          
+          // 清除组内按钮的激活状态
+          const toggle = group.querySelector('.nav-group-toggle');
+          if (toggle) {
+            toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+            toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          }
+        });
+        
+        // 设置新的激活状态
+        const targetItem = document.querySelector(`.nav-item[data-item-id="${itemId}"]`);
+        if (targetItem) {
+          targetItem.classList.add(...activeClass.split(' '));
+          targetItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          targetItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          
+          // 更新状态
+          activeItemId = itemId;
+          activeGroupId = null;
+          activeSubItemId = null;
+        }
+        
+        // 更新高亮背景
+        updateHighlights();
+      }
+      
+      // 设置激活的二级菜单项
+      function setActiveSubItem(subItemId) {
+        if (!subItemId) {
+          return;
+        }
+        
+        // 查找目标项
+        const targetItem = document.querySelector(`.nav-subitem[data-subitem-id="${subItemId}"]`);
+        if (!targetItem) {
+          return;
+        }
+        
+        // 获取父组ID
+        const parentId = targetItem.dataset.parentId;
+        if (!parentId) {
+          return;
+        }
+        
+        // 清除所有普通菜单项的高亮
+        navItems.forEach(item => {
+          item.classList.remove(...activeClass.split(' '));
+          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        });
+        
+        // 清除所有二级菜单项的高亮
+        navSubItems.forEach(item => {
+          item.classList.remove(...activeClass.split(' '));
+          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        });
+        
+        // 清除所有组按钮的激活状态
+        navGroups.forEach(group => {
+          const groupId = group.dataset.groupId;
+          // 只保留当前激活组的激活状态
+          if (groupId !== parentId) {
+            group.classList.remove('active');
+            const toggle = group.querySelector('.nav-group-toggle');
+            if (toggle) {
+              toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+              toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            }
+            
+            // 确保子菜单是隐藏的
+            const items = group.querySelector('.nav-group-items');
+            if (items) {
+              items.classList.add('hidden');
+              items.classList.remove('menu-visible');
+            }
+          }
+        });
+        
+        // 设置新的激活状态
+        targetItem.classList.add(...activeClass.split(' '));
+        targetItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        targetItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        
+        // 更新状态
+        activeSubItemId = subItemId;
+        activeGroupId = parentId;
+        activeItemId = null;
+        
+        // 确保父组处于激活状态
+        const parentGroup = document.querySelector(`.nav-group[data-group-id="${parentId}"]`);
+        if (parentGroup) {
+          parentGroup.classList.add('active');
+          
+          // 确保二级菜单可见
+          const items = parentGroup.querySelector('.nav-group-items');
+          const toggle = parentGroup.querySelector('.nav-group-toggle');
+          
+          if (items && toggle) {
+            toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+            toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            items.classList.remove('hidden');
+            items.classList.add('menu-visible');
+          }
+        }
+        
+        // 更新高亮背景
+        updateHighlights();
+      }
+      
+      // 切换导航组的显示状态
+      function toggleNavGroup(groupId, forceState = null) {
+        const targetGroup = document.querySelector(`.nav-group[data-group-id="${groupId}"]`);
+        if (!targetGroup) {
+          return;
+        }
+        
+        const items = targetGroup.querySelector('.nav-group-items');
+        const toggle = targetGroup.querySelector('.nav-group-toggle');
+        
+        if (!items || !toggle) {
+          return;
+        }
+        
+        // 获取过渡动画持续时间
+        const duration = parseInt(navSelector.dataset.duration || 300);
+        
+        // 当前菜单是否可见
+        const isVisible = items.classList.contains('menu-visible');
+        
+        // 确定最终状态（展开或收起）
+        const shouldOpen = forceState !== null ? forceState : !isVisible;
+        
+        // 如果状态相同，无需操作
+        if ((shouldOpen && isVisible) || (!shouldOpen && !isVisible)) {
+          return;
+        }
+        
+        // 清除所有普通菜单项的高亮状态
+        navItems.forEach(item => {
+          item.classList.remove(...activeClass.split(' '));
+          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        });
+        
+        // 收起菜单
+        if (!shouldOpen) {
+          // 先设置过渡类
+          items.classList.add('menu-hidden');
+          
+          // 延迟隐藏菜单，等待过渡完成
+          setTimeout(() => {
+            // 移除组的激活状态
+            targetGroup.classList.remove('active');
+            
+            // 显示一级菜单按钮
+            toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+            toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            
+            // 隐藏二级菜单
+            items.classList.remove('menu-visible');
+            items.classList.add('hidden');
+            items.classList.remove('menu-hidden');
+            
+            // 清除激活状态
+            if (activeGroupId === groupId) {
+              activeGroupId = null;
+              activeSubItemId = null;
+              
+              // 重置高亮背景，确保切换时背景样式清理干净
+              if (primaryHighlight) primaryHighlight.style.opacity = '0';
+              if (secondaryHighlight) secondaryHighlight.style.opacity = '0';
+              navSelector.setAttribute('data-has-active', 'false');
+            }
+            
+            // 给DOM渲染一些时间，然后更新高亮
+            setTimeout(() => {
+              updateHighlights(true);
+            }, 50);
+          }, duration);
+        } 
+        // 展开菜单
+        else {
+          // 先关闭所有其他菜单组
+          resetAllMenus();
+          
+          // 清除一级菜单的高亮状态
+          activeItemId = null;
+          
+          // 清除所有组的激活状态和按钮样式
+          navGroups.forEach(group => {
+            const gid = group.dataset.groupId;
+            if (gid !== groupId) {
+              group.classList.remove('active');
+              
+              // 清除组内按钮的激活状态
+              const groupToggle = group.querySelector('.nav-group-toggle');
+              if (groupToggle) {
+                groupToggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+                groupToggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
               }
             }
+          });
+          
+          // 标记组为激活状态
+          targetGroup.classList.add('active');
+          
+          // 设置一级菜单按钮样式
+          toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          
+          // 展开二级菜单
+          items.classList.remove('hidden', 'menu-hidden');
+          
+          // 使用requestAnimationFrame确保DOM更新后再添加visible类
+          requestAnimationFrame(() => {
+            items.classList.add('menu-visible');
+            
+            // 当菜单展开后更新高亮背景
+            setTimeout(() => {
+              updateHighlights(true);
+            }, 50);
+          });
+          
+          // 设置激活状态
+          activeGroupId = groupId;
+          
+          // 如果没有选中的二级菜单项，则选中第一个并导航
+          if (!activeSubItemId || !activeSubItemId.startsWith(groupId)) {
+            const firstSubItem = targetGroup.querySelector('.nav-subitem');
+            if (firstSubItem) {
+              const subItemId = firstSubItem.dataset.subitemId;
+              const href = firstSubItem.getAttribute('href');
+              
+              // 清除所有二级菜单项的高亮
+              navSubItems.forEach(item => {
+                item.classList.remove(...activeClass.split(' '));
+                item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+                item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+              });
+              
+              // 设置新的二级菜单项高亮
+              firstSubItem.classList.add(...activeClass.split(' '));
+              firstSubItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+              firstSubItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+              
+              // 设置高亮
+              activeSubItemId = subItemId;
+              
+              // 导航到第一个子项
+              if (href) {
+                navigateTo(href);
+              }
+            }
+          } else {
+            // 已有选中的二级菜单项，找到并重新设置高亮
+            const activeSubItem = document.querySelector(`.nav-subitem[data-subitem-id="${activeSubItemId}"]`);
+            if (activeSubItem) {
+              // 清除所有二级菜单项的高亮
+              navSubItems.forEach(item => {
+                item.classList.remove(...activeClass.split(' '));
+                item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+                item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+              });
+              
+              // 设置高亮
+              activeSubItem.classList.add(...activeClass.split(' '));
+              activeSubItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+              activeSubItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            }
+            
+            // 更新高亮
+            updateHighlights(true);
           }
-        });
-
-        // 观察整个body以捕获所有变化
-        pageObserver.observe(document.body, { childList: true, subtree: true });
-
-        // 添加导航后清空搜索框的监听
-        addListener(document, "astro:page-load", () => {
-          // 页面加载后清空搜索框和隐藏结果面板
-          setTimeout(() => {
-            clearDesktopSearch();
-          }, 100); // 短暂延迟确保搜索组件已加载
-        });
-      }
-
-      if (mobileMenuButton && mobileMenu && menuOpenIcon && menuCloseIcon) {
-        // 移动端菜单按钮点击事件
-        (mobileMenuButton as HTMLElement).style.pointerEvents = "auto";
-
-        addListener(
-          mobileMenuButton,
-          "click",
-          (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const expanded =
-              mobileMenuButton.getAttribute("aria-expanded") === "true";
-
-            mobileMenuButton.setAttribute(
-              "aria-expanded",
-              (!expanded).toString(),
-            );
-
-            if (expanded) {
-              mobileMenu.classList.add("hidden");
-            } else {
-              closeMobileSearch();
-              mobileMenu.classList.remove("hidden");
-            }
-
-            menuOpenIcon.classList.toggle("hidden");
-            menuCloseIcon.classList.toggle("hidden");
-          },
-          { capture: true },
-        );
-
-        // 为移动端导航链接添加点击事件
-        const mobileNavLinks = document.querySelectorAll(
-          "#mobile-menu a[href]",
-        );
-        mobileNavLinks.forEach((link) => {
-          (link as HTMLElement).style.pointerEvents = "auto";
-          addListener(
-            link,
-            "click",
-            (e) => {
-              e.stopPropagation();
-              closeMobileMenu();
-            },
-            { capture: true },
-          );
-        });
-      }
-
-      // 移动端搜索按钮
-      if (mobileSearchButton && mobileSearchPanel) {
-        (mobileSearchButton as HTMLElement).style.pointerEvents = "auto";
-
-        addListener(
-          mobileSearchButton,
-          "click",
-          (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const isSearchVisible =
-              !mobileSearchPanel.classList.contains("hidden");
-
-            if (isSearchVisible) {
-              closeMobileSearch();
-            } else {
-              closeMobileMenu();
-              mobileSearchPanel.classList.remove("hidden");
-            }
-          },
-          { capture: true },
-        );
-
-        // 搜索面板关闭按钮
-        if (mobileSearchClose) {
-          (mobileSearchClose as HTMLElement).style.pointerEvents = "auto";
-          addListener(
-            mobileSearchClose,
-            "click",
-            (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              closeMobileSearch();
-            },
-            { capture: true },
-          );
         }
       }
-
-      // 初始化搜索功能
-      initSearch();
-
-      // 路由变化时处理
-      const routeEvents = [
-        "astro:page-load", // Astro路由导航完成
-        "astro:after-swap", // Astro视图变化后
-      ];
-
-      routeEvents.forEach((eventName) => {
-        addListener(document, eventName, () => {
-          // 页面加载后清空搜索框和隐藏结果面板
-          clearDesktopSearch();
-          closeMobileSearch();
+      
+      // 查找匹配当前路径的导航项
+      function findMatchingNavItem() {
+        const currentPath = window.location.pathname;
+        const normalizedPath = currentPath === '/' ? '/' : 
+          currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
+        
+        // 首先检查子项
+        for (const subItem of navSubItems) {
+          const href = subItem.getAttribute('href');
+          if (href === normalizedPath) {
+            return {
+              type: 'subitem',
+              subitemId: subItem.dataset.subitemId,
+              parentId: subItem.dataset.parentId,
+              element: subItem
+            };
+          }
+        }
+        
+        // 再检查主导航项
+        for (const item of navItems) {
+          const href = item.getAttribute('href');
+          if (href === normalizedPath) {
+            return {
+              type: 'item',
+              itemId: item.dataset.itemId,
+              element: item
+            };
+          }
+        }
+        
+        // 没有完全匹配，尝试前缀匹配（用于文章详情等页面）
+        for (const subItem of navSubItems) {
+          const href = subItem.getAttribute('href');
+          if (normalizedPath.startsWith(href) && href !== '/') {
+            return {
+              type: 'subitem',
+              subitemId: subItem.dataset.subitemId,
+              parentId: subItem.dataset.parentId,
+              element: subItem
+            };
+          }
+        }
+        
+        for (const item of navItems) {
+          const href = item.getAttribute('href');
+          if (normalizedPath.startsWith(href) && href !== '/') {
+            return {
+              type: 'item',
+              itemId: item.dataset.itemId,
+              element: item
+            };
+          }
+        }
+        
+        return null;
+      }
+      
+      // 初始化当前页面的激活状态
+      function initActiveState() {
+        // 高亮背景已经在服务器端渲染时预设，现在需确保应用正确的文字颜色
+        
+        // 查找当前活动项
+        const activeItemElement = document.querySelector('.nav-item.active');
+        const activeSubItemElement = document.querySelector('.nav-subitem.active');
+        const activeGroupElement = document.querySelector('.nav-group.active');
+        
+        // 应用激活文字样式
+        if (activeItemElement) {
+          activeItemElement.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          activeItemElement.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        }
+        
+        if (activeSubItemElement) {
+          activeSubItemElement.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          activeSubItemElement.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        }
+        
+        if (activeGroupElement) {
+          const toggle = activeGroupElement.querySelector('.nav-group-toggle');
+          if (toggle) {
+            toggle.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
+            toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          }
+        }
+        
+        // 计算正确高亮位置
+        updateHighlights(true);
+      }
+      
+      // 注册事件监听
+      
+      // 普通菜单项点击
+      navItems.forEach(item => {
+        addListener(item, 'click', (e) => {
+          e.preventDefault();
+          
+          const itemId = item.dataset.itemId;
+          const href = item.getAttribute('href');
+          
+          // 设置高亮
+          setActiveItem(itemId);
+          
+          // 导航到目标页面
+          if (href) {
+            navigateTo(href);
+          }
         });
       });
-
-      // 直接监听popstate和pushstate事件
-      addListener(window, "popstate", () => {
-        clearDesktopSearch();
-        closeMobileSearch();
+      
+      // 一级菜单按钮点击
+      navToggles.forEach(toggle => {
+        addListener(toggle, 'click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const groupId = toggle.dataset.toggleId;
+          
+          // 切换菜单状态
+          toggleNavGroup(groupId);
+        });
       });
-
-      // 添加自定义监听处理history API
-      const originalPushState = history.pushState;
-      history.pushState = function (...args) {
-        // 调用原始方法
-        const result = originalPushState.apply(
-          this,
-          args as [any, string, string | URL | null],
-        );
-
-        // 触发自定义事件
-        const event = new Event("pushstate");
-        window.dispatchEvent(event);
-
-        // 在pushstate时清空搜索面板
-        clearDesktopSearch();
-        closeMobileSearch();
-
-        return result;
+      
+      // 二级菜单项点击
+      navSubItems.forEach(item => {
+        addListener(item, 'click', (e) => {
+          e.preventDefault();
+          
+          const subItemId = item.dataset.subitemId;
+          const href = item.getAttribute('href');
+          
+          // 设置高亮
+          setActiveSubItem(subItemId);
+          
+          // 导航到目标页面
+          if (href) {
+            navigateTo(href);
+          }
+        });
+      });
+      
+      // 初始化
+      initActiveState();
+      
+      // 处理页面切换
+      if (window.swup) {
+        // 页面内容替换后重新初始化
+        addListener(document, 'swup:contentReplaced', () => {
+          setTimeout(initActiveState, 50);
+        });
+        
+        // 页面内容替换前保存当前状态
+        addListener(document, 'swup:willReplaceContent', () => {
+        });
+        
+        // 视图转换开始
+        addListener(document, 'swup:animationInStart', () => {
+        });
+        
+        // 视图转换结束
+        addListener(document, 'swup:animationInDone', () => {
+          // 再次调用初始化
+          initActiveState();
+          // 确保高亮背景位置正确
+          updateHighlights(true);
+        });
+      }
+      
+      // 窗口大小变化时重新计算高亮位置
+      addListener(window, 'resize', () => {
+        updateHighlights(true);
+      });
+      
+      // 在document上添加自定义方法，方便外部调用
+      document.resetNavigation = function() {
+        initActiveState();
       };
 
-      addListener(window, "pushstate", () => {
-        clearDesktopSearch();
+      // 动态检测swup实例
+      function checkSwup() {
+        if (!window.swup && typeof MutationObserver !== 'undefined') {
+          // 监听DOM变化，检查swup实例是否被后续加载
+          const observer = new MutationObserver((mutations) => {
+            if (window.swup) {
+              // 添加swup事件监听
+              addListener(document, 'swup:contentReplaced', () => {
+                setTimeout(initActiveState, 50);
+              });
+              
+              // 停止观察
+              observer.disconnect();
+            }
+          });
+          
+          // 开始观察文档
+          observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true
+          });
+          
+          // 5秒后自动停止观察，避免长时间监听
+          setTimeout(() => {
+            observer.disconnect();
+          }, 5000);
+        }
+      }
+      
+      // 检测swup实例
+      checkSwup();
+      
+      // 返回清理函数
+      return cleanup;
+    }
+    
+    // 初始化移动端菜单和搜索功能
+    function setupMobileNav() {
+      const mobileMenuButton = document.getElementById('mobile-menu-button');
+      const mobileSearchButton = document.getElementById('mobile-search-button');
+      const mobileMenu = document.getElementById('mobile-menu');
+      const mobileSearch = document.getElementById('mobile-search');
+      const menuOpenIcon = document.getElementById('menu-open-icon');
+      const menuCloseIcon = document.getElementById('menu-close-icon');
+      
+      // 更新移动端菜单高亮状态的函数
+      function updateMobileMenuHighlight() {
+        // 获取当前路径
+        const currentPath = window.location.pathname;
+        const normalizedPath = currentPath === '/' ? '/' : 
+          currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
+        
+        // 选择所有移动端菜单项
+        const mobileMenuItems = document.querySelectorAll('#mobile-menu a');
+        
+        // 找到匹配的菜单项并设置高亮
+        mobileMenuItems.forEach(item => {
+          const href = item.getAttribute('href');
+          // 检查是否完全匹配或者路径前缀匹配（但排除根路径'/'的前缀匹配）
+          if (href === normalizedPath || (normalizedPath.startsWith(href) && href !== '/')) {
+            // 应用高亮样式
+            item.classList.add('text-white', 'bg-primary-600', 'dark:bg-primary-500', 'shadow-sm');
+            item.classList.remove('text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800/70');
+            
+            // 如果是子菜单项，自动展开其父菜单
+            const submenu = item.closest('.mobile-submenu');
+            if (submenu) {
+              const parentId = submenu.getAttribute('data-parent-id');
+              const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
+              if (toggle && submenu.classList.contains('hidden')) {
+                // 模拟点击父菜单，展开子菜单
+                toggleSubmenu(parentId, true);
+              }
+            }
+          } else {
+            // 移除高亮样式
+            item.classList.remove('text-white', 'bg-primary-600', 'dark:bg-primary-500', 'shadow-sm');
+            item.classList.add('text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800/70');
+          }
+        });
+      }
+      
+      // 切换子菜单显示状态
+      function toggleSubmenu(parentId, forceOpen = null) {
+        const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
+        const submenu = document.querySelector(`.mobile-submenu[data-parent-id="${parentId}"]`);
+        const arrow = toggle ? toggle.querySelector('.mobile-menu-arrow') : null;
+        
+        if (!toggle || !submenu) return;
+        
+        // 确定是展开还是收起
+        const isHidden = submenu.classList.contains('hidden');
+        const shouldOpen = forceOpen !== null ? forceOpen : isHidden;
+        
+        if (shouldOpen) {
+          // 展开子菜单
+          submenu.classList.remove('hidden');
+          if (arrow) arrow.style.transform = 'rotate(180deg)';
+        } else {
+          // 收起子菜单
+          submenu.classList.add('hidden');
+          if (arrow) arrow.style.transform = '';
+        }
+      }
+      
+      // 关闭所有子菜单
+      function closeAllSubmenus() {
+        const toggles = document.querySelectorAll('[data-mobile-menu-toggle]');
+        toggles.forEach(toggle => {
+          const parentId = toggle.getAttribute('data-mobile-menu-toggle');
+          if (parentId) {
+            toggleSubmenu(parentId, false);
+          }
+        });
+      }
+      
+      // 为所有子菜单切换按钮添加点击事件
+      const submenuToggles = document.querySelectorAll('[data-mobile-menu-toggle]');
+      submenuToggles.forEach(toggle => {
+        addListener(toggle, 'click', (e) => {
+          const parentId = toggle.getAttribute('data-mobile-menu-toggle');
+          if (parentId) {
+            toggleSubmenu(parentId);
+          }
+        });
+      });
+      
+      // 关闭移动端菜单
+      function closeMobileMenu() {
+        if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+          mobileMenu.classList.add('hidden');
+          
+          if (mobileMenuButton) {
+            mobileMenuButton.setAttribute('aria-expanded', 'false');
+            
+            // 重置菜单图标
+            if (menuOpenIcon && menuCloseIcon) {
+              menuOpenIcon.classList.remove('hidden');
+              menuCloseIcon.classList.add('hidden');
+            }
+          }
+          
+          // 同时关闭所有子菜单
+          closeAllSubmenus();
+        }
+      }
+      
+      // 关闭移动端搜索
+      function closeMobileSearch() {
+        if (mobileSearch && !mobileSearch.classList.contains('hidden')) {
+          mobileSearch.classList.add('hidden');
+          
+          if (mobileSearchButton) {
+            mobileSearchButton.setAttribute('aria-expanded', 'false');
+          }
+        }
+      }
+      
+      // 初始调用一次更新高亮状态（会自动展开包含当前页面的子菜单）
+      updateMobileMenuHighlight();
+      
+      if (mobileMenuButton && mobileMenu) {
+        addListener(mobileMenuButton, 'click', () => {
+          // 切换菜单显示状态
+          const isExpanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
+          
+          // 更新按钮状态
+          mobileMenuButton.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+          
+          // 切换图标
+          if (menuOpenIcon && menuCloseIcon) {
+            menuOpenIcon.classList.toggle('hidden');
+            menuCloseIcon.classList.toggle('hidden');
+          }
+          
+          // 显示/隐藏菜单
+          mobileMenu.classList.toggle('hidden');
+          
+          // 如果搜索面板是开着的，关闭它
+          closeMobileSearch();
+          
+          // 确保高亮状态是最新的
+          updateMobileMenuHighlight();
+        });
+      }
+      
+      if (mobileSearchButton && mobileSearch) {
+        addListener(mobileSearchButton, 'click', () => {
+          // 切换搜索面板显示状态
+          const isExpanded = mobileSearchButton.getAttribute('aria-expanded') === 'true';
+          
+          // 更新按钮状态
+          mobileSearchButton.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+          
+          // 显示/隐藏搜索面板
+          mobileSearch.classList.toggle('hidden');
+          
+          // 如果菜单是开着的，关闭它
+          closeMobileMenu();
+        });
+      }
+      
+      // 为移动端菜单的所有链接添加点击事件，点击后关闭菜单
+      const mobileMenuLinks = document.querySelectorAll('#mobile-menu a');
+      mobileMenuLinks.forEach(link => {
+        addListener(link, 'click', (e) => {
+          // 如果使用客户端路由（如swup或Astro View Transitions），阻止默认行为
+          if (window.swup || document.startViewTransition) {
+            e.preventDefault();
+            
+            // 获取链接地址
+            const href = link.getAttribute('href');
+            if (href) {
+              // 先关闭菜单
+              closeMobileMenu();
+              closeMobileSearch();
+              
+              // 延迟导航，确保菜单关闭动画完成
+              setTimeout(() => {
+                // 使用适当的导航方法
+                if (window.swup) {
+                  try {
+                    window.swup.navigate(href);
+                  } catch (err) {
+                    try {
+                      window.swup.loadPage({ url: href });
+                    } catch (err2) {
+                      window.location.href = href;
+                    }
+                  }
+                } else if (document.startViewTransition) {
+                  document.startViewTransition(() => {
+                    window.location.href = href;
+                  });
+                } else {
+                  window.location.href = href;
+                }
+              }, 50);
+            }
+          } else {
+            // 普通链接导航，浏览器会自动处理跳转
+            // 但仍然需要关闭菜单
+            closeMobileMenu();
+            closeMobileSearch();
+          }
+        });
+      });
+      
+      // 处理主题切换容器点击
+      const themeToggleContainer = document.getElementById('theme-toggle-container');
+      if (themeToggleContainer) {
+        addListener(themeToggleContainer, 'click', (e) => {
+          // 触发其中的ThemeToggle组件点击
+          const themeToggle = themeToggleContainer.querySelector('button');
+          if (themeToggle) {
+            themeToggle.click();
+          }
+        });
+      }
+      
+      // 处理页面切换，确保移动端菜单高亮状态更新
+      if (window.swup) {
+        // swup页面内容替换后
+        addListener(document, 'swup:contentReplaced', () => {
+          setTimeout(() => {
+            // 更新移动端菜单项的事件监听器，因为DOM已经更新
+            setupMobileSubmenuToggles();
+            // 更新高亮状态
+            updateMobileMenuHighlight();
+            // 确保菜单关闭
+            closeMobileMenu();
+            closeMobileSearch();
+          }, 50);
+        });
+        
+        // swup动画结束后
+        addListener(document, 'swup:animationInDone', () => {
+          updateMobileMenuHighlight();
+        });
+      }
+      
+      // 如果使用Astro的View Transitions
+      addListener(document, 'astro:page-load', () => {
+        // 更新移动端菜单项的事件监听器，因为DOM已经更新
+        setupMobileSubmenuToggles();
+        // 更新高亮状态
+        updateMobileMenuHighlight();
+        // 确保菜单关闭
+        closeMobileMenu();
         closeMobileSearch();
       });
-    }
-
-    // 注册清理函数
-    function registerCleanup(): void {
-      document.addEventListener("astro:before-preparation", cleanup, {
-        once: true,
+      
+      // 普通页面加载事件
+      addListener(window, 'popstate', () => {
+        setTimeout(() => {
+          // 更新移动端菜单项的事件监听器，因为DOM可能已经更新
+          setupMobileSubmenuToggles();
+          // 更新高亮状态
+          updateMobileMenuHighlight();
+          // 确保菜单关闭
+          closeMobileMenu();
+          closeMobileSearch();
+        }, 50);
       });
-      document.addEventListener("astro:before-swap", cleanup, { once: true });
-      document.addEventListener("swup:willReplaceContent", cleanup, {
-        once: true,
-      });
-      window.addEventListener("beforeunload", cleanup, { once: true });
+      
+      // 辅助函数：为移动端子菜单添加切换事件（用于页面切换后重新绑定）
+      function setupMobileSubmenuToggles() {
+        // 关闭所有子菜单（默认状态）
+        closeAllSubmenus();
+        
+        // 重新添加事件监听器
+        const submenuToggles = document.querySelectorAll('[data-mobile-menu-toggle]');
+        submenuToggles.forEach(toggle => {
+          // 移除可能存在的旧监听器（通过克隆和替换元素）
+          const newToggle = toggle.cloneNode(true);
+          toggle.parentNode.replaceChild(newToggle, toggle);
+          
+          // 添加新的事件监听器
+          addListener(newToggle, 'click', (e) => {
+            const parentId = newToggle.getAttribute('data-mobile-menu-toggle');
+            if (parentId) {
+              toggleSubmenu(parentId);
+            }
+          });
+        });
+      }
+      
+      // 暴露更新和关闭函数到全局，方便其他地方调用
+      document.updateMobileMenuHighlight = updateMobileMenuHighlight;
+      document.closeMobileMenu = closeMobileMenu;
+      document.closeMobileSearch = closeMobileSearch;
+      document.toggleMobileSubmenu = toggleSubmenu;
+      
+      return updateMobileMenuHighlight;
     }
-
-    // 初始化全部功能
-    function setupHeader(): void {
-      cleanup();
-      initHeader();
-      registerCleanup();
-    }
-
-    // 在页面加载时初始化
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", setupHeader, {
-        once: true,
-      });
-    } else {
-      setTimeout(setupHeader, 0);
-    }
-
-    // 在页面转换后重新初始化
-    document.addEventListener("astro:after-swap", setupHeader);
-    document.addEventListener("astro:page-load", setupHeader);
-  })();
+    
+    // 执行初始化
+    const cleanupNav = setupNavSelector();
+    const updateMobileHighlight = setupMobileNav();
+    
+    // 页面卸载时清理
+    window.addEventListener('beforeunload', cleanupNav);
+  });
+})();
 </script>
+

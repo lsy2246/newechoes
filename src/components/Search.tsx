@@ -1,0 +1,1097 @@
+import React, { useState, useEffect, useRef, useCallback } from "react";
+
+// 类型定义
+interface SearchResult {
+  items: SearchResultItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  time_ms: number;
+  query: string;
+  suggestions: SearchSuggestion[];
+}
+
+interface SearchResultItem {
+  id: string;
+  title: string;
+  summary: string;
+  url: string;
+  score: number;
+  heading_tree?: HeadingNode;
+  page_type: string;
+}
+
+// 建议类型
+type SuggestionType = 'completion' | 'correction';
+
+interface SearchSuggestion {
+  text: string;
+  suggestion_type: SuggestionType;
+  matched_text: string;
+  suggestion_text: string;
+}
+
+// 标题树结构
+interface HeadingNode {
+  id: string;
+  text: string;
+  level: number;
+  content?: string; // 与Rust端匹配
+  matched_terms?: string[]; // 与Rust端匹配
+  children: HeadingNode[];
+}
+
+interface SearchWasm {
+  search_articles: (indexData: Uint8Array, requestJson: string) => string;
+  default?: () => Promise<any>;
+}
+
+interface SearchProps {
+  placeholder?: string;
+  maxResults?: number;
+}
+
+// 加载状态类型
+type LoadingStatus = 'idle' | 'loading_index' | 'loading_search' | 'loading_more' | 'error' | 'success';
+
+// 内联建议相关状态类型
+interface InlineSuggestionState {
+  text: string;
+  visible: boolean;
+  caretPosition: number;
+  selection: {start: number, end: number};
+  type: SuggestionType; // 建议类型：completion 或 correction
+  matchedText: string;  // 已匹配部分
+  suggestionText: string; // 建议部分
+}
+
+const Search: React.FC<SearchProps> = ({
+  placeholder = "搜索文章...",
+  maxResults = 10,
+}) => {
+  // 状态
+  const [query, setQuery] = useState<string>("");
+  
+  // 加载状态合并为一个对象
+  const [loadingState, setLoadingState] = useState<{
+    status: LoadingStatus;
+    error: string | null;
+  }>({
+    status: 'idle',
+    error: null
+  });
+  
+  const [wasmModule, setWasmModule] = useState<SearchWasm | null>(null);
+  const [indexData, setIndexData] = useState<Uint8Array | null>(null);
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
+  const [showResults, setShowResults] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  
+  // 无限滚动状态
+  const [allItems, setAllItems] = useState<SearchResultItem[]>([]);
+  const [hasMoreResults, setHasMoreResults] = useState<boolean>(true);
+  
+  // 合并内联建议相关状态
+  const [inlineSuggestion, setInlineSuggestion] = useState<InlineSuggestionState>({
+    text: "",
+    visible: false,
+    caretPosition: 0,
+    selection: {start: 0, end: 0},
+    type: 'completion',
+    matchedText: "",
+    suggestionText: ""
+  });
+  
+  // 添加当前选中建议的索引
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number>(0);
+
+  // refs
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const inlineSuggestionRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // 辅助函数 - 从loadingState获取各种加载状态 
+  const isLoading = loadingState.status === 'loading_search';
+  const isLoadingIndex = loadingState.status === 'loading_index';
+  const isLoadingMore = loadingState.status === 'loading_more';
+  const error = loadingState.error;
+  const isIndexLoaded = indexData !== null;
+
+  // 加载 WASM 模块
+  useEffect(() => {
+    const loadWasmModule = async () => {
+      try {
+        setLoadingState(prev => ({ ...prev, status: 'loading_index' }));
+        
+        const wasm = await import("@/assets/wasm/search/search_wasm.js");
+        
+        if (typeof wasm.default === "function") {
+          await wasm.default();
+        }
+        
+        setWasmModule(wasm as unknown as SearchWasm);
+      } catch (err) {
+        console.error("加载搜索WASM模块失败:", err);
+        setLoadingState({
+          status: 'error',
+          error: `无法加载搜索模块: ${err instanceof Error ? err.message : String(err)}`
+        });
+      }
+    };
+
+    loadWasmModule();
+  }, []);
+
+  // 加载搜索索引
+  useEffect(() => {
+    if (!wasmModule) return;
+
+    const loadSearchIndex = async () => {
+      try {
+        setLoadingState(prev => ({ ...prev, status: 'loading_index' }));
+        
+        const response = await fetch("/index/search_index.bin");
+        if (!response.ok) {
+          throw new Error(`获取搜索索引失败: ${response.statusText}`);
+        }
+
+        const indexBuffer = await response.arrayBuffer();
+        const data = new Uint8Array(indexBuffer);
+        
+        setIndexData(data);
+        setLoadingState(prev => ({ ...prev, status: 'success' }));
+      } catch (err) {
+        console.error("搜索索引加载失败:", err);
+        setLoadingState({
+          status: 'error',
+          error: `无法加载搜索索引: ${err instanceof Error ? err.message : String(err)}`
+        });
+      }
+    };
+
+    loadSearchIndex();
+  }, [wasmModule]);
+
+  // 监听窗口大小变化，确保内联建议位置正确
+  useEffect(() => {
+    const handleResize = () => {
+      if (searchInputRef.current && inlineSuggestionRef.current) {
+        // 重新计算内联建议的位置
+        const inputRect = searchInputRef.current.getBoundingClientRect();
+        if (inlineSuggestionRef.current) {
+          inlineSuggestionRef.current.style.width = `${inputRect.width}px`;
+          inlineSuggestionRef.current.style.height = `${inputRect.height}px`;
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // 处理点击外部关闭搜索结果和建议
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchResultsRef.current && 
+        !searchResultsRef.current.contains(event.target as Node) &&
+        searchInputRef.current &&
+        !searchInputRef.current.contains(event.target as Node)
+      ) {
+        setShowResults(false);
+        setInlineSuggestion(prev => ({ ...prev, visible: false })); // 也隐藏内联建议
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // 确保在组件挂载和更新时内联建议的样式与输入框一致
+  useEffect(() => {
+    if (inlineSuggestion.visible && inlineSuggestionRef.current && searchInputRef.current) {
+      const inputStyle = window.getComputedStyle(searchInputRef.current);
+      const suggestionEl = inlineSuggestionRef.current;
+      
+      // 设置样式以匹配输入框
+      suggestionEl.style.fontFamily = inputStyle.fontFamily;
+      suggestionEl.style.fontSize = inputStyle.fontSize;
+      suggestionEl.style.fontWeight = inputStyle.fontWeight;
+      suggestionEl.style.letterSpacing = inputStyle.letterSpacing;
+      suggestionEl.style.lineHeight = inputStyle.lineHeight;
+    }
+  }, [inlineSuggestion.visible, query]);
+
+  // 确保当用户离开页面时清理所有定时器
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, []);
+
+  // 内联建议函数 - 整合获取和管理内联建议的逻辑
+  const fetchSuggestions = useCallback(async (searchQuery: string) => {
+    // 如果查询为空或WASM模块未加载，不获取建议
+    if (!searchQuery.trim() || !wasmModule || !isIndexLoaded || !indexData) {
+      setSuggestions([]);
+      setInlineSuggestion(prev => ({ ...prev, visible: false }));
+      setSelectedSuggestionIndex(0); // 重置选中索引
+      return;
+    }
+
+    try {
+      // 获取内联建议请求
+      const req = {
+        query: searchQuery,
+        search_type: "autocomplete",
+        page_size: 10,
+        page: 1
+      };
+
+      const result = wasmModule.search_articles(indexData, JSON.stringify(req));
+      if (!result || result.trim() === "") {
+        setSuggestions([]);
+        setInlineSuggestion(prev => ({ ...prev, visible: false }));
+        setSelectedSuggestionIndex(0); // 重置选中索引
+        return;
+      }
+      
+      const searchResult = JSON.parse(result) as SearchResult;
+      
+      // 确保有suggestions字段且是数组
+      if (!searchResult?.suggestions || !Array.isArray(searchResult.suggestions) || searchResult.suggestions.length === 0) {
+        setSuggestions([]);
+        setInlineSuggestion(prev => ({ ...prev, visible: false }));
+        setSelectedSuggestionIndex(0); // 重置选中索引
+        return;
+      }
+      
+      // 将新的建议格式转换为前端显示所需格式
+      const simplifiedSuggestions = searchResult.suggestions.map(sug => sug.text);
+      setSuggestions(simplifiedSuggestions);
+      
+      // 重置选中索引
+      setSelectedSuggestionIndex(0);
+      
+      // 只有当查询不为空并且有建议时才设置内联建议
+      const firstSuggestion = searchResult.suggestions[0];
+      
+      if (firstSuggestion) {
+        setInlineSuggestion(prev => ({
+          ...prev,
+          text: firstSuggestion.text,
+          visible: true,
+          type: firstSuggestion.suggestion_type,
+          matchedText: firstSuggestion.matched_text,
+          suggestionText: firstSuggestion.suggestion_text
+        }));
+      } else {
+        // 没有任何建议
+        setInlineSuggestion(prev => ({ ...prev, visible: false }));
+      }
+    } catch (err) {
+      console.error("获取内联建议失败:", err);
+      setInlineSuggestion(prev => ({ ...prev, visible: false }));
+      setSelectedSuggestionIndex(0); // 重置选中索引
+    }
+  }, [wasmModule, isIndexLoaded, indexData]);
+
+  // 更新输入框光标位置
+  const updateCaretPosition = useCallback(() => {
+    if (searchInputRef.current) {
+      const pos = searchInputRef.current.selectionStart || 0;
+      setInlineSuggestion(prev => ({
+        ...prev,
+        caretPosition: pos,
+        selection: {
+          start: searchInputRef.current?.selectionStart || 0,
+          end: searchInputRef.current?.selectionEnd || 0
+        }
+      }));
+    }
+  }, []);
+
+  // 更新选中的建议
+  const updateSelectedSuggestion = (index: number) => {
+    if (!suggestions || suggestions.length === 0) return;
+    
+    // 确保索引在合法范围内
+    const newIndex = Math.max(0, Math.min(index, suggestions.length - 1));
+    setSelectedSuggestionIndex(newIndex);
+    
+    // 根据索引更新当前显示的建议
+    const selectedSuggestion = suggestions[newIndex];
+    
+    if (selectedSuggestion) {
+      // 找到对应的完整建议对象以获取所有属性
+      let suggestionType: SuggestionType = 'completion';
+      let matchedText = '';
+      let suggestionText = '';
+      
+      // 尝试获取完整的建议对象
+      if (searchResults?.suggestions && searchResults.suggestions.length > 0) {
+        const fullSuggestion = searchResults.suggestions.find(s => s.text === selectedSuggestion);
+        if (fullSuggestion) {
+          suggestionType = fullSuggestion.suggestion_type;
+          matchedText = fullSuggestion.matched_text;
+          suggestionText = fullSuggestion.suggestion_text;
+        } else {
+          // 如果找不到完整对象，进行基本推断
+          matchedText = query;
+          suggestionText = selectedSuggestion.slice(query.length);
+        }
+      } else {
+        // 基本推断
+        matchedText = query;
+        suggestionText = selectedSuggestion.slice(query.length);
+      }
+      
+      setInlineSuggestion(prev => ({
+        ...prev,
+        text: selectedSuggestion,
+        visible: true,
+        type: suggestionType,
+        matchedText: matchedText,
+        suggestionText: suggestionText
+      }));
+    }
+  };
+
+  // 修改处理键盘导航的函数，增加上下箭头键切换建议
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Tab键处理内联建议补全
+    if (e.key === "Tab" && inlineSuggestion.visible && inlineSuggestion.text) {
+      e.preventDefault(); // 阻止默认的Tab行为
+      completeInlineSuggestion();
+      return;
+    }
+
+    // 处理上下箭头切换建议
+    if ((e.key === "ArrowUp" || e.key === "ArrowDown") && suggestions.length > 0) {
+      e.preventDefault(); // 阻止默认的光标移动
+      
+      // 如果当前没有显示建议，先显示
+      if (!inlineSuggestion.visible) {
+        setInlineSuggestion(prev => ({ ...prev, visible: true }));
+      }
+      
+      // 根据按键更新选中的建议索引
+      if (e.key === "ArrowUp") {
+        // 向上移动，索引减1，如果到达顶部则循环到底部
+        const newIndex = selectedSuggestionIndex <= 0 ? suggestions.length - 1 : selectedSuggestionIndex - 1;
+        updateSelectedSuggestion(newIndex);
+      } else {
+        // 向下移动，索引加1，如果到达底部则循环到顶部
+        const newIndex = selectedSuggestionIndex >= suggestions.length - 1 ? 0 : selectedSuggestionIndex + 1;
+        updateSelectedSuggestion(newIndex);
+      }
+      return;
+    }
+
+    // 如果有内联建议并且按下右箭头键且光标在输入的末尾，完成建议
+    if (e.key === "ArrowRight" && inlineSuggestion.visible && inlineSuggestion.text) {
+      const input = e.currentTarget;
+      if (input.selectionStart === input.value.length && input.selectionEnd === input.value.length) {
+        e.preventDefault();
+        completeInlineSuggestion();
+        return;
+      }
+    }
+
+    // 如果按Esc键，清除内联建议
+    if (e.key === "Escape") {
+      if (inlineSuggestion.visible) {
+        e.preventDefault();
+        setInlineSuggestion(prev => ({ ...prev, visible: false }));
+        return;
+      }
+      
+      // 如果显示搜索结果，则关闭搜索结果
+      if (showResults) {
+        setShowResults(false);
+        return;
+      }
+    }
+
+    // 回车键直接执行搜索
+    if (e.key === "Enter") {
+      e.preventDefault();
+      performSearch(query, false);
+    }
+  };
+
+  // 处理搜索输入变化，先获取建议，然后执行搜索
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+
+    // 清除之前的所有定时器
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+
+    // 如果搜索框为空，清除所有结果和建议
+    if (!value.trim()) {
+      setSearchResults(null);
+      setAllItems([]);
+      setSuggestions([]);
+      setInlineSuggestion(prev => ({ ...prev, visible: false }));
+      setSelectedSuggestionIndex(0); // 重置选中索引
+      setShowResults(false);
+      return;
+    }
+
+    // 立即获取内联建议
+    fetchSuggestions(value);
+    
+    // 立即执行搜索，不再使用定时器延迟
+    performSearch(value, false);
+  };
+
+  // 监控输入框选择状态变化
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      if (document.activeElement === searchInputRef.current) {
+        updateCaretPosition();
+      }
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange, { passive: true });
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, [updateCaretPosition]);
+
+  // 自动补全内联建议
+  const completeInlineSuggestion = () => {
+    if (inlineSuggestion.visible && inlineSuggestion.text) {
+      // 保存建议文本
+      const suggestionText = inlineSuggestion.text;
+      const isCorrection = inlineSuggestion.type === 'correction';
+      
+      // 完全清除内联建议状态
+      setInlineSuggestion({
+        text: "",
+        visible: false,
+        caretPosition: 0,
+        selection: {start: 0, end: 0},
+        type: 'completion',
+        matchedText: "",
+        suggestionText: ""
+      });
+      
+      // 设置完整的建议作为新的查询
+      setQuery(suggestionText);
+      
+      // 将光标移到末尾并执行搜索
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+          searchInputRef.current.setSelectionRange(
+            suggestionText.length, 
+            suggestionText.length
+          );
+        }
+        
+        // 直接使用suggestionText执行搜索，而不是依赖query状态
+        // 因为React状态更新是异步的，此时query可能还未更新
+        performSearch(suggestionText, false);
+      }, 0);
+    }
+  };
+
+  // 执行搜索
+  const performSearch = async (searchQuery: string, isLoadMore: boolean = false) => {
+    if (!wasmModule || !isIndexLoaded || !indexData || !searchQuery.trim()) {
+      return;
+    }
+
+    try {
+      const page = isLoadMore ? currentPage : 1;
+      
+      if (isLoadMore) {
+        setLoadingState(prev => ({ ...prev, status: 'loading_more' }));
+      } else {
+        setLoadingState(prev => ({ ...prev, status: 'loading_search' }));
+        setAllItems([]); // 清空之前的所有结果
+        setCurrentPage(1); // 重置页码
+      }
+
+      const req = {
+        query: searchQuery,
+        page_size: maxResults,
+        page: page,
+        search_type: "normal"
+      };
+
+      const resultJson = wasmModule.search_articles(indexData, JSON.stringify(req));
+      
+      if (!resultJson || resultJson.trim() === "") {
+        console.error("返回的搜索结果为空");
+        setLoadingState({
+          status: 'error',
+          error: "搜索返回结果为空"
+        });
+        return;
+      }
+      
+      const result = JSON.parse(resultJson) as SearchResult;
+      
+      // 预处理搜索结果
+      for (const item of result.items) {
+        if (item.heading_tree) {
+          processHeadingTreeContent(item.heading_tree);
+        }
+      }
+      
+      // 更新搜索结果状态
+      if (isLoadMore) {
+        setAllItems(prevItems => [...prevItems, ...result.items]);
+      } else {
+        setAllItems(result.items);
+      }
+      
+      setSearchResults(result);
+      setShowResults(true);
+      
+      // 检查是否还有更多页
+      const hasMore = page < result.total_pages;
+      setHasMoreResults(hasMore);
+      
+      // 如果是加载更多，则更新页码
+      if (isLoadMore && hasMore) {
+        setCurrentPage(page + 1);
+      }
+      
+      // 更新加载状态
+      setLoadingState(prev => ({ ...prev, status: 'success' }));
+    } catch (err) {
+      console.error("搜索执行失败:", err);
+      setLoadingState({
+        status: 'error',
+        error: `搜索执行时出错: ${err instanceof Error ? err.message : String(err)}`
+      });
+    }
+  };
+  
+  // 高亮显示匹配文本 - 不再处理高亮，完全依赖后端
+  const processHighlightedContent = (content: string) => {
+    // 检查内容是否为空
+    if (!content || content.trim() === '') {
+      return '';
+    }
+    
+    // 内容完全由后端处理，前端不再添加任何高亮标记
+    // 直接返回后端提供的内容，假设已经包含了适当的高亮标记
+    return content;
+  };
+  
+  // 递归处理标题树中的内容
+  const processHeadingTreeContent = (node: HeadingNode) => {
+    // 处理当前节点的内容
+    if (node.content) {
+      node.content = processHighlightedContent(node.content);
+    }
+    
+    // 递归处理子节点
+    for (const child of node.children) {
+      processHeadingTreeContent(child);
+    }
+  };
+
+  // 处理提交搜索
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    performSearch(query, false); // 传入false表示不是加载更多
+  };
+
+  // 加载更多结果
+  const loadMoreResults = () => {
+    if (!isLoadingMore && hasMoreResults && query.trim()) {
+      performSearch(query, true);
+    }
+  };
+
+  // 设置Intersection Observer来检测何时需要加载更多结果
+  useEffect(() => {
+    // 清除之前的观察器
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    if (!loadMoreRef.current || !hasMoreResults) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoadingMore && hasMoreResults) {
+          loadMoreResults();
+        }
+      },
+      { rootMargin: '100px' } // 提前100px触发
+    );
+
+    observer.observe(loadMoreRef.current);
+    observerRef.current = observer;
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loadMoreRef.current, hasMoreResults, isLoadingMore, query]);
+
+  // 输入框获焦时处理
+  const handleInputFocus = () => {
+    updateCaretPosition();
+    
+    // 如果有查询内容，重新显示内联建议
+    if (query.trim() && inlineSuggestion.text) {
+      setInlineSuggestion(prev => ({ ...prev, visible: true }));
+    }
+    
+    // 如果已有搜索结果，显示结果区域
+    if (searchResults) {
+      setShowResults(true);
+    }
+    
+    // 如果有查询但没有内联建议，重新获取
+    if (query.trim() && !inlineSuggestion.text) {
+      fetchSuggestions(query);
+    }
+  };
+
+  // 修改内联建议的样式，确保正确显示
+  const getInlineSuggestionStyle = () => {
+    const inputElement = searchInputRef.current;
+    if (!inputElement) {
+      return {};
+    }
+    
+    const computedStyle = window.getComputedStyle(inputElement);
+    const styleObj = {
+      fontFamily: computedStyle.fontFamily,
+      fontSize: computedStyle.fontSize,
+      fontWeight: computedStyle.fontWeight,
+      letterSpacing: computedStyle.letterSpacing,
+      lineHeight: computedStyle.lineHeight,
+      // 不直接设置padding，让内部元素自己控制位置
+      boxSizing: 'border-box',
+      width: '100%',
+      backgroundColor: 'transparent',
+      pointerEvents: 'none'
+    };
+    
+    return styleObj;
+  };
+
+  // 确保内联建议样式与输入框一致的副作用
+  useEffect(() => {
+    if (inlineSuggestion.visible && inlineSuggestionRef.current && searchInputRef.current) {
+      const updateSuggestionStyles = () => {
+        const inputStyle = window.getComputedStyle(searchInputRef.current!);
+        const suggestionEl = inlineSuggestionRef.current!;
+        
+        // 设置样式以完全匹配输入框
+        suggestionEl.style.fontFamily = inputStyle.fontFamily;
+        suggestionEl.style.fontSize = inputStyle.fontSize;
+        suggestionEl.style.fontWeight = inputStyle.fontWeight;
+        suggestionEl.style.letterSpacing = inputStyle.letterSpacing;
+        suggestionEl.style.lineHeight = inputStyle.lineHeight;
+      };
+      
+      updateSuggestionStyles();
+      
+      // 监听窗口大小变化，确保响应式字体大小可以正确应用
+      const resizeObserver = new ResizeObserver(updateSuggestionStyles);
+      resizeObserver.observe(searchInputRef.current);
+      
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+  }, [inlineSuggestion.visible, query]);
+
+  // 清除搜索
+  const clearSearch = () => {
+    setQuery("");
+    setSearchResults(null);
+    setAllItems([]);
+    setSuggestions([]);
+    setInlineSuggestion({
+      text: "",
+      visible: false,
+      caretPosition: 0,
+      selection: {start: 0, end: 0},
+      type: 'completion',
+      matchedText: "",
+      suggestionText: ""
+    });
+    setShowResults(false);
+    setCurrentPage(1);
+    setHasMoreResults(true);
+    
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  };
+
+  // 检查焦点状态
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    const checkFocus = () => {
+      if (document.activeElement === searchInputRef.current) {
+        if (!isFocused) {
+          setIsFocused(true);
+        }
+      } else {
+        if (isFocused) {
+          setIsFocused(false);
+        }
+      }
+    };
+    
+    window.addEventListener('focus', checkFocus, { passive: true, capture: true });
+    window.addEventListener('blur', checkFocus, { passive: true, capture: true });
+    
+    return () => {
+      window.removeEventListener('focus', checkFocus, { capture: true });
+      window.removeEventListener('blur', checkFocus, { capture: true });
+    };
+  }, [isFocused]);
+  
+  // 处理Tab键盘事件
+  useEffect(() => {
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && document.activeElement === searchInputRef.current && inlineSuggestion.visible) {
+        e.preventDefault();
+        completeInlineSuggestion();
+      }
+    };
+    
+    document.addEventListener('keydown', handleTabKey);
+    
+    return () => {
+      document.removeEventListener('keydown', handleTabKey);
+    };
+  }, [inlineSuggestion.visible, completeInlineSuggestion]);
+
+  // 获取当前placeholder文本
+  const getCurrentPlaceholder = () => {
+    if (isLoadingIndex) {
+      return "正在加载搜索索引...";
+    } else if (error) {
+      return "加载搜索索引失败";
+    }
+    return placeholder; // 默认占位符
+  };
+
+  // 递归渲染标题树
+  const renderHeadingTree = (node: HeadingNode, index: number, depth: number = 0) => {
+    // 判断是否为根节点（根据ID或level来判断）
+    const isRootNode = node.id.endsWith(':root') || node.level === 0;
+    
+    // 检查节点内容是否有匹配
+    const hasContent = !!node.content;
+    
+    // 判断是否有子节点
+    const hasChildren = node.children.length > 0;
+    
+    // 递归检查子节点是否包含匹配内容
+    const hasMatchInChildren = hasChildren && node.children.some(child => {
+      if (child.content) return true;
+      if (child.children.length === 0) return false;
+      
+      // 递归检查子节点的子节点
+      return child.children.some(grandchild => {
+        // 递归检查所有层级
+        const checkNodeContent = (n: HeadingNode): boolean => {
+          if (n.content) return true;
+          return n.children.some(c => checkNodeContent(c));
+        };
+        
+        return checkNodeContent(grandchild);
+      });
+    });
+    
+    // 如果当前节点和其子树都没有匹配内容，则不渲染
+    if (!hasContent && !hasMatchInChildren) {
+      return null;
+    }
+    
+    // 决定是否显示当前节点的内容
+    const shouldShowContent = hasContent && (!isRootNode || !hasMatchInChildren);
+
+    // 为递增的深度应用适当的缩进类
+    const indentClass = depth > 0 ? `ml-${Math.min(depth * 2, 8)}` : '';
+    
+    // 过滤子节点 - 在这里直接内联过滤逻辑，不使用单独的函数
+    const filteredChildren = hasChildren ? node.children.filter(child => {
+      // 如果子节点有内容，保留
+      if (child.content) return true;
+      
+      // 递归检查子节点的子节点
+      const checkChildContent = (n: HeadingNode): boolean => {
+        if (n.content) return true;
+        return n.children.some(c => checkChildContent(c));
+      };
+      
+      // 如果子节点的子树有内容，保留
+      return child.children.some(grandchild => checkChildContent(grandchild));
+    }) : [];
+    
+    return (
+      <div key={`${node.id}-${index}`} className={indentClass}>
+        {/* 只渲染非根节点的标题 */}
+        {node.level > 0 && (
+          <div className={`text-xs font-medium text-primary-600 dark:text-primary-400 mb-1 ${depth > 0 ? 'mt-2' : ''} break-words [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800`}>
+            <span dangerouslySetInnerHTML={{ __html: node.text }} />
+          </div>
+        )}
+        
+        {/* 渲染当前节点的匹配内容 */}
+        {shouldShowContent && (
+          <div className="border-l-2 border-primary-500 pl-2 py-1 mb-2">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1 [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800 break-words">
+              <div dangerouslySetInnerHTML={{
+                __html: node.content || ''
+              }} />
+            </div>
+          </div>
+        )}
+        
+        {/* 递归渲染过滤后的子节点 */}
+        {filteredChildren.length > 0 && (
+          <div className="pl-2">
+            {filteredChildren.map((child, childIndex) => (
+              renderHeadingTree(child, childIndex, depth + 1)
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 渲染搜索结果
+  const renderSearchResults = () => {
+    // 只有在显示结果标志为true且有结果时才显示结果
+    if (!showResults || !searchResults) {
+      return null;
+    }
+
+    const { total, time_ms } = searchResults;
+
+    return (
+      <div 
+        ref={searchResultsRef} 
+        className="absolute z-40 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-96 overflow-y-auto"
+      >
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              找到 {total} 条结果 ({time_ms / 1000} 秒)
+            </div>
+          </div>
+
+          {allItems.length > 0 ? (
+            <ul className="space-y-4">
+              {allItems.map((item, index) => (
+                <li key={`${item.id}-${index}`} className="border-b border-gray-200/70 dark:border-gray-700/40 pb-4 last:border-0 last:pb-0">
+                  <a 
+                    href={item.url} 
+                    className="group block hover:bg-primary-200/80 dark:hover:bg-primary-800/20 hover:shadow-md rounded-lg transition-all duration-200 ease-in-out p-2 -m-2 border border-transparent hover:border-primary-300/60 dark:hover:border-primary-700/30"
+                  >
+                    <div className="flex items-start">
+                      <div className="flex-grow min-w-0">
+                        <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200 break-words [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800">
+                          <span dangerouslySetInnerHTML={{ __html: item.title }} />
+                        </h3>
+                        
+                        {/* 渲染标题树和匹配内容 */}
+                        <div className="mt-1 space-y-1">
+                          {item.heading_tree ? (
+                            renderHeadingTree(item.heading_tree, index)
+                          ) : (
+                            <div className="text-sm text-gray-600 dark:text-gray-400 break-words">
+                              {item.summary}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-gray-500 dark:text-gray-400">没有找到相关结果</p>
+            </div>
+          )}
+
+          {/* 加载更多触发元素 */}
+          {hasMoreResults && (
+            <div 
+              ref={loadMoreRef} 
+              className="text-center py-4 mt-2"
+            >
+              {isLoadingMore ? (
+                <div className="flex justify-center items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-600 border-t-transparent"></div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">加载更多结果...</span>
+                </div>
+              ) : (
+                <div className="h-6"></div> // 占位元素，用于触发交叉观察器
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // 渲染结束
+  const returnBlock = (
+    <div className="relative [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800">
+      <form onSubmit={handleSubmit} className="relative">
+        <div className="relative">
+          {/* 实际输入框 */}
+          <input
+            ref={searchInputRef}
+            type="text"
+            id="search-input"
+            name="search-query"
+            value={query}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onClick={updateCaretPosition}
+            onSelect={updateCaretPosition}
+            onFocus={handleInputFocus}
+            placeholder={getCurrentPlaceholder()}
+            className="w-full py-1.5 md:py-1.5 lg:py-2.5 pl-8 md:pl-8 lg:pl-10 pr-8 md:pr-8 lg:pr-10 text-sm md:text-sm lg:text-base bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg md:rounded-lg lg:rounded-xl text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-transparent focus:shadow-md transition-all duration-200 relative z-10"
+            disabled={isLoadingIndex || !isIndexLoaded}
+            style={{ backgroundColor: 'transparent' }} // 确保背景是透明的，这样可以看到下面的建议
+          />
+          
+          {/* 内联建议显示层 - 精确定位以匹配输入框 */}
+          {inlineSuggestion.visible && inlineSuggestion.text && query.length > 0 && (
+            <div 
+              ref={inlineSuggestionRef}
+              className="absolute left-0 top-0 w-full h-full pointer-events-none flex items-center overflow-hidden"
+              style={{
+                ...getInlineSuggestionStyle(),
+                zIndex: 5 // 确保在输入框下面但在其他元素上面
+              }}
+            >
+              {/* 修改显示方式，确保与输入文本对齐，同时支持响应式布局 */}
+              <div className="flex w-full px-8 md:px-8 lg:px-10 overflow-hidden"> {/* 使用与输入框相同的水平内边距，添加溢出隐藏 */}
+                {/* 纠正建议和补全建议都显示在已输入内容的右侧 */}
+                <>
+                  {/* 创建与输入文本宽度完全相等的不可见占位 */}
+                  <div className="flex-shrink-0">
+                    <span className="invisible whitespace-pre text-sm md:text-sm lg:text-base">{query}</span>
+                  </div>
+                  {/* 显示建议的剩余部分 */}
+                  <div className="flex-shrink-0 max-w-[70%]">
+                    <span 
+                      className={`whitespace-pre text-sm md:text-sm lg:text-base truncate block ${
+                        inlineSuggestion.type === 'correction' 
+                          ? 'text-amber-500/80 dark:text-amber-400/80 ml-1' 
+                          : 'text-gray-400/70 dark:text-gray-500/70'
+                      }`}
+                      style={{ 
+                        fontWeight: 'bold',
+                        marginLeft: inlineSuggestion.type === 'completion' ? '0px' : undefined,
+                      }}
+                    >
+                      {inlineSuggestion.suggestionText}
+                    </span>
+                  </div>
+                </>
+              </div>
+            </div>
+          )}
+          
+          {/* 搜索图标 */}
+          <div className="absolute left-2.5 md:left-2.5 left-3.5 top-1/2 transform -translate-y-1/2 z-20">
+            <svg className="h-3.5 w-3.5 md:h-3.5 md:w-3.5 h-4.5 w-4.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          
+          {/* 加载指示器或清除按钮 */}
+          <div className="absolute right-2.5 md:right-2.5 right-3.5 top-1/2 transform -translate-y-1/2 z-20 flex items-center">
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-3.5 w-3.5 md:h-3.5 md:w-3.5 h-4.5 w-4.5 border-2 border-primary-600 border-t-transparent"></div>
+            ) : query ? (
+              <>
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center p-1 -m-1"
+                  title="清除搜索"
+                >
+                  <svg className="h-3.5 w-3.5 md:h-3.5 md:w-3.5 h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                {inlineSuggestion.visible && inlineSuggestion.text && (
+                  <div 
+                    className="text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center cursor-pointer p-1  ml-1" 
+                    title="按Tab键补全"
+                    onClick={completeInlineSuggestion}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        completeInlineSuggestion();
+                      }
+                    }}
+                  >
+                    <div className="border border-current rounded px-1 py-px text-[8px] md:text-[8px] leading-none font-semibold flex items-center justify-center">
+                      TAB
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : error ? (
+              <div className="flex items-center">
+                <div className="rounded-full h-2 w-2 md:h-2 md:w-2 h-3 w-3 bg-red-500 shadow-sm shadow-red-500/50"></div>
+              </div>
+            ) : isLoadingIndex ? (
+              <div className="flex items-center">
+                <div className="animate-pulse rounded-full h-2 w-2 md:h-2 md:w-2 h-3 w-3 bg-yellow-500 shadow-sm shadow-yellow-500/50"></div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </form>
+      
+      {/* 搜索结果 */}
+      {renderSearchResults()}
+    </div>
+  );
+
+  return returnBlock;
+};
+
+export default Search; 

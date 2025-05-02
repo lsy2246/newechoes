@@ -1,15 +1,19 @@
 ---
 import Layout from "@/components/Layout.astro";
 import MediaGrid from "@/components/MediaGrid.tsx";
-import { SITE_NAME, DOUBAN_ID } from "@/consts.ts";
+import { DOUBAN_ID } from "@/consts.ts";
 ---
 
-<Layout title={`电影`}>
+<Layout
+  title={`电影`}
+  description={`我看过的一些电影`}
+  skipSrTitle={false}
+>
+  <h1 class="text-3xl font-bold mb-6">我看过的电影</h1>
+
   <MediaGrid
     type="movie"
-    title="我看过的电影"
     doubanId={DOUBAN_ID}
     client:load
   />
 </Layout>
-

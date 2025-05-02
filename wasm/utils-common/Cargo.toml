@@ -1,0 +1,15 @@
+[package]
+name = "utils-common"
+version = "0.1.0"
+edition = "2021"
+description = "Common utilities for article processing WASM modules"
+
+[dependencies]
+serde = { workspace = true }
+chrono = { workspace = true }
+bincode = { workspace = true }
+flate2 = { workspace = true }
+# 这些依赖是压缩和序列化功能所必需的
+
+[lib]
+crate-type = ["rlib"] 

@@ -4,7 +4,7 @@ date: 2025-03-09T01:07:23Z
 tags: []
 ---
 
-这是一个基于 Astro + React 构建的个人博客系统，具有文章管理、项目展示、观影记录、读书记录等功能。本文将详细介绍如何使用和配置这个博客系统。
+这是一个基于 Astro + React + WASM 构建的个人博客系统，具有文章管理、项目展示、观影记录、读书记录等功能。本文将详细介绍如何使用和配置这个博客系统。
 
 ## 功能特点
 
@@ -14,8 +14,12 @@ tags: []
 4. **项目展示**：支持展示 GitHub、Gitea 和 Gitee 的项目
 5. **观影记录**：集成豆瓣观影数据
 6. **读书记录**：集成豆瓣读书数据
-7. **旅行足迹**：支持展示全球旅行足迹热力图
+7. **旅行足迹**：支持展示全球旅行足迹热力图，WebAssembly 解析地图数据，提高性能
 8. **丝滑页面过渡**：使用 Swup 集成实现页面间无缝过渡动画，提供类似 SPA 的浏览体验，保留静态站点的所有优势
+9. **高效搜索与筛选**：使用 Rust 构建二进制数据，WebAssembly 高效解析，提供快速精准的全文搜索体验
+10. **优化代码块样式**：支持 Mermaid 图表解析，多主题代码高亮
+11. **优化 SEO**：完整的元数据支持，内置性能优化
+12. **资源压缩**：支持图片和静态资源压缩，提高加载速度
 
 ## 基础配置
 
@@ -27,14 +31,37 @@ export const SITE_URL = "https://your-domain.com";
 export const SITE_NAME = "你的网站名称";
 export const SITE_DESCRIPTION = "网站描述";
 
-// 导航链接
-export const NAV_LINKS = [
-  { href: "/", text: "首页" },
-  { href: "/articles", text: "文章" },
-  { href: "/movies", text: "观影" },
-  { href: "/books", text: "读书" },
-  { href: "/projects", text: "项目" },
-  { href: "/other", text: "其他" },
+// 导航链接结构 - 支持分层导航
+export const NAV_STRUCTURE = [
+    {
+        id: 'home',
+        text: '首页',
+        href: '/'
+    },
+    {
+        id: 'douban',
+        text: '豆瓣',
+        items: [
+            { id: 'movies', text: '观影', href: '/movies' },
+            { id: 'books', text: '读书', href: '/books' }
+        ]
+    },
+    {
+        id: 'articles',
+        text: '文章',
+        items: [
+            { id: 'filter', text: '筛选', href: '/filtered' },
+            { id: 'path', text: '文章', href: '/articles' }
+        ]
+    },
+    {
+        id: 'others',
+        text: '其他',
+        items: [
+            { id: 'other', text: '其他', href: '/other' },
+            { id: 'projects', text: '项目', href: '/projects' }
+        ]
+    }
 ];
 
 // 备案信息（如果需要）
@@ -105,15 +132,6 @@ export const ARTICLE_EXPIRY_CONFIG = {
 };
 ```
 
-### 文章列表展示
-
-文章列表页面会自动获取所有文章并按日期排序展示，支持：
-
-- 文章标题和摘要
-- 发布日期
-- 标签系统
-- 阅读时间估算
-
 ## 项目展示
 
 项目展示页面支持从 GitHub、Gitea 和 Gitee 获取和展示项目信息。
@@ -147,7 +165,7 @@ import { GitPlatform } from '@/components/GitProjectCollection';
 
 `MediaGrid` 组件用于展示豆瓣的观影和读书记录。
 
-基本用法
+基本用法：
 
 ```astro
 ---
@@ -169,13 +187,11 @@ import MediaGrid from '@/components/MediaGrid.astro';
 />
 ```
 
-## 旅行足迹
-
-### WorldHeatmap 组件
+## 旅行足迹组件
 
 `WorldHeatmap` 组件用于展示你去过的地方，以热力图的形式在世界地图上显示。
 
-基本用法
+基本用法：
 
 在 `src/consts.ts` 中配置你去过的地方：
 
@@ -215,6 +231,57 @@ import { VISITED_PLACES } from '@/consts';
 </Layout>
 ```
 
+## 代码块与 Mermaid 图表支持
+
+博客系统现在支持丰富的代码块样式和 Mermaid 图表渲染：
+
+### Mermaid 图表支持
+
+你可以在 Markdown 文件中使用 Mermaid 语法创建各种图表：
+
+````markdown
+```mermaid
+graph TD;
+    A[开始] -->|处理数据| B(处理结果);
+    B --> C{判断条件};
+    C -->|条件1| D[结果1];
+    C -->|条件2| E[结果2];
+```
+````
+
+系统将自动渲染这些图表，并支持深色/浅色主题自动适应。
+
+### 代码块样式优化
+
+代码块支持多种主题和语言高亮，内置了复制按钮：
+
+````markdown
+```javascript
+// 示例代码
+function example() {
+  console.log("Hello, world!");
+}
+```
+````
+
+## SEO 优化
+
+博客系统内置全面的SEO优化支持：
+
+1. **自动生成元标签**：为每个页面生成适当的标题、描述和Open Graph标签
+2. **结构化数据**：支持添加结构化数据，提高搜索引擎理解能力
+3. **站点地图**：自动生成XML站点地图
+4. **性能优化**：页面加载性能优化，提高搜索排名
+
+## 资源压缩与优化
+
+系统支持自动的资源压缩和优化：
+
+1. **图片优化**：自动压缩和优化图片，支持WebP格式
+2. **CSS/JS压缩**：自动压缩CSS和JavaScript文件
+3. **预加载关键资源**：识别并预加载关键资源
+4. **延迟加载非关键资源**：非关键资源延迟加载，提高初始加载速度
+
 ## 主题切换
 
 系统支持三种主题模式：
@@ -225,12 +292,51 @@ import { VISITED_PLACES } from '@/consts';
 
 主题设置会被保存在浏览器的 localStorage 中。
 
+## 高效搜索与筛选
+
+博客系统使用 Rust 构建二进制数据，结合 WebAssembly 高效解析，提供快速的全文搜索和筛选功能。
+
+### 搜索功能特点
+
+1. **高性能全文搜索**：使用 Rust 编写的搜索引擎，编译为 WebAssembly 在浏览器中运行
+2. **智能搜索推荐**：输入时提供智能搜索建议和自动补全
+3. **拼写纠正**：当用户输入可能存在错误时，提供拼写纠正建议
+4. **结构化搜索结果**：按标题、内容层次展示匹配内容
+5. **高亮显示匹配文本**：直观显示匹配位置
+6. **Tab键补全**：支持使用Tab键快速补全搜索建议
+
+### 搜索建议类型
+
+1. **自动补全（Completion）**：当您输入部分词语时，系统会提供以此开头的完整词语或短语
+   - 例如：输入"reac"时，可能会建议"react"、"reactjs"等
+
+2. **拼写纠正（Correction）**：当您的输入可能有拼写错误时，系统会提供更可能的正确拼写
+   - 例如：输入"javascritp"时，会提示"javascript"
+
+### 搜索操作指南
+
+1. **键盘导航**：
+   - 使用上下箭头键在搜索建议之间切换
+   - 使用Tab键或右箭头键接受当前建议
+   - 使用Enter键执行搜索
+
+2. **建议交互**：
+   - 系统会实时显示最相关的建议
+   - 建议会以淡色显示在您的输入文本后面
+   - 补全建议使用灰色显示，拼写纠正建议使用琥珀色显示
+
+3. **结果导航**：
+   - 搜索结果会按相关性排序
+   - 滚动到底部自动加载更多结果
+   - 匹配文本会使用黄色高亮显示
+
 ## 快速开始
 
 ### 环境要求
 
 - Node.js 18+
 - npm 或 pnpm
+- Rust (用于开发时修改WASM组件)
 
 ### 安装步骤
 
@@ -334,3 +440,7 @@ npm run build
    - 确认是否使用了需要服务器端支持的功能
    - 检查是否已将动态数据改为静态数据
    - 确认构建输出目录是否为 `dist/client`
+
+5. **WebAssembly相关功能无法使用**
+   - 确保浏览器支持WebAssembly
+   - 检查是否启用了内容安全策略(CSP)限制

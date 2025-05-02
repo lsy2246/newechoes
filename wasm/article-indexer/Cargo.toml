@@ -1,0 +1,19 @@
+[package]
+name = "article-indexer"
+version = "0.1.0"
+edition = "2021"
+description = "Tool for building article indices"
+
+[[bin]]
+name = "article-indexer-cli"
+path = "src/main.rs"
+
+[dependencies]
+chrono = { workspace = true }
+clap = { workspace = true, features = ["suggestions", "color"] }
+walkdir = { workspace = true }
+html5ever = { workspace = true }
+markup5ever_rcdom = { workspace = true }
+search-wasm = { path = "../search" }
+utils-common = { path = "../utils-common" }
+article-filter = { path = "../article-filter" }

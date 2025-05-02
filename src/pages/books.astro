@@ -4,12 +4,16 @@ import MediaGrid from "@/components/MediaGrid.tsx";
 import { DOUBAN_ID } from "@/consts";
 ---
 
-<Layout title={`豆瓣图书`}>
+<Layout
+  title={`豆瓣图书`}
+  description={`我读过的书`}
+  skipSrTitle={false}
+>
+  <h1 class="text-3xl font-bold mb-6">我读过的书</h1>
+
   <MediaGrid
     type="book"
-    title="我读过的书"
     doubanId={DOUBAN_ID}
     client:load
   />
 </Layout>
-

@@ -1,0 +1,22 @@
+[package]
+name = "article-filter"
+version = "0.1.0"
+edition = "2021"
+description = "Filter for articles"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
+console_error_panic_hook = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+chrono = { workspace = true }
+bincode = { workspace = true }
+flate2 = { workspace = true }
+once_cell = { workspace = true }
+web-sys = { version = "0.3", features = ["console"] }
+utils-common = { path = "../utils-common" }

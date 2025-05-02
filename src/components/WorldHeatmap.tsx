@@ -2,8 +2,16 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import worldData from "@/assets/world.zh.json";
-import chinaData from "@/assets/china.json";
+
+// WASM模块接口
+interface GeoWasmModule {
+  GeoProcessor: new () => {
+    process_geojson: (worldData: string, chinaData: string, visitedPlaces: string, scale: number) => void;
+    get_boundary_lines: () => any[];
+    find_nearest_country: (x: number, y: number, z: number, radius: number) => string | null;
+  };
+  default?: () => Promise<any>;
+}
 
 interface WorldHeatmapProps {
   visitedPlaces: string[];
@@ -19,6 +27,23 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       ? "dark"
       : "light",
   );
+  
+  // 用于存储WASM模块和处理器实例
+  const [wasmModule, setWasmModule] = useState<GeoWasmModule | null>(null);
+  const [geoProcessor, setGeoProcessor] = useState<any>(null);
+  const [wasmError, setWasmError] = useState<string | null>(null);
+  // 添加状态标记WASM是否已准备好
+  const [wasmReady, setWasmReady] = useState(false);
+  
+  // 添加地图数据状态
+  const [mapData, setMapData] = useState<{
+    worldData: any | null;
+    chinaData: any | null;
+  }>({ worldData: null, chinaData: null });
+  
+  // 添加地图加载状态
+  const [mapLoading, setMapLoading] = useState(true);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   const sceneRef = useRef<{
     scene: THREE.Scene;
@@ -37,8 +62,8 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     lastMouseX: number | null;
     lastMouseY: number | null;
     lastHoverTime: number | null;
-    regionImportance?: Map<string, number>;
-    importanceThreshold?: number;
+    lineToCountryMap: Map<THREE.Line, string>;
+    allLineObjects: THREE.Line[];
   } | null>(null);
 
   // 监听主题变化
@@ -79,8 +104,86 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     };
   }, []);
 
+  // 动态加载地图数据
   useEffect(() => {
-    if (!containerRef.current) return;
+    const loadMapData = async () => {
+      try {
+        setMapLoading(true);
+        setMapError(null);
+        
+        // 并行加载两个地图数据
+        const [worldDataModule, chinaDataModule] = await Promise.all([
+          import("@/assets/map/world.zh.json"),
+          import("@/assets/map/china.json")
+        ]);
+        
+        setMapData({
+          worldData: worldDataModule.default || worldDataModule,
+          chinaData: chinaDataModule.default || chinaDataModule
+        });
+        
+        setMapLoading(false);
+      } catch (err) {
+        console.error("加载地图数据失败:", err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setMapError(`地图数据加载失败: ${errorMessage}`);
+        setMapLoading(false);
+      }
+    };
+    
+    loadMapData();
+  }, []);
+
+  // 加载WASM模块
+  useEffect(() => {
+    const loadWasmModule = async () => {
+      try {
+        // 改为使用JS胶水文件方式加载WASM
+        const wasm = await import(
+          "@/assets/wasm/geo/geo_wasm.js"
+        );
+        if (typeof wasm.default === "function") {
+          await wasm.default();
+        }
+        setWasmModule(wasm as unknown as GeoWasmModule);
+        setWasmError(null);
+      } catch (err) {
+        console.error("加载WASM模块失败:", err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setWasmError(`WASM模块初始化失败: ${errorMessage}`);
+      }
+    };
+
+    loadWasmModule();
+  }, []);
+
+  // 初始化WASM数据
+  useEffect(() => {
+    if (!wasmModule || !mapData.worldData || !mapData.chinaData) return;
+    
+    try {
+      // 使用JS胶水层方式初始化WASM
+      const geoProcessorInstance = new wasmModule.GeoProcessor();
+      geoProcessorInstance.process_geojson(
+        JSON.stringify(mapData.worldData),
+        JSON.stringify(mapData.chinaData),
+        JSON.stringify(visitedPlaces),
+        2.01
+      );
+      
+      setGeoProcessor(geoProcessorInstance);
+      setWasmReady(true);
+    } catch (error) {
+      console.error("WASM数据处理失败:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setWasmError(`WASM数据处理失败: ${errorMessage}`);
+    }
+  }, [wasmModule, visitedPlaces, mapData.worldData, mapData.chinaData]);
+
+  useEffect(() => {
+    if (!containerRef.current || !wasmModule || !wasmReady || !geoProcessor) {
+      return;
+    }
 
     // 清理之前的场景
     if (sceneRef.current) {
@@ -92,7 +195,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       sceneRef.current.scene.clear();
       containerRef.current.innerHTML = "";
     }
-
+    
     // 检查当前是否为暗色模式
     const isDarkMode =
       document.documentElement.classList.contains("dark") ||
@@ -101,13 +204,13 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     // 根据当前模式设置颜色
     const getColors = () => {
       return {
-        earthBase: isDarkMode ? "#111827" : "#f3f4f6", // 深色模式更暗，浅色模式更亮
+        earthBase: isDarkMode ? "#111827" : "#2a4d69", // 深色模式保持深色，浅色模式改为更柔和的蓝色
         visited: isDarkMode ? "#065f46" : "#34d399", // 访问过的颜色更鲜明
-        border: isDarkMode ? "#6b7280" : "#d1d5db", // 边界颜色更柔和
-        visitedBorder: isDarkMode ? "#10b981" : "#059669", // 访问过的边界颜色更鲜明
+        border: isDarkMode ? "#6b7280" : "#e0e0e0", // 边界颜色调整为更亮的浅灰色
+        visitedBorder: isDarkMode ? "#10b981" : "#0d9488", // 访问过的边界颜色
         chinaBorder: isDarkMode ? "#f87171" : "#ef4444", // 中国边界使用红色
         text: isDarkMode ? "#f9fafb" : "#1f2937", // 文本颜色对比更强
-        highlight: isDarkMode ? "#fbbf24" : "#d97706", // 高亮颜色更适合当前主题
+        highlight: isDarkMode ? "#fcd34d" : "#60a5fa", // 高亮颜色改为浅蓝色，更配合背景
       };
     };
 
@@ -116,18 +219,6 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     // 创建场景
     const scene = new THREE.Scene();
     scene.background = null;
-
-    // 添加一个动态计算小区域的机制
-    const regionSizeMetrics = new Map<
-      string,
-      {
-        boundingBoxSize?: number;
-        pointCount?: number;
-        importance?: number;
-        isSmallRegion?: boolean;
-        polygonArea?: number;
-      }
-    >();
 
     // 创建材质的辅助函数
     const createMaterial = (
@@ -148,7 +239,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     const earthMaterial = createMaterial(
       colors.earthBase,
       THREE.FrontSide,
-      isDarkMode ? 0.9 : 0.8,
+      isDarkMode ? 0.9 : 0.9, // 调整明亮模式下的不透明度
     );
     const earth = new THREE.Mesh(earthGeometry, earthMaterial);
     earth.renderOrder = 1;
@@ -157,13 +248,13 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     // 添加光源
     const ambientLight = new THREE.AmbientLight(
       0xffffff,
-      isDarkMode ? 0.7 : 0.8,
+      isDarkMode ? 0.7 : 0.85, // 微调明亮模式下的光照强度
     );
     scene.add(ambientLight);
 
     const directionalLight = new THREE.DirectionalLight(
-      isDarkMode ? 0xeeeeff : 0xffffff,
-      isDarkMode ? 0.6 : 0.5,
+      isDarkMode ? 0xeeeeff : 0xffffff, // 恢复明亮模式下的纯白光源
+      isDarkMode ? 0.6 : 0.65, // 微调明亮模式下的定向光强度
     );
     directionalLight.position.set(5, 3, 5);
     scene.add(directionalLight);
@@ -225,277 +316,81 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       }
     });
 
-    // 创建国家边界
-    const countries = new Map<string, THREE.Object3D>();
-    const countryGroup = new THREE.Group();
-    earth.add(countryGroup);
-
     // 保存所有线条对象的引用，用于快速检测
     const allLineObjects: THREE.Line[] = [];
     const lineToCountryMap = new Map<THREE.Line, string>();
-
-    // 保存所有国家和省份的边界盒，用于优化检测
-    const countryBoundingBoxes = new Map<string, THREE.Box3>();
-
-    // 创建一个辅助函数，用于将经纬度转换为三维坐标
-    const latLongToVector3 = (
-      lat: number,
-      lon: number,
-      radius: number,
-    ): THREE.Vector3 => {
-      // 调整经度范围，确保它在[-180, 180]之间
-      while (lon > 180) lon -= 360;
-      while (lon < -180) lon += 360;
-
-      const phi = ((90 - lat) * Math.PI) / 180;
-      const theta = ((lon + 180) * Math.PI) / 180;
-
-      const x = -radius * Math.sin(phi) * Math.cos(theta);
-      const y = radius * Math.cos(phi);
-      const z = radius * Math.sin(phi) * Math.sin(theta);
-
-      return new THREE.Vector3(x, y, z);
-    };
-
-    // 省份边界和中心点数据结构
-    const provinceCenters = new Map<string, THREE.Vector3>();
-
-    // 创建一个通用函数，用于处理地理特性（国家或省份）
-    const processGeoFeature = (
-      feature: any,
-      parent: THREE.Group,
-      options: {
-        regionType: "country" | "province";
-        parentName?: string;
-        scale?: number;
-        borderColor?: string;
-        visitedBorderColor?: string;
-      },
-    ) => {
-      const {
-        regionType,
-        parentName,
-        scale = 2.01,
-        borderColor,
-        visitedBorderColor,
-      } = options;
-
-      const regionName =
-        regionType === "province" && parentName
-          ? `${parentName}-${feature.properties.name}`
-          : feature.properties.name;
-
-      const isRegionVisited = visitedPlaces.includes(regionName);
-
-      // 为每个地区创建一个组
-      const regionObject = new THREE.Group();
-      regionObject.userData = { name: regionName, isVisited: isRegionVisited };
-
-      // 计算地区中心点
-      let centerLon = 0;
-      let centerLat = 0;
-      let pointCount = 0;
-
-      // 创建边界盒用于碰撞检测
-      const boundingBox = new THREE.Box3();
-
-      // 首先检查GeoJSON特性中是否有预定义的中心点
-      let hasPreDefinedCenter = false;
-      let centerVector;
-
-      if (
-        feature.properties.cp &&
-        Array.isArray(feature.properties.cp) &&
-        feature.properties.cp.length === 2
-      ) {
-        const [cpLon, cpLat] = feature.properties.cp;
-        hasPreDefinedCenter = true;
-        centerVector = latLongToVector3(cpLat, cpLon, scale + 0.005);
-        centerLon = cpLon;
-        centerLat = cpLat;
-
-        // 保存预定义中心点
-        if (regionType === "province") {
-          provinceCenters.set(regionName, centerVector);
-        }
-      }
-
-      // 存储区域边界
-      const boundaries: THREE.Vector3[][] = [];
-
-      // 处理多边形坐标
-      const processPolygon = (polygonCoords: any) => {
-        const points: THREE.Vector3[] = [];
-
-        // 收集多边形的点
-        polygonCoords.forEach((point: number[]) => {
-          const lon = point[0];
-          const lat = point[1];
-          centerLon += lon;
-          centerLat += lat;
-          pointCount++;
-
-          // 使用辅助函数将经纬度转换为3D坐标
-          const vertex = latLongToVector3(lat, lon, scale);
-          points.push(vertex);
-
-          // 扩展边界盒以包含此点
-          boundingBox.expandByPoint(vertex);
-        });
-
-        // 保存边界多边形
-        if (points.length > 2) {
-          boundaries.push(points);
-        }
-
-        // 收集区域大小指标
-        if (!regionSizeMetrics.has(regionName)) {
-          regionSizeMetrics.set(regionName, {});
-        }
-
-        const metrics = regionSizeMetrics.get(regionName)!;
-        if (points.length > 2) {
-          // 计算边界框大小
-          let minX = Infinity,
-            minY = Infinity,
-            minZ = Infinity;
-          let maxX = -Infinity,
-            maxY = -Infinity,
-            maxZ = -Infinity;
-
-          points.forEach((point) => {
-            minX = Math.min(minX, point.x);
-            minY = Math.min(minY, point.y);
-            minZ = Math.min(minZ, point.z);
-            maxX = Math.max(maxX, point.x);
-            maxY = Math.max(maxY, point.y);
-            maxZ = Math.max(maxZ, point.z);
-          });
-
-          const sizeX = maxX - minX;
-          const sizeY = maxY - minY;
-          const sizeZ = maxZ - minZ;
-          const boxSize = Math.sqrt(
-            sizeX * sizeX + sizeY * sizeY + sizeZ * sizeZ,
-          );
-
-          // 更新或初始化指标
-          metrics.boundingBoxSize = metrics.boundingBoxSize
-            ? Math.max(metrics.boundingBoxSize, boxSize)
-            : boxSize;
-          metrics.pointCount = (metrics.pointCount || 0) + points.length;
-        }
-
+    
+    // 创建国家边界组
+    const countryGroup = new THREE.Group();
+    earth.add(countryGroup);
+    
+    // 创建国家边界
+    const countries = new Map<string, THREE.Object3D>();
+    
+    // 从WASM获取边界线数据
+    const boundaryLines = geoProcessor.get_boundary_lines();
+    
+    // 处理边界线数据
+    if (boundaryLines) {
+      // 遍历所有边界线
+      for (const boundaryLine of boundaryLines) {
+        const { points, region_name, is_visited } = boundaryLine;
+        
+        // 创建区域组
+        const regionObject = new THREE.Group();
+        regionObject.userData = { name: region_name, isVisited: is_visited };
+        
+        // 转换点数组为THREE.Vector3数组
+        const threePoints = points.map((p: { x: number; y: number; z: number }) => new THREE.Vector3(p.x, p.y, p.z));
+        
         // 创建边界线
-        if (points.length > 1) {
-          const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        if (threePoints.length > 1) {
+          const lineGeometry = new THREE.BufferGeometry().setFromPoints(threePoints);
+          
+          // 确定线条颜色
+          const isChina = region_name === "中国" || region_name.startsWith("中国-");
+          let borderColor;
+          
+          if (is_visited) {
+            // 已访问的地区，包括中国城市，都使用绿色边界
+            borderColor = colors.visitedBorder;
+          } else if (isChina) {
+            // 未访问的中国和中国区域使用红色边界
+            borderColor = colors.chinaBorder;
+          } else {
+            // 其他未访问区域使用默认边界颜色
+            borderColor = colors.border;
+          }
+          
           const lineMaterial = new THREE.LineBasicMaterial({
-            color: isRegionVisited
-              ? visitedBorderColor || colors.visitedBorder
-              : borderColor || colors.border,
-            linewidth: isRegionVisited ? 1.5 : 1,
+            color: borderColor,
+            linewidth: is_visited ? 1.8 : 1.2, // 微调线条宽度，保持已访问区域更明显
             transparent: true,
-            opacity: isRegionVisited ? 0.9 : 0.7,
+            opacity: is_visited ? 0.95 : 0.85, // 调整不透明度，使边界明显但不突兀
           });
 
           const line = new THREE.Line(lineGeometry, lineMaterial);
           line.userData = {
-            name: regionName,
-            isVisited: isRegionVisited,
-            originalColor: isRegionVisited
-              ? visitedBorderColor || colors.visitedBorder
-              : borderColor || colors.border,
-            highlightColor: colors.highlight, // 使用主题颜色中定义的高亮颜色
+            name: region_name,
+            isVisited: is_visited,
+            originalColor: borderColor,
+            highlightColor: colors.highlight,
           };
 
           // 设置渲染顺序
-          line.renderOrder = isRegionVisited ? 3 : 2;
+          line.renderOrder = is_visited ? 3 : 2;
           regionObject.add(line);
-
-          // 保存线条对象引用和对应的国家/地区名称
+          
+          // 保存线条对象引用和对应的区域名称
           allLineObjects.push(line);
-          lineToCountryMap.set(line, regionName);
+          lineToCountryMap.set(line, region_name);
         }
-      };
-
-      // 处理不同类型的几何体
-      if (
-        feature.geometry &&
-        (feature.geometry.type === "Polygon" ||
-          feature.geometry.type === "MultiPolygon")
-      ) {
-        if (feature.geometry.type === "Polygon") {
-          feature.geometry.coordinates.forEach((ring: any) => {
-            processPolygon(ring);
-          });
-        } else if (feature.geometry.type === "MultiPolygon") {
-          feature.geometry.coordinates.forEach((polygon: any) => {
-            polygon.forEach((ring: any) => {
-              processPolygon(ring);
-            });
-          });
-        }
-
-        if (pointCount > 0 && !hasPreDefinedCenter) {
-          // 计算平均中心点
-          centerLon /= pointCount;
-          centerLat /= pointCount;
-
-          // 将中心点经纬度转换为3D坐标
-          centerVector = latLongToVector3(centerLat, centerLon, scale + 0.005);
-
-          // 保存计算的中心点
-          if (regionType === "province") {
-            provinceCenters.set(regionName, centerVector);
-          }
-        }
-
-        if (pointCount > 0) {
-          // 保存地区的边界盒
-          countryBoundingBoxes.set(regionName, boundingBox);
-
-          // 添加地区对象到父组
-          parent.add(regionObject);
-          countries.set(regionName, regionObject);
-        }
+        
+        // 添加区域对象到国家组
+        countryGroup.add(regionObject);
+        countries.set(region_name, regionObject);
       }
-
-      return regionObject;
-    };
-
-    // 处理世界GeoJSON数据
-    worldData.features.forEach((feature: any) => {
-      const countryName = feature.properties.name;
-
-      // 跳过中国，因为我们将使用更详细的中国地图数据
-      if (countryName === "中国") return;
-
-      processGeoFeature(feature, countryGroup, {
-        regionType: "country",
-        scale: 2.01,
-      });
-    });
-
-    // 处理中国的省份
-    const chinaObject = new THREE.Group();
-    chinaObject.userData = {
-      name: "中国",
-      isVisited: visitedPlaces.includes("中国"),
-    };
-
-    chinaData.features.forEach((feature: any) => {
-      processGeoFeature(feature, chinaObject, {
-        regionType: "province",
-        parentName: "中国",
-        scale: 2.015,
-        borderColor: colors.chinaBorder,
-        visitedBorderColor: colors.visitedBorder,
-      });
-    });
-
-    // 添加中国对象到国家组
-    countryGroup.add(chinaObject);
-    countries.set("中国", chinaObject);
+    }
 
     // 将视图旋转到中国位置
     const positionCameraToFaceChina = () => {
@@ -518,15 +413,8 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       camera.lookAt(0, 0, 0);
       controls.update();
 
-      // 禁用自动旋转一段时间
-      controls.autoRotate = false;
-
-      // 6秒后恢复旋转
-      setTimeout(() => {
-        if (sceneRef.current) {
-          sceneRef.current.controls.autoRotate = true;
-        }
-      }, 6000);
+      // 确保自动旋转始终开启
+      controls.autoRotate = true;
 
       // 渲染
       renderer.render(scene, camera);
@@ -570,115 +458,14 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       };
     };
 
-    // 根据球面上的点找到最近的国家或地区
-    const findNearestCountry = (point: THREE.Vector3): string | null => {
-      let closestCountry = null;
-      let minDistance = Infinity;
-      let smallRegionDistance = Infinity;
-      let smallRegionCountry = null;
-
-      // 遍历所有国家/地区的边界盒
-      for (const [countryName, box] of countryBoundingBoxes.entries()) {
-        // 计算点到边界盒的距离
-        const distance = box.distanceToPoint(point);
-
-        // 估算边界盒大小
-        const boxSize = box.getSize(new THREE.Vector3()).length();
-
-        // 如果点在边界盒内或距离非常近，直接选择该区域
-        if (distance < 0.001) {
-          return countryName;
-        }
-
-        // 同时跟踪绝对最近的区域
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestCountry = countryName;
-        }
-
-        // 对于小区域，使用加权距离
-        // 小区域的阈值（较小的边界盒尺寸）
-        const SMALL_REGION_THRESHOLD = 0.5;
-        if (boxSize < SMALL_REGION_THRESHOLD) {
-          // 针对小区域的加权距离（降低小区域的选中难度）
-          const weightedDistance = distance * (0.5 + boxSize / 2);
-          if (weightedDistance < smallRegionDistance) {
-            smallRegionDistance = weightedDistance;
-            smallRegionCountry = countryName;
-          }
-        }
-      }
-
-      // 小区域优化逻辑
-      if (smallRegionCountry && smallRegionDistance < minDistance * 2) {
-        return smallRegionCountry;
-      }
-
-      // 处理中国的特殊情况 - 如果点击非常接近省份边界
-      if (closestCountry === "中国") {
-        // 查找最近的中国省份
-        let closestProvince = null;
-        let minProvinceDistance = Infinity;
-
-        // 查找最近的中国省份
-        for (const [countryName, box] of countryBoundingBoxes.entries()) {
-          if (countryName.startsWith("中国-")) {
-            const distance = box.distanceToPoint(point);
-            if (distance < minProvinceDistance) {
-              minProvinceDistance = distance;
-              closestProvince = countryName;
-            }
-          }
-        }
-
-        if (closestProvince && minProvinceDistance < minDistance * 1.5) {
-          return closestProvince;
-        }
-      }
-
-      return closestCountry;
-    };
-
-    // 解决射线检测和球面相交的问题
-    const getPointOnSphere = (
-      mouseX: number,
-      mouseY: number,
-      camera: THREE.Camera,
-      radius: number,
-    ): THREE.Vector3 | null => {
-      // 计算鼠标在画布中的归一化坐标
-      const rect = containerRef.current!.getBoundingClientRect();
-      const x = ((mouseX - rect.left) / rect.width) * 2 - 1;
-      const y = -((mouseY - rect.top) / rect.height) * 2 + 1;
-
-      // 创建射线
-      const ray = new THREE.Raycaster();
-      ray.setFromCamera(new THREE.Vector2(x, y), camera);
-
-      // 检测射线与实际地球模型的相交
-      const earthIntersects = ray.intersectObject(earth, false);
-      if (earthIntersects.length > 0) {
-        return earthIntersects[0].point;
-      }
-
-      // 如果没有直接相交，使用球体辅助检测
-      const sphereGeom = new THREE.SphereGeometry(radius, 32, 32);
-      const sphereMesh = new THREE.Mesh(sphereGeom);
-
-      const intersects = ray.intersectObject(sphereMesh);
-      if (intersects.length > 0) {
-        return intersects[0].point;
-      }
-
-      return null;
-    };
-
     // 简化的鼠标移动事件处理函数
     const onMouseMove = throttle((event: MouseEvent) => {
-      if (!containerRef.current || !sceneRef.current) return;
+      if (!containerRef.current || !sceneRef.current || !geoProcessor) {
+        return;
+      }
 
       // 获取鼠标在球面上的点
-      const spherePoint = getPointOnSphere(
+      const result = getPointOnSphere(
         event.clientX,
         event.clientY,
         camera,
@@ -692,40 +479,28 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         }
       });
 
-      // 如果找到点，寻找最近的国家/地区
-      if (spherePoint) {
-        const countryName = findNearestCountry(spherePoint);
-
-        if (countryName) {
-          // 高亮显示该国家/地区的线条
-          allLineObjects.forEach((line) => {
-            if (
-              lineToCountryMap.get(line) === countryName &&
-              line.material instanceof THREE.LineBasicMaterial
-            ) {
-              line.material.color.set(line.userData.highlightColor);
-            }
-          });
-
-          // 更新悬停国家
-          if (countryName !== hoveredCountry) {
-            setHoveredCountry(countryName);
+      // 如果找到点和对应的国家/地区
+      if (result && result.countryName) {
+        // 高亮显示该国家/地区的线条
+        allLineObjects.forEach((line) => {
+          if (
+            lineToCountryMap.get(line) === result.countryName &&
+            line.material instanceof THREE.LineBasicMaterial
+          ) {
+            line.material.color.set(line.userData.highlightColor);
           }
+        });
 
-          // 禁用自动旋转
-          controls.autoRotate = false;
-        } else {
-          // 如果没有找到国家/地区，清除悬停状态
-          if (hoveredCountry) {
-            setHoveredCountry(null);
-            controls.autoRotate = true;
-          }
+        // 更新悬停国家
+        if (result.countryName !== hoveredCountry) {
+          setHoveredCountry(result.countryName);
         }
+
+        // 不禁用自动旋转，保持地球旋转
       } else {
-        // 如果没有找到球面点，清除悬停状态
+        // 如果没有找到国家/地区，清除悬停状态
         if (hoveredCountry) {
           setHoveredCountry(null);
-          controls.autoRotate = true;
         }
       }
 
@@ -750,53 +525,49 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         sceneRef.current.lastClickedCountry = null;
         sceneRef.current.lastHoverTime = null;
       }
+      // 确保自动旋转始终开启
       controls.autoRotate = true;
     };
 
     // 简化的鼠标点击事件处理函数
     const onClick = (event: MouseEvent) => {
-      if (!containerRef.current || !sceneRef.current) return;
+      if (!containerRef.current || !sceneRef.current || !geoProcessor) {
+        return;
+      }
 
       // 获取鼠标在球面上的点
-      const spherePoint = getPointOnSphere(
+      const result = getPointOnSphere(
         event.clientX,
         event.clientY,
         camera,
         2.01,
       );
 
-      // 如果找到点，寻找最近的国家/地区
-      if (spherePoint) {
-        const countryName = findNearestCountry(spherePoint);
+      // 如果找到点和对应的国家/地区
+      if (result && result.countryName) {
+        // 重置所有线条颜色
+        allLineObjects.forEach((line) => {
+          if (line.material instanceof THREE.LineBasicMaterial) {
+            line.material.color.set(line.userData.originalColor);
+          }
+        });
 
-        if (countryName) {
-          // 重置所有线条颜色
-          allLineObjects.forEach((line) => {
-            if (line.material instanceof THREE.LineBasicMaterial) {
-              line.material.color.set(line.userData.originalColor);
-            }
-          });
+        // 高亮显示该国家/地区的线条
+        allLineObjects.forEach((line) => {
+          if (
+            lineToCountryMap.get(line) === result.countryName &&
+            line.material instanceof THREE.LineBasicMaterial
+          ) {
+            line.material.color.set(line.userData.highlightColor);
+          }
+        });
 
-          // 高亮显示该国家/地区的线条
-          allLineObjects.forEach((line) => {
-            if (
-              lineToCountryMap.get(line) === countryName &&
-              line.material instanceof THREE.LineBasicMaterial
-            ) {
-              line.material.color.set(line.userData.highlightColor);
-            }
-          });
-
-          // 更新选中国家
-          setHoveredCountry(countryName);
-          sceneRef.current.lastClickedCountry = countryName;
-          controls.autoRotate = false;
-        } else {
-          // 如果没有找到国家/地区，清除选择
-          clearSelection();
-        }
+        // 更新选中国家
+        setHoveredCountry(result.countryName);
+        sceneRef.current.lastClickedCountry = result.countryName;
+        // 不禁用自动旋转，保持地球始终旋转
       } else {
-        // 如果没有找到球面点，清除选择
+        // 如果没有找到国家/地区，清除选择
         clearSelection();
       }
 
@@ -814,9 +585,9 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     };
 
     // 添加事件监听器
-    containerRef.current.addEventListener("mousemove", onMouseMove);
-    containerRef.current.addEventListener("click", onClick);
-    containerRef.current.addEventListener("dblclick", onDoubleClick);
+    containerRef.current.addEventListener("mousemove", onMouseMove, { passive: true });
+    containerRef.current.addEventListener("click", onClick, { passive: false });
+    containerRef.current.addEventListener("dblclick", onDoubleClick, { passive: false });
 
     // 简化的动画循环函数
     const animate = () => {
@@ -851,8 +622,59 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       lastMouseX: null,
       lastMouseY: null,
       lastHoverTime: null,
-      regionImportance: undefined,
-      importanceThreshold: undefined,
+      lineToCountryMap,
+      allLineObjects,
+    };
+
+    // 开始动画
+    sceneRef.current.animationId = requestAnimationFrame(animate);
+
+    // 获取球面上的点对应的国家/地区
+    const getPointOnSphere = (
+      mouseX: number,
+      mouseY: number,
+      camera: THREE.Camera,
+      radius: number,
+    ): { point: THREE.Vector3, countryName: string | null } | null => {
+      // 计算鼠标在画布中的归一化坐标
+      const rect = containerRef.current!.getBoundingClientRect();
+      const x = ((mouseX - rect.left) / rect.width) * 2 - 1;
+      const y = -((mouseY - rect.top) / rect.height) * 2 + 1;
+
+      // 创建射线
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(x, y), camera);
+
+      // 检测射线与实际地球模型的相交
+      const earthIntersects = ray.intersectObject(earth, false);
+      if (earthIntersects.length > 0) {
+        const point = earthIntersects[0].point;
+        
+        // 使用WASM查找最近的国家/地区
+        const countryName = geoProcessor.find_nearest_country(
+          point.x, point.y, point.z, radius
+        );
+        
+        return { point, countryName };
+      }
+
+      // 如果没有直接相交，使用球体辅助检测
+      const sphereGeom = new THREE.SphereGeometry(radius, 32, 32);
+      const sphereMesh = new THREE.Mesh(sphereGeom);
+
+      const intersects = ray.intersectObject(sphereMesh);
+      if (intersects.length > 0) {
+        const point = intersects[0].point;
+        
+        // 使用WASM查找最近的国家/地区
+        const countryName = geoProcessor.find_nearest_country(
+          point.x, point.y, point.z, radius
+        );
+        
+        return { point, countryName };
+      }
+
+      return null;
     };
 
     // 处理窗口大小变化
@@ -873,10 +695,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       labelRenderer.render(sceneRef.current.scene, camera);
     };
 
-    window.addEventListener("resize", handleResize);
-
-    // 开始动画
-    sceneRef.current.animationId = requestAnimationFrame(animate);
+    window.addEventListener("resize", handleResize, { passive: true });
 
     // 清理函数
     return () => {
@@ -913,7 +732,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       // 移除窗口事件监听器
       window.removeEventListener("resize", handleResize);
     };
-  }, [visitedPlaces, theme]); // 依赖于visitedPlaces和theme变化
+  }, [visitedPlaces, theme, wasmReady, geoProcessor]); // 添加geoProcessor依赖
 
   return (
     <div className="relative">
@@ -921,6 +740,31 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         ref={containerRef}
         className="w-full h-[400px] sm:h-[450px] md:h-[500px] lg:h-[600px] xl:h-[700px]"
       />
+      
+      {(wasmError || mapError) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-800/80 z-20">
+          <div className="bg-red-50 dark:bg-red-900 p-4 rounded-lg shadow-lg max-w-md">
+            <h3 className="text-red-700 dark:text-red-300 font-bold text-lg mb-2">地图加载错误</h3>
+            <p className="text-red-600 dark:text-red-400 text-sm">{wasmError || mapError}</p>
+            <button 
+              className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              onClick={() => window.location.reload()}
+            >
+              重新加载
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {mapLoading && !mapError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-800/80 z-20">
+          <div className="text-center">
+            <div className="inline-block w-12 h-12 border-4 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400 rounded-full animate-spin"></div>
+            <p className="mt-3 text-gray-700 dark:text-gray-300">加载地图数据中...</p>
+          </div>
+        </div>
+      )}
+      
       {hoveredCountry && (
         <div className="absolute bottom-5 left-0 right-0 text-center z-10">
           <div className="inline-block bg-white/95 dark:bg-gray-800/95 px-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:scale-105">

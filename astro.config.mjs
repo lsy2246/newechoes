@@ -11,12 +11,10 @@ import fs from "node:fs";
 import path from "node:path";
 import swup from "@swup/astro"
 import { SITE_URL } from "./src/consts";
-import pagefind from "astro-pagefind";
 import compressor from "astro-compressor";
 import vercel from "@astrojs/vercel";
-import expressiveCode from "astro-expressive-code";
-import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers";
-import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections";
+import { articleIndexerIntegration } from "./src/plugins/build-article-index.js";
+import customCodeBlocksIntegration from "./src/plugins/custom-code-blocks.js";
 
 function getArticleDate(articleId) {
   try {
@@ -54,55 +52,21 @@ export default defineConfig({
   },
 
   integrations: [
-    expressiveCode({
-      themes: ['github-light', 'dracula'],
-      themeCssSelector: (theme) => 
-        theme.name === 'dracula' ? '[data-theme=dark]' : '[data-theme=light]',
-      useDarkModeMediaQuery: false,
-      
-      plugins: [
-        pluginLineNumbers(),
-        pluginCollapsibleSections(),
-      ],
-      defaultProps: {
-        showLineNumbers: true,
-        collapseStyle: 'collapsible-auto',
-        wrap: true,
-        preserveIndent: true,
-        hangingIndent: 2,
-      },
-      frames: {
-        extractFileNameFromCode: true,
-      },
-      styleOverrides: {
-        // 核心样式设置
-        borderRadius: '0.5rem',
-        borderWidth: '0.5px',
-        codeFontSize: '0.9rem',
-        codeFontFamily: "'JetBrains Mono', Menlo, Monaco, Consolas, 'Courier New', monospace",
-        codeLineHeight: '1.5',
-        codePaddingInline: '1.5rem',
-        codePaddingBlock: '1.2rem',
-        // 框架样式设置
-        frames: {
-          shadowColor: 'rgba(0, 0, 0, 0.12)',
-          editorActiveTabBackground: '#ffffff',
-          editorTabBarBackground: '#f5f5f5',
-          terminalBackground: '#1a1a1a',
-          terminalTitlebarBackground: '#333333',
-        },
-        // 文本标记样式
-        textMarkers: {
-          defaultChroma: 'rgba(255, 255, 0, 0.2)',
-        },
-      },
-    }),
+    // 使用我们自己的代码块集成替代expressiveCode
+    customCodeBlocksIntegration(),
     
     // MDX 集成配置
     mdx(),
-    swup(),
+    swup({
+      cache: true,
+      preload: true,
+    }
+      
+    ),
     react(),
-    pagefind(),
+    // 使用我们自己的文章索引生成器（替换pagefind）
+    articleIndexerIntegration(),
+    
     sitemap({
       filter: (page) => !page.includes("/api/"),
       serialize(item) {
@@ -147,7 +111,7 @@ export default defineConfig({
 
   // Markdown 配置
   markdown: {
-    syntaxHighlight: false, // 禁用默认的语法高亮，使用expressiveCode代替
+    syntaxHighlight: false, // 禁用默认的语法高亮，使用我们自定义的高亮
     remarkPlugins: [
       [remarkEmoji, { emoticon: false, padded: true }]
     ],

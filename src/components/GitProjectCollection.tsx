@@ -301,7 +301,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
   );
 
   return (
-    <div className={`git-project-collection max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${className}`}>
+    <div className={`git-project-collection w-full ${className}`}>
       <h2 className="text-2xl font-bold mb-6 text-primary-700 dark:text-primary-400">
         {displayTitle}
         {username && <span className="ml-2 text-secondary-500 dark:text-secondary-400">(@{username})</span>}
