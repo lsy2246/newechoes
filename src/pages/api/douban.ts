@@ -26,19 +26,47 @@ function delay(ms: number) {
 
 // 带超时的 fetch 函数
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number) {
-  const controller = new AbortController();
-  const { signal } = controller;
+  // 检查是否已经提供了信号
+  const existingSignal = options.signal;
   
+  // 创建我们自己的 AbortController 用于超时
+  const timeoutController = new AbortController();
+  const timeoutSignal = timeoutController.signal;
+  
+  // 设置超时
   const timeout = setTimeout(() => {
-    controller.abort();
+    timeoutController.abort();
   }, timeoutMs);
   
   try {
-    const response = await fetch(url, {
-      ...options,
-      signal
-    });
-    return response;
+    // 使用已有的信号和我们的超时信号
+    if (existingSignal) {
+      // 如果已经取消了，直接抛出异常
+      if (existingSignal.aborted) {
+        throw new DOMException('已被用户取消', 'AbortError');
+      }
+      
+      // 创建一个监听器，当外部信号中止时，也中止我们的控制器
+      const abortListener = () => timeoutController.abort();
+      existingSignal.addEventListener('abort', abortListener);
+      
+      // 进行请求，但只使用我们的超时信号
+      const response = await fetch(url, {
+        ...options,
+        signal: timeoutSignal
+      });
+      
+      // 移除监听器
+      existingSignal.removeEventListener('abort', abortListener);
+      
+      return response;
+    } else {
+      // 如果没有提供信号，只使用我们的超时信号
+      return await fetch(url, {
+        ...options,
+        signal: timeoutSignal
+      });
+    }
   } finally {
     clearTimeout(timeout);
   }
@@ -314,6 +342,24 @@ export const GET: APIRoute = async ({ request }) => {
         });
       } catch (error) {
         console.error(`尝试第 ${retries + 1}/${MAX_RETRIES + 1} 次失败:`, error);
+        
+        // 判断是否是请求被中止
+        if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+          console.warn('请求被中止:', error.message);
+          // 对于中止请求，我们可以直接返回404
+          return new Response(JSON.stringify({ 
+            error: '请求被中止', 
+            message: '请求已被用户或服务器中止',
+            status: 499 // 使用499代表客户端中止请求
+          }), {
+            status: 499,
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-store, max-age=0'
+            }
+          });
+        }
+        
         lastError = error instanceof Error ? error : new Error(String(error));
         
         if (retries < MAX_RETRIES) {
@@ -331,6 +377,21 @@ export const GET: APIRoute = async ({ request }) => {
     
     // 检查是否是常见错误类型并返回对应错误信息
     const errorMessage = lastError?.message || '未知错误';
+    
+    // 检查是否是中止错误
+    if (lastError && (lastError.name === 'AbortError' || errorMessage.includes('aborted'))) {
+      return new Response(JSON.stringify({ 
+        error: '请求被中止', 
+        message: '请求已被用户或系统中止',
+        status: 499
+      }), {
+        status: 499,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      });
+    }
     
     // 根据错误信息判断错误类型
     if (errorMessage.includes('403') || errorMessage.includes('禁止访问') || errorMessage.includes('频繁')) {
@@ -387,6 +448,22 @@ export const GET: APIRoute = async ({ request }) => {
     });
   } catch (error) {
     console.error('处理请求时出错:', error);
+    
+    // 判断是否是中止错误
+    if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+      return new Response(JSON.stringify({ 
+        error: '请求被中止', 
+        message: '请求已被用户或系统中止',
+        status: 499
+      }), {
+        status: 499,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      });
+    }
+    
     return new Response(JSON.stringify({ 
       error: '获取豆瓣数据失败', 
       message: error instanceof Error ? error.message : '未知错误'

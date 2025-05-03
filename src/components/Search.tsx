@@ -115,6 +115,10 @@ const Search: React.FC<SearchProps> = ({
   const inlineSuggestionRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  // 添加 AbortController 引用以取消请求
+  const abortControllerRef = useRef<AbortController | null>(null);
+  // 添加组件挂载状态引用
+  const isMountedRef = useRef<boolean>(true);
 
   // 辅助函数 - 从loadingState获取各种加载状态 
   const isLoading = loadingState.status === 'loading_search';
@@ -135,8 +139,14 @@ const Search: React.FC<SearchProps> = ({
           await wasm.default();
         }
         
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
         setWasmModule(wasm as unknown as SearchWasm);
       } catch (err) {
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
         console.error("加载搜索WASM模块失败:", err);
         setLoadingState({
           status: 'error',
@@ -146,6 +156,11 @@ const Search: React.FC<SearchProps> = ({
     };
 
     loadWasmModule();
+    
+    // 组件卸载时清理
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   // 加载搜索索引
@@ -153,10 +168,24 @@ const Search: React.FC<SearchProps> = ({
     if (!wasmModule) return;
 
     const loadSearchIndex = async () => {
+      // 取消之前的请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // 创建新的 AbortController
+      abortControllerRef.current = new AbortController();
+      
       try {
         setLoadingState(prev => ({ ...prev, status: 'loading_index' }));
         
-        const response = await fetch("/index/search_index.bin");
+        const response = await fetch("/index/search_index.bin", {
+          signal: abortControllerRef.current.signal
+        });
+        
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
         if (!response.ok) {
           throw new Error(`获取搜索索引失败: ${response.statusText}`);
         }
@@ -164,9 +193,21 @@ const Search: React.FC<SearchProps> = ({
         const indexBuffer = await response.arrayBuffer();
         const data = new Uint8Array(indexBuffer);
         
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
         setIndexData(data);
         setLoadingState(prev => ({ ...prev, status: 'success' }));
       } catch (err) {
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
+        // 如果是取消的请求，不显示错误
+        if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'))) {
+          console.log('索引加载请求被取消:', err.message);
+          return;
+        }
+        
         console.error("搜索索引加载失败:", err);
         setLoadingState({
           status: 'error',
@@ -176,6 +217,13 @@ const Search: React.FC<SearchProps> = ({
     };
 
     loadSearchIndex();
+    
+    // 组件卸载时清理
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [wasmModule]);
 
   // 监听窗口大小变化，确保内联建议位置正确
@@ -264,6 +312,10 @@ const Search: React.FC<SearchProps> = ({
       };
 
       const result = wasmModule.search_articles(indexData, JSON.stringify(req));
+      
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) return;
+      
       if (!result || result.trim() === "") {
         setSuggestions([]);
         setInlineSuggestion(prev => ({ ...prev, visible: false }));
@@ -272,6 +324,9 @@ const Search: React.FC<SearchProps> = ({
       }
       
       const searchResult = JSON.parse(result) as SearchResult;
+      
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) return;
       
       // 确保有suggestions字段且是数组
       if (!searchResult?.suggestions || !Array.isArray(searchResult.suggestions) || searchResult.suggestions.length === 0) {
@@ -305,6 +360,9 @@ const Search: React.FC<SearchProps> = ({
         setInlineSuggestion(prev => ({ ...prev, visible: false }));
       }
     } catch (err) {
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) return;
+      
       console.error("获取内联建议失败:", err);
       setInlineSuggestion(prev => ({ ...prev, visible: false }));
       setSelectedSuggestionIndex(0); // 重置选中索引
@@ -524,6 +582,14 @@ const Search: React.FC<SearchProps> = ({
       return;
     }
 
+    // 取消之前的请求（虽然这是WASM调用，不是真正的网络请求，但保持一致性）
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // 创建新的 AbortController
+    abortControllerRef.current = new AbortController();
+
     try {
       const page = isLoadMore ? currentPage : 1;
       
@@ -544,6 +610,9 @@ const Search: React.FC<SearchProps> = ({
 
       const resultJson = wasmModule.search_articles(indexData, JSON.stringify(req));
       
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) return;
+      
       if (!resultJson || resultJson.trim() === "") {
         console.error("返回的搜索结果为空");
         setLoadingState({
@@ -554,6 +623,9 @@ const Search: React.FC<SearchProps> = ({
       }
       
       const result = JSON.parse(resultJson) as SearchResult;
+      
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) return;
       
       // 预处理搜索结果
       for (const item of result.items) {
@@ -584,6 +656,9 @@ const Search: React.FC<SearchProps> = ({
       // 更新加载状态
       setLoadingState(prev => ({ ...prev, status: 'success' }));
     } catch (err) {
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) return;
+      
       console.error("搜索执行失败:", err);
       setLoadingState({
         status: 'error',
@@ -967,6 +1042,35 @@ const Search: React.FC<SearchProps> = ({
       </div>
     );
   };
+
+  // 组件卸载时清理
+  useEffect(() => {
+    // 设置组件已挂载状态
+    isMountedRef.current = true;
+    
+    return () => {
+      // 标记组件已卸载
+      isMountedRef.current = false;
+      
+      // 清理所有定时器
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+      
+      // 取消所有进行中的请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // 清理观察器
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, []);
 
   // 渲染结束
   const returnBlock = (

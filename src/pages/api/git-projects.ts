@@ -87,9 +87,26 @@ export async function GET({ request }: APIContext) {
       headers
     });
   } catch (error) {
+    // 检查是否为请求中止错误
+    if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+      return new Response(JSON.stringify({ 
+        error: '请求被用户中止',
+        message: error.message,
+        type: 'abort'
+      }), {
+        status: 499, // 使用 499 状态码表示客户端关闭请求
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+    
+    // 处理其他类型的错误
     return new Response(JSON.stringify({ 
       error: '处理请求错误',
-      message: error instanceof Error ? error.message : '未知错误'
+      message: error instanceof Error ? error.message : '未知错误',
+      type: 'server'
     }), {
       status: 500,
       headers: {
@@ -109,6 +126,112 @@ export function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type'
     }
   });
+}
+
+// 使用带超时和重试的 fetch 函数
+async function fetchWithRetry(url: string, options: any, retries = 3, timeout = 10000) {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      // 创建 AbortController 用于超时控制
+      const controller = new AbortController();
+      
+      // 如果原始请求已有 signal，保持追踪以便正确处理用户中止
+      const originalSignal = options?.signal;
+      
+      // 设置超时定时器
+      const timeoutId = setTimeout(() => {
+        controller.abort(`请求超时 (${timeout}ms)`);
+      }, timeout);
+      
+      // 添加超时的 signal 到请求选项
+      const fetchOptions = {
+        ...options,
+        signal: controller.signal
+      };
+      
+      // 如果有原始信号，监听其中止事件以便同步中止
+      if (originalSignal) {
+        if (originalSignal.aborted) {
+          // 如果原始信号已经被中止，立即中止当前请求
+          controller.abort('用户取消请求');
+          clearTimeout(timeoutId);
+          throw new Error('用户取消请求');
+        }
+        
+        // 监听原始信号的中止事件
+        const abortHandler = () => {
+          controller.abort('用户取消请求');
+          clearTimeout(timeoutId);
+        };
+        
+        originalSignal.addEventListener('abort', abortHandler);
+        
+        // 确保在操作完成后清理事件监听器
+        setTimeout(() => {
+          try {
+            originalSignal.removeEventListener('abort', abortHandler);
+          } catch (e) {
+            // 忽略可能出现的清理错误
+          }
+        }, 0);
+      }
+      
+      try {
+        const response = await fetch(url, fetchOptions);
+        clearTimeout(timeoutId);
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        
+        // 检查是否为中止错误
+        if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+          // 确定中止原因 - 是超时还是用户请求
+          const isTimeout = error.message.includes('timeout') || error.message.includes('超时');
+          
+          if (isTimeout && attempt < retries - 1) {
+            // 如果是超时且还有重试次数，继续重试
+            console.log(`请求超时，正在重试 (${attempt + 1}/${retries})...`);
+            lastError = error;
+            // 等待一段时间后重试
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+            continue;
+          } else if (!isTimeout) {
+            // 如果是用户主动中止，直接抛出错误
+            throw error;
+          }
+        }
+        
+        // 其他错误情况
+        lastError = error as Error;
+        
+        // 增加重试间隔
+        if (attempt < retries - 1) {
+          console.log(`请求失败，正在重试 (${attempt + 1}/${retries})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          continue;
+        }
+        
+        throw lastError;
+      }
+    } catch (error) {
+      lastError = error as Error;
+      
+      // 如果是中止错误，直接抛出不再重试
+      if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+        throw error;
+      }
+      
+      // 最后一次尝试失败
+      if (attempt === retries - 1) {
+        throw lastError;
+      }
+    }
+  }
+  
+  // 所有重试都失败了
+  throw lastError || new Error('所有重试请求都失败了');
 }
 
 async function fetchGithubProjects(username: string, organization: string, page: number, config: any) {
@@ -193,6 +316,11 @@ async function fetchGithubProjects(username: string, organization: string, page:
         }
       };
     } catch (error) {
+      // 检查是否为中止错误
+      if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+        throw error; // 中止错误直接抛出，不重试
+      }
+      
       retryCount++;
       
       if (retryCount >= maxRetries) {
@@ -218,6 +346,7 @@ async function fetchGiteaProjects(username: string, organization: string, page: 
   try {
     const perPage = config.perPage || 10;
     const giteaUrl = config.url;
+    const signal = config.signal; // 获取可能的 AbortSignal
     
     if (!giteaUrl) {
       throw new Error('Gitea URL 不存在');
@@ -232,12 +361,13 @@ async function fetchGiteaProjects(username: string, organization: string, page: 
       apiUrl = `${giteaUrl}/api/v1/users/${config.username}/repos?page=${page}&per_page=${perPage}`;
     }
     
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithRetry(apiUrl, {
       headers: {
         'Accept': 'application/json',
         ...(config.token ? { 'Authorization': `token ${config.token}` } : {})
-      }
-    });
+      },
+      signal // 传递 AbortSignal
+    }, 3, 15000); // 最多重试3次，每次超时15秒
     
     if (!response.ok) {
       throw new Error(`Gitea API 请求失败: ${response.statusText}`);
@@ -273,6 +403,13 @@ async function fetchGiteaProjects(username: string, organization: string, page: 
       }
     };
   } catch (error) {
+    // 检查是否为中止错误，将其向上传播
+    if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+      throw error;
+    }
+    
+    console.error('获取 Gitea 项目失败:', error);
+    
     return {
       projects: [],
       pagination: {
@@ -288,6 +425,7 @@ async function fetchGiteaProjects(username: string, organization: string, page: 
 async function fetchGiteeProjects(username: string, organization: string, page: number, config: any) {
   try {
     const perPage = config.perPage || 10;
+    const signal = config.signal; // 获取可能的 AbortSignal
     
     const giteeUsername = username || config.username;
     
@@ -306,7 +444,9 @@ async function fetchGiteeProjects(username: string, organization: string, page: 
       apiUrl += `&access_token=${config.token}`;
     }
     
-    const response = await fetch(apiUrl);
+    const response = await fetchWithRetry(apiUrl, {
+      signal // 传递 AbortSignal
+    }, 3, 15000); // 最多重试3次，每次超时15秒
     
     if (!response.ok) {
       throw new Error(`Gitee API 请求失败: ${response.statusText}`);
@@ -340,6 +480,13 @@ async function fetchGiteeProjects(username: string, organization: string, page: 
       }
     };
   } catch (error) {
+    // 检查是否为中止错误，将其向上传播
+    if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+      throw error;
+    }
+    
+    console.error('获取 Gitee 项目失败:', error);
+    
     return {
       projects: [],
       pagination: {

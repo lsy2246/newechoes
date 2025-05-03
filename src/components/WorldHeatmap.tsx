@@ -19,6 +19,22 @@ import {
 } from "three";
 import type { Side } from "three";
 
+// 为requestIdleCallback添加类型声明
+interface RequestIdleCallbackOptions {
+  timeout: number;
+}
+
+interface Window {
+  requestIdleCallback?: (
+    callback: (deadline: {
+      didTimeout: boolean;
+      timeRemaining: () => number;
+    }) => void,
+    opts?: RequestIdleCallbackOptions
+  ) => number;
+  cancelIdleCallback?: (handle: number) => void;
+}
+
 // 需要懒加载的模块
 const loadControlsAndRenderers = () => Promise.all([
   import("three/examples/jsm/controls/OrbitControls.js"),
@@ -129,16 +145,31 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
 
   // 从公共目录加载地图数据
   useEffect(() => {
+    // 创建 AbortController 用于在组件卸载时取消请求
+    const controller = new AbortController();
+    const signal = controller.signal;
+    
     const loadMapData = async () => {
       try {
         setMapLoading(true);
         setMapError(null);
         
-        // 从公共目录加载地图数据
+        // 添加请求超时处理
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30秒超时
+        
+        // 从公共目录加载地图数据，并使用 signal 和缓存控制
         const [worldDataResponse, chinaDataResponse] = await Promise.all([
-          fetch('/maps/world.zh.json'),
-          fetch('/maps/china.json')
+          fetch('/maps/world.zh.json', { 
+            signal,
+            headers: { 'Cache-Control': 'no-cache' }
+          }),
+          fetch('/maps/china.json', { 
+            signal,
+            headers: { 'Cache-Control': 'no-cache' }
+          })
         ]);
+        
+        clearTimeout(timeout);
         
         if (!worldDataResponse.ok || !chinaDataResponse.ok) {
           throw new Error('无法获取地图数据');
@@ -153,15 +184,23 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         });
         
         setMapLoading(false);
-      } catch (err) {
-        console.error("加载地图数据失败:", err);
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        setMapError(`地图数据加载失败: ${errorMessage}`);
+      } catch (err: any) {
+        // 只有当请求不是被我们自己中断时才设置错误状态
+        if (err.name !== 'AbortError') {
+          console.error("加载地图数据失败:", err);
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          setMapError(`地图数据加载失败: ${errorMessage}`);
+        }
         setMapLoading(false);
       }
     };
     
     loadMapData();
+    
+    // 清理函数：组件卸载时中断请求
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   // 加载WASM模块
@@ -177,7 +216,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         }
         setWasmModule(wasm as unknown as GeoWasmModule);
         setWasmError(null);
-      } catch (err) {
+      } catch (err: any) {
         console.error("加载WASM模块失败:", err);
         const errorMessage = err instanceof Error ? err.message : String(err);
         setWasmError(`WASM模块初始化失败: ${errorMessage}`);
@@ -203,7 +242,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       
       setGeoProcessor(geoProcessorInstance);
       setWasmReady(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("WASM数据处理失败:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       setWasmError(`WASM数据处理失败: ${errorMessage}`);
@@ -689,19 +728,50 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           return null;
         };
     
-        // 简化的动画循环函数
+        // 优化的动画循环函数
         const animate = () => {
           if (!sceneRef.current) return;
-    
+          
+          // 使用requestIdleCallback（如果可用）或setTimeout来限制更新频率
+          // 这样可以减少CPU使用率和提高性能
+          const scheduleNextFrame = () => {
+            if (typeof window.requestIdleCallback === 'function') {
+              window.requestIdleCallback(() => {
+                if (sceneRef.current) {
+                  sceneRef.current.animationId = requestAnimationFrame(animate);
+                }
+              }, { timeout: 100 });
+            } else {
+              setTimeout(() => {
+                if (sceneRef.current) {
+                  sceneRef.current.animationId = requestAnimationFrame(animate);
+                }
+              }, 16); // 约60fps的更新频率
+            }
+          };
+
+          // 如果相机没有变化，可以降低渲染频率
+          if (sceneRef.current.controls && 
+              !sceneRef.current.controls.autoRotate && 
+              sceneRef.current.lastCameraPosition &&
+              sceneRef.current.camera.position.distanceTo(sceneRef.current.lastCameraPosition) < 0.001) {
+            // 相机位置没有明显变化，降低渲染频率
+            scheduleNextFrame();
+            return;
+          }
+
+          // 保存当前相机位置
+          sceneRef.current.lastCameraPosition = sceneRef.current.camera.position.clone();
+
           // 更新控制器
           controls.update();
-    
+
           // 渲染
           renderer.render(scene, camera);
           labelRenderer.render(scene, camera);
-    
-          // 请求下一帧
-          sceneRef.current.animationId = requestAnimationFrame(animate);
+
+          // 安排下一帧，使用优化的调度方式
+          scheduleNextFrame();
         };
     
         // 处理窗口大小变化
@@ -751,8 +821,10 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         // 开始动画
         sceneRef.current.animationId = requestAnimationFrame(animate);
         
-      } catch (error) {
+      } catch (error: any) {
         console.error("Three.js初始化失败:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setMapError(`3D地图初始化失败: ${errorMessage}`);
       }
     };
     

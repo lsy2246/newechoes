@@ -547,9 +547,23 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   // 添加客户端标记变量，确保只在客户端渲染某些组件
   const [isClient, setIsClient] = useState(false);
   
+  // 添加 AbortController 引用和组件挂载状态引用
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  
   // 组件挂载时设置客户端标记
   useEffect(() => {
     setIsClient(true);
+    
+    // 组件卸载时的清理
+    return () => {
+      isMountedRef.current = false;
+      
+      // 取消进行中的请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   // 处理searchParams，确保我们有正确的参数格式
@@ -692,6 +706,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       const filterParamsJson = JSON.stringify(filterParams);
       const result = await wasmModule.ArticleFilterJS.filter_articles(filterParamsJson);
       
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) return;
+      
       // 处理结果
       if (!result || typeof result !== 'object') {
         console.error("[筛选] WASM返回结果格式错误");
@@ -721,10 +738,13 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         }
       }
       
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) return;
+      
       // 检查并修复总数
       const total = typeof result.total === 'number' ? result.total : articles.length;
       const totalPages = typeof result.total_pages === 'number' ? result.total_pages : 
-                         Math.ceil(total / filters.pageSize);
+                       Math.ceil(total / filters.pageSize);
       
       // 更新状态时提供明确的默认值
       setFilteredArticles(articles);
@@ -732,10 +752,16 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       setTotalPages(totalPages || 1);
       
     } catch (error) {
+      // 检查组件是否仍然挂载
+      if (!isMountedRef.current) return;
+      
       console.error("[筛选] 应用筛选逻辑出错:", error);
       setError("筛选文章时出错，请刷新页面重试");
     } finally {
-      setIsLoading(false);
+      // 检查组件是否仍然挂载
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -746,11 +772,22 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         const wasm = await import(
           "@/assets/wasm/article-filter/article_filter.js"
         );
+        
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
         if (typeof wasm.default === "function") {
           await wasm.default();
         }
+        
+        // 再次检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
         setWasmModule(wasm as unknown as ArticleFilterWasm);
       } catch (err) {
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
         console.error("加载WASM模块失败:", err);
         setError("加载筛选模块失败，请刷新页面重试");
       }
@@ -766,38 +803,79 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
     
     const loadIndexData = async () => {
+      // 取消之前的请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // 创建新的 AbortController
+      abortControllerRef.current = new AbortController();
+      
       try {
         setIsLoading(true);
-        const response = await fetch("/index/filter_index.bin");
+        const response = await fetch("/index/filter_index.bin", {
+          signal: abortControllerRef.current.signal
+        });
 
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
         if (!response.ok) {
           throw new Error(`获取筛选索引失败: ${response.statusText}`);
         }
 
         const indexData = await response.arrayBuffer();
+        
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
 
         // 初始化WASM模块
         try {
           await wasmModule.ArticleFilterJS.init(new Uint8Array(indexData));
+          
+          // 检查组件是否仍然挂载
+          if (!isMountedRef.current) return;
 
           // 获取所有标签
           const tags = (await wasmModule.ArticleFilterJS.get_all_tags()) || [];
+          
+          // 检查组件是否仍然挂载
+          if (!isMountedRef.current) return;
+          
           setAllAvailableTags(tags);
 
           // 初始加载时不依赖applyFilters函数，而是直接执行筛选逻辑
           // 这避免了循环依赖问题
           await initialLoadArticles();
+          
+          // 检查组件是否仍然挂载
+          if (!isMountedRef.current) return;
 
           setIsArticlesLoaded(true);
         } catch (parseError) {
+          // 检查组件是否仍然挂载
+          if (!isMountedRef.current) return;
+          
           console.error("解析筛选索引数据失败:", parseError);
           setError("索引文件存在但格式不正确，需要重新构建索引");
         }
       } catch (fetchError) {
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
+        // 如果是取消的请求，不显示错误
+        if (fetchError instanceof Error && (fetchError.name === 'AbortError' || fetchError.message.includes('aborted'))) {
+          console.log('索引加载请求被取消:', fetchError.message);
+          return;
+        }
+        
         console.error("获取索引数据失败:", fetchError);
         setError("索引文件缺失或无法读取，请重新构建索引");
       } finally {
-        setIsLoading(false);
+        // 检查组件是否仍然挂载
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -830,6 +908,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
             filterParamsJson,
           );
           
+          // 检查组件是否仍然挂载
+          if (!isMountedRef.current) return;
+          
           // 检查结果格式
           if (!result || typeof result !== 'object') {
             console.error("WASM返回结果格式错误");
@@ -859,6 +940,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
             }
           }
           
+          // 检查组件是否仍然挂载
+          if (!isMountedRef.current) return;
+          
           // 检查并修复总数
           const total = typeof result.total === 'number' ? result.total : articles.length;
           const totalPages = typeof result.total_pages === 'number' ? result.total_pages : 
@@ -870,7 +954,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
           setTotalPages(totalPages || 1);
           
           // 只有在非初始加载时才更新URL参数
-          if (!skipUrlUpdate) {
+          if (!skipUrlUpdate && typeof window !== 'undefined') {
             // 初始化URL参数
             const params = new URLSearchParams();
 
@@ -910,10 +994,16 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
           return result;
         } catch (wasmError) {
+          // 检查组件是否仍然挂载
+          if (!isMountedRef.current) return;
+          
           console.error("WASM执行失败");
           throw new Error(`WASM执行失败`);
         }
       } catch (error) {
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+        
         console.error("初始加载文章出错");
         setError("加载文章时出错，请刷新页面重试");
         return {
@@ -924,11 +1014,21 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
           total_pages: 0,
         };
       } finally {
-        setIsLoading(false);
+        // 检查组件是否仍然挂载
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadIndexData();
+    
+    // 组件卸载时清理
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [wasmModule]);
 
   // 检查activeFilters变化

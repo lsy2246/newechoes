@@ -23,6 +23,8 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, doubanId }) => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const scrollDetectorRef = useRef<HTMLDivElement | null>(null);
+  // 添加一个 ref 来标记组件是否已挂载
+  const isMountedRef = useRef<boolean>(true);
 
   // 使用ref来跟踪关键状态，避免闭包问题
   const stateRef = useRef({
@@ -67,6 +69,12 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, doubanId }) => {
         `/api/douban?type=${type}&start=${start}&doubanId=${doubanId}`,
         { signal: abortControllerRef.current.signal }
       );
+      
+      // 检查组件是否已卸载，如果卸载则不继续处理
+      if (!isMountedRef.current) {
+        return;
+      }
+      
       if (!response.ok) {
         // 解析响应内容，获取详细错误信息
         let errorMessage = `获取${type === "movie" ? "电影" : "图书"}数据失败`;
@@ -112,6 +120,11 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, doubanId }) => {
 
       const data = await response.json();
 
+      // 再次检查组件是否已卸载
+      if (!isMountedRef.current) {
+        return;
+      }
+
       if (data.items.length === 0) {
         // 如果返回的项目为空，则认为已经没有更多内容
         setHasMoreContent(false);
@@ -138,8 +151,17 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, doubanId }) => {
         stateRef.current.hasMoreContent = newHasMoreContent;
       }
     } catch (error) {
+      // 检查组件是否已卸载
+      if (!isMountedRef.current) {
+        return;
+      }
+      
       // 如果是取消的请求，不显示错误
       if (error instanceof Error && error.name === 'AbortError') {
+        console.log('请求被取消', error.message);
+        // 如果是取消请求，重置加载状态但不显示错误
+        setIsLoading(false);
+        stateRef.current.isLoading = false;
         return;
       }
       
@@ -148,9 +170,12 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, doubanId }) => {
         setItems([]);
       }
     } finally {
-      // 重置加载状态
-      setIsLoading(false);
-      stateRef.current.isLoading = false;
+      // 检查组件是否已卸载
+      if (isMountedRef.current) {
+        // 重置加载状态
+        setIsLoading(false);
+        stateRef.current.isLoading = false;
+      }
     }
   }, [type, doubanId]);
 
@@ -256,6 +281,9 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, doubanId }) => {
 
   // 组件初始化和依赖变化时重置
   useEffect(() => {
+    // 设置组件挂载状态
+    isMountedRef.current = true;
+    
     // 重置状态
     setCurrentPage(1);
     stateRef.current.currentPage = 1;
@@ -295,6 +323,9 @@ const MediaGrid: React.FC<MediaGridProps> = ({ type, doubanId }) => {
 
     // 清理函数
     return () => {
+      // 标记组件已卸载
+      isMountedRef.current = false;
+      
       clearTimeout(timeoutId);
       window.removeEventListener("scroll", handleScroll);
       

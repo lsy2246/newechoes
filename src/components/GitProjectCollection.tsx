@@ -148,13 +148,14 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
       setProjects(data.projects || []);
       setPagination(data.pagination || { current: page, total: 1, hasNext: false, hasPrev: page > 1 });
     } catch (err) {
-      // 如果是取消的请求，不显示错误
-      if (err instanceof Error && err.name === 'AbortError') {
-        return;
-      }
-      
       // 如果组件已卸载，不继续更新状态
       if (!isMountedRef.current) return;
+      
+      // 如果是取消的请求，不显示错误
+      if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'))) {
+        console.log('请求被取消:', err.message);
+        return;
+      }
       
       console.error('请求错误:', err);
       setError(err instanceof Error ? err.message : '未知错误');
@@ -164,10 +165,10 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
       }
     } finally {
       // 如果组件已卸载，不继续更新状态
-      if (!isMountedRef.current) return;
-      
-      setLoading(false);
-      setIsPageChanging(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setIsPageChanging(false);
+      }
     }
   }, [platform, username, organization, token, perPage, url, projects.length]);
   
