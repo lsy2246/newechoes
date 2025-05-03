@@ -394,61 +394,92 @@ export default function customCodeBlocksIntegration() {
       // 标准化图表定义
       const normalizedDefinition = graphDefinition.trim();
       
-      // 创建唯一临时文件名 - 使用完整路径
-      const tempId = Date.now() + '-' + Math.random().toString(36).substring(2, 10);
-      const tempFile = path.join(os.tmpdir(), `mermaid-${tempId}.mmd`);
-      const tempLightSvgFile = path.join(os.tmpdir(), `mermaid-${tempId}-light.svg`);
-      
-      // 写入标准化后的图表定义到临时文件
-      await fs.writeFile(tempFile, normalizedDefinition, 'utf8');
-      
-      // 只生成亮色模式SVG
-      let mermaidCmd = `npx mmdc -i "${tempFile}" -o "${tempLightSvgFile}" -t default`;
-      
-      try {
-        const { stdout, stderr } = await execPromise(mermaidCmd);
-        
-        if (stderr && !stderr.includes('Puppeteer')) {
-          // 移除非关键警告日志
-        }
-      } catch (execError) {
-        console.error(`执行Mermaid命令失败`);
-        throw new Error(`Mermaid渲染失败`);
-      }
-      
-      // 验证SVG文件是否生成
-      try {
-        await fs.access(tempLightSvgFile);
-      } catch (e) {
-        throw new Error(`SVG文件生成失败或无法访问`);
-      }
-      
-      // 读取SVG文件内容
-      const lightSvgContent = await fs.readFile(tempLightSvgFile, 'utf8');
-      
-      // 添加主题类
-      const themeAwareSvg = createThemeAwareSvg(lightSvgContent);
-      
       // 确保目标目录存在
       const svgDir = path.dirname(svgPath);
       if (!fsSync.existsSync(svgDir)) {
         fsSync.mkdirSync(svgDir, { recursive: true });
       }
       
+      // 直接在目标目录中创建文件，避免使用临时目录
+      const uniqueId = Date.now() + '-' + Math.random().toString(36).substring(2, 10);
+      const mmdFilePath = path.join(svgDir, `source-${uniqueId}.mmd`);
+      const rawSvgPath = path.join(svgDir, `raw-${uniqueId}.svg`);
+      
+      // 输出详细的环境信息帮助调试
+      console.log(`[Mermaid调试] 当前工作目录: ${process.cwd()}`);
+      console.log(`[Mermaid调试] 图表文件路径: ${mmdFilePath}`);
+      console.log(`[Mermaid调试] 原始SVG路径: ${rawSvgPath}`);
+      console.log(`[Mermaid调试] 最终SVG路径: ${svgPath}`);
+      console.log(`[Mermaid调试] 操作系统: ${process.platform}`);
+      console.log(`[Mermaid调试] Node版本: ${process.version}`);
+
+      // 写入Mermaid定义到文件
+      await fs.writeFile(mmdFilePath, normalizedDefinition, 'utf8');
+      console.log(`[Mermaid调试] 已写入图表定义文件`);
+      
+      // 构建Mermaid命令 - 添加更多的命令行参数以适应不同环境
+      let mermaidCmd = `npx mmdc -i "${mmdFilePath}" -o "${rawSvgPath}" -t default --puppeteerConfig '{"args":["--no-sandbox","--disable-setuid-sandbox"]}'`;
+      console.log(`[Mermaid调试] 执行命令: ${mermaidCmd}`);
+      
+      try {
+        const { stdout, stderr } = await execPromise(mermaidCmd);
+        if (stdout) console.log(`[Mermaid调试] 命令输出: ${stdout}`);
+        if (stderr) console.log(`[Mermaid调试] 命令错误: ${stderr}`);
+      } catch (execError) {
+        console.error(`执行Mermaid命令失败: ${execError.message}`);
+        if (execError.stdout) console.log(`命令标准输出: ${execError.stdout}`);
+        if (execError.stderr) console.log(`命令错误输出: ${execError.stderr}`);
+        
+        // 尝试使用全局mermaid-cli
+        try {
+          console.log(`[Mermaid调试] 尝试使用全局安装的mermaid-cli`);
+          const globalCmd = `mmdc -i "${mmdFilePath}" -o "${rawSvgPath}" -t default --puppeteerConfig '{"args":["--no-sandbox","--disable-setuid-sandbox"]}'`;
+          const { stdout, stderr } = await execPromise(globalCmd);
+          if (stdout) console.log(`[Mermaid调试] 全局命令输出: ${stdout}`);
+          if (stderr) console.log(`[Mermaid调试] 全局命令错误: ${stderr}`);
+        } catch (globalExecError) {
+          console.error(`使用全局Mermaid CLI失败: ${globalExecError.message}`);
+          throw new Error(`Mermaid渲染失败: ${execError.message}`);
+        }
+      }
+      
+      // 验证SVG文件是否生成
+      try {
+        await fs.access(rawSvgPath);
+        console.log(`[Mermaid调试] 成功生成原始SVG文件`);
+      } catch (e) {
+        console.error(`SVG文件生成失败或无法访问: ${e.message}`);
+        throw new Error(`无法访问生成的SVG文件: ${e.message}`);
+      }
+      
+      // 读取SVG文件内容
+      const lightSvgContent = await fs.readFile(rawSvgPath, 'utf8');
+      console.log(`[Mermaid调试] 成功读取SVG内容，长度: ${lightSvgContent.length}`);
+      
+      // 添加主题类
+      const themeAwareSvg = createThemeAwareSvg(lightSvgContent);
+      
       // 写入最终SVG文件
       await fs.writeFile(svgPath, themeAwareSvg);
+      console.log(`[Mermaid调试] 成功写入最终SVG文件`);
       
-      // 清理临时文件
+      // 清理中间文件
       try {
-        await fs.unlink(tempFile);
-        await fs.unlink(tempLightSvgFile);
+        await fs.unlink(mmdFilePath);
+        await fs.unlink(rawSvgPath);
+        console.log(`[Mermaid调试] 成功清理中间文件`);
       } catch (unlinkError) {
-        // 移除非关键警告
+        console.log(`[Mermaid调试] 清理中间文件时出错: ${unlinkError.message}`);
+        // 忽略清理错误，不影响主流程
       }
       
       return true;
     } catch (error) {
-      console.error(`SVG生成失败`);
+      console.error(`SVG生成失败: ${error.message}`);
+      // 提供堆栈跟踪以便更好地调试
+      if (error.stack) {
+        console.error(`错误堆栈: ${error.stack}`);
+      }
       return false;
     }
   }
