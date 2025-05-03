@@ -1,0 +1,150 @@
+:root {
+  --mermaid-text-color: #1e293b;
+  --mermaid-bg-color: #ffffff;
+  --mermaid-primary-color: #4f46e5;
+  --mermaid-secondary-color: #6366f1;
+  --mermaid-border-color: #9ca3af;
+  --mermaid-line-color: #4b5563;
+  --mermaid-edge-label-bg: #ffffff;
+  --mermaid-title-color: #0f172a;
+  --mermaid-section-bg: #f8fafc;
+  --mermaid-node-bg: #f1f5f9;
+}
+
+/* 暗色模式样式变量 */
+[data-theme='dark'], .dark {
+  --mermaid-text-color: #e2e8f0;
+  --mermaid-bg-color: #1e293b;
+  --mermaid-primary-color: #818cf8;
+  --mermaid-secondary-color: #a5b4fc;
+  --mermaid-border-color: #64748b;
+  --mermaid-line-color: #94a3b8;
+  --mermaid-edge-label-bg: #1e293b;
+  --mermaid-title-color: #f8fafc;
+  --mermaid-section-bg: #334155;
+  --mermaid-node-bg: #475569;
+}
+
+/* 基础Mermaid样式覆盖 */
+.mermaid {
+  background-color: transparent !important;
+  transition: color 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
+}
+
+/* Mermaid文本颜色统一 */
+.mermaid .label,
+.mermaid text,
+.mermaid span,
+.mermaid .messageText,
+.mermaid .loopText,
+.mermaid .noteText,
+.mermaid .taskText {
+  color: var(--mermaid-text-color) !important;
+  fill: var(--mermaid-text-color) !important;
+  font-family: inherit !important;
+  transition: color 0.3s ease, fill 0.3s ease;
+}
+
+/* 节点样式设置 */
+.mermaid .node rect, 
+.mermaid .node circle, 
+.mermaid .node ellipse, 
+.mermaid .node polygon,
+.mermaid .node path {
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-border-color) !important;
+  stroke-width: 1px !important;
+  transition: fill 0.3s ease, stroke 0.3s ease;
+}
+
+/* 连接线样式 */
+.mermaid .edgePath .path,
+.mermaid .flowchart-link,
+.mermaid line,
+.mermaid .messageLine0,
+.mermaid .messageLine1 {
+  stroke: var(--mermaid-line-color) !important;
+  stroke-width: 1px !important;
+  transition: stroke 0.3s ease;
+}
+
+/* 箭头填充 */
+.mermaid .arrowheadPath,
+.mermaid marker path {
+  fill: var(--mermaid-line-color) !important;
+  stroke: none !important;
+  transition: fill 0.3s ease;
+}
+
+/* 文本标签背景 */
+.mermaid .edgeLabel rect,
+.mermaid .labelBox {
+  fill: var(--mermaid-edge-label-bg) !important;
+  background-color: var(--mermaid-edge-label-bg) !important;
+  transition: fill 0.3s ease, background-color 0.3s ease;
+}
+
+/* 标题样式 */
+.mermaid .titleText,
+.mermaid .classTitle,
+.mermaid .cluster-label text {
+  fill: var(--mermaid-title-color) !important;
+  color: var(--mermaid-title-color) !important;
+  font-weight: bold !important;
+  transition: fill 0.3s ease, color 0.3s ease;
+}
+
+/* 集群/子图样式 */
+.mermaid .cluster rect,
+.mermaid .cluster polygon {
+  fill: var(--mermaid-section-bg) !important;
+  stroke: var(--mermaid-border-color) !important;
+  stroke-width: 1px !important;
+  opacity: 0.8 !important;
+  transition: fill 0.3s ease, stroke 0.3s ease;
+}
+
+/* 序列图特殊样式 */
+.mermaid .actor {
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-border-color) !important;
+  stroke-width: 1px !important;
+  transition: fill 0.3s ease, stroke 0.3s ease;
+}
+
+.mermaid .note {
+  fill: var(--mermaid-secondary-color) !important;
+  opacity: 0.7 !important;
+  transition: fill 0.3s ease;
+}
+
+/* 甘特图特殊样式 */
+.mermaid .section0,
+.mermaid .section2 {
+  fill: var(--mermaid-section-bg) !important;
+  opacity: 0.5 !important;
+  transition: fill 0.3s ease;
+}
+
+.mermaid .section1,
+.mermaid .section3 {
+  fill: var(--mermaid-node-bg) !important;
+  opacity: 0.4 !important;
+  transition: fill 0.3s ease;
+}
+
+.mermaid .task0,
+.mermaid .task1,
+.mermaid .task2,
+.mermaid .task3 {
+  fill: var(--mermaid-primary-color) !important;
+  stroke: var(--mermaid-border-color) !important;
+  transition: fill 0.3s ease, stroke 0.3s ease;
+}
+
+/* 类图特殊样式 */
+.mermaid .classLabel .label {
+  fill: var(--mermaid-text-color) !important;
+  color: var(--mermaid-text-color) !important;
+  transition: fill 0.3s ease, color 0.3s ease;
+}

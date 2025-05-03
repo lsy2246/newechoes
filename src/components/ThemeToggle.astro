@@ -454,7 +454,7 @@ const {
           callback();
           
           // 确保DOM已更新
-          document.documentElement.classList.toggle('dark', toTheme === 'dark');
+          document.documentElement.dataset.theme = toTheme;
         });
         
         // 生成动画需要的SVG资源
@@ -632,10 +632,6 @@ const {
         } else {
           document.documentElement.dataset.theme = "light";
         }
-        
-        // 确保同步类名
-        document.documentElement.classList.toggle('dark', 
-          document.documentElement.dataset.theme === 'dark');
       };
 
       // 切换主题
@@ -714,7 +710,6 @@ const {
         if (!localStorage.getItem("theme")) {
           const newTheme = e.matches ? "dark" : "light";
           document.documentElement.dataset.theme = newTheme;
-          document.documentElement.classList.toggle('dark', e.matches);
         }
       };
 

@@ -57,7 +57,7 @@ let secondaryHighlightStyle = activeSubItem ? "opacity: 1;" : "opacity: 0;";
 const activeClass = "font-medium";
 const itemClass = "px-4 py-2 text-sm font-medium";
 const primaryHighlightClass = "bg-primary-100 dark:bg-primary-800/30 rounded-xl shadow-md backdrop-blur-sm";
-const secondaryHighlightClass = "bg-primary-300/80 dark:bg-primary-700/60 rounded-md shadow-md backdrop-blur-sm";
+const secondaryHighlightClass = "bg-primary-300/80 dark:bg-primary-700/60 rounded-xl shadow-md backdrop-blur-sm";
 const transitionDuration = 300;
 const navSelectorClassName = "mr-4";
 ---
@@ -98,7 +98,7 @@ const navSelectorClassName = "mr-4";
                 class={`absolute z-0 hover:shadow-lg rounded-xl ${primaryHighlightClass}`} 
                 style={primaryHighlightStyle}></div>
             <div id="nav-secondary-highlight" 
-                class={`absolute z-10 hover:shadow-lg rounded-md ${secondaryHighlightClass}`}
+                class={`absolute z-10 hover:shadow-lg rounded-xl ${secondaryHighlightClass}`}
                 style={secondaryHighlightStyle}></div>
             
             <!-- 导航菜单项 -->
@@ -130,7 +130,7 @@ const navSelectorClassName = "mr-4";
                       
                       <!-- 二级菜单容器 -->
                       <div class={`nav-group-items relative min-w-full ${activeGroupId === item.id ? 'menu-visible' : 'hidden'}`}>
-                        <div class="flex flex-row flex-wrap gap-2 justify-center items-center">
+                        <div class="flex flex-row flex-wrap justify-center items-center">
                           {item.items.map((subItem) => (
                             <a 
                               href={subItem.href} 

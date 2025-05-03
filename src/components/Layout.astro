@@ -165,9 +165,7 @@ const {
 
           // 立即设置文档主题，在DOM渲染前应用，避免闪烁
           document.documentElement.dataset.theme = theme;
-          // 确保同步classList，提高兼容性
-          document.documentElement.classList.toggle('dark', theme === 'dark');
-
+          
           // 监听系统主题变化（只有当主题设为跟随系统时才响应）
           const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -176,7 +174,6 @@ const {
             if (!localStorage.getItem("theme")) {
               const newTheme = e.matches ? "dark" : "light";
               document.documentElement.dataset.theme = newTheme;
-              document.documentElement.classList.toggle('dark', e.matches);
             }
           };
 
@@ -191,11 +188,9 @@ const {
             // 重新初始化主题
             if (storedTheme) {
               document.documentElement.dataset.theme = storedTheme;
-              document.documentElement.classList.toggle('dark', storedTheme === 'dark');
             } else {
               const systemTheme = getSystemTheme();
               document.documentElement.dataset.theme = systemTheme;
-              document.documentElement.classList.toggle('dark', systemTheme === 'dark');
             }
           }
           
@@ -206,7 +201,6 @@ const {
         } catch (error) {
           // 出错时应用默认浅色主题，确保页面正常显示
           document.documentElement.dataset.theme = "light";
-          document.documentElement.classList.remove('dark');
         }
       })();
     </script>

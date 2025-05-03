@@ -1,0 +1,200 @@
+/* 代码块容器样式 - 简化背景和阴影 */
+.code-block-container {
+  margin: 1rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background-color: transparent;
+  position: relative;
+}
+
+/* 代码块标题栏 */
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.8rem;
+  background-color: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875rem;
+}
+
+/* 代码语言标签 */
+.code-block-lang {
+  font-weight: 600;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.code-block-lang svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* 复制按钮 */
+.code-block-copy {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.code-block-copy:hover {
+  background-color: #e2e8f0;
+}
+
+.code-block-copy.copied {
+  color: #10b981;
+}
+
+/* 代码内容容器 - 移除背景 */
+.code-block-content {
+  position: relative;
+  overflow-x: auto;
+  background-color: transparent;
+}
+
+/* 基础代码块样式 - 减小内边距 */
+pre {
+  margin: 0;
+  padding: 0.2rem 0;
+  overflow-x: auto;
+}
+
+pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 1.05rem;
+  line-height: 1.5rem;
+  padding: 0;
+  display: block;
+}
+
+/* 行号样式 - 缩小间距 */
+.line-numbers {
+  counter-reset: line;
+  position: relative;
+}
+
+/* 行号背景条 - 减小宽度 */
+.line-numbers::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3rem;
+  background-color: #f1f5f9;
+  border-right: 1px solid #e2e8f0;
+  z-index: 1;
+}
+
+/* 行样式 - 进一步减小行间距和缩进 */
+.line-numbers .line {
+  position: relative;
+  counter-increment: line;
+  padding-left: 3.5rem;
+  padding-right: 0.5rem;
+  min-height: 1.5rem;
+  white-space: pre;
+}
+
+/* 行号 - 调整位置 */
+.line-numbers .line::before {
+  content: counter(line);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3rem;
+  height: 100%;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.95rem;
+  user-select: none;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 暗色模式 */
+[data-theme='dark'] .code-block-container {
+  border-color: #334155;
+  background-color: transparent;
+}
+
+[data-theme='dark'] .code-block-header {
+  background-color: #1e293b;
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .code-block-lang {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .code-block-copy {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .code-block-copy:hover {
+  background-color: #334155;
+}
+
+/* 移除代码内容区域的黑暗模式背景 */
+[data-theme='dark'] .code-block-content {
+  background-color: transparent;
+}
+
+/* 暗色模式行号样式 */
+[data-theme='dark'] .line-numbers::before {
+  background-color: #1e293b;
+  border-right-color: #334155;
+}
+
+[data-theme='dark'] .line-numbers .line::before {
+  color: #64748b;
+}
+
+/* 兼容原有高亮 - 确保不添加背景 */
+[data-theme='dark'] .shiki,
+[data-theme='dark'] .shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: transparent !important;
+}
+
+[data-theme='dark'] .astro-code,
+[data-theme='dark'] .astro-code span {
+  color: var(--shiki-dark) !important;
+  background-color: transparent !important;
+}
+
+/* 确保所有代码元素没有背景 */
+code, pre, .code-block-content,
+.code-block-content pre.shiki,
+.code-block-content pre.astro-code,
+.code-block-content pre code,
+.code-block-content pre code span,
+pre.shiki, pre.astro-code,
+.line, .line span {
+  background-color: transparent !important;
+}
+
+/* 高亮行样式 - 仅保留边框而不添加背景 */
+.line.highlighted {
+  border-left: 2px solid #eab308;
+  background-color: transparent !important;
+}
+
+[data-theme='dark'] .line.highlighted {
+  border-left: 2px solid #fbbf24;
+  background-color: transparent !important;
+}

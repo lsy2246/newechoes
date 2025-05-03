@@ -1,6 +1,6 @@
-@import "./table-styles.css";
-@import "./code-blocks.css";
-@import "./mermaid-themes.css";
+@import "./articles-table.css";
+@import "./articles-mermaid.css";
+@import "./articles-code.css";
 
 /* 增强列表样式 */
 .prose ul {
@@ -40,41 +40,6 @@
 
 .prose ol li::marker {
   color: #6b7280;
-}
-
-/* 行内代码样式 */
-.prose :not(pre) > code {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: var(--color-primary-700);
-  padding: 0.2em 0.4em;
-  border-radius: 0.375em;
-  font-weight: 500;
-  font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
-  font-size: 0.875em;
-  white-space: normal;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  letter-spacing: -0.025em;
-  transition: all 0.2s ease;
-}
-
-.prose :not(pre) > code:hover {
-  background-color: rgba(var(--color-primary-600-rgb), 0.08);
-  border-color: rgba(var(--color-primary-400-rgb), 0.2);
-}
-
-[data-theme="dark"] .prose :not(pre) > code {
-  background-color: rgba(255, 255, 255, 0.07);
-  color: var(--color-primary-300);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="dark"] .prose :not(pre) > code:hover {
-  background-color: rgba(var(--color-primary-500-rgb), 0.15);
-  border-color: rgba(var(--color-primary-300-rgb), 0.3);
 }
 
 /* 标题样式 */
@@ -294,8 +259,7 @@
 .prose details > p,
 .prose details > ul,
 .prose details > ol,
-.prose details > div,
-.prose details > pre {
+.prose details > div {
   margin-top: 0;
   margin-bottom: 1em;
 }

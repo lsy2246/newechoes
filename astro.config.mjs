@@ -14,7 +14,6 @@ import { SITE_URL } from "./src/consts";
 import compressor from "astro-compressor";
 import vercel from "@astrojs/vercel";
 import { articleIndexerIntegration } from "./src/plugins/build-article-index.js";
-import customCodeBlocksIntegration from "./src/plugins/custom-code-blocks.js";
 
 function getArticleDate(articleId) {
   try {
@@ -52,21 +51,15 @@ export default defineConfig({
   },
 
   integrations: [
-    // 使用我们自己的代码块集成替代expressiveCode
-    customCodeBlocksIntegration(),
-    
-    // MDX 集成配置
+    // 使用Astro官方的MDX支持
     mdx(),
     swup({
       cache: true,
       preload: true,
-    }
-      
-    ),
+    }),
     react(),
-    // 使用我们自己的文章索引生成器（替换pagefind）
+    // 使用文章索引生成器
     articleIndexerIntegration(),
-    
     sitemap({
       filter: (page) => !page.includes("/api/"),
       serialize(item) {
@@ -109,9 +102,24 @@ export default defineConfig({
     compressor()
   ],
 
-  // Markdown 配置
+  // Markdown 配置 - 使用官方语法高亮
   markdown: {
-    syntaxHighlight: false, // 禁用默认的语法高亮，使用我们自定义的高亮
+    // 配置语法高亮
+    syntaxHighlight: {
+      // 使用shiki作为高亮器
+      type: 'shiki',
+      // 排除mermaid语言，不进行高亮处理
+      excludeLangs: ['mermaid']
+    },
+    // Shiki主题配置
+    shikiConfig: {
+      theme: 'github-light',
+      themes: {
+        light: 'github-light',
+        dark: 'github-dark'
+      },
+      wrap: true
+    },
     remarkPlugins: [
       [remarkEmoji, { emoticon: false, padded: true }]
     ],
@@ -119,13 +127,6 @@ export default defineConfig({
       [rehypeExternalLinks, { target: '_blank', rel: ['nofollow', 'noopener', 'noreferrer'] }]
     ],
     gfm: true,
-    // 设置 remark-rehype 选项，以控制HTML处理
-    remarkRehype: { 
-      // 保留原始HTML格式，但仅在非代码块区域
-      allowDangerousHtml: true,
-      // 确保代码块内容不被解析
-      passThrough: ['code']
-    },
   },
 
   adapter: vercel(),
