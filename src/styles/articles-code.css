@@ -164,18 +164,6 @@ pre code {
   color: #64748b;
 }
 
-/* 兼容原有高亮 - 确保不添加背景 */
-[data-theme='dark'] .shiki,
-[data-theme='dark'] .shiki span {
-  color: var(--shiki-dark) !important;
-  background-color: transparent !important;
-}
-
-[data-theme='dark'] .astro-code,
-[data-theme='dark'] .astro-code span {
-  color: var(--shiki-dark) !important;
-  background-color: transparent !important;
-}
 
 /* 确保所有代码元素没有背景 */
 code, pre, .code-block-content,
@@ -191,10 +179,20 @@ pre.shiki, pre.astro-code,
 /* 高亮行样式 - 仅保留边框而不添加背景 */
 .line.highlighted {
   border-left: 2px solid #eab308;
-  background-color: transparent !important;
 }
 
 [data-theme='dark'] .line.highlighted {
   border-left: 2px solid #fbbf24;
   background-color: transparent !important;
 }
+
+/* 暗黑主题样式 */
+[data-theme='dark'] .astro-code {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}
+
+[data-theme='dark'] .astro-code span {
+  color: var(--shiki-dark) !important;
+}
+

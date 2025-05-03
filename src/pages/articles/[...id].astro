@@ -500,97 +500,25 @@ const tableOfContents = generateTableOfContents(headings);
       listeners.length = 0;
     }
     
-    // 1. 增强代码块功能 - 添加标题栏、语言显示和复制按钮
-    function enhanceCodeBlocks() {
-      // 查找所有代码块元素
-      const codeBlocks = document.querySelectorAll('pre > code');
-      if (codeBlocks.length === 0) return;
-      
-      codeBlocks.forEach(codeBlock => {
-        const pre = codeBlock.parentElement;
-        // 如果已经处理过，跳过
-        if (pre.parentElement.classList.contains('code-block-container')) return;
-        
-        // 获取语言类 - 简化语言提取逻辑
-        let language = '';
-        
-        // 从data-language属性中提取(最常见的方式)
-        language = pre.getAttribute('data-language') || codeBlock.getAttribute('data-language') || '';
-        
-        // 如果没有找到语言，则默认为 'text'
-        if (!language || language === 'mermaid') {
-          // 跳过 mermaid 图表
-          if (language === 'mermaid') return;
-          language = 'text';
-        }
-        
-        // 获取原始代码文本，保留换行和格式
-        let originalCode = '';
-        const hasLineElements = codeBlock.querySelectorAll('.line').length > 0 || 
-                               codeBlock.innerHTML.includes('<span class="line">');
-        
-        if (hasLineElements) {
-          // 从行元素中提取文本
-          const lines = codeBlock.querySelectorAll('.line');
-          if (lines.length > 0) {
-            originalCode = Array.from(lines)
-              .map(line => line.textContent)
-              .join('\n');
-          } else {
-            // 尝试解析HTML中的行
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = codeBlock.innerHTML;
-            const lineSpans = tempDiv.querySelectorAll('.line');
-            originalCode = Array.from(lineSpans)
-              .map(span => span.textContent)
-              .join('\n');
-          }
-        } else {
-          // 直接使用textContent (这种情况下可能没有特殊格式化)
-          originalCode = codeBlock.textContent || '';
-        }
-        
-        // 创建代码块容器
-        const container = document.createElement('div');
-        container.className = 'code-block-container';
-        
-        // 创建标题栏
-        const header = document.createElement('div');
-        header.className = 'code-block-header';
-        
-        // 语言标签
-        const langDiv = document.createElement('div');
-        langDiv.className = 'code-block-lang';
-        langDiv.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="16 18 22 12 16 6"></polyline>
-            <polyline points="8 6 2 12 8 18"></polyline>
-          </svg>
-          ${language.toUpperCase()}
-        `;
-        
-        // 复制按钮
-        const copyButton = document.createElement('button');
-        copyButton.className = 'code-block-copy';
-        copyButton.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
-          复制
-        `;
-        
-        // 代码内容容器
-        const codeContent = document.createElement('div');
-        codeContent.className = 'code-block-content';
-        
-        // 添加复制功能
-        addListener(copyButton, 'click', async () => {
+    // 代码块复制功能
+    function setupCodeCopy() {
+      const copyButtons = document.querySelectorAll('.code-block-copy');
+      if (copyButtons.length === 0) return;
+
+      copyButtons.forEach(button => {
+        addListener(button, 'click', async () => {
           try {
-            // 使用优化后的方法获取代码文本
-            await navigator.clipboard.writeText(originalCode);
-            copyButton.classList.add('copied');
-            copyButton.innerHTML = `
+            // 使用Base64解码获取代码文本
+            const encodedCode = button.getAttribute('data-code');
+            if (!encodedCode) return;
+            
+            // 解码并复制到剪贴板
+            const code = atob(encodedCode);
+            await navigator.clipboard.writeText(code);
+            
+            const originalHTML = button.innerHTML;
+            button.classList.add('copied');
+            button.innerHTML = `
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                 <path d="M20 6L9 17l-5-5"></path>
               </svg>
@@ -598,18 +526,12 @@ const tableOfContents = generateTableOfContents(headings);
             `;
             
             setTimeout(() => {
-              copyButton.classList.remove('copied');
-              copyButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                复制
-              `;
+              button.classList.remove('copied');
+              button.innerHTML = originalHTML;
             }, 2000);
           } catch (err) {
             console.error('复制失败:', err);
-            copyButton.innerHTML = `
+            button.innerHTML = `
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -618,7 +540,7 @@ const tableOfContents = generateTableOfContents(headings);
               失败
             `;
             setTimeout(() => {
-              copyButton.innerHTML = `
+              button.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -628,67 +550,6 @@ const tableOfContents = generateTableOfContents(headings);
             }, 2000);
           }
         });
-        
-        // 组装标题栏
-        header.appendChild(langDiv);
-        header.appendChild(copyButton);
-        
-        // 添加行号
-        const preHasLineNumbers = pre.classList.contains('line-numbers') || pre.classList.contains('has-line-numbers');
-        
-        // 不改变原有结构，只在外层包装
-        // 保留原有的代码块，将其移入新容器
-        pre.parentNode.insertBefore(container, pre);
-        container.appendChild(header);
-        container.appendChild(codeContent);
-        codeContent.appendChild(pre);
-        
-        // 始终添加行号 - 修改此部分，确保所有代码块都有行号
-        if (!preHasLineNumbers) {
-          pre.classList.add('line-numbers');
-          
-          // 如果代码块内部没有行号结构，则添加
-          const hasLineElements = codeBlock.querySelectorAll('.line').length > 0 || 
-                                codeBlock.innerHTML.includes('<span class="line">');
-                                
-          if (!hasLineElements) {
-            // 特殊处理已经高亮的代码，防止破坏高亮效果
-            const isPreHighlighted = codeBlock.innerHTML.includes('span style=') || 
-                                    pre.classList.contains('shiki') || 
-                                    pre.classList.contains('astro-code');
-                                    
-            if (isPreHighlighted) {
-              // 已经高亮的代码，只添加行号类，不修改结构
-              // 在这种情况下依赖CSS来显示行号，而不是修改DOM结构
-              return;
-            }
-            
-            // 只处理未高亮的代码块
-            // 将代码按行分割
-            const lines = originalCode.split('\n');
-            let newHtml = '';
-            
-            // 优化行处理，确保正确处理行内容
-            lines.forEach((line, index) => {
-              // 避免末尾空行
-              if (index === lines.length - 1 && line.trim() === '') return;
-              
-              // 处理HTML实体，防止XSS并保留格式
-              const escapedLine = line
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-                
-              // 添加行标记（不添加换行符）
-              newHtml += `<span class="line">${escapedLine}</span>`;
-            });
-            
-            // 更新代码块内容，仅在有内容时更新
-            if (newHtml) {
-              codeBlock.innerHTML = newHtml;
-            }
-          }
-        }
       });
     }
 
@@ -991,7 +852,7 @@ const tableOfContents = generateTableOfContents(headings);
     function init() {
       if (!document.querySelector("article")) return;
       
-      enhanceCodeBlocks();  // 添加新的代码块增强函数
+      setupCodeCopy();  // 只保留代码复制功能
       setupProgressBar();
       setupTableOfContents();
       setupMermaid();

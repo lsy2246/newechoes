@@ -14,6 +14,7 @@ import { SITE_URL } from "./src/consts";
 import compressor from "astro-compressor";
 import vercel from "@astrojs/vercel";
 import { articleIndexerIntegration } from "./src/plugins/build-article-index.js";
+import { rehypeCodeBlocks } from "./src/plugins/rehype-code-blocks.js";
 
 function getArticleDate(articleId) {
   try {
@@ -113,18 +114,22 @@ export default defineConfig({
     },
     // Shiki主题配置
     shikiConfig: {
+      // 默认主题 - 必须设置，但最终会被替换为 light/dark 主题
       theme: 'github-light',
+      // 定义明亮和暗黑主题
       themes: {
         light: 'github-light',
         dark: 'github-dark'
       },
+      // 启用代码换行
       wrap: true
     },
     remarkPlugins: [
       [remarkEmoji, { emoticon: false, padded: true }]
     ],
     rehypePlugins: [
-      [rehypeExternalLinks, { target: '_blank', rel: ['nofollow', 'noopener', 'noreferrer'] }]
+      [rehypeExternalLinks, { target: '_blank', rel: ['nofollow', 'noopener', 'noreferrer'] }],
+      rehypeCodeBlocks
     ],
     gfm: true,
   },

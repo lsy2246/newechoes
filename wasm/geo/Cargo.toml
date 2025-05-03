@@ -16,3 +16,4 @@ geo-types = { workspace = true }
 js-sys = { workspace = true }
 kdtree = { workspace = true }
 console_error_panic_hook = { workspace = true }
+serde-wasm-bindgen = { workspace = true }

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 use kdtree::KdTree;
 use kdtree::distance::squared_euclidean;
+use serde_wasm_bindgen;
 
 // 初始化错误处理
 #[wasm_bindgen(start)]
