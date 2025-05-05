@@ -1,0 +1,54 @@
+/* 波纹效果相关样式 */
+@keyframes ripple-effect {
+  from {
+    transform: scale(0);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(10);
+    opacity: 0;
+  }
+}
+
+.theme-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(var(--theme-ripple-color, 100, 100, 100), 0.15);
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  transform-origin: center;
+  animation: ripple-effect 800ms ease-out forwards;
+}
+
+/* 暗色模式下使用不同颜色变量 */
+.dark .theme-ripple {
+  background-color: rgba(var(--theme-ripple-color, 200, 200, 200), 0.15);
+}
+
+/* View Transitions 样式控制 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none !important;
+  mix-blend-mode: normal !important;
+  isolation: auto !important;
+}
+
+/* 新增特殊模式样式 */
+html.theme-transition-active {
+  transition: none !important;
+}
+
+::view-transition-old(root) {
+  z-index: 999 !important;
+}
+
+::view-transition-new(root) {
+  z-index: 1000 !important;
+}
+
+/* 设置主题容器在移动设备上的样式 */
+#theme-toggle-container {
+  position: relative;
+  overflow: hidden;
+} 

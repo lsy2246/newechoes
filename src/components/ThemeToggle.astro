@@ -19,6 +19,8 @@ const {
   transitionDuration = 700, // 默认动画时间(毫秒)
 } = Astro.props;
 
+// 导入外部CSS样式文件
+import "../styles/theme-toggle.css";
 ---
 
 <button
@@ -61,63 +63,6 @@ const {
   <!-- 波纹效果容器 -->
   <span id="ripple-container" class="absolute inset-0 pointer-events-none z-0"></span>
 </button>
-
-<style is:global>
-  /* 波纹效果相关样式 */
-  @keyframes ripple-effect {
-    from {
-      transform: scale(0);
-      opacity: 0.8;
-    }
-    to {
-      transform: scale(10);
-      opacity: 0;
-    }
-  }
-  
-  .theme-ripple {
-    position: absolute;
-    border-radius: 50%;
-    background-color: rgba(var(--theme-ripple-color, 100, 100, 100), 0.15);
-    width: 10px;
-    height: 10px;
-    pointer-events: none;
-    transform-origin: center;
-    animation: ripple-effect 800ms ease-out forwards;
-  }
-  
-  /* 暗色模式下使用不同颜色变量 */
-  .dark .theme-ripple {
-    background-color: rgba(var(--theme-ripple-color, 200, 200, 200), 0.15);
-  }
-  
-  /* View Transitions 样式控制 */
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation: none !important;
-    mix-blend-mode: normal !important;
-    isolation: auto !important;
-  }
-  
-  /* 新增特殊模式样式 */
-  html.theme-transition-active {
-    transition: none !important;
-  }
-
-  ::view-transition-old(root) {
-    z-index: 999 !important;
-  }
-  
-  ::view-transition-new(root) {
-    z-index: 1000 !important;
-  }
-  
-  /* 设置主题容器在移动设备上的样式 */
-  #theme-toggle-container {
-    position: relative;
-    overflow: hidden;
-  }
-</style>
 
 <script is:inline>
   // 主题切换逻辑 - 自销毁模式
@@ -165,7 +110,7 @@ const {
     // 添加事件监听器并记录，方便后续统一清理
     function addListener(element, eventType, handler, options) {
       if (!element) {
-        console.warn(`主题切换尝试为不存在的元素添加事件:`, eventType);
+        console.error(`主题切换尝试为不存在的元素添加事件:`, eventType);
         return null;
       }
 
@@ -180,14 +125,8 @@ const {
       if (window._themeTransition && typeof window._themeTransition.skipTransition === 'function') {
         try {
           window._themeTransition.skipTransition();
-          console.debug(`主题切换清理阶段取消transition成功`);
         } catch (err) {
-          // 降级为debug日志
-          if (err.name === 'AbortError') {
-            console.debug(`主题切换清理阶段: 过渡已被跳过，这是正常现象`);
-          } else {
-            console.debug(`主题切换清理阶段取消transition出错:`, err);
-          }
+          // 忽略AbortError，这是正常现象
         } finally {
           window._themeTransition = null;
         }
@@ -336,8 +275,7 @@ const {
             window._themeTransition.skipTransition();
           }
         } catch (e) {
-          // 降级为debug日志，不需要显示警告
-          console.debug(`主题切换取消先前过渡失败:`, e);
+          // 忽略取消先前过渡的错误
         } finally {
           // 无论成功与否，都清除引用
           window._themeTransition = null;
@@ -470,7 +408,7 @@ const {
             // 最后执行用户回调
             callback();
           } catch (err) {
-            console.error(`主题切换 回调执行出错:`, err);
+            console.error(`主题切换回调执行出错:`, err);
           }
         };
         
@@ -504,20 +442,14 @@ const {
               // 等待过渡准备完成
               await readyPromise;
             } catch (err) {
-              // 超时处理 - 只记录警告日志，继续执行动画
-              if (err.message === 'Ready timeout') {
-                console.debug(`主题切换过渡准备超时，使用备用策略`);
-                // 收缩模式时此处超时更常见，立即使用备用方案
-                if (animationType === TRANSITION_MODES.SHRINK) {
-                  applyFallbackAnimation();
-                  return; // 跳过后续代码，使用备用方案
-                }
+              // 超时处理或过渡中断，使用备用方案
+              if (err.message === 'Ready timeout' && animationType === TRANSITION_MODES.SHRINK) {
+                applyFallbackAnimation();
+                return; // 跳过后续代码，使用备用方案
               } else if (err.name === 'AbortError') {
                 // 如果是AbortError，我们也立即使用备用方案
                 applyFallbackAnimation();
                 return; // 跳过后续代码，使用备用方案
-              } else {
-                console.debug(`主题切换过渡准备错误:`, err);
               }
             }
             
@@ -634,18 +566,9 @@ const {
               }
             }, TOTAL_TRANSITION_TIME);
           } catch (error) {
-            // AbortError是正常的，我们完全可以忽略它，但仍保留调试日志
-            if (error.name === 'AbortError') {
-              // 降级为debug级别日志，不要吓到用户
-              console.debug(`主题切换过渡被跳过，这是正常现象`);
-              // 使用备用动画方案
-              applyFallbackAnimation();
-            } else if (error.message === 'Ready timeout') {
-              // 超时是我们主动抛出的，只需要降级处理
-              console.debug(`主题切换过渡准备超时，继续执行动画`);
-              
-              // 即使ready超时，我们仍然可以应用样式
-              // 这里可以直接调用备用方案应用动画
+            // 处理错误情况
+            if (error.name === 'AbortError' || error.message === 'Ready timeout') {
+              // AbortError或超时是正常的，使用备用动画方案
               applyFallbackAnimation();
             } else {
               // 只有真正意外的错误才输出error级别日志
@@ -766,7 +689,7 @@ const {
               }
             }, TOTAL_TRANSITION_TIME);
           } catch (err) {
-            console.debug(`主题切换应用备用动画方案出错:`, err);
+            console.error(`主题切换应用备用动画方案出错:`, err);
           }
         };
         
@@ -783,9 +706,7 @@ const {
             window._themeTransition = null;
           })
           .catch(error => {
-            if (error.name === 'AbortError') {
-              console.debug(`主题切换过渡被中断: 这是正常现象，可能是新的过渡开始或页面导航变化`);
-            } else {
+            if (error.name !== 'AbortError') {
               console.error(`主题切换过渡动画错误:`, error);
             }
             // 确保标记类被移除
@@ -810,7 +731,7 @@ const {
       const themeToggleButtons = document.querySelectorAll("#theme-toggle-button");
 
       if (!themeToggleButtons.length) {
-        console.warn(`主题切换未找到主题切换按钮`);
+        console.error(`主题切换未找到主题切换按钮`);
         return;
       }
 
@@ -838,8 +759,6 @@ const {
             ripple.parentNode.removeChild(ripple);
           }
         });
-        
-        console.debug('主题切换: 状态已重置');
       };
       
       // 监听Astro的页面切换事件
@@ -869,7 +788,6 @@ const {
         if (window._themeTransitioning && 
             (e.target.closest('#theme-toggle-button') || 
              e.target.closest('#theme-toggle-container'))) {
-          console.debug('全局拦截: 主题切换正在进行中，忽略额外点击');
           e.stopPropagation();
           e.preventDefault();
         }
@@ -930,24 +848,18 @@ const {
 
         // 第1层保护：全局事件防抖
         if (isThrottled()) {
-          console.debug('主题切换: 防抖拦截，忽略点击');
           return;
         }
 
         // 第2层保护：transitioning状态检查
         if (window._themeTransitioning) {
-          console.debug('主题切换: 已有过渡进行中，忽略点击');
           return;
         }
 
         // 第3层保护：视图过渡检查
         if (window._themeTransition) {
-          console.debug('主题切换: 视图过渡已存在，忽略点击');
           return;
         }
-
-        // 所有检查通过后，开始处理主题切换
-        console.debug('主题切换: 开始处理');
 
         // 立即设置transitioning状态，阻止后续点击
         window._themeTransitioning = true;
@@ -1022,7 +934,6 @@ const {
             // 过渡完成后恢复状态
             setTimeout(() => {
               window._themeTransitioning = false;
-              console.debug('主题切换: 过渡完成，恢复状态');
             }, ANIMATION_BUFFER); // 添加缓冲时间
           }).catch(error => {
             // 出现错误时强制执行主题切换以确保功能可用
@@ -1030,20 +941,16 @@ const {
               console.error(`主题切换过渡动画错误:`, error);
               // 如果不是因为过渡被跳过而是真正的错误，直接执行主题切换
               safeThemeChangeCallback();
-            } else {
-              console.debug(`主题切换过渡被跳过，这是正常现象`);
             }
             
             setTimeout(() => {
               window._themeTransitioning = false;
-              console.debug('主题切换: 过渡被取消，恢复状态');
             }, ANIMATION_BUFFER);
           });
 
           // 设置防抖保底 - 防止transition.finished不触发导致状态卡死
           transitionTimeout = setTimeout(() => {
             window._themeTransitioning = false;
-            console.debug('主题切换: 过渡超时，强制恢复状态');
           }, TOTAL_TRANSITION_TIME + 200); // 总过渡时间加额外缓冲
         } catch (err) {
           // 即使发生错误，也要确保主题能切换
@@ -1070,7 +977,6 @@ const {
           
           // 确保状态被重置
           window._themeTransitioning = false;
-          console.debug('主题切换: 发生错误，恢复状态');
         }
       };
 
@@ -1154,7 +1060,6 @@ const {
           document._themeToggleCleanedUp = true;
           // 执行清理
           selfDestruct();
-          console.debug('主题切换: 自动清理已执行');
         }
       }, 30000);
     }
