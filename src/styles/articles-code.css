@@ -1,7 +1,7 @@
 /* 代码块容器样式 - 简化背景和阴影 */
 .code-block-container {
-  margin: 1rem 0;
-  border-radius: 0.5rem;
+  margin: 0.75rem 0;
+  border-radius: 0.4rem;
   overflow: hidden;
   border: 1px solid #e2e8f0;
   background-color: transparent;
@@ -13,11 +13,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.4rem 0.8rem;
+  padding: 0.3rem 0.6rem;
   background-color: #f1f5f9;
   border-bottom: 1px solid #e2e8f0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
 }
 
 /* 代码语言标签 */
@@ -42,10 +42,10 @@
   color: #475569;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
+  gap: 0.2rem;
+  padding: 0.2rem 0.4rem;
   border-radius: 0.25rem;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   transition: all 0.2s ease;
 }
 
@@ -67,14 +67,14 @@
 /* 基础代码块样式 - 减小内边距 */
 pre {
   margin: 0;
-  padding: 0.2rem 0;
+  padding: 0.15rem 0;
   overflow-x: auto;
 }
 
 pre code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 1.05rem;
-  line-height: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.4rem;
   padding: 0;
   display: block;
 }
@@ -92,7 +92,7 @@ pre code {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3rem;
+  width: 2.5rem;
   background-color: #f1f5f9;
   border-right: 1px solid #e2e8f0;
   z-index: 1;
@@ -102,9 +102,9 @@ pre code {
 .line-numbers .line {
   position: relative;
   counter-increment: line;
-  padding-left: 3.5rem;
-  padding-right: 0.5rem;
-  min-height: 1.5rem;
+  padding-left: 3rem;
+  padding-right: 0.4rem;
+  min-height: 1.4rem;
   white-space: pre;
 }
 
@@ -114,11 +114,11 @@ pre code {
   position: absolute;
   left: 0;
   top: 0;
-  width: 3rem;
+  width: 2.5rem;
   height: 100%;
   text-align: center;
   color: #94a3b8;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   user-select: none;
   z-index: 2;
   display: flex;
@@ -194,5 +194,59 @@ pre.shiki, pre.astro-code,
 
 [data-theme='dark'] .astro-code span {
   color: var(--shiki-dark) !important;
+}
+
+/* 行内代码块样式 */
+:not(pre) > code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875rem;
+  color: var(--color-primary-700);
+  background-color: var(--color-primary-50);
+  padding: 0.2rem 0.4rem;
+  margin: 0 0.2rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--color-primary-100);
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-all;
+  max-width: 100%;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+/* 行内代码块黑暗模式样式 */
+[data-theme='dark'] :not(pre) > code {
+  color: var(--color-primary-300);
+  background-color: rgba(75, 107, 255, 0.1);
+  border-color: var(--color-primary-700);
+}
+
+/* 长路径的行内代码块样式特殊处理 */
+:not(pre) > code:has(path), 
+:not(pre) > code.file-path {
+  white-space: pre-wrap;       /* 保留空格但允许换行 */
+  overflow-wrap: break-word;   /* 允许在任何地方断行 */
+  word-break: break-all;       /* 允许在任何字符间断行 */
+  max-width: 100%;
+  display: inline-block;
+  font-size: 0.85rem;          /* 略微减小字体尺寸 */
+  padding: 0.2rem 0.4rem;
+  line-height: 1.4;
+}
+
+/* 针对文件路径的特殊样式 - 适用于Windows路径 */
+:not(pre) > code.file-path {
+  color: var(--color-gray-700);
+  background-color: var(--color-gray-100);
+  border-color: var(--color-gray-200);
+}
+
+/* 针对文件路径的特殊样式 - 黑暗模式 */
+[data-theme='dark'] :not(pre) > code.file-path {
+  color: var(--color-gray-300);
+  background-color: var(--color-gray-800);
+  border-color: var(--color-gray-700);
 }
 

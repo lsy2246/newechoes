@@ -140,7 +140,7 @@ fn get_search_suggestions(search_index: &ArticleSearchIndex, query: &str) -> Vec
                 suggestion_type: SuggestionType::Completion,
                 frequency: *freq
             });
-        } else if query.starts_with(&term_lower) || term_lower.contains(&query) {
+        } else if term_lower.contains(&query) {
             // 包含关系，作为纠正建议
             candidates.push(SuggestionCandidate {
                 text: term.clone(),

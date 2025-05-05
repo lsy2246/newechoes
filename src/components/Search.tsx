@@ -204,7 +204,6 @@ const Search: React.FC<SearchProps> = ({
         
         // 如果是取消的请求，不显示错误
         if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'))) {
-          console.log('索引加载请求被取消:', err.message);
           return;
         }
         
@@ -239,7 +238,7 @@ const Search: React.FC<SearchProps> = ({
       }
     };
 
-    window.addEventListener('resize', handleResize, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: false });
     return () => {
       window.removeEventListener('resize', handleResize);
     };
@@ -248,18 +247,35 @@ const Search: React.FC<SearchProps> = ({
   // 处理点击外部关闭搜索结果和建议
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // 获取事件目标元素
+      const target = event.target as Node;
+      
+      // 检查是否点击了清除按钮、Tab按钮或其子元素
+      const clearButtonEl = document.querySelector('.clear-search-button');
+      const tabButtonEl = document.querySelector('.tab-completion-button');
+      
+      const isClickOnClearButton = clearButtonEl && (clearButtonEl === target || clearButtonEl.contains(target));
+      const isClickOnTabButton = tabButtonEl && (tabButtonEl === target || tabButtonEl.contains(target));
+      
+      // 如果点击了清除按钮或Tab按钮，不做任何操作
+      if (isClickOnClearButton || isClickOnTabButton) {
+        return;
+      }
+      
+      // 原有的逻辑：点击搜索框和结果区域之外时关闭
       if (
         searchResultsRef.current && 
-        !searchResultsRef.current.contains(event.target as Node) &&
+        !searchResultsRef.current.contains(target) &&
         searchInputRef.current &&
-        !searchInputRef.current.contains(event.target as Node)
+        !searchInputRef.current.contains(target)
       ) {
+        // 当点击搜索框和结果区域之外时，才隐藏结果
         setShowResults(false);
         setInlineSuggestion(prev => ({ ...prev, visible: false })); // 也隐藏内联建议
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside, { passive: true });
+    document.addEventListener("mousedown", handleClickOutside, { passive: false });
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -299,6 +315,7 @@ const Search: React.FC<SearchProps> = ({
       setSuggestions([]);
       setInlineSuggestion(prev => ({ ...prev, visible: false }));
       setSelectedSuggestionIndex(0); // 重置选中索引
+      console.log("[建议] 没有符合条件的查询或模块未加载");
       return;
     }
 
@@ -324,6 +341,7 @@ const Search: React.FC<SearchProps> = ({
       }
       
       const searchResult = JSON.parse(result) as SearchResult;
+
       
       // 检查组件是否仍然挂载
       if (!isMountedRef.current) return;
@@ -347,6 +365,7 @@ const Search: React.FC<SearchProps> = ({
       const firstSuggestion = searchResult.suggestions[0];
       
       if (firstSuggestion) {
+        
         setInlineSuggestion(prev => ({
           ...prev,
           text: firstSuggestion.text,
@@ -363,7 +382,7 @@ const Search: React.FC<SearchProps> = ({
       // 检查组件是否仍然挂载
       if (!isMountedRef.current) return;
       
-      console.error("获取内联建议失败:", err);
+      console.error("[建议错误]", err);
       setInlineSuggestion(prev => ({ ...prev, visible: false }));
       setSelectedSuggestionIndex(0); // 重置选中索引
     }
@@ -432,9 +451,11 @@ const Search: React.FC<SearchProps> = ({
 
   // 修改处理键盘导航的函数，增加上下箭头键切换建议
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    
     // Tab键处理内联建议补全
     if (e.key === "Tab" && inlineSuggestion.visible && inlineSuggestion.text) {
       e.preventDefault(); // 阻止默认的Tab行为
+      e.stopPropagation(); // 防止事件冒泡
       completeInlineSuggestion();
       return;
     }
@@ -532,49 +553,12 @@ const Search: React.FC<SearchProps> = ({
       }
     };
 
-    document.addEventListener('selectionchange', handleSelectionChange, { passive: true });
+    // 使用非被动模式，确保在某些上下文中可以调用preventDefault
+    document.addEventListener('selectionchange', handleSelectionChange, { passive: false });
     return () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
     };
   }, [updateCaretPosition]);
-
-  // 自动补全内联建议
-  const completeInlineSuggestion = () => {
-    if (inlineSuggestion.visible && inlineSuggestion.text) {
-      // 保存建议文本
-      const suggestionText = inlineSuggestion.text;
-      const isCorrection = inlineSuggestion.type === 'correction';
-      
-      // 完全清除内联建议状态
-      setInlineSuggestion({
-        text: "",
-        visible: false,
-        caretPosition: 0,
-        selection: {start: 0, end: 0},
-        type: 'completion',
-        matchedText: "",
-        suggestionText: ""
-      });
-      
-      // 设置完整的建议作为新的查询
-      setQuery(suggestionText);
-      
-      // 将光标移到末尾并执行搜索
-      setTimeout(() => {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus();
-          searchInputRef.current.setSelectionRange(
-            suggestionText.length, 
-            suggestionText.length
-          );
-        }
-        
-        // 直接使用suggestionText执行搜索，而不是依赖query状态
-        // 因为React状态更新是异步的，此时query可能还未更新
-        performSearch(suggestionText, false);
-      }, 0);
-    }
-  };
 
   // 执行搜索
   const performSearch = async (searchQuery: string, isLoadMore: boolean = false) => {
@@ -664,6 +648,46 @@ const Search: React.FC<SearchProps> = ({
         status: 'error',
         error: `搜索执行时出错: ${err instanceof Error ? err.message : String(err)}`
       });
+    }
+  };
+
+  // 自动补全内联建议 - 不使用useCallback，避免循环依赖
+  const completeInlineSuggestion = () => {
+    if (inlineSuggestion.visible && inlineSuggestion.text) {
+      // 保存建议文本
+      const textToComplete = inlineSuggestion.text;
+      
+      // 直接更新DOM和状态
+      if (searchInputRef.current) {
+        // 立即更新输入框值
+        searchInputRef.current.value = textToComplete;
+      }
+      
+      // 清除内联建议状态
+      setInlineSuggestion({
+        text: "",
+        visible: false,
+        caretPosition: 0,
+        selection: {start: 0, end: 0},
+        type: 'completion',
+        matchedText: "",
+        suggestionText: ""
+      });
+      
+      // 更新React状态
+      setQuery(textToComplete);
+      
+      // 立即执行搜索
+      performSearch(textToComplete, false);
+      
+      // 聚焦输入框并设置光标位置
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+        searchInputRef.current.setSelectionRange(
+          textToComplete.length, 
+          textToComplete.length
+        );
+      }
     }
   };
   
@@ -790,6 +814,59 @@ const Search: React.FC<SearchProps> = ({
         suggestionEl.style.fontWeight = inputStyle.fontWeight;
         suggestionEl.style.letterSpacing = inputStyle.letterSpacing;
         suggestionEl.style.lineHeight = inputStyle.lineHeight;
+        
+        // 计算并调整可用空间
+        if (inlineSuggestion.type === 'correction') {
+          // 获取输入框宽度
+          const inputWidth = searchInputRef.current!.offsetWidth;
+          // 估算查询文本宽度 (使用更精确的字体宽度估算方法)
+          // 创建一个临时元素用于测量实际宽度
+          const tempMeasureEl = document.createElement('span');
+          tempMeasureEl.style.visibility = 'hidden';
+          tempMeasureEl.style.position = 'absolute';
+          tempMeasureEl.style.whiteSpace = 'pre';
+          tempMeasureEl.style.fontSize = inputStyle.fontSize;
+          tempMeasureEl.style.fontFamily = inputStyle.fontFamily;
+          tempMeasureEl.style.fontWeight = inputStyle.fontWeight;
+          tempMeasureEl.style.letterSpacing = inputStyle.letterSpacing;
+          tempMeasureEl.innerText = query;
+          document.body.appendChild(tempMeasureEl);
+          const queryTextWidth = tempMeasureEl.offsetWidth;
+          document.body.removeChild(tempMeasureEl);
+          
+          // 计算右侧边距 (确保TAB按钮和清除按钮有足够空间)
+          // 根据屏幕尺寸调整右侧边距
+          let rightMargin = 90; // 默认桌面环境
+          
+          // 根据窗口宽度调整边距（响应式设计）
+          if (window.innerWidth < 640) { // 小屏幕设备
+            rightMargin = 100; // 移动设备上按钮占据更多相对空间
+          } else if (window.innerWidth < 768) { // 中等屏幕设备
+            rightMargin = 95;
+          }
+          
+          // 计算建议可用最大宽度
+          // 根据屏幕尺寸调整最大宽度百分比
+          let maxWidthPercentage = 0.8; // 默认最大宽度百分比
+          
+          if (window.innerWidth < 640) {
+            maxWidthPercentage = 0.7; // 在小屏幕上减少最大宽度百分比
+          }
+          
+          const maxAllowedWidth = Math.floor(inputWidth * maxWidthPercentage);
+          
+          // 计算最终的可用宽度
+          const availableWidth = Math.min(
+            maxAllowedWidth,
+            Math.max(inputWidth - queryTextWidth - rightMargin, 80) // 最小宽度降低到80px以适应更小的设备
+          );
+          
+          // 设置最大宽度
+          const suggestionTextContainer = suggestionEl.querySelector('div > div:nth-child(2) > span');
+          if (suggestionTextContainer) {
+            (suggestionTextContainer as HTMLElement).style.maxWidth = `${availableWidth}px`;
+          }
+        }
       };
       
       updateSuggestionStyles();
@@ -802,14 +879,46 @@ const Search: React.FC<SearchProps> = ({
         resizeObserver.disconnect();
       };
     }
-  }, [inlineSuggestion.visible, query]);
+  }, [inlineSuggestion.visible, query, inlineSuggestion.type]);
+
+  // 处理Tab键盘事件 - 简化逻辑，改进处理方式
+  useEffect(() => {
+    // 创建键盘事件处理函数
+    const handleTabKey = (e: KeyboardEvent) => {
+      const isFocused = document.activeElement === searchInputRef.current;
+      const hasVisibleSuggestion = inlineSuggestion.visible && inlineSuggestion.text;
+      
+      if (e.key === 'Tab' && isFocused && hasVisibleSuggestion) {
+        e.preventDefault();
+        e.stopPropagation();
+        completeInlineSuggestion();
+      }
+    };
+    
+    // 添加键盘事件监听器，确保使用非被动模式
+    document.addEventListener('keydown', handleTabKey, { passive: false, capture: true });
+    
+    return () => {
+      document.removeEventListener('keydown', handleTabKey, { capture: true });
+    };
+
+  }, []);
+  
 
   // 清除搜索
   const clearSearch = () => {
+    // 清除查询和结果，但保持搜索框的可见状态
     setQuery("");
+    if (searchInputRef.current) {
+      searchInputRef.current.value = "";
+    }
+    
+    // 清除搜索结果
     setSearchResults(null);
     setAllItems([]);
     setSuggestions([]);
+    
+    // 清除内联建议
     setInlineSuggestion({
       text: "",
       visible: false,
@@ -819,10 +928,13 @@ const Search: React.FC<SearchProps> = ({
       matchedText: "",
       suggestionText: ""
     });
-    setShowResults(false);
+    
+    // 保持结果区域可见，但无内容
+    setShowResults(true);
     setCurrentPage(1);
     setHasMoreResults(true);
     
+    // 确保输入框保持焦点
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
@@ -844,8 +956,8 @@ const Search: React.FC<SearchProps> = ({
       }
     };
     
-    window.addEventListener('focus', checkFocus, { passive: true, capture: true });
-    window.addEventListener('blur', checkFocus, { passive: true, capture: true });
+    window.addEventListener('focus', checkFocus, { passive: false, capture: true });
+    window.addEventListener('blur', checkFocus, { passive: false, capture: true });
     
     return () => {
       window.removeEventListener('focus', checkFocus, { capture: true });
@@ -853,22 +965,6 @@ const Search: React.FC<SearchProps> = ({
     };
   }, [isFocused]);
   
-  // 处理Tab键盘事件
-  useEffect(() => {
-    const handleTabKey = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && document.activeElement === searchInputRef.current && inlineSuggestion.visible) {
-        e.preventDefault();
-        completeInlineSuggestion();
-      }
-    };
-    
-    document.addEventListener('keydown', handleTabKey);
-    
-    return () => {
-      document.removeEventListener('keydown', handleTabKey);
-    };
-  }, [inlineSuggestion.visible, completeInlineSuggestion]);
-
   // 获取当前placeholder文本
   const getCurrentPlaceholder = () => {
     if (isLoadingIndex) {
@@ -1090,7 +1186,7 @@ const Search: React.FC<SearchProps> = ({
             onSelect={updateCaretPosition}
             onFocus={handleInputFocus}
             placeholder={getCurrentPlaceholder()}
-            className="w-full py-1.5 md:py-1.5 lg:py-2.5 pl-8 md:pl-8 lg:pl-10 pr-8 md:pr-8 lg:pr-10 text-sm md:text-sm lg:text-base bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg md:rounded-lg lg:rounded-xl text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-transparent focus:shadow-md transition-all duration-200 relative z-10"
+            className="w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg md:rounded-lg lg:rounded-xl text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-transparent focus:shadow-md transition-all duration-200 relative z-10"
             disabled={isLoadingIndex || !isIndexLoaded}
             style={{ backgroundColor: 'transparent' }} // 确保背景是透明的，这样可以看到下面的建议
           />
@@ -1106,25 +1202,37 @@ const Search: React.FC<SearchProps> = ({
               }}
             >
               {/* 修改显示方式，确保与输入文本对齐，同时支持响应式布局 */}
-              <div className="flex w-full px-8 md:px-8 lg:px-10 overflow-hidden"> {/* 使用与输入框相同的水平内边距，添加溢出隐藏 */}
+              <div className="flex w-full px-10 md:px-8 lg:px-10 overflow-hidden"> {/* 使用与输入框相同的水平内边距，添加溢出隐藏 */}
                 {/* 纠正建议和补全建议都显示在已输入内容的右侧 */}
                 <>
                   {/* 创建与输入文本宽度完全相等的不可见占位 */}
                   <div className="flex-shrink-0">
-                    <span className="invisible whitespace-pre text-sm md:text-sm lg:text-base">{query}</span>
+                    <span className="invisible whitespace-pre text-base md:text-sm lg:text-base">{query}</span>
                   </div>
                   {/* 显示建议的剩余部分 */}
-                  <div className="flex-shrink-0 max-w-[70%]">
+                  <div className={`flex-shrink-0 ${
+                    // 根据建议类型调整最大宽度
+                    inlineSuggestion.type === 'correction' 
+                      ? 'max-w-[calc(100%-1.25rem)]' // 纠正建议给予更多空间，但仍然保留一些边距
+                      : 'max-w-[80%]' // 补全建议使用固定比例
+                  }`}>
                     <span 
-                      className={`whitespace-pre text-sm md:text-sm lg:text-base truncate block ${
+                      className={`whitespace-pre text-base md:text-sm lg:text-base ${
+                        // 对纠正建议使用ellipsis确保文本不会溢出
                         inlineSuggestion.type === 'correction' 
-                          ? 'text-amber-500/80 dark:text-amber-400/80 ml-1' 
+                          ? 'text-amber-500/80 dark:text-amber-400/80 ml-1 block truncate' 
                           : 'text-gray-400/70 dark:text-gray-500/70'
                       }`}
                       style={{ 
-                        fontWeight: 'bold',
+                        fontWeight: inlineSuggestion.type === 'correction' ? '600' : 'bold',
+                        textDecoration: inlineSuggestion.type === 'correction' ? 'underline dotted 1px' : 'none',
+                        textUnderlineOffset: '2px',
                         marginLeft: inlineSuggestion.type === 'completion' ? '0px' : undefined,
+                        // 确保溢出时有优雅的省略效果
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
+                      title={inlineSuggestion.type === 'correction' ? inlineSuggestion.text : undefined} // 在纠正模式下添加完整文本提示
                     >
                       {inlineSuggestion.suggestionText}
                     </span>
@@ -1135,43 +1243,89 @@ const Search: React.FC<SearchProps> = ({
           )}
           
           {/* 搜索图标 */}
-          <div className="absolute left-2.5 md:left-2.5 left-3.5 top-1/2 transform -translate-y-1/2 z-20">
-            <svg className="h-3.5 w-3.5 md:h-3.5 md:w-3.5 h-4.5 w-4.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <div className="absolute left-3.5 md:left-2.5 lg:left-3.5 top-1/2 transform -translate-y-1/2 z-20">
+            <svg className="h-5 w-5 md:h-3.5 md:w-3.5 lg:h-4.5 lg:w-4.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
           
           {/* 加载指示器或清除按钮 */}
-          <div className="absolute right-2.5 md:right-2.5 right-3.5 top-1/2 transform -translate-y-1/2 z-20 flex items-center">
+          <div className="absolute right-3.5 md:right-2.5 lg:right-3.5 top-1/2 transform -translate-y-1/2 z-20 flex items-center">
             {isLoading ? (
-              <div className="animate-spin rounded-full h-3.5 w-3.5 md:h-3.5 md:w-3.5 h-4.5 w-4.5 border-2 border-primary-600 border-t-transparent"></div>
+              <div className="animate-spin rounded-full h-5 w-5 md:h-3.5 md:w-3.5 lg:h-4.5 lg:w-4.5 border-2 border-primary-600 border-t-transparent"></div>
             ) : query ? (
               <>
                 <button
                   type="button"
-                  onClick={clearSearch}
-                  className="text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center p-1 -m-1"
+                  className="text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center p-2 -m-1 clear-search-button"
                   title="清除搜索"
+                  style={{ touchAction: 'none' }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.nativeEvent.stopImmediatePropagation(); // 阻止事件冒泡到document
+                    // 只清除文本，始终不关闭搜索框
+                    clearSearch();
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.nativeEvent.stopImmediatePropagation(); // 阻止事件冒泡到document
+                    clearSearch();
+                  }}
                 >
-                  <svg className="h-3.5 w-3.5 md:h-3.5 md:w-3.5 h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="h-5 w-5 md:h-3.5 md:w-3.5 lg:h-4.5 lg:w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
                 {inlineSuggestion.visible && inlineSuggestion.text && (
                   <div 
-                    className="text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center cursor-pointer p-1  ml-1" 
-                    title="按Tab键补全"
-                    onClick={completeInlineSuggestion}
+                    className={`text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center cursor-pointer p-1 ml-1 tab-completion-button ${
+                      inlineSuggestion.type === 'correction' ? 'animate-pulse' : ''
+                    }`}
+                    title={inlineSuggestion.type === 'correction' ? "按Tab键接受纠正" : "按Tab键补全"}
+                    onClick={(e) => {
+                      // 阻止冒泡和默认行为 
+                      e.preventDefault();
+                      e.stopPropagation();
+                      
+                      // 直接执行补全操作，不再使用延迟和多次更新
+                      completeInlineSuggestion();
+                    }}
+                    onMouseDown={(e) => {
+                      // 阻止失去焦点
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      completeInlineSuggestion();
+                    }}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
+                        e.stopPropagation();
                         completeInlineSuggestion();
                       }
                     }}
+                    style={{ touchAction: 'none' }}
                   >
-                    <div className="border border-current rounded px-1 py-px text-[8px] md:text-[8px] leading-none font-semibold flex items-center justify-center">
+                    <div className={`border ${
+                      inlineSuggestion.type === 'correction' 
+                        ? 'border-amber-500/80 text-amber-500/90 dark:border-amber-400/80 dark:text-amber-400/90' 
+                        : 'border-current'
+                    } rounded px-1 py-px text-[10px] md:text-[8px] lg:text-[8px] leading-none font-semibold flex items-center justify-center`}>
                       TAB
                     </div>
                   </div>
@@ -1179,11 +1333,11 @@ const Search: React.FC<SearchProps> = ({
               </>
             ) : error ? (
               <div className="flex items-center">
-                <div className="rounded-full h-2 w-2 md:h-2 md:w-2 h-3 w-3 bg-red-500 shadow-sm shadow-red-500/50"></div>
+                <div className="rounded-full h-3 w-3 md:h-2 md:w-2 lg:h-3 lg:w-3 bg-red-500 shadow-sm shadow-red-500/50"></div>
               </div>
             ) : isLoadingIndex ? (
               <div className="flex items-center">
-                <div className="animate-pulse rounded-full h-2 w-2 md:h-2 md:w-2 h-3 w-3 bg-yellow-500 shadow-sm shadow-yellow-500/50"></div>
+                <div className="animate-pulse rounded-full h-3 w-3 md:h-2 md:w-2 lg:h-3 lg:w-3 bg-yellow-500 shadow-sm shadow-yellow-500/50"></div>
               </div>
             ) : null}
           </div>

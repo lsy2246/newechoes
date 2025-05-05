@@ -1092,12 +1092,20 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       currentPage: 1,
       date: "all",
     };
+    
     // 先更新UI状态
     setActiveFilters(defaultFilters);
 
-    // 直接传递重置后的状态给筛选函数，并更新URL
-    applyFilters(defaultFilters);
-  }, []);
+    // 清除URL参数
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, "", window.location.pathname);
+    }
+
+    // 如果WASM模块已加载，直接调用筛选逻辑以确保实际应用
+    if (wasmModule && isArticlesLoaded) {
+      applyFilteringLogic(defaultFilters);
+    }
+  }, [wasmModule, isArticlesLoaded]);
 
   // 渲染错误信息
   const renderError = () => (

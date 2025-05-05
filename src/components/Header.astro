@@ -332,8 +332,85 @@ const navSelectorClassName = "mr-4";
 
 
 <script is:inline>
-// 自执行函数封装所有导航逻辑
-(function initNavSelector() {
+// 导航逻辑 - 自销毁模式
+(function() {
+  // 尽早检查导航元素是否存在，如果不存在则终止执行
+  const navSelector = document.querySelector('.nav-selector');
+  if (!navSelector) {
+    console.warn(`导航脚本未找到导航选择器元素，不执行导航脚本`);
+    return;
+  }
+  
+  // 集中管理所有事件监听器
+  const allListeners = [];
+  
+  // 单独保存清理事件的监听器引用
+  const cleanupListeners = [];
+  
+  // 添加事件监听器并记录，方便后续统一清理
+  function addListener(element, eventType, handler, options) {
+    if (!element) {
+      console.warn(`导航脚本尝试为不存在的元素添加事件:`, eventType);
+      return null;
+    }
+
+    element.addEventListener(eventType, handler, options);
+    allListeners.push({ element, eventType, handler, options });
+    return handler;
+  }
+  
+  // 统一的清理函数，执行完整清理并自销毁
+  function selfDestruct() {
+    
+    // 1. 移除所有普通事件监听器
+    allListeners.forEach(({ element, eventType, handler, options }) => {
+      try {
+        element.removeEventListener(eventType, handler, options);
+      } catch (err) {
+        console.error(`导航脚本移除事件监听器出错:`, err);
+      }
+    });
+    
+    // 清空监听器数组
+    allListeners.length = 0;
+    
+    // 2. 最后移除清理事件监听器自身
+    cleanupListeners.forEach(({ element, eventType, handler, options }) => {
+      try {
+        element.removeEventListener(eventType, handler, options);
+      } catch (err) {
+        console.error(`导航脚本移除清理监听器出错:`, err);
+      }
+    });
+    
+    // 清空清理监听器数组
+    cleanupListeners.length = 0;
+    
+  }
+  
+  // 注册清理事件，并保存引用
+  function registerCleanupEvents() {
+    
+    // 创建一次性事件处理函数
+    const beforeSwapHandler = () => {
+      selfDestruct();
+    };
+    
+    const beforeUnloadHandler = () => {
+      selfDestruct();
+    };
+    
+    // 添加清理事件监听器并保存引用
+    document.addEventListener("astro:before-swap", beforeSwapHandler, { once: true });
+    window.addEventListener("beforeunload", beforeUnloadHandler, { once: true });
+    
+    // 保存清理事件引用，用于完全销毁
+    cleanupListeners.push(
+      { element: document, eventType: "astro:before-swap", handler: beforeSwapHandler, options: { once: true } },
+      { element: window, eventType: "beforeunload", handler: beforeUnloadHandler, options: { once: true } }
+    );
+  }
+
   // 创建一个共享的计算高亮位置的函数
   function calculateHighlightPositions(options = {}) {
     const { navSelector, immediate = false } = options;
@@ -537,7 +614,6 @@ const navSelectorClassName = "mr-4";
   
   // 在DOMContentLoaded前预先执行一次定位，减少闪烁
   (function prePositionHighlights() {
-    const navSelector = document.querySelector('.nav-selector');
     if (!navSelector) return;
     
     // 如果有活动项，尝试预先定位高亮
@@ -553,755 +629,683 @@ const navSelectorClassName = "mr-4";
     }
   })();
   
-  // DOM加载完成后执行
-  document.addEventListener('DOMContentLoaded', function() {
-    // 存储所有事件监听器，便于统一清理
-    const listeners = [];
+  // 注册清理事件
+  registerCleanupEvents();
+  
+  // DOM加载完成后执行初始化
+  function initNavigation() {
+    // 检查DOM是否已加载
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", setupNavigation, { once: true });
+    } else {
+      setupNavigation();
+    }
+  }
+  
+  // 主要设置函数
+  function setupNavigation() {
     
-    // 添加事件监听器并记录，方便后续统一清理
-    function addListener(element, eventType, handler, options) {
-      if (!element) return null;
-      element.addEventListener(eventType, handler, options);
-      listeners.push({ element, eventType, handler, options });
-      return handler;
+    // 设置桌面导航
+    setupNavSelector();
+    
+    // 设置移动端导航
+    setupMobileNav();
+    
+  }
+  
+  // 初始化导航选择器
+  function setupNavSelector() {
+    // 获取DOM元素
+    if (!navSelector) return;
+    
+    const primaryHighlight = document.getElementById('nav-primary-highlight');
+    const secondaryHighlight = document.getElementById('nav-secondary-highlight');
+    const navItems = document.querySelectorAll('.nav-item');
+    const navGroups = document.querySelectorAll('.nav-group');
+    const navToggles = document.querySelectorAll('.nav-group-toggle');
+    const navSubItems = document.querySelectorAll('.nav-subitem');
+    
+    if (!primaryHighlight || !secondaryHighlight) {
+      console.warn(`导航脚本未找到高亮元素，导航功能可能不完整`);
     }
     
-    // 清理函数 - 移除所有事件监听器
-    function cleanup() {
-      listeners.forEach(({ element, eventType, handler, options }) => {
+    // 获取过渡动画持续时间
+    const transitionDuration = parseInt(navSelector.dataset.duration || 300);
+    const activeClass = "font-medium";
+    
+    // 当前活动项的状态 - 从DOM中提取当前激活状态
+    let activeItemId = null;
+    let activeSubItemId = null;
+    let activeGroupId = null;
+    
+    // 读取初始激活状态
+    const activeItemElement = document.querySelector('.nav-item.active');
+    if (activeItemElement) {
+      activeItemId = activeItemElement.dataset.itemId;
+    }
+    
+    const activeSubItemElement = document.querySelector('.nav-subitem.active');
+    if (activeSubItemElement) {
+      activeSubItemId = activeSubItemElement.dataset.subitemId;
+      activeGroupId = activeSubItemElement.dataset.parentId;
+    }
+    
+    const activeGroupElement = document.querySelector('.nav-group.active');
+    if (activeGroupElement && !activeSubItemId) {
+      activeGroupId = activeGroupElement.dataset.groupId;
+    }
+    
+    // 设置CSS变量
+    function setCssVariables() {
+      // 从primaryHighlight和secondaryHighlight中提取背景色
+      if (primaryHighlight && secondaryHighlight) {
+        const primaryStyle = window.getComputedStyle(primaryHighlight);
+        const secondaryStyle = window.getComputedStyle(secondaryHighlight);
+        
+        // 设置CSS变量
+        navSelector.style.setProperty('--primary-highlight-bg', primaryStyle.backgroundColor);
+        navSelector.style.setProperty('--secondary-highlight-bg', secondaryStyle.backgroundColor);
+      }
+    }
+    
+    // 初始调用一次设置CSS变量
+    setCssVariables();
+    
+    // 重置所有菜单状态
+    function resetAllMenus() {
+      // 关闭所有二级菜单
+      navGroups.forEach(group => {
+        const items = group.querySelector('.nav-group-items');
+        const toggle = group.querySelector('.nav-group-toggle');
+        
+        if (items) {
+          items.classList.remove('menu-visible');
+          items.classList.add('hidden');
+          items.classList.remove('menu-hidden');
+        }
+        
+        if (toggle) {
+          toggle.classList.remove('menu-up');
+        }
+        
+        // 移除组的激活状态
+        group.classList.remove('active');
+      });
+    }
+    
+    // 兼容swup的导航方法
+    function navigateTo(href) {
+      // 如果使用swup
+      const hasSwup = typeof window.swup !== 'undefined';
+      
+      if (hasSwup) {
         try {
-          element.removeEventListener(eventType, handler, options);
+          // 正确使用swup的API
+          window.swup.navigate(href);
+          return;
         } catch (err) {
-          console.error('移除导航事件监听器出错:', err);
+          // 尝试使用swup的替代方法
+          try {
+            window.swup.loadPage({
+              url: href
+            });
+            return;
+          } catch (err2) {
+            console.warn(`导航脚本Swup导航失败:`, err2);
+          }
+        }
+      }
+      
+      // 检查是否有匹配的链接，使用其点击事件可能会触发注册在链接上的swup事件
+      const existingLink = document.querySelector(`a[href="${href}"]`);
+      if (existingLink) {
+        existingLink.click();
+        return;
+      }
+      
+      // 以下是在swup不可用或出错时的回退方案
+      
+      // 如果使用Astro的View Transitions
+      if (document.startViewTransition) {
+        document.startViewTransition(() => {
+          window.location.href = href;
+        });
+        return;
+      }
+      
+      // 最后的回退：普通导航
+      window.location.href = href;
+    }
+    
+    // 更新高亮背景
+    function updateHighlights(immediate = false) {
+      requestAnimationFrame(() => {
+        const highlightPositions = calculateHighlightPositions({
+          navSelector,
+          immediate
+        });
+        
+        if (highlightPositions) {
+          highlightPositions.applyPositions(immediate);
         }
       });
-      listeners.length = 0;
     }
     
-    // 初始化导航选择器
-    function setupNavSelector() {
-      // 获取DOM元素
-      const navSelector = document.querySelector('.nav-selector');
-      if (!navSelector) return;
+    // 设置激活的一级菜单项
+    function setActiveItem(itemId) {
+      // 清除所有菜单状态
+      resetAllMenus();
       
-      const primaryHighlight = document.getElementById('nav-primary-highlight');
-      const secondaryHighlight = document.getElementById('nav-secondary-highlight');
-      const navItems = document.querySelectorAll('.nav-item');
-      const navGroups = document.querySelectorAll('.nav-group');
-      const navToggles = document.querySelectorAll('.nav-group-toggle');
-      const navSubItems = document.querySelectorAll('.nav-subitem');
+      // 清除所有激活状态
+      navItems.forEach(item => {
+        item.classList.remove(...activeClass.split(' '));
+        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      });
       
-      // 获取过渡动画持续时间
-      const transitionDuration = parseInt(navSelector.dataset.duration || 300);
-      const activeClass = "font-medium";
+      navSubItems.forEach(item => {
+        item.classList.remove(...activeClass.split(' '));
+        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      });
       
-      // 当前活动项的状态 - 从DOM中提取当前激活状态
-      let activeItemId = null;
-      let activeSubItemId = null;
-      let activeGroupId = null;
-      
-      // 读取初始激活状态
-      const activeItemElement = document.querySelector('.nav-item.active');
-      if (activeItemElement) {
-        activeItemId = activeItemElement.dataset.itemId;
-      }
-      
-      const activeSubItemElement = document.querySelector('.nav-subitem.active');
-      if (activeSubItemElement) {
-        activeSubItemId = activeSubItemElement.dataset.subitemId;
-        activeGroupId = activeSubItemElement.dataset.parentId;
-      }
-      
-      const activeGroupElement = document.querySelector('.nav-group.active');
-      if (activeGroupElement && !activeSubItemId) {
-        activeGroupId = activeGroupElement.dataset.groupId;
-      }
-      
-      // 设置CSS变量
-      function setCssVariables() {
-        // 从primaryHighlight和secondaryHighlight中提取背景色
-        if (primaryHighlight && secondaryHighlight) {
-          const primaryStyle = window.getComputedStyle(primaryHighlight);
-          const secondaryStyle = window.getComputedStyle(secondaryHighlight);
-          
-          // 设置CSS变量
-          navSelector.style.setProperty('--primary-highlight-bg', primaryStyle.backgroundColor);
-          navSelector.style.setProperty('--secondary-highlight-bg', secondaryStyle.backgroundColor);
+      // 清除所有组的激活状态和按钮样式
+      navGroups.forEach(group => {
+        group.classList.remove('active');
+        
+        // 清除组内按钮的激活状态
+        const toggle = group.querySelector('.nav-group-toggle');
+        if (toggle) {
+          toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
         }
-      }
+      });
       
-      // 初始调用一次设置CSS变量
-      setCssVariables();
-      
-      // 重置所有菜单状态
-      function resetAllMenus() {
-        // 关闭所有二级菜单
-        navGroups.forEach(group => {
-          const items = group.querySelector('.nav-group-items');
-          const toggle = group.querySelector('.nav-group-toggle');
-          
-          if (items) {
-            items.classList.remove('menu-visible');
-            items.classList.add('hidden');
-            items.classList.remove('menu-hidden');
-          }
-          
-          if (toggle) {
-            toggle.classList.remove('menu-up');
-          }
-          
-          // 移除组的激活状态
-          group.classList.remove('active');
-        });
-      }
-      
-      // 兼容swup的导航方法
-      function navigateTo(href) {
-        // 如果使用swup
-        if (window.swup) {
-          try {
-            // 正确使用swup的API
-            window.swup.navigate(href);
-            return;
-          } catch (err) {
-            // 尝试使用swup的替代方法
-            try {
-              window.swup.loadPage({
-                url: href
-              });
-              return;
-            } catch (err2) {
-              console.error("Swup替代导航也出错:", err2);
-            }
-          }
-        }
-        
-        // 检查是否有匹配的链接，使用其点击事件可能会触发注册在链接上的swup事件
-        const existingLink = document.querySelector(`a[href="${href}"]`);
-        if (existingLink) {
-          existingLink.click();
-          return;
-        }
-        
-        // 以下是在swup不可用或出错时的回退方案
-        
-        // 如果使用Astro的View Transitions
-        if (document.startViewTransition) {
-          document.startViewTransition(() => {
-            window.location.href = href;
-          });
-          return;
-        }
-        
-        // 最后的回退：普通导航
-        window.location.href = href;
-      }
-      
-      // 更新高亮背景
-      function updateHighlights(immediate = false) {
-        requestAnimationFrame(() => {
-          const highlightPositions = calculateHighlightPositions({
-            navSelector,
-            immediate
-          });
-          
-          if (highlightPositions) {
-            highlightPositions.applyPositions(immediate);
-          }
-        });
-      }
-      
-      // 设置激活的一级菜单项
-      function setActiveItem(itemId) {
-        // 清除所有菜单状态
-        resetAllMenus();
-        
-        // 清除所有激活状态
-        navItems.forEach(item => {
-          item.classList.remove(...activeClass.split(' '));
-          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-        });
-        
-        navSubItems.forEach(item => {
-          item.classList.remove(...activeClass.split(' '));
-          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-        });
-        
-        // 清除所有组的激活状态和按钮样式
-        navGroups.forEach(group => {
-          group.classList.remove('active');
-          
-          // 清除组内按钮的激活状态
-          const toggle = group.querySelector('.nav-group-toggle');
-          if (toggle) {
-            toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-            toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-          }
-        });
-        
-        // 设置新的激活状态
-        const targetItem = document.querySelector(`.nav-item[data-item-id="${itemId}"]`);
-        if (targetItem) {
-          targetItem.classList.add(...activeClass.split(' '));
-          targetItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          targetItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-          
-          // 更新状态
-          activeItemId = itemId;
-          activeGroupId = null;
-          activeSubItemId = null;
-        }
-        
-        // 更新高亮背景
-        updateHighlights();
-      }
-      
-      // 设置激活的二级菜单项
-      function setActiveSubItem(subItemId) {
-        if (!subItemId) {
-          return;
-        }
-        
-        // 查找目标项
-        const targetItem = document.querySelector(`.nav-subitem[data-subitem-id="${subItemId}"]`);
-        if (!targetItem) {
-          return;
-        }
-        
-        // 获取父组ID
-        const parentId = targetItem.dataset.parentId;
-        if (!parentId) {
-          return;
-        }
-        
-        // 清除所有普通菜单项的高亮
-        navItems.forEach(item => {
-          item.classList.remove(...activeClass.split(' '));
-          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-        });
-        
-        // 清除所有二级菜单项的高亮
-        navSubItems.forEach(item => {
-          item.classList.remove(...activeClass.split(' '));
-          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-        });
-        
-        // 清除所有组按钮的激活状态
-        navGroups.forEach(group => {
-          const groupId = group.dataset.groupId;
-          // 只保留当前激活组的激活状态
-          if (groupId !== parentId) {
-            group.classList.remove('active');
-            const toggle = group.querySelector('.nav-group-toggle');
-            if (toggle) {
-              toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-              toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-            }
-            
-            // 确保子菜单是隐藏的
-            const items = group.querySelector('.nav-group-items');
-            if (items) {
-              items.classList.add('hidden');
-              items.classList.remove('menu-visible');
-            }
-          }
-        });
-        
-        // 设置新的激活状态
+      // 设置新的激活状态
+      const targetItem = document.querySelector(`.nav-item[data-item-id="${itemId}"]`);
+      if (targetItem) {
         targetItem.classList.add(...activeClass.split(' '));
         targetItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
         targetItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
         
         // 更新状态
-        activeSubItemId = subItemId;
-        activeGroupId = parentId;
-        activeItemId = null;
-        
-        // 确保父组处于激活状态
-        const parentGroup = document.querySelector(`.nav-group[data-group-id="${parentId}"]`);
-        if (parentGroup) {
-          parentGroup.classList.add('active');
-          
-          // 确保二级菜单可见
-          const items = parentGroup.querySelector('.nav-group-items');
-          const toggle = parentGroup.querySelector('.nav-group-toggle');
-          
-          if (items && toggle) {
-            toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-            toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-            items.classList.remove('hidden');
-            items.classList.add('menu-visible');
-          }
-        }
-        
-        // 更新高亮背景
-        updateHighlights();
+        activeItemId = itemId;
+        activeGroupId = null;
+        activeSubItemId = null;
       }
       
-      // 切换导航组的显示状态
-      function toggleNavGroup(groupId, forceState = null) {
-        const targetGroup = document.querySelector(`.nav-group[data-group-id="${groupId}"]`);
-        if (!targetGroup) {
-          return;
-        }
-        
-        const items = targetGroup.querySelector('.nav-group-items');
-        const toggle = targetGroup.querySelector('.nav-group-toggle');
-        
-        if (!items || !toggle) {
-          return;
-        }
-        
-        // 获取过渡动画持续时间
-        const duration = parseInt(navSelector.dataset.duration || 300);
-        
-        // 当前菜单是否可见
-        const isVisible = items.classList.contains('menu-visible');
-        
-        // 确定最终状态（展开或收起）
-        const shouldOpen = forceState !== null ? forceState : !isVisible;
-        
-        // 如果状态相同，无需操作
-        if ((shouldOpen && isVisible) || (!shouldOpen && !isVisible)) {
-          return;
-        }
-        
-        // 清除所有普通菜单项的高亮状态
-        navItems.forEach(item => {
-          item.classList.remove(...activeClass.split(' '));
-          item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-        });
-        
-        // 收起菜单
-        if (!shouldOpen) {
-          // 先设置过渡类
-          items.classList.add('menu-hidden');
-          
-          // 延迟隐藏菜单，等待过渡完成
-          setTimeout(() => {
-            // 移除组的激活状态
-            targetGroup.classList.remove('active');
-            
-            // 显示一级菜单按钮
+      // 更新高亮背景
+      updateHighlights();
+    }
+    
+    // 设置激活的二级菜单项
+    function setActiveSubItem(subItemId) {
+      if (!subItemId) {
+        return;
+      }
+      
+      // 查找目标项
+      const targetItem = document.querySelector(`.nav-subitem[data-subitem-id="${subItemId}"]`);
+      if (!targetItem) {
+        return;
+      }
+      
+      // 获取父组ID
+      const parentId = targetItem.dataset.parentId;
+      if (!parentId) {
+        return;
+      }
+      
+      // 清除所有普通菜单项的高亮
+      navItems.forEach(item => {
+        item.classList.remove(...activeClass.split(' '));
+        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      });
+      
+      // 清除所有二级菜单项的高亮
+      navSubItems.forEach(item => {
+        item.classList.remove(...activeClass.split(' '));
+        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      });
+      
+      // 清除所有组按钮的激活状态
+      navGroups.forEach(group => {
+        const groupId = group.dataset.groupId;
+        // 只保留当前激活组的激活状态
+        if (groupId !== parentId) {
+          group.classList.remove('active');
+          const toggle = group.querySelector('.nav-group-toggle');
+          if (toggle) {
             toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
             toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-            
-            // 隐藏二级菜单
-            items.classList.remove('menu-visible');
+          }
+          
+          // 确保子菜单是隐藏的
+          const items = group.querySelector('.nav-group-items');
+          if (items) {
             items.classList.add('hidden');
-            items.classList.remove('menu-hidden');
-            
-            // 清除激活状态
-            if (activeGroupId === groupId) {
-              activeGroupId = null;
-              activeSubItemId = null;
-              
-              // 重置高亮背景，确保切换时背景样式清理干净
-              if (primaryHighlight) primaryHighlight.style.opacity = '0';
-              if (secondaryHighlight) secondaryHighlight.style.opacity = '0';
-              navSelector.setAttribute('data-has-active', 'false');
-            }
-            
-            // 给DOM渲染一些时间，然后更新高亮
-            setTimeout(() => {
-              updateHighlights(true);
-            }, 50);
-          }, duration);
-        } 
-        // 展开菜单
-        else {
-          // 先关闭所有其他菜单组
-          resetAllMenus();
-          
-          // 清除一级菜单的高亮状态
-          activeItemId = null;
-          
-          // 清除所有组的激活状态和按钮样式
-          navGroups.forEach(group => {
-            const gid = group.dataset.groupId;
-            if (gid !== groupId) {
-              group.classList.remove('active');
-              
-              // 清除组内按钮的激活状态
-              const groupToggle = group.querySelector('.nav-group-toggle');
-              if (groupToggle) {
-                groupToggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-                groupToggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-              }
-            }
-          });
-          
-          // 标记组为激活状态
-          targetGroup.classList.add('active');
-          
-          // 设置一级菜单按钮样式
+            items.classList.remove('menu-visible');
+          }
+        }
+      });
+      
+      // 设置新的激活状态
+      targetItem.classList.add(...activeClass.split(' '));
+      targetItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+      targetItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      
+      // 更新状态
+      activeSubItemId = subItemId;
+      activeGroupId = parentId;
+      activeItemId = null;
+      
+      // 确保父组处于激活状态
+      const parentGroup = document.querySelector(`.nav-group[data-group-id="${parentId}"]`);
+      if (parentGroup) {
+        parentGroup.classList.add('active');
+        
+        // 确保二级菜单可见
+        const items = parentGroup.querySelector('.nav-group-items');
+        const toggle = parentGroup.querySelector('.nav-group-toggle');
+        
+        if (items && toggle) {
           toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
           toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-          
-          // 展开二级菜单
-          items.classList.remove('hidden', 'menu-hidden');
-          
-          // 使用requestAnimationFrame确保DOM更新后再添加visible类
-          requestAnimationFrame(() => {
-            items.classList.add('menu-visible');
-            
-            // 当菜单展开后更新高亮背景
-            setTimeout(() => {
-              updateHighlights(true);
-            }, 50);
-          });
-          
-          // 设置激活状态
-          activeGroupId = groupId;
-          
-          // 如果没有选中的二级菜单项，则选中第一个并导航
-          if (!activeSubItemId || !activeSubItemId.startsWith(groupId)) {
-            const firstSubItem = targetGroup.querySelector('.nav-subitem');
-            if (firstSubItem) {
-              const subItemId = firstSubItem.dataset.subitemId;
-              const href = firstSubItem.getAttribute('href');
-              
-              // 清除所有二级菜单项的高亮
-              navSubItems.forEach(item => {
-                item.classList.remove(...activeClass.split(' '));
-                item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-                item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-              });
-              
-              // 设置新的二级菜单项高亮
-              firstSubItem.classList.add(...activeClass.split(' '));
-              firstSubItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-              firstSubItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-              
-              // 设置高亮
-              activeSubItemId = subItemId;
-              
-              // 导航到第一个子项
-              if (href) {
-                navigateTo(href);
-              }
-            }
-          } else {
-            // 已有选中的二级菜单项，找到并重新设置高亮
-            const activeSubItem = document.querySelector(`.nav-subitem[data-subitem-id="${activeSubItemId}"]`);
-            if (activeSubItem) {
-              // 清除所有二级菜单项的高亮
-              navSubItems.forEach(item => {
-                item.classList.remove(...activeClass.split(' '));
-                item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-                item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-              });
-              
-              // 设置高亮
-              activeSubItem.classList.add(...activeClass.split(' '));
-              activeSubItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-              activeSubItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-            }
-            
-            // 更新高亮
-            updateHighlights(true);
-          }
+          items.classList.remove('hidden');
+          items.classList.add('menu-visible');
         }
       }
       
-      // 查找匹配当前路径的导航项
-      function findMatchingNavItem() {
-        const currentPath = window.location.pathname;
-        const normalizedPath = currentPath === '/' ? '/' : 
-          currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
-        
-        // 首先检查子项
-        for (const subItem of navSubItems) {
-          const href = subItem.getAttribute('href');
-          if (href === normalizedPath) {
-            return {
-              type: 'subitem',
-              subitemId: subItem.dataset.subitemId,
-              parentId: subItem.dataset.parentId,
-              element: subItem
-            };
-          }
-        }
-        
-        // 再检查主导航项
-        for (const item of navItems) {
-          const href = item.getAttribute('href');
-          if (href === normalizedPath) {
-            return {
-              type: 'item',
-              itemId: item.dataset.itemId,
-              element: item
-            };
-          }
-        }
-        
-        // 没有完全匹配，尝试前缀匹配（用于文章详情等页面）
-        for (const subItem of navSubItems) {
-          const href = subItem.getAttribute('href');
-          if (normalizedPath.startsWith(href) && href !== '/') {
-            return {
-              type: 'subitem',
-              subitemId: subItem.dataset.subitemId,
-              parentId: subItem.dataset.parentId,
-              element: subItem
-            };
-          }
-        }
-        
-        for (const item of navItems) {
-          const href = item.getAttribute('href');
-          if (normalizedPath.startsWith(href) && href !== '/') {
-            return {
-              type: 'item',
-              itemId: item.dataset.itemId,
-              element: item
-            };
-          }
-        }
-        
-        return null;
+      // 更新高亮背景
+      updateHighlights();
+    }
+    
+    // 切换导航组的显示状态
+    function toggleNavGroup(groupId, forceState = null) {
+      const targetGroup = document.querySelector(`.nav-group[data-group-id="${groupId}"]`);
+      if (!targetGroup) {
+        return;
       }
       
-      // 初始化当前页面的激活状态
-      function initActiveState() {
-        // 高亮背景已经在服务器端渲染时预设，现在需确保应用正确的文字颜色
-        
-        // 查找当前活动项
-        const activeItemElement = document.querySelector('.nav-item.active');
-        const activeSubItemElement = document.querySelector('.nav-subitem.active');
-        const activeGroupElement = document.querySelector('.nav-group.active');
-        
-        // 应用激活文字样式
-        if (activeItemElement) {
-          activeItemElement.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          activeItemElement.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-        }
-        
-        if (activeSubItemElement) {
-          activeSubItemElement.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          activeSubItemElement.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-        }
-        
-        if (activeGroupElement) {
-          const toggle = activeGroupElement.querySelector('.nav-group-toggle');
-          if (toggle) {
-            toggle.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
-            toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-          }
-        }
-        
-        // 计算正确高亮位置
-        updateHighlights(true);
+      const items = targetGroup.querySelector('.nav-group-items');
+      const toggle = targetGroup.querySelector('.nav-group-toggle');
+      
+      if (!items || !toggle) {
+        return;
       }
       
-      // 注册事件监听
+      // 获取过渡动画持续时间
+      const duration = parseInt(navSelector.dataset.duration || 300);
       
-      // 普通菜单项点击
+      // 当前菜单是否可见
+      const isVisible = items.classList.contains('menu-visible');
+      
+      // 确定最终状态（展开或收起）
+      const shouldOpen = forceState !== null ? forceState : !isVisible;
+      
+      // 如果状态相同，无需操作
+      if ((shouldOpen && isVisible) || (!shouldOpen && !isVisible)) {
+        return;
+      }
+      
+      // 清除所有普通菜单项的高亮状态
       navItems.forEach(item => {
-        addListener(item, 'click', (e) => {
-          e.preventDefault();
+        item.classList.remove(...activeClass.split(' '));
+        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      });
+      
+      // 收起菜单
+      if (!shouldOpen) {
+        // 先设置过渡类
+        items.classList.add('menu-hidden');
+        
+        // 延迟隐藏菜单，等待过渡完成
+        setTimeout(() => {
+          // 移除组的激活状态
+          targetGroup.classList.remove('active');
           
-          const itemId = item.dataset.itemId;
-          const href = item.getAttribute('href');
+          // 显示一级菜单按钮
+          toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
           
-          // 设置高亮
-          setActiveItem(itemId);
+          // 隐藏二级菜单
+          items.classList.remove('menu-visible');
+          items.classList.add('hidden');
+          items.classList.remove('menu-hidden');
           
-          // 导航到目标页面
-          if (href) {
-            navigateTo(href);
+          // 清除激活状态
+          if (activeGroupId === groupId) {
+            activeGroupId = null;
+            activeSubItemId = null;
+            
+            // 重置高亮背景，确保切换时背景样式清理干净
+            if (primaryHighlight) primaryHighlight.style.opacity = '0';
+            if (secondaryHighlight) secondaryHighlight.style.opacity = '0';
+            navSelector.setAttribute('data-has-active', 'false');
+          }
+          
+          // 给DOM渲染一些时间，然后更新高亮
+          setTimeout(() => {
+            updateHighlights(true);
+          }, 50);
+        }, duration);
+      } 
+      // 展开菜单
+      else {
+        // 先关闭所有其他菜单组
+        resetAllMenus();
+        
+        // 清除一级菜单的高亮状态
+        activeItemId = null;
+        
+        // 清除所有组的激活状态和按钮样式
+        navGroups.forEach(group => {
+          const gid = group.dataset.groupId;
+          if (gid !== groupId) {
+            group.classList.remove('active');
+            
+            // 清除组内按钮的激活状态
+            const groupToggle = group.querySelector('.nav-group-toggle');
+            if (groupToggle) {
+              groupToggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+              groupToggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            }
           }
         });
-      });
-      
-      // 一级菜单按钮点击
-      navToggles.forEach(toggle => {
-        addListener(toggle, 'click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
+        
+        // 标记组为激活状态
+        targetGroup.classList.add('active');
+        
+        // 设置一级菜单按钮样式
+        toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        
+        // 展开二级菜单
+        items.classList.remove('hidden', 'menu-hidden');
+        
+        // 使用requestAnimationFrame确保DOM更新后再添加visible类
+        requestAnimationFrame(() => {
+          items.classList.add('menu-visible');
           
-          const groupId = toggle.dataset.toggleId;
-          
-          // 切换菜单状态
-          toggleNavGroup(groupId);
+          // 当菜单展开后更新高亮背景
+          setTimeout(() => {
+            updateHighlights(true);
+          }, 50);
         });
-      });
-      
-      // 二级菜单项点击
-      navSubItems.forEach(item => {
-        addListener(item, 'click', (e) => {
-          e.preventDefault();
-          
-          const subItemId = item.dataset.subitemId;
-          const href = item.getAttribute('href');
-          
-          // 设置高亮
-          setActiveSubItem(subItemId);
-          
-          // 导航到目标页面
-          if (href) {
-            navigateTo(href);
+        
+        // 设置激活状态
+        activeGroupId = groupId;
+        
+        // 如果没有选中的二级菜单项，则选中第一个并导航
+        if (!activeSubItemId || !activeSubItemId.startsWith(groupId)) {
+          const firstSubItem = targetGroup.querySelector('.nav-subitem');
+          if (firstSubItem) {
+            const subItemId = firstSubItem.dataset.subitemId;
+            const href = firstSubItem.getAttribute('href');
+            
+            // 清除所有二级菜单项的高亮
+            navSubItems.forEach(item => {
+              item.classList.remove(...activeClass.split(' '));
+              item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+              item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            });
+            
+            // 设置新的二级菜单项高亮
+            firstSubItem.classList.add(...activeClass.split(' '));
+            firstSubItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+            firstSubItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            
+            // 设置高亮
+            activeSubItemId = subItemId;
+            
+            // 导航到第一个子项
+            if (href) {
+              navigateTo(href);
+            }
           }
-        });
-      });
-      
-      // 初始化
-      initActiveState();
-      
-      // 处理页面切换
-      if (window.swup) {
-        // 页面内容替换后重新初始化
-        addListener(document, 'swup:contentReplaced', () => {
-          setTimeout(initActiveState, 50);
-        });
-        
-        // 页面内容替换前保存当前状态
-        addListener(document, 'swup:willReplaceContent', () => {
-        });
-        
-        // 视图转换开始
-        addListener(document, 'swup:animationInStart', () => {
-        });
-        
-        // 视图转换结束
-        addListener(document, 'swup:animationInDone', () => {
-          // 再次调用初始化
-          initActiveState();
-          // 确保高亮背景位置正确
+        } else {
+          // 已有选中的二级菜单项，找到并重新设置高亮
+          const activeSubItem = document.querySelector(`.nav-subitem[data-subitem-id="${activeSubItemId}"]`);
+          if (activeSubItem) {
+            // 清除所有二级菜单项的高亮
+            navSubItems.forEach(item => {
+              item.classList.remove(...activeClass.split(' '));
+              item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+              item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            });
+            
+            // 设置高亮
+            activeSubItem.classList.add(...activeClass.split(' '));
+            activeSubItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+            activeSubItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          }
+          
+          // 更新高亮
           updateHighlights(true);
-        });
+        }
+      }
+    }
+    
+    // 初始化当前页面的激活状态
+    function initActiveState() {
+      // 高亮背景已经在服务器端渲染时预设，现在需确保应用正确的文字颜色
+      
+      // 查找当前活动项
+      const activeItemElement = document.querySelector('.nav-item.active');
+      const activeSubItemElement = document.querySelector('.nav-subitem.active');
+      const activeGroupElement = document.querySelector('.nav-group.active');
+      
+      // 应用激活文字样式
+      if (activeItemElement) {
+        activeItemElement.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        activeItemElement.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
       }
       
-      // 窗口大小变化时重新计算高亮位置
-      addListener(window, 'resize', () => {
-        updateHighlights(true);
+      if (activeSubItemElement) {
+        activeSubItemElement.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        activeSubItemElement.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      }
+      
+      if (activeGroupElement) {
+        const toggle = activeGroupElement.querySelector('.nav-group-toggle');
+        if (toggle) {
+          toggle.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        }
+      }
+      
+      // 计算正确高亮位置
+      updateHighlights(true);
+    }
+    
+    // 注册事件监听
+    
+    // 普通菜单项点击
+    navItems.forEach(item => {
+      addListener(item, 'click', (e) => {
+        e.preventDefault();
+        
+        const itemId = item.dataset.itemId;
+        const href = item.getAttribute('href');
+        
+        // 设置高亮
+        setActiveItem(itemId);
+        
+        // 导航到目标页面
+        if (href) {
+          navigateTo(href);
+        }
+      });
+    });
+    
+    // 一级菜单按钮点击
+    navToggles.forEach(toggle => {
+      addListener(toggle, 'click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const groupId = toggle.dataset.toggleId;
+        
+        // 切换菜单状态
+        toggleNavGroup(groupId);
+      });
+    });
+    
+    // 二级菜单项点击
+    navSubItems.forEach(item => {
+      addListener(item, 'click', (e) => {
+        e.preventDefault();
+        
+        const subItemId = item.dataset.subitemId;
+        const href = item.getAttribute('href');
+        
+        // 设置高亮
+        setActiveSubItem(subItemId);
+        
+        // 导航到目标页面
+        if (href) {
+          navigateTo(href);
+        }
+      });
+    });
+    
+    // 初始化
+    initActiveState();
+    
+    // 处理页面切换
+    const hasSwup = typeof window.swup !== 'undefined';
+    if (hasSwup) {
+      // 页面内容替换后重新初始化
+      addListener(document, 'swup:contentReplaced', () => {
+        setTimeout(initActiveState, 50);
       });
       
-      // 在document上添加自定义方法，方便外部调用
+      // 视图转换开始
+      addListener(document, 'swup:animationInStart', () => {
+        // 这里可以添加动画开始时的处理逻辑
+      });
+      
+      // 视图转换结束
+      addListener(document, 'swup:animationInDone', () => {
+        // 再次调用初始化
+        initActiveState();
+        // 确保高亮背景位置正确
+        updateHighlights(true);
+      });
+    }
+    
+    // 添加Astro View Transitions事件监听
+    addListener(document, 'astro:page-load', () => {
+      setTimeout(initActiveState, 50);
+      updateHighlights(true);
+    });
+    
+    // 窗口大小变化时重新计算高亮位置
+    addListener(window, 'resize', () => {
+      updateHighlights(true);
+    });
+    
+    // 在document上添加自定义方法，方便外部调用，但使用弱引用避免内存泄漏
+    if (!document.resetNavigation) {
       document.resetNavigation = function() {
         initActiveState();
       };
-
-      // 动态检测swup实例
-      function checkSwup() {
-        if (!window.swup && typeof MutationObserver !== 'undefined') {
-          // 监听DOM变化，检查swup实例是否被后续加载
-          const observer = new MutationObserver((mutations) => {
-            if (window.swup) {
-              // 添加swup事件监听
-              addListener(document, 'swup:contentReplaced', () => {
-                setTimeout(initActiveState, 50);
-              });
-              
-              // 停止观察
-              observer.disconnect();
-            }
-          });
-          
-          // 开始观察文档
-          observer.observe(document.documentElement, {
-            childList: true,
-            subtree: true
-          });
-          
-          // 5秒后自动停止观察，避免长时间监听
-          setTimeout(() => {
-            observer.disconnect();
-          }, 5000);
-        }
-      }
-      
-      // 检测swup实例
-      checkSwup();
-      
-      // 返回清理函数
-      return cleanup;
+    }
+  }
+  
+  // 初始化移动端菜单和搜索功能
+  function setupMobileNav() {
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileSearchButton = document.getElementById('mobile-search-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const mobileSearch = document.getElementById('mobile-search');
+    const menuOpenIcon = document.getElementById('menu-open-icon');
+    const menuCloseIcon = document.getElementById('menu-close-icon');
+    
+    if (!mobileMenuButton || !mobileMenu) {
+      console.warn(`导航脚本未找到移动端菜单组件`);
+      return;
     }
     
-    // 初始化移动端菜单和搜索功能
-    function setupMobileNav() {
-      const mobileMenuButton = document.getElementById('mobile-menu-button');
-      const mobileSearchButton = document.getElementById('mobile-search-button');
-      const mobileMenu = document.getElementById('mobile-menu');
-      const mobileSearch = document.getElementById('mobile-search');
-      const menuOpenIcon = document.getElementById('menu-open-icon');
-      const menuCloseIcon = document.getElementById('menu-close-icon');
+    // 更新移动端菜单高亮状态的函数
+    function updateMobileMenuHighlight() {
       
-      // 更新移动端菜单高亮状态的函数
-      function updateMobileMenuHighlight() {
-        // 获取当前路径
-        const currentPath = window.location.pathname;
-        const normalizedPath = currentPath === '/' ? '/' : 
-          currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
-        
-        // 选择所有移动端菜单项
-        const mobileMenuItems = document.querySelectorAll('#mobile-menu a');
-        
-        // 找到匹配的菜单项并设置高亮
-        mobileMenuItems.forEach(item => {
-          const href = item.getAttribute('href');
-          // 检查是否完全匹配或者路径前缀匹配（但排除根路径'/'的前缀匹配）
-          if (href === normalizedPath || (normalizedPath.startsWith(href) && href !== '/')) {
-            // 应用高亮样式
-            item.classList.add('text-white', 'bg-primary-600', 'dark:bg-primary-500', 'shadow-sm');
-            item.classList.remove('text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800/70');
-            
-            // 如果是子菜单项，自动展开其父菜单
-            const submenu = item.closest('.mobile-submenu');
-            if (submenu) {
-              const parentId = submenu.getAttribute('data-parent-id');
-              const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
-              if (toggle && submenu.classList.contains('hidden')) {
-                // 模拟点击父菜单，展开子菜单
-                toggleSubmenu(parentId, true);
-              }
+      // 获取当前路径
+      const currentPath = window.location.pathname;
+      const normalizedPath = currentPath === '/' ? '/' : 
+        currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
+      
+      // 选择所有移动端菜单项
+      const mobileMenuItems = document.querySelectorAll('#mobile-menu a');
+      
+      // 找到匹配的菜单项并设置高亮
+      mobileMenuItems.forEach(item => {
+        const href = item.getAttribute('href');
+        // 检查是否完全匹配或者路径前缀匹配（但排除根路径'/'的前缀匹配）
+        if (href === normalizedPath || (normalizedPath.startsWith(href) && href !== '/')) {
+          // 应用高亮样式
+          item.classList.add('text-white', 'bg-primary-600', 'dark:bg-primary-500', 'shadow-sm');
+          item.classList.remove('text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800/70');
+          
+          // 如果是子菜单项，自动展开其父菜单
+          const submenu = item.closest('.mobile-submenu');
+          if (submenu) {
+            const parentId = submenu.getAttribute('data-parent-id');
+            const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
+            if (toggle && submenu.classList.contains('hidden')) {
+              // 展开子菜单
+              toggleSubmenu(parentId, true);
             }
-          } else {
-            // 移除高亮样式
-            item.classList.remove('text-white', 'bg-primary-600', 'dark:bg-primary-500', 'shadow-sm');
-            item.classList.add('text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800/70');
           }
-        });
-      }
-      
-      // 切换子菜单显示状态
-      function toggleSubmenu(parentId, forceOpen = null) {
-        const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
-        const submenu = document.querySelector(`.mobile-submenu[data-parent-id="${parentId}"]`);
-        const arrow = toggle ? toggle.querySelector('.mobile-menu-arrow') : null;
-        
-        if (!toggle || !submenu) return;
-        
-        // 确定是展开还是收起
-        const isHidden = submenu.classList.contains('hidden');
-        const shouldOpen = forceOpen !== null ? forceOpen : isHidden;
-        
-        if (shouldOpen) {
-          // 展开子菜单
-          submenu.classList.remove('hidden');
-          if (arrow) arrow.style.transform = 'rotate(180deg)';
         } else {
-          // 收起子菜单
-          submenu.classList.add('hidden');
-          if (arrow) arrow.style.transform = '';
+          // 移除高亮样式
+          item.classList.remove('text-white', 'bg-primary-600', 'dark:bg-primary-500', 'shadow-sm');
+          item.classList.add('text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800/70');
         }
-      }
+      });
+    }
+    
+    // 切换子菜单显示状态
+    function toggleSubmenu(parentId, forceOpen = null) {
+      const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
+      const submenu = document.querySelector(`.mobile-submenu[data-parent-id="${parentId}"]`);
+      const arrow = toggle ? toggle.querySelector('.mobile-menu-arrow') : null;
       
-      // 关闭所有子菜单
-      function closeAllSubmenus() {
-        const toggles = document.querySelectorAll('[data-mobile-menu-toggle]');
-        toggles.forEach(toggle => {
-          const parentId = toggle.getAttribute('data-mobile-menu-toggle');
-          if (parentId) {
-            toggleSubmenu(parentId, false);
-          }
-        });
+      if (!toggle || !submenu) return;
+      
+      // 确定是展开还是收起
+      const isHidden = submenu.classList.contains('hidden');
+      const shouldOpen = forceOpen !== null ? forceOpen : isHidden;
+      
+      if (shouldOpen) {
+        // 展开子菜单
+        submenu.classList.remove('hidden');
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+      } else {
+        // 收起子菜单
+        submenu.classList.add('hidden');
+        if (arrow) arrow.style.transform = '';
       }
+    }
+    
+    // 关闭所有子菜单
+    function closeAllSubmenus() {
+      const toggles = document.querySelectorAll('[data-mobile-menu-toggle]');
+      toggles.forEach(toggle => {
+        const parentId = toggle.getAttribute('data-mobile-menu-toggle');
+        if (parentId) {
+          toggleSubmenu(parentId, false);
+        }
+      });
+    }
+    
+    // 为所有子菜单切换按钮添加点击事件
+    function setupMobileSubmenuToggles() {
+      // 关闭所有子菜单（默认状态）
+      closeAllSubmenus();
       
       // 为所有子菜单切换按钮添加点击事件
       const submenuToggles = document.querySelectorAll('[data-mobile-menu-toggle]');
@@ -1313,223 +1317,163 @@ const navSelectorClassName = "mr-4";
           }
         });
       });
-      
-      // 关闭移动端菜单
-      function closeMobileMenu() {
-        if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-          mobileMenu.classList.add('hidden');
-          
-          if (mobileMenuButton) {
-            mobileMenuButton.setAttribute('aria-expanded', 'false');
-            
-            // 重置菜单图标
-            if (menuOpenIcon && menuCloseIcon) {
-              menuOpenIcon.classList.remove('hidden');
-              menuCloseIcon.classList.add('hidden');
-            }
-          }
-          
-          // 同时关闭所有子菜单
-          closeAllSubmenus();
-        }
-      }
-      
-      // 关闭移动端搜索
-      function closeMobileSearch() {
-        if (mobileSearch && !mobileSearch.classList.contains('hidden')) {
-          mobileSearch.classList.add('hidden');
-          
-          if (mobileSearchButton) {
-            mobileSearchButton.setAttribute('aria-expanded', 'false');
-          }
-        }
-      }
-      
-      // 初始调用一次更新高亮状态（会自动展开包含当前页面的子菜单）
-      updateMobileMenuHighlight();
-      
-      if (mobileMenuButton && mobileMenu) {
-        addListener(mobileMenuButton, 'click', () => {
-          // 切换菜单显示状态
-          const isExpanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
-          
-          // 更新按钮状态
-          mobileMenuButton.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
-          
-          // 切换图标
-          if (menuOpenIcon && menuCloseIcon) {
-            menuOpenIcon.classList.toggle('hidden');
-            menuCloseIcon.classList.toggle('hidden');
-          }
-          
-          // 显示/隐藏菜单
-          mobileMenu.classList.toggle('hidden');
-          
-          // 如果搜索面板是开着的，关闭它
-          closeMobileSearch();
-          
-          // 确保高亮状态是最新的
-          updateMobileMenuHighlight();
-        });
-      }
-      
-      if (mobileSearchButton && mobileSearch) {
-        addListener(mobileSearchButton, 'click', () => {
-          // 切换搜索面板显示状态
-          const isExpanded = mobileSearchButton.getAttribute('aria-expanded') === 'true';
-          
-          // 更新按钮状态
-          mobileSearchButton.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
-          
-          // 显示/隐藏搜索面板
-          mobileSearch.classList.toggle('hidden');
-          
-          // 如果菜单是开着的，关闭它
-          closeMobileMenu();
-        });
-      }
-      
-      // 为移动端菜单的所有链接添加点击事件，点击后关闭菜单
-      const mobileMenuLinks = document.querySelectorAll('#mobile-menu a');
-      mobileMenuLinks.forEach(link => {
-        addListener(link, 'click', (e) => {
-          // 如果使用客户端路由（如swup或Astro View Transitions），阻止默认行为
-          if (window.swup || document.startViewTransition) {
-            e.preventDefault();
-            
-            // 获取链接地址
-            const href = link.getAttribute('href');
-            if (href) {
-              // 先关闭菜单
-              closeMobileMenu();
-              closeMobileSearch();
-              
-              // 延迟导航，确保菜单关闭动画完成
-              setTimeout(() => {
-                // 使用适当的导航方法
-                if (window.swup) {
-                  try {
-                    window.swup.navigate(href);
-                  } catch (err) {
-                    try {
-                      window.swup.loadPage({ url: href });
-                    } catch (err2) {
-                      window.location.href = href;
-                    }
-                  }
-                } else if (document.startViewTransition) {
-                  document.startViewTransition(() => {
-                    window.location.href = href;
-                  });
-                } else {
-                  window.location.href = href;
-                }
-              }, 50);
-            }
-          } else {
-            // 普通链接导航，浏览器会自动处理跳转
-            // 但仍然需要关闭菜单
-            closeMobileMenu();
-            closeMobileSearch();
-          }
-        });
-      });
-      
-      // 处理主题切换容器点击
-      const themeToggleContainer = document.getElementById('theme-toggle-container');
-      if (themeToggleContainer) {
-        addListener(themeToggleContainer, 'click', (e) => {
-          // 触发其中的ThemeToggle组件点击
-          const themeToggle = themeToggleContainer.querySelector('button');
-          if (themeToggle) {
-            themeToggle.click();
-          }
-        });
-      }
-      
-      // 处理页面切换，确保移动端菜单高亮状态更新
-      if (window.swup) {
-        // swup页面内容替换后
-        addListener(document, 'swup:contentReplaced', () => {
-          setTimeout(() => {
-            // 更新移动端菜单项的事件监听器，因为DOM已经更新
-            setupMobileSubmenuToggles();
-            // 更新高亮状态
-            updateMobileMenuHighlight();
-            // 确保菜单关闭
-            closeMobileMenu();
-            closeMobileSearch();
-          }, 50);
-        });
-        
-        // swup动画结束后
-        addListener(document, 'swup:animationInDone', () => {
-          updateMobileMenuHighlight();
-        });
-      }
-      
-      // 如果使用Astro的View Transitions
-      addListener(document, 'astro:page-load', () => {
-        // 更新移动端菜单项的事件监听器，因为DOM已经更新
-        setupMobileSubmenuToggles();
-        // 更新高亮状态
-        updateMobileMenuHighlight();
-        // 确保菜单关闭
-        closeMobileMenu();
-        closeMobileSearch();
-      });
-      
-      // 普通页面加载事件
-      addListener(window, 'popstate', () => {
-        setTimeout(() => {
-          // 更新移动端菜单项的事件监听器，因为DOM可能已经更新
-          setupMobileSubmenuToggles();
-          // 更新高亮状态
-          updateMobileMenuHighlight();
-          // 确保菜单关闭
-          closeMobileMenu();
-          closeMobileSearch();
-        }, 50);
-      });
-      
-      // 辅助函数：为移动端子菜单添加切换事件（用于页面切换后重新绑定）
-      function setupMobileSubmenuToggles() {
-        // 关闭所有子菜单（默认状态）
-        closeAllSubmenus();
-        
-        // 重新添加事件监听器
-        const submenuToggles = document.querySelectorAll('[data-mobile-menu-toggle]');
-        submenuToggles.forEach(toggle => {
-          // 移除可能存在的旧监听器（通过克隆和替换元素）
-          const newToggle = toggle.cloneNode(true);
-          toggle.parentNode.replaceChild(newToggle, toggle);
-          
-          // 添加新的事件监听器
-          addListener(newToggle, 'click', (e) => {
-            const parentId = newToggle.getAttribute('data-mobile-menu-toggle');
-            if (parentId) {
-              toggleSubmenu(parentId);
-            }
-          });
-        });
-      }
-      
-      // 暴露更新和关闭函数到全局，方便其他地方调用
-      document.updateMobileMenuHighlight = updateMobileMenuHighlight;
-      document.closeMobileMenu = closeMobileMenu;
-      document.closeMobileSearch = closeMobileSearch;
-      document.toggleMobileSubmenu = toggleSubmenu;
-      
-      return updateMobileMenuHighlight;
     }
     
-    // 执行初始化
-    const cleanupNav = setupNavSelector();
-    const updateMobileHighlight = setupMobileNav();
+    // 关闭移动端菜单
+    function closeMobileMenu() {
+      if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+        mobileMenu.classList.add('hidden');
+        
+        if (mobileMenuButton) {
+          mobileMenuButton.setAttribute('aria-expanded', 'false');
+          
+          // 重置菜单图标
+          if (menuOpenIcon && menuCloseIcon) {
+            menuOpenIcon.classList.remove('hidden');
+            menuCloseIcon.classList.add('hidden');
+          }
+        }
+        
+        // 同时关闭所有子菜单
+        closeAllSubmenus();
+      }
+    }
     
-    // 页面卸载时清理
-    window.addEventListener('beforeunload', cleanupNav);
-  });
+    // 关闭移动端搜索
+    function closeMobileSearch() {
+      if (mobileSearch && !mobileSearch.classList.contains('hidden')) {
+        mobileSearch.classList.add('hidden');
+        
+        if (mobileSearchButton) {
+          mobileSearchButton.setAttribute('aria-expanded', 'false');
+        }
+      }
+    }
+    
+    // 移动端菜单按钮点击事件
+    if (mobileMenuButton && mobileMenu) {
+      addListener(mobileMenuButton, 'click', () => {
+        // 切换菜单显示状态
+        const isExpanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
+        
+        // 更新按钮状态
+        mobileMenuButton.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+        
+        // 切换图标
+        if (menuOpenIcon && menuCloseIcon) {
+          menuOpenIcon.classList.toggle('hidden');
+          menuCloseIcon.classList.toggle('hidden');
+        }
+        
+        // 显示/隐藏菜单
+        mobileMenu.classList.toggle('hidden');
+        
+        // 如果搜索面板是开着的，关闭它
+        closeMobileSearch();
+        
+        // 确保高亮状态是最新的
+        updateMobileMenuHighlight();
+      });
+    }
+    
+    // 移动端搜索按钮点击事件
+    if (mobileSearchButton && mobileSearch) {
+      addListener(mobileSearchButton, 'click', () => {
+        // 切换搜索面板显示状态
+        const isExpanded = mobileSearchButton.getAttribute('aria-expanded') === 'true';
+        
+        // 更新按钮状态
+        mobileSearchButton.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+        
+        // 显示/隐藏搜索面板
+        mobileSearch.classList.toggle('hidden');
+        
+        // 如果菜单是开着的，关闭它
+        closeMobileMenu();
+      });
+    }
+    
+    // 为移动端菜单的所有链接添加点击事件，点击后关闭菜单
+    const mobileMenuLinks = document.querySelectorAll('#mobile-menu a');
+    mobileMenuLinks.forEach(link => {
+      addListener(link, 'click', (e) => {
+        // 如果使用客户端路由（如swup或Astro View Transitions），阻止默认行为
+        const hasSwup = typeof window.swup !== 'undefined';
+        const hasViewTransitions = typeof document.startViewTransition !== 'undefined';
+        
+        if (hasSwup || hasViewTransitions) {
+          e.preventDefault();
+          
+          // 获取链接地址
+          const href = link.getAttribute('href');
+          if (!href) return;
+          
+          // 先关闭菜单
+          closeMobileMenu();
+          closeMobileSearch();
+          
+          // 延迟导航，确保菜单关闭动画完成
+          setTimeout(() => {
+            // 使用适当的导航方法
+            if (hasSwup) {
+              try {
+                window.swup.navigate(href);
+              } catch (err) {
+                try {
+                  window.swup.loadPage({ url: href });
+                } catch (err2) {
+                  window.location.href = href;
+                }
+              }
+            } else if (hasViewTransitions) {
+              document.startViewTransition(() => {
+                window.location.href = href;
+              });
+            } else {
+              window.location.href = href;
+            }
+          }, 50);
+        } else {
+          // 普通链接导航，浏览器会自动处理跳转
+          // 但仍然需要关闭菜单
+          closeMobileMenu();
+          closeMobileSearch();
+        }
+      });
+    });
+    
+    // 为Astro View Transitions添加事件处理
+    addListener(document, 'astro:page-load', () => {
+      setupMobileSubmenuToggles();
+      updateMobileMenuHighlight();
+      closeMobileMenu();
+      closeMobileSearch();
+    });
+    
+    // 监听地址栏变化
+    addListener(window, 'popstate', () => {
+      setTimeout(() => {
+        updateMobileMenuHighlight();
+        closeMobileMenu();
+        closeMobileSearch();
+      }, 50);
+    });
+    
+    // 初始调用一次设置子菜单切换按钮和更新高亮状态
+    setupMobileSubmenuToggles();
+    updateMobileMenuHighlight();
+    
+    // 在document上添加自定义方法，方便外部调用（可选）
+    document.updateMobileMenuHighlight = updateMobileMenuHighlight;
+    document.closeMobileMenu = closeMobileMenu;
+    document.closeMobileSearch = closeMobileSearch;
+    document.toggleMobileSubmenu = toggleSubmenu;
+    
+    return updateMobileMenuHighlight;
+  }
+  
+  // 开始初始化
+  initNavigation();
 })();
 </script>
 

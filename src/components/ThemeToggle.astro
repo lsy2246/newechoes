@@ -116,21 +116,20 @@ const {
 </style>
 
 <script is:inline>
-  // 主题切换逻辑
-  (function () {
-    // 页面导航计数器（跟踪页面跳转次数）
-    let pageNavigationCount = 0;
-
-    // 存储事件监听器，便于统一清理
-    const listeners = [];
-
-    // 定时器
-    let transitionTimeout = null;
+  // 主题切换逻辑 - 自销毁模式
+  (function() {
     
-    // 波纹动画定时器
+    // 集中管理所有事件监听器
+    const allListeners = [];
+    
+    // 单独保存清理事件的监听器引用
+    const cleanupListeners = [];
+    
+    // 定时器引用
+    let transitionTimeout = null;
     let rippleTimeout = null;
     
-    // 主题过渡模式 - 从localStorage读取，如果没有则使用默认值
+    // 主题过渡模式
     const TRANSITION_MODES = {
       EXPAND: 'expand',     // 扩散模式
       SHRINK: 'shrink',     // 收缩模式
@@ -138,7 +137,12 @@ const {
       REVERSE_AUTO: 'reverse-auto'  // 反向自动模式
     };
     
-    // 从本地存储获取主题过渡模式，如果没有则使用默认值
+    // 动画持续时间配置（毫秒）
+    const ANIMATION_DURATION = 700; // 动画持续时间
+    const ANIMATION_BUFFER = 100;   // 动画缓冲时间
+    const TOTAL_TRANSITION_TIME = ANIMATION_DURATION + ANIMATION_BUFFER; // 总过渡时间
+    
+    // 从本地存储获取主题过渡模式
     function getThemeTransitionMode() {
       const savedMode = localStorage.getItem('theme-transition-mode');
       return Object.values(TRANSITION_MODES).includes(savedMode) 
@@ -146,141 +150,38 @@ const {
         : TRANSITION_MODES.AUTO;
     }
 
-    // 直接从按钮移除事件监听器
-    function cleanupButtonListeners() {
-      // 查找所有主题切换按钮
-      const buttons = document.querySelectorAll("#theme-toggle-button");
-
-      buttons.forEach((button) => {
-        // 移除所有可能的事件
-        if (button._clickHandler) {
-          button.removeEventListener("click", button._clickHandler, {
-            capture: true,
-          });
-          delete button._clickHandler;
-        }
-
-        if (button._keydownHandler) {
-          button.removeEventListener("keydown", button._keydownHandler);
-          delete button._keydownHandler;
-        }
-
-        // 清除其他可能的事件
-        const otherClickHandlers = button.__themeToggleClickHandlers || [];
-        otherClickHandlers.forEach((handler) => {
-          try {
-            button.removeEventListener("click", handler, { capture: true });
-          } catch (e) {
-            // 忽略错误
-          }
-        });
-
-        const otherKeydownHandlers = button.__themeToggleKeydownHandlers || [];
-        otherKeydownHandlers.forEach((handler) => {
-          try {
-            button.removeEventListener("keydown", handler);
-          } catch (e) {
-            // 忽略错误
-          }
-        });
-
-        // 重置处理函数数组
-        button.__themeToggleClickHandlers = [];
-        button.__themeToggleKeydownHandlers = [];
-      });
-
-      // 清理容器
-      const container = document.getElementById("theme-toggle-container");
-      if (container) {
-        if (container._clickHandler) {
-          container.removeEventListener("click", container._clickHandler);
-          delete container._clickHandler;
-        }
-
-        // 清除其他可能的事件
-        const otherClickHandlers = container.__themeToggleClickHandlers || [];
-        otherClickHandlers.forEach((handler) => {
-          try {
-            container.removeEventListener("click", handler);
-          } catch (e) {
-            // 忽略错误
-          }
-        });
-
-        // 重置处理函数数组
-        container.__themeToggleClickHandlers = [];
-      }
-    }
-
     // 添加事件监听器并记录，方便后续统一清理
     function addListener(element, eventType, handler, options) {
-      if (!element) return null;
-
-      // 确保先移除可能已存在的同类型事件处理函数
-      if (eventType === "click" && element.id === "theme-toggle-button") {
-        if (element._clickHandler) {
-          element.removeEventListener("click", element._clickHandler, {
-            capture: true,
-          });
-        }
-        element._clickHandler = handler;
-
-        // 保存到数组中以便清理
-        if (!element.__themeToggleClickHandlers) {
-          element.__themeToggleClickHandlers = [];
-        }
-        element.__themeToggleClickHandlers.push(handler);
-      }
-
-      if (eventType === "keydown" && element.id === "theme-toggle-button") {
-        if (element._keydownHandler) {
-          element.removeEventListener("keydown", element._keydownHandler);
-        }
-        element._keydownHandler = handler;
-
-        // 保存到数组中以便清理
-        if (!element.__themeToggleKeydownHandlers) {
-          element.__themeToggleKeydownHandlers = [];
-        }
-        element.__themeToggleKeydownHandlers.push(handler);
-      }
-
-      if (eventType === "click" && element.id === "theme-toggle-container") {
-        if (element._clickHandler) {
-          element.removeEventListener("click", element._clickHandler);
-        }
-        element._clickHandler = handler;
-
-        // 保存到数组中以便清理
-        if (!element.__themeToggleClickHandlers) {
-          element.__themeToggleClickHandlers = [];
-        }
-        element.__themeToggleClickHandlers.push(handler);
+      if (!element) {
+        console.warn(`主题切换尝试为不存在的元素添加事件:`, eventType);
+        return null;
       }
 
       element.addEventListener(eventType, handler, options);
-      listeners.push({ element, eventType, handler, options });
+      allListeners.push({ element, eventType, handler, options });
       return handler;
     }
 
-    // 清理函数 - 移除所有事件监听器
-    function cleanup() {
-      // 先直接从按钮清理事件
-      cleanupButtonListeners();
-
-      // 移除所有监听器
-      listeners.forEach(({ element, eventType, handler, options }) => {
+    // 统一的清理函数，执行完整清理并自销毁
+    function selfDestruct() {
+      // 0. 取消正在进行的transition
+      if (window._themeTransition && typeof window._themeTransition.skipTransition === 'function') {
         try {
-          element.removeEventListener(eventType, handler, options);
+          window._themeTransition.skipTransition();
+          console.debug(`主题切换清理阶段取消transition成功`);
         } catch (err) {
-          // 忽略错误
+          // 降级为debug日志
+          if (err.name === 'AbortError') {
+            console.debug(`主题切换清理阶段: 过渡已被跳过，这是正常现象`);
+          } else {
+            console.debug(`主题切换清理阶段取消transition出错:`, err);
+          }
+        } finally {
+          window._themeTransition = null;
         }
-      });
-
-      // 清空数组
-      listeners.length = 0;
-
-      // 清理任何定时器
+      }
+      
+      // 1. 清理所有计时器
       if (transitionTimeout) {
         clearTimeout(transitionTimeout);
         transitionTimeout = null;
@@ -290,6 +191,68 @@ const {
         clearTimeout(rippleTimeout);
         rippleTimeout = null;
       }
+      
+      // 2. 清理临时样式元素
+      const tempStyle = document.getElementById('theme-transition-temp-style');
+      if (tempStyle) {
+        tempStyle.remove();
+      }
+      
+      // 3. 移除过渡动画标记
+      document.documentElement.classList.remove('theme-transition-active');
+      
+      // 4. 移除所有波纹效果元素
+      document.querySelectorAll(".theme-ripple").forEach(ripple => {
+        if (ripple.parentNode) {
+          ripple.parentNode.removeChild(ripple);
+        }
+      });
+      
+      // 5. 移除普通事件监听器
+      allListeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          console.error(`主题切换移除事件监听器出错:`, err);
+        }
+      });
+      
+      // 清空监听器数组
+      allListeners.length = 0;
+      
+      // 6. 最后移除清理事件监听器自身
+      cleanupListeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          console.error(`主题切换移除清理监听器出错:`, err);
+        }
+      });
+      
+      // 清空清理监听器数组
+      cleanupListeners.length = 0;
+    }
+    
+    // 注册清理事件，并保存引用
+    function registerCleanupEvents() {
+      // 创建一次性事件处理函数
+      const beforeSwapHandler = () => {
+        selfDestruct();
+      };
+      
+      const beforeUnloadHandler = () => {
+        selfDestruct();
+      };
+      
+      // 添加清理事件监听器并保存引用
+      document.addEventListener("astro:before-swap", beforeSwapHandler, { once: true });
+      window.addEventListener("beforeunload", beforeUnloadHandler, { once: true });
+      
+      // 保存清理事件引用，用于完全销毁
+      cleanupListeners.push(
+        { element: document, eventType: "astro:before-swap", handler: beforeSwapHandler, options: { once: true } },
+        { element: window, eventType: "beforeunload", handler: beforeUnloadHandler, options: { once: true } }
+      );
     }
     
     // 创建波纹动画元素
@@ -316,7 +279,9 @@ const {
       
       // 自动清理波纹元素
       rippleTimeout = setTimeout(() => {
-        ripple.remove();
+        if (ripple.parentNode) {
+          ripple.parentNode.removeChild(ripple);
+        }
       }, 1000);
       
       return ripple;
@@ -352,6 +317,21 @@ const {
     
     // 使用View Transitions API创建全屏过渡效果
     function createViewTransition(callback, x, y, fromTheme, toTheme, transitionMode) {
+      // 如果已有正在进行的过渡，先取消它
+      if (window._themeTransition) {
+        try {
+          if (typeof window._themeTransition.skipTransition === 'function') {
+            window._themeTransition.skipTransition();
+          }
+        } catch (e) {
+          // 降级为debug日志，不需要显示警告
+          console.debug(`主题切换取消先前过渡失败:`, e);
+        } finally {
+          // 无论成功与否，都清除引用
+          window._themeTransition = null;
+        }
+      }
+      
       // 检查浏览器是否支持View Transitions API
       if (!document.startViewTransition) {
         // 尝试使用简单的回退动画
@@ -386,13 +366,15 @@ const {
             
             // 然后执行动画
             setTimeout(() => {
-              mask.style.transition = 'clip-path 0.7s ease-out';
+              mask.style.transition = `clip-path ${ANIMATION_DURATION/1000}s ease-out`;
               mask.style.clipPath = `circle(150vmax at ${x}px ${y}px)`;
               
               // 动画结束后删除遮罩
               setTimeout(() => {
-                mask.remove();
-              }, 700);
+                if (mask.parentNode) {
+                  mask.parentNode.removeChild(mask);
+                }
+              }, ANIMATION_DURATION);
             }, 20);
           } else {
             // 收缩效果 - 从全屏向点击位置收缩
@@ -400,7 +382,7 @@ const {
             document.body.appendChild(mask);
             
             // 添加过渡样式
-            mask.style.transition = 'clip-path 0.7s ease-in';
+            mask.style.transition = `clip-path ${ANIMATION_DURATION/1000}s ease-in`;
             
             // 强制回流
             void mask.offsetWidth;
@@ -411,11 +393,13 @@ const {
             // 等待动画结束后切换主题并移除遮罩
             setTimeout(() => {
               callback();
-              mask.remove();
-            }, 700);
+              if (mask.parentNode) {
+                mask.parentNode.removeChild(mask);
+              }
+            }, ANIMATION_DURATION);
           }
           
-          return new Promise(resolve => setTimeout(resolve, 800));
+          return new Promise(resolve => setTimeout(resolve, TOTAL_TRANSITION_TIME));
         } catch (e) {
           // 如果回退方案也失败，直接执行回调
           callback();
@@ -424,6 +408,15 @@ const {
       }
       
       try {
+        // 清除状态标记，为下一次过渡做准备
+        document.documentElement.classList.remove('theme-transition-active');
+        
+        // 清除可能存在的临时样式
+        const oldStyle = document.getElementById('theme-transition-temp-style');
+        if (oldStyle) {
+          oldStyle.remove();
+        }
+        
         // 计算从点击位置到页面四个角的最大距离
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -448,14 +441,32 @@ const {
         // 确定动画类型
         const animationType = determineAnimationType(transitionMode, fromTheme, toTheme);
         
+        // 创建一个简单回调函数，避免复杂操作导致transition跳过
+        const safeCallback = () => {
+          try {
+            // 更新HTML属性
+            document.documentElement.dataset.theme = toTheme;
+            
+            // 更新本地存储
+            const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            if (toTheme === systemTheme) {
+              localStorage.removeItem("theme");
+            } else {
+              localStorage.setItem("theme", toTheme);
+            }
+            
+            // 最后执行用户回调
+            callback();
+          } catch (err) {
+            console.error(`主题切换 回调执行出错:`, err);
+          }
+        };
+        
         // 启动视图过渡
-        const transition = document.startViewTransition(() => {
-          // 执行主题切换回调
-          callback();
-          
-          // 确保DOM已更新
-          document.documentElement.dataset.theme = toTheme;
-        });
+        const transition = document.startViewTransition(safeCallback);
+        
+        // 存储transition引用以便清理
+        window._themeTransition = transition;
         
         // 生成动画需要的SVG资源
         const gradientOffset = 0.75;
@@ -465,88 +476,47 @@ const {
         // 计算动画需要多大才能覆盖整个屏幕
         const maxRadius = Math.ceil(maxDistance / gradientOffset);
         
-        // 过渡开始后，应用自定义动画
-        transition.ready.then(() => {
-          // 应用基础样式到document
-          const style = document.createElement('style');
-          style.id = 'theme-transition-temp-style';
-          
-          if (animationType === TRANSITION_MODES.EXPAND) {
-            // 扩散效果 - 新主题从点击位置向外扩散
-            style.textContent = `
-              ::view-transition-new(root) {
-                animation: none !important;
-                -webkit-mask-image: url('${maskUrl}') !important;
-                mask-image: url('${maskUrl}') !important;
-                -webkit-mask-repeat: no-repeat !important;
-                mask-repeat: no-repeat !important;
-                -webkit-mask-position: ${x}px ${y}px !important;
-                mask-position: ${x}px ${y}px !important;
-                -webkit-mask-size: 0 !important;
-                mask-size: 0 !important;
-                z-index: 1000 !important;
+        // 准备应用自定义动画的操作
+        const applyCustomAnimation = async () => {
+          try {
+            // 使用race和超时Promise，改进超时策略
+            const readyPromise = Promise.race([
+              transition.ready,
+              new Promise((_, reject) => {
+                // 增加超时时间到50ms，提高收缩模式的成功率
+                setTimeout(() => reject(new Error('Ready timeout')), 50);
+              })
+            ]);
+            
+            try {
+              // 等待过渡准备完成
+              await readyPromise;
+            } catch (err) {
+              // 超时处理 - 只记录警告日志，继续执行动画
+              if (err.message === 'Ready timeout') {
+                console.debug(`主题切换过渡准备超时，使用备用策略`);
+                // 收缩模式时此处超时更常见，立即使用备用方案
+                if (animationType === TRANSITION_MODES.SHRINK) {
+                  applyFallbackAnimation();
+                  return; // 跳过后续代码，使用备用方案
+                }
+              } else if (err.name === 'AbortError') {
+                // 如果是AbortError，我们也立即使用备用方案
+                applyFallbackAnimation();
+                return; // 跳过后续代码，使用备用方案
+              } else {
+                console.debug(`主题切换过渡准备错误:`, err);
               }
-            `;
-            document.head.appendChild(style);
+            }
             
-            // 强制重新计算样式
-            window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
+            // 应用基础样式到document
+            const style = document.createElement('style');
+            style.id = 'theme-transition-temp-style';
             
-            // 立即设置最终状态
-            setTimeout(() => {
+            if (animationType === TRANSITION_MODES.EXPAND) {
+              // 扩散效果 - 新主题从点击位置向外扩散
               style.textContent = `
                 ::view-transition-new(root) {
-                  animation: none !important;
-                  -webkit-mask-image: url('${maskUrl}') !important;
-                  mask-image: url('${maskUrl}') !important;
-                  -webkit-mask-repeat: no-repeat !important;
-                  mask-repeat: no-repeat !important;
-                  -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
-                  mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
-                  -webkit-mask-size: ${maxRadius * 2}px !important;
-                  mask-size: ${maxRadius * 2}px !important;
-                  z-index: 1000 !important;
-                  transition: -webkit-mask-position 0.7s ease-out, -webkit-mask-size 0.7s ease-out,
-                             mask-position 0.7s ease-out, mask-size 0.7s ease-out !important;
-                }
-              `;
-            }, 20);
-            
-            // 清理临时样式
-            setTimeout(() => {
-              if (document.getElementById('theme-transition-temp-style')) {
-                document.getElementById('theme-transition-temp-style').remove();
-              }
-            }, 1000);
-            
-          } else {
-            // 收缩效果 - 旧主题从全屏向点击位置收缩
-            style.textContent = `
-              ::view-transition-old(root) {
-                animation: none !important;
-                -webkit-mask-image: url('${maskUrl}') !important;
-                mask-image: url('${maskUrl}') !important;
-                -webkit-mask-repeat: no-repeat !important;
-                mask-repeat: no-repeat !important;
-                -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
-                mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
-                -webkit-mask-size: ${maxRadius * 2}px !important;
-                mask-size: ${maxRadius * 2}px !important;
-                z-index: 999 !important;
-              }
-              ::view-transition-new(root) {
-                z-index: 998 !important;
-              }
-            `;
-            document.head.appendChild(style);
-            
-            // 强制重新计算样式
-            window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
-            
-            // 立即设置最终状态
-            setTimeout(() => {
-              style.textContent = `
-                ::view-transition-old(root) {
                   animation: none !important;
                   -webkit-mask-image: url('${maskUrl}') !important;
                   mask-image: url('${maskUrl}') !important;
@@ -556,38 +526,264 @@ const {
                   mask-position: ${x}px ${y}px !important;
                   -webkit-mask-size: 0 !important;
                   mask-size: 0 !important;
+                  z-index: 1000 !important;
+                }
+              `;
+              document.head.appendChild(style);
+              
+              // 强制重新计算样式
+              window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
+              
+              // 立即设置最终状态
+              requestAnimationFrame(() => {
+                if (style.parentNode) {
+                  style.textContent = `
+                    ::view-transition-new(root) {
+                      animation: none !important;
+                      -webkit-mask-image: url('${maskUrl}') !important;
+                      mask-image: url('${maskUrl}') !important;
+                      -webkit-mask-repeat: no-repeat !important;
+                      mask-repeat: no-repeat !important;
+                      -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                      mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                      -webkit-mask-size: ${maxRadius * 2}px !important;
+                      mask-size: ${maxRadius * 2}px !important;
+                      z-index: 1000 !important;
+                      transition: -webkit-mask-position ${ANIMATION_DURATION/1000}s ease-out, -webkit-mask-size ${ANIMATION_DURATION/1000}s ease-out,
+                                mask-position ${ANIMATION_DURATION/1000}s ease-out, mask-size ${ANIMATION_DURATION/1000}s ease-out !important;
+                    }
+                  `;
+                }
+              });
+              
+              // 清理临时样式
+              setTimeout(() => {
+                if (document.getElementById('theme-transition-temp-style')) {
+                  document.getElementById('theme-transition-temp-style').remove();
+                }
+              }, TOTAL_TRANSITION_TIME);
+              
+            } else {
+              // 改进收缩效果实现
+              style.textContent = `
+                ::view-transition-old(root) {
+                  animation: none !important;
+                  -webkit-mask-image: url('${maskUrl}') !important;
+                  mask-image: url('${maskUrl}') !important;
+                  -webkit-mask-repeat: no-repeat !important;
+                  mask-repeat: no-repeat !important;
+                  -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                  mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                  -webkit-mask-size: ${maxRadius * 2}px !important;
+                  mask-size: ${maxRadius * 2}px !important;
                   z-index: 999 !important;
-                  transition: -webkit-mask-position 0.7s ease-in, -webkit-mask-size 0.7s ease-in,
-                             mask-position 0.7s ease-in, mask-size 0.7s ease-in !important;
                 }
                 ::view-transition-new(root) {
                   z-index: 998 !important;
                 }
               `;
-            }, 20);
+              document.head.appendChild(style);
+              
+              // 强制重新计算样式
+              window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
+              
+              // 使用双重requestAnimationFrame确保样式先被应用
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  if (style.parentNode) {
+                    style.textContent = `
+                      ::view-transition-old(root) {
+                        animation: none !important;
+                        -webkit-mask-image: url('${maskUrl}') !important;
+                        mask-image: url('${maskUrl}') !important;
+                        -webkit-mask-repeat: no-repeat !important;
+                        mask-repeat: no-repeat !important;
+                        -webkit-mask-position: ${x}px ${y}px !important;
+                        mask-position: ${x}px ${y}px !important;
+                        -webkit-mask-size: 0 !important;
+                        mask-size: 0 !important;
+                        z-index: 999 !important;
+                        transition: -webkit-mask-position ${ANIMATION_DURATION/1000}s ease-in, -webkit-mask-size ${ANIMATION_DURATION/1000}s ease-in,
+                                  mask-position ${ANIMATION_DURATION/1000}s ease-in, mask-size ${ANIMATION_DURATION/1000}s ease-in !important;
+                      }
+                      ::view-transition-new(root) {
+                        z-index: 998 !important;
+                      }
+                    `;
+                  }
+                });
+              });
+            }
             
             // 清理临时样式
             setTimeout(() => {
               if (document.getElementById('theme-transition-temp-style')) {
                 document.getElementById('theme-transition-temp-style').remove();
               }
-            }, 1000);
+            }, TOTAL_TRANSITION_TIME);
+          } catch (error) {
+            // AbortError是正常的，我们完全可以忽略它，但仍保留调试日志
+            if (error.name === 'AbortError') {
+              // 降级为debug级别日志，不要吓到用户
+              console.debug(`主题切换过渡被跳过，这是正常现象`);
+              // 使用备用动画方案
+              applyFallbackAnimation();
+            } else if (error.message === 'Ready timeout') {
+              // 超时是我们主动抛出的，只需要降级处理
+              console.debug(`主题切换过渡准备超时，继续执行动画`);
+              
+              // 即使ready超时，我们仍然可以应用样式
+              // 这里可以直接调用备用方案应用动画
+              applyFallbackAnimation();
+            } else {
+              // 只有真正意外的错误才输出error级别日志
+              console.error(`主题切换应用自定义动画出错:`, error);
+              // 尝试使用备用方案
+              applyFallbackAnimation();
+            }
           }
-        }).catch(error => {
-          console.error('过渡动画错误', error);
+        };
+        
+        // 添加备用动画方案
+        const applyFallbackAnimation = () => {
+          try {
+            // 创建并应用样式但不等待transition.ready
+            const style = document.createElement('style');
+            style.id = 'theme-transition-temp-style';
+            
+            if (animationType === TRANSITION_MODES.EXPAND) {
+              // 扩散效果样式 - 保持不变
+              style.textContent = `
+                ::view-transition-new(root) {
+                  animation: none !important;
+                  -webkit-mask-image: url('${maskUrl}') !important;
+                  mask-image: url('${maskUrl}') !important;
+                  -webkit-mask-repeat: no-repeat !important;
+                  mask-repeat: no-repeat !important;
+                  -webkit-mask-position: ${x}px ${y}px !important;
+                  mask-position: ${x}px ${y}px !important;
+                  -webkit-mask-size: 0 !important;
+                  mask-size: 0 !important;
+                  z-index: 1000 !important;
+                }
+              `;
+              document.head.appendChild(style);
+              
+              // 强制重新计算样式
+              window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
+              
+              // 使用双重requestAnimationFrame确保样式先被应用
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  if (style.parentNode) {
+                    style.textContent = `
+                      ::view-transition-new(root) {
+                        animation: none !important;
+                        -webkit-mask-image: url('${maskUrl}') !important;
+                        mask-image: url('${maskUrl}') !important;
+                        -webkit-mask-repeat: no-repeat !important;
+                        mask-repeat: no-repeat !important;
+                        -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                        mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                        -webkit-mask-size: ${maxRadius * 2}px !important;
+                        mask-size: ${maxRadius * 2}px !important;
+                        z-index: 1000 !important;
+                        transition: -webkit-mask-position ${ANIMATION_DURATION/1000}s ease-out, -webkit-mask-size ${ANIMATION_DURATION/1000}s ease-out,
+                                  mask-position ${ANIMATION_DURATION/1000}s ease-out, mask-size ${ANIMATION_DURATION/1000}s ease-out !important;
+                      }
+                    `;
+                  }
+                });
+              });
+            } else {
+              // 改进收缩效果实现
+              style.textContent = `
+                ::view-transition-old(root) {
+                  animation: none !important;
+                  -webkit-mask-image: url('${maskUrl}') !important;
+                  mask-image: url('${maskUrl}') !important;
+                  -webkit-mask-repeat: no-repeat !important;
+                  mask-repeat: no-repeat !important;
+                  -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                  mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
+                  -webkit-mask-size: ${maxRadius * 2}px !important;
+                  mask-size: ${maxRadius * 2}px !important;
+                  z-index: 999 !important;
+                }
+                ::view-transition-new(root) {
+                  z-index: 998 !important;
+                }
+              `;
+              document.head.appendChild(style);
+              
+              // 强制重新计算样式
+              window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
+              
+              // 使用双重requestAnimationFrame确保样式先被应用
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  if (style.parentNode) {
+                    style.textContent = `
+                      ::view-transition-old(root) {
+                        animation: none !important;
+                        -webkit-mask-image: url('${maskUrl}') !important;
+                        mask-image: url('${maskUrl}') !important;
+                        -webkit-mask-repeat: no-repeat !important;
+                        mask-repeat: no-repeat !important;
+                        -webkit-mask-position: ${x}px ${y}px !important;
+                        mask-position: ${x}px ${y}px !important;
+                        -webkit-mask-size: 0 !important;
+                        mask-size: 0 !important;
+                        z-index: 999 !important;
+                        transition: -webkit-mask-position ${ANIMATION_DURATION/1000}s ease-in, -webkit-mask-size ${ANIMATION_DURATION/1000}s ease-in,
+                                  mask-position ${ANIMATION_DURATION/1000}s ease-in, mask-size ${ANIMATION_DURATION/1000}s ease-in !important;
+                      }
+                      ::view-transition-new(root) {
+                        z-index: 998 !important;
+                      }
+                    `;
+                  }
+                });
+              });
+            }
+            
+            // 清理临时样式
+            setTimeout(() => {
+              if (document.getElementById('theme-transition-temp-style')) {
+                document.getElementById('theme-transition-temp-style').remove();
+              }
+            }, TOTAL_TRANSITION_TIME);
+          } catch (err) {
+            console.debug(`主题切换应用备用动画方案出错:`, err);
+          }
+        };
+        
+        // 非阻塞执行自定义动画应用
+        applyCustomAnimation().catch(error => {
+          console.error(`主题切换应用动画过程出错:`, error);
         });
         
         // 返回过渡完成的Promise
-        return transition.finished.then(() => {
-          // 移除主题过渡标记类
-          document.documentElement.classList.remove('theme-transition-active');
-        }).catch(error => {
-          console.error('过渡动画错误', error);
-          // 确保标记类被移除
-          document.documentElement.classList.remove('theme-transition-active');
-        });
+        return transition.finished
+          .then(() => {
+            // 移除主题过渡标记类
+            document.documentElement.classList.remove('theme-transition-active');
+            window._themeTransition = null;
+          })
+          .catch(error => {
+            if (error.name === 'AbortError') {
+              console.debug(`主题切换过渡被中断: 这是正常现象，可能是新的过渡开始或页面导航变化`);
+            } else {
+              console.error(`主题切换过渡动画错误:`, error);
+            }
+            // 确保标记类被移除
+            document.documentElement.classList.remove('theme-transition-active');
+            
+            // 清除引用
+            window._themeTransition = null;
+          });
       } catch (error) {
-        console.error('主题切换错误', error);
+        console.error(`主题切换错误:`, error);
         // 在出错时也要执行回调
         callback();
         // 确保标记类被移除
@@ -596,17 +792,13 @@ const {
       }
     }
 
-    // 初始化主题切换功能
+    // 设置主题切换功能
     function setupThemeToggle() {
-      // 确保当前没有活动的主题切换按钮事件
-      cleanup();
-
       // 获取所有主题切换按钮
-      const themeToggleButtons = document.querySelectorAll(
-        "#theme-toggle-button",
-      );
+      const themeToggleButtons = document.querySelectorAll("#theme-toggle-button");
 
       if (!themeToggleButtons.length) {
+        console.warn(`主题切换未找到主题切换按钮`);
         return;
       }
 
@@ -642,70 +834,145 @@ const {
 
         transitioning = true;
         
-        // 记录点击坐标
-        const clickX = e instanceof Event ? e.clientX : window.innerWidth / 2;
-        const clickY = e instanceof Event ? e.clientY : window.innerHeight / 2;
+        // 更可靠的点击坐标获取
+        let clickX, clickY;
         
-        // 在按钮上创建小波纹效果
-        if (e instanceof Event && e.target) {
-          const button = e.target.closest("#theme-toggle-button");
-          if (button) {
-            createRippleEffect(clickX, clickY, button);
+        try {
+          if (e instanceof Event && typeof e.clientX === 'number' && typeof e.clientY === 'number') {
+            // 如果是真实事件对象且有有效坐标
+            clickX = e.clientX;
+            clickY = e.clientY;
+          } else if (e && typeof e.clientX === 'number' && typeof e.clientY === 'number') {
+            // 如果是合成事件对象且有有效坐标
+            clickX = e.clientX;
+            clickY = e.clientY;
+          } else {
+            // 如果无法获取有效坐标，使用屏幕中心点
+            clickX = window.innerWidth / 2;
+            clickY = window.innerHeight / 2;
+            
+            // 尝试从目标元素获取位置
+            if (e && e.target) {
+              const button = e.target.closest ? e.target.closest("#theme-toggle-button") : null;
+              if (button) {
+                const rect = button.getBoundingClientRect();
+                clickX = rect.left + rect.width / 2;
+                clickY = rect.top + rect.height / 2;
+              }
+            }
           }
-        }
+          
+          // 确保坐标有效（防止NaN或无限值）
+          clickX = isFinite(clickX) ? clickX : window.innerWidth / 2;
+          clickY = isFinite(clickY) ? clickY : window.innerHeight / 2;
+          
+          // 在按钮上创建小波纹效果
+          if (e && e.target) {
+            const button = e.target.closest ? e.target.closest("#theme-toggle-button") : null;
+            if (button) {
+              createRippleEffect(clickX, clickY, button);
+            }
+          }
 
-        // 获取当前主题
-        const currentTheme = document.documentElement.dataset.theme;
-        const newTheme = currentTheme === "light" ? "dark" : "light";
-        
-        // 获取过渡模式
-        const button = e.target?.closest("#theme-toggle-button");
-        // 首先尝试从按钮属性获取过渡模式，如果没有则从本地存储获取
-        const transitionMode = button?.dataset?.transitionMode || getThemeTransitionMode();
-        
-        // 使用视图过渡API切换主题
-        createViewTransition(
-          () => {
-            // 更新 HTML 属性
+          // 获取当前主题
+          const currentTheme = document.documentElement.dataset.theme;
+          const newTheme = currentTheme === "light" ? "dark" : "light";
+          
+          // 获取过渡模式
+          let transitionMode = TRANSITION_MODES.AUTO; // 默认自动模式
+          
+          if (e && e.target) {
+            const button = e.target.closest ? e.target.closest("#theme-toggle-button") : null;
+            if (button && button.dataset && button.dataset.transitionMode) {
+              transitionMode = button.dataset.transitionMode;
+            } else {
+              // 如果无法从按钮获取，从本地存储获取
+              transitionMode = getThemeTransitionMode();
+            }
+          }
+          
+          // 在开始新的过渡前，先重置transitioning的延时清除
+          if (transitionTimeout) {
+            clearTimeout(transitionTimeout);
+            transitionTimeout = null;
+          }
+
+          // 创建一个安全的主题切换回调
+          const safeThemeChangeCallback = () => {
+            try {
+              // 直接在这里执行主题切换的核心逻辑
+              const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+              if (newTheme === systemTheme) {
+                localStorage.removeItem("theme");
+              } else {
+                localStorage.setItem("theme", newTheme);
+              }
+            } catch (err) {
+              console.error(`主题切换回调执行出错:`, err);
+            }
+          };
+
+          createViewTransition(
+            safeThemeChangeCallback, 
+            clickX, 
+            clickY, 
+            currentTheme, 
+            newTheme,
+            transitionMode
+          ).then(() => {
+            // 过渡完成后恢复状态
+            setTimeout(() => {
+              transitioning = false;
+            }, ANIMATION_BUFFER); // 添加缓冲时间，确保动画完全结束
+          }).catch(error => {
+            // 出现错误时强制执行主题切换以确保功能可用
+            if (error.name !== 'AbortError') {
+              console.error(`主题切换过渡动画错误:`, error);
+              // 如果不是因为过渡被跳过而是真正的错误，直接执行主题切换
+              safeThemeChangeCallback();
+            } else {
+              console.debug(`主题切换过渡被跳过，这是正常现象`);
+            }
+            
+            setTimeout(() => {
+              transitioning = false;
+            }, ANIMATION_BUFFER);
+          });
+
+          // 设置防抖保底 - 防止transition.finished不触发导致状态卡死
+          transitionTimeout = setTimeout(() => {
+            transitioning = false;
+          }, TOTAL_TRANSITION_TIME + 200); // 总过渡时间加额外缓冲
+        } catch (err) {
+          // 即使发生错误，也要确保主题能切换
+          console.error(`主题切换处理过程出错:`, err);
+          
+          // 尝试直接切换主题
+          try {
+            const currentTheme = document.documentElement.dataset.theme || 'light';
+            const newTheme = currentTheme === "light" ? "dark" : "light";
+            
+            // 更新HTML属性
             document.documentElement.dataset.theme = newTheme;
             
             // 更新本地存储
-            const systemTheme = getSystemTheme();
-            
+            const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
             if (newTheme === systemTheme) {
               localStorage.removeItem("theme");
             } else {
               localStorage.setItem("theme", newTheme);
             }
-          }, 
-          clickX, 
-          clickY, 
-          currentTheme, 
-          newTheme,
-          transitionMode
-        ).then(() => {
-          // 过渡完成后恢复状态
-          setTimeout(() => {
-            transitioning = false;
-          }, 50);
-        }).catch(error => {
-          console.error('过渡动画错误', error);
+          } catch (fallbackErr) {
+            console.error(`主题切换降级处理失败:`, fallbackErr);
+          }
+          
+          // 确保状态被重置
           transitioning = false;
-        });
-
-        // 添加防抖
-        if (transitionTimeout) {
-          clearTimeout(transitionTimeout);
         }
-
-        transitionTimeout = setTimeout(() => {
-          transitioning = false;
-        }, 800); // 延长时间以匹配动画持续时间
       };
 
       // 监听系统主题变化
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
       const handleMediaChange = (e) => {
         if (!localStorage.getItem("theme")) {
           const newTheme = e.matches ? "dark" : "light";
@@ -717,23 +984,7 @@ const {
       addListener(mediaQuery, "change", handleMediaChange);
 
       // 为每个按钮添加事件
-      themeToggleButtons.forEach((button, index) => {
-        // 确保移除旧的事件监听
-        if (button._clickHandler) {
-          button.removeEventListener("click", button._clickHandler, {
-            capture: true,
-          });
-        }
-        if (button._keydownHandler) {
-          button.removeEventListener("keydown", button._keydownHandler);
-        }
-
-        try {
-          button.style.pointerEvents = "auto";
-        } catch (e) {
-          // 忽略样式错误
-        }
-
+      themeToggleButtons.forEach(button => {
         // 创建点击处理函数
         const clickHandler = (e) => {
           e.preventDefault();
@@ -741,7 +992,7 @@ const {
           toggleTheme(e);
         };
 
-        // 点击事件 - 使用捕获模式并保存引用
+        // 点击事件 - 使用捕获模式
         addListener(button, "click", clickHandler, { capture: true });
 
         // 键盘事件
@@ -767,140 +1018,66 @@ const {
         };
         addListener(button, "keydown", keydownHandler);
       });
-
-      // 处理移动端主题切换容器
-      const themeToggleContainer = document.getElementById(
-        "theme-toggle-container",
-      );
+      
+      // 处理移动端主题切换容器 - 重新添加此功能以提供更一致的用户体验
+      const themeToggleContainer = document.getElementById("theme-toggle-container");
       if (themeToggleContainer) {
-        // 确保移除旧的事件监听
-        if (themeToggleContainer._clickHandler) {
-          themeToggleContainer.removeEventListener(
-            "click",
-            themeToggleContainer._clickHandler,
-          );
-        }
-
         const containerClickHandler = (e) => {
-          const target = e.target;
-          if (
-            target.id !== "theme-toggle-button" &&
-            !target.closest("#theme-toggle-button")
-          ) {
-            e.stopPropagation();
-            toggleTheme(e);
+          // 只有当点击不是直接在按钮上时，才托管事件处理
+          if (!e.target.closest("#theme-toggle-button")) {
+            // 找到容器内的主题切换按钮
+            const button = themeToggleContainer.querySelector("#theme-toggle-button");
+            if (button) {
+              // 从点击事件中提取坐标
+              const clickX = e.clientX || 0;
+              const clickY = e.clientY || 0;
+              
+              // 使用更可靠的坐标计算方法
+              const rect = button.getBoundingClientRect();
+              const centerX = clickX || (rect.left + rect.width / 2);
+              const centerY = clickY || (rect.top + rect.height / 2);
+              
+              // 创建一个更可靠的合成事件对象
+              const simulatedEvent = {
+                clientX: centerX,
+                clientY: centerY,
+                target: button,
+                preventDefault: () => {},
+                stopPropagation: () => {}
+              };
+              
+              // 阻止事件冒泡
+              e.preventDefault();
+              e.stopPropagation();
+              
+              // 调用主题切换函数
+              toggleTheme(simulatedEvent);
+            }
           }
         };
-
-        addListener(themeToggleContainer, "click", containerClickHandler);
+        
+        // 使用capture模式确保事件在捕获阶段就被处理
+        addListener(themeToggleContainer, "click", containerClickHandler, { capture: true });
       }
 
       // 初始化主题
       initializeTheme();
     }
 
-    // 注册清理函数 - 确保在每次页面转换前清理事件
-    function registerCleanup() {
-      const cleanupEvents = [
-        "astro:before-preparation",
-        "astro:before-swap",
-        "swup:willReplaceContent",
-      ];
-
-      // 为每个事件注册一次性清理函数
-      cleanupEvents.forEach((eventName) => {
-        const handler = () => {
-          cleanup();
-        };
-
-        document.addEventListener(eventName, handler, { once: true });
-      });
-
-      // 页面卸载时清理
-      window.addEventListener(
-        "beforeunload",
-        () => {
-          cleanup();
-        },
-        { once: true },
-      );
-    }
-
     // 初始化函数
     function init() {
-      pageNavigationCount++;
+      // 注册清理事件
+      registerCleanupEvents();
+      
+      // 设置主题切换功能
       setupThemeToggle();
-      registerCleanup();
     }
 
-    // 监听页面转换事件
-    function setupPageTransitionEvents() {
-      // 确保事件处理程序唯一性的函数
-      function setupUniqueEvent(eventName, callback) {
-        const eventKey = `__theme_toggle_event_${eventName.replace(/:/g, "_")}`;
-
-        // 移除可能存在的旧处理函数
-        if (window[eventKey]) {
-          document.removeEventListener(eventName, window[eventKey]);
-        }
-
-        // 保存新处理函数并注册
-        window[eventKey] = callback;
-        document.addEventListener(eventName, window[eventKey]);
-      }
-
-      // 页面转换后事件
-      const pageTransitionEvents = [
-        { name: "astro:after-swap", delay: 10 },
-        { name: "astro:page-load", delay: 10 },
-        { name: "swup:contentReplaced", delay: 10 },
-      ];
-
-      // 设置每个页面转换事件
-      pageTransitionEvents.forEach(({ name, delay }) => {
-        setupUniqueEvent(name, () => {
-          cleanupButtonListeners(); // 立即清理按钮上的事件
-
-          // 延迟初始化，确保DOM完全更新
-          setTimeout(() => {
-            cleanupButtonListeners(); // 再次清理，确保没有遗漏
-            init();
-          }, delay);
-        });
-      });
-
-      // 特别处理 swup:pageView 事件
-      setupUniqueEvent("swup:pageView", () => {
-        // 对于偶数次页面跳转，特别确保事件被正确重新绑定
-        if (pageNavigationCount % 2 === 0) {
-          setTimeout(() => {
-            const buttons = document.querySelectorAll("#theme-toggle-button");
-            if (buttons.length > 0) {
-              cleanupButtonListeners();
-              setupThemeToggle();
-            }
-          }, 50);
-        }
-      });
-    }
-
-    // 设置页面转换事件监听
-    setupPageTransitionEvents();
-
-    // 在页面加载后初始化
+    // 判断DOM是否已加载
     if (document.readyState === "loading") {
-      document.addEventListener(
-        "DOMContentLoaded",
-        () => {
-          init();
-        },
-        { once: true },
-      );
+      document.addEventListener("DOMContentLoaded", init, { once: true });
     } else {
-      setTimeout(() => {
-        init();
-      }, 0);
+      init();
     }
-    
   })();
 </script>

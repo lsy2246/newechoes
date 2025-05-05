@@ -473,356 +473,471 @@ const tableOfContents = generateTableOfContents(headings);
 
 <!-- 文章页面脚本 -->
 <script is:inline>
-  // 文章页面交互脚本
-  (function () {
-    // 存储事件监听器，便于统一清理
-    const listeners = [];
-
+  // 文章页面交互脚本 - 自销毁模式
+  (function() {
+    // 如果不是文章页面，立即退出，不执行任何代码
+    if (!document.querySelector("article")) {
+      return;
+    }
+    
+    const scriptInstanceId = Date.now();
+    console.log(`[文章脚本:${scriptInstanceId}] 检测到文章页面，开始初始化`);
+    
+    // 集中管理所有事件监听器
+    const allListeners = [];
+    
+    // 为特殊清理任务准备的数组
+    const customCleanupTasks = [];
+    
+    // 单独保存清理事件的监听器引用
+    const cleanupListeners = [];
+    
     // 添加事件监听器并记录，方便后续统一清理
     function addListener(element, eventType, handler, options) {
-      if (!element) return null;
+      if (!element) {
+        console.warn(`[文章脚本:${scriptInstanceId}] 尝试为不存在的元素添加事件:`, eventType);
+        return null;
+      }
 
+      console.log(`[文章脚本:${scriptInstanceId}] 添加事件监听器: ${eventType} 到`, element.tagName || "Window/Document");
       element.addEventListener(eventType, handler, options);
-      listeners.push({ element, eventType, handler, options });
+      allListeners.push({ element, eventType, handler, options });
       return handler;
     }
 
-    // 清理函数，移除所有事件监听器
-    function cleanup() {
-      listeners.forEach(({ element, eventType, handler, options }) => {
+    // 统一的清理函数，执行完整清理并自销毁
+    function selfDestruct() {
+      console.log(`[文章脚本:${scriptInstanceId}] 执行自销毁流程`);
+      
+      // 1. 先移除普通事件监听器
+      console.log(`[文章脚本:${scriptInstanceId}] 移除常规监听器，数量:`, allListeners.length);
+      allListeners.forEach(({ element, eventType, handler, options }) => {
         try {
+          console.log(`[文章脚本:${scriptInstanceId}] 移除事件监听器: ${eventType} 从`, element.tagName || "Window/Document");
           element.removeEventListener(eventType, handler, options);
         } catch (err) {
-          // 忽略错误
+          console.error(`[文章脚本:${scriptInstanceId}] 移除事件监听器出错:`, err);
         }
       });
-
-      listeners.length = 0;
+      
+      // 清空监听器数组
+      allListeners.length = 0;
+      
+      // 2. 执行特殊清理任务
+      console.log(`[文章脚本:${scriptInstanceId}] 执行特殊清理任务，数量:`, customCleanupTasks.length);
+      customCleanupTasks.forEach(task => {
+        try {
+          task();
+        } catch (err) {
+          console.error(`[文章脚本:${scriptInstanceId}] 执行特殊清理任务出错:`, err);
+        }
+      });
+      
+      // 清空特殊任务数组
+      customCleanupTasks.length = 0;
+      
+      // 3. 最后移除清理事件监听器自身
+      console.log(`[文章脚本:${scriptInstanceId}] 移除清理监听器，数量:`, cleanupListeners.length);
+      cleanupListeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          console.log(`[文章脚本:${scriptInstanceId}] 移除清理监听器: ${eventType} 从`, element.tagName || "Window/Document");
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          console.error(`[文章脚本:${scriptInstanceId}] 移除清理监听器出错:`, err);
+        }
+      });
+      
+      console.log(`[文章脚本:${scriptInstanceId}] 完全销毁完成`);
     }
     
-    // 代码块复制功能
-    function setupCodeCopy() {
-      const copyButtons = document.querySelectorAll('.code-block-copy');
-      if (copyButtons.length === 0) return;
-
-      copyButtons.forEach(button => {
-        addListener(button, 'click', async () => {
-          try {
-            // 使用Base64解码获取代码文本
-            const encodedCode = button.getAttribute('data-code');
-            if (!encodedCode) return;
-            
-            // 解码并复制到剪贴板
-            const code = atob(encodedCode);
-            await navigator.clipboard.writeText(code);
-            
-            const originalHTML = button.innerHTML;
-            button.classList.add('copied');
-            button.innerHTML = `
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                <path d="M20 6L9 17l-5-5"></path>
-              </svg>
-              已复制
-            `;
-            
-            setTimeout(() => {
-              button.classList.remove('copied');
-              button.innerHTML = originalHTML;
-            }, 2000);
-          } catch (err) {
-            console.error('复制失败:', err);
-            button.innerHTML = `
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-              失败
-            `;
-            setTimeout(() => {
+    // 注册清理事件，并保存引用
+    function registerCleanupEvents() {
+      console.log(`[文章脚本:${scriptInstanceId}] 注册清理事件`);
+      
+      // 创建一次性事件处理函数
+      const beforeSwapHandler = () => {
+        console.log(`[文章脚本:${scriptInstanceId}] astro:before-swap 触发，执行自销毁`);
+        selfDestruct();
+      };
+      
+      const beforeUnloadHandler = () => {
+        console.log(`[文章脚本:${scriptInstanceId}] beforeunload 触发，执行自销毁`);
+        selfDestruct();
+      };
+      
+      // 添加清理事件监听器并保存引用
+      document.addEventListener("astro:before-swap", beforeSwapHandler, { once: true });
+      window.addEventListener("beforeunload", beforeUnloadHandler, { once: true });
+      
+      // 保存清理事件引用，用于完全销毁
+      cleanupListeners.push(
+        { element: document, eventType: "astro:before-swap", handler: beforeSwapHandler, options: { once: true } },
+        { element: window, eventType: "beforeunload", handler: beforeUnloadHandler, options: { once: true } }
+      );
+    }
+    
+    // 初始化所有功能
+    function initializeFeatures() {
+      console.log(`[文章脚本:${scriptInstanceId}] 开始初始化各功能`);
+      
+      // 1. 代码块复制功能
+      function setupCodeCopy() {
+        console.log(`[文章脚本:${scriptInstanceId}] 初始化代码复制功能`);
+        const copyButtons = document.querySelectorAll('.code-block-copy');
+        if (copyButtons.length === 0) {
+          console.log(`[文章脚本:${scriptInstanceId}] 未找到代码复制按钮`);
+          return;
+        }
+        
+        console.log(`[文章脚本:${scriptInstanceId}] 找到代码复制按钮数量:`, copyButtons.length);
+        copyButtons.forEach(button => {
+          addListener(button, 'click', async () => {
+            try {
+              const encodedCode = button.getAttribute('data-code');
+              if (!encodedCode) return;
+              
+              const code = atob(encodedCode);
+              await navigator.clipboard.writeText(code);
+              
+              const originalHTML = button.innerHTML;
+              button.classList.add('copied');
               button.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  <path d="M20 6L9 17l-5-5"></path>
                 </svg>
-                复制
+                已复制
               `;
-            }, 2000);
-          }
-        });
-      });
-    }
-
-    // 4. 设置阅读进度条
-    function setupProgressBar() {
-      const progressBar = document.getElementById("progress-bar");
-      const backToTopButton = document.getElementById("back-to-top");
-
-      if (!progressBar) return;
-
-      function updateReadingProgress() {
-        const scrollTop = window.scrollY || document.documentElement.scrollTop;
-        const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-        const progress = (scrollTop / scrollHeight) * 100;
-
-        progressBar.style.width = `${progress}%`;
-
-        if (backToTopButton) {
-          if (scrollTop > 300) {
-            backToTopButton.classList.add(
-              "opacity-100",
-              "visible",
-              "translate-y-0"
-            );
-            backToTopButton.classList.remove(
-              "opacity-0",
-              "invisible",
-              "translate-y-5"
-            );
-          } else {
-            backToTopButton.classList.add(
-              "opacity-0",
-              "invisible",
-              "translate-y-5"
-            );
-            backToTopButton.classList.remove(
-              "opacity-100",
-              "visible",
-              "translate-y-0"
-            );
-          }
-        }
-      }
-
-      addListener(window, "scroll", updateReadingProgress);
-
-      if (backToTopButton) {
-        addListener(backToTopButton, "click", () => {
-          window.scrollTo({
-            top: 0,
-            behavior: "smooth",
+              
+              setTimeout(() => {
+                button.classList.remove('copied');
+                button.innerHTML = originalHTML;
+              }, 2000);
+            } catch (err) {
+              console.error(`[文章脚本:${scriptInstanceId}] 复制失败:`, err);
+              button.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                失败
+              `;
+              setTimeout(() => {
+                button.innerHTML = `
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  复制
+                `;
+              }, 2000);
+            }
           });
         });
       }
 
-      updateReadingProgress();
-    }
-    
-    // 5. 管理目录交互
-    function setupTableOfContents() {
-      const tocContent = document.getElementById("toc-content");
-      const tocPanel = document.querySelector("#toc-panel");
+      // 2. 阅读进度条
+      function setupProgressBar() {
+        console.log(`[文章脚本:${scriptInstanceId}] 初始化阅读进度条`);
+        const progressBar = document.getElementById("progress-bar");
+        const backToTopButton = document.getElementById("back-to-top");
 
-      if (!tocPanel || !tocContent) return;
-
-      // 检查窗口大小调整目录面板显示
-      function checkTocVisibility() {
-        if (window.innerWidth < 1536) {
-          tocPanel.classList.add("hidden");
-          tocPanel.classList.remove("2xl:block");
-        } else {
-          tocPanel.classList.remove("hidden");
-          tocPanel.classList.add("2xl:block");
+        if (!progressBar) {
+          console.warn(`[文章脚本:${scriptInstanceId}] 未找到进度条元素`);
+          return;
         }
-      }
 
-      addListener(window, "resize", checkTocVisibility);
-      checkTocVisibility();
+        function updateReadingProgress() {
+          const scrollTop = window.scrollY || document.documentElement.scrollTop;
+          const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+          const progress = (scrollTop / scrollHeight) * 100;
 
-      // 处理目录链接点击跳转
-      const tocLinks = tocContent.querySelectorAll("a");
-      tocLinks.forEach(link => {
-        addListener(link, "click", (e) => {
-          e.preventDefault();
-          const targetId = link.getAttribute("href")?.substring(1);
-          if (!targetId) return;
+          progressBar.style.width = `${progress}%`;
 
-          const targetElement = document.getElementById(targetId);
-          if (targetElement) {
-            const offset = 100;
-            const targetPosition = targetElement.getBoundingClientRect().top + window.scrollY - offset;
+          if (backToTopButton) {
+            if (scrollTop > 300) {
+              backToTopButton.classList.add(
+                "opacity-100",
+                "visible",
+                "translate-y-0"
+              );
+              backToTopButton.classList.remove(
+                "opacity-0",
+                "invisible",
+                "translate-y-5"
+              );
+            } else {
+              backToTopButton.classList.add(
+                "opacity-0",
+                "invisible",
+                "translate-y-5"
+              );
+              backToTopButton.classList.remove(
+                "opacity-100",
+                "visible",
+                "translate-y-0"
+              );
+            }
+          }
+        }
 
+        addListener(window, "scroll", updateReadingProgress);
+
+        if (backToTopButton) {
+          addListener(backToTopButton, "click", () => {
             window.scrollTo({
-              top: targetPosition,
+              top: 0,
               behavior: "smooth",
             });
+          });
+        }
 
-            targetElement.classList.add("bg-primary-50", "dark:bg-primary-900/20");
-            setTimeout(() => {
-              targetElement.classList.remove("bg-primary-50", "dark:bg-primary-900/20");
-            }, 2000);
-          }
-        });
-      });
+        // 初始更新一次进度条
+        updateReadingProgress();
+      }
+      
+      // 3. 目录交互
+      function setupTableOfContents() {
+        console.log(`[文章脚本:${scriptInstanceId}] 初始化目录交互`);
+        const tocContent = document.getElementById("toc-content");
+        const tocPanel = document.querySelector("#toc-panel");
 
-      // 监听滚动以更新当前活动的目录项
-      const article = document.querySelector("article");
-      if (!article) return;
+        if (!tocPanel || !tocContent) {
+          console.warn(`[文章脚本:${scriptInstanceId}] 未找到目录面板或内容`);
+          return;
+        }
 
-      let ticking = false;
-
-      function updateActiveHeading() {
-        const headings = Array.from(article.querySelectorAll("h1, h2, h3, h4, h5, h6"));
-        const tocLinks = Array.from(tocContent.querySelectorAll("a"));
-
-        // 清除所有活动状态
-        tocLinks.forEach((link) => {
-          link.classList.remove("text-primary-600", "dark:text-primary-400", "font-medium");
-        });
-
-        // 找出当前可见的标题
-        const scrollPosition = window.scrollY + 150;
-        let currentHeading = null;
-
-        for (const heading of headings) {
-          const headingTop = heading.getBoundingClientRect().top + window.scrollY;
-          if (headingTop <= scrollPosition) {
-            currentHeading = heading;
+        // 检查窗口大小调整目录面板显示
+        function checkTocVisibility() {
+          if (window.innerWidth < 1536) {
+            tocPanel.classList.add("hidden");
+            tocPanel.classList.remove("2xl:block");
           } else {
-            break;
+            tocPanel.classList.remove("hidden");
+            tocPanel.classList.add("2xl:block");
           }
         }
 
-        // 高亮当前标题对应的目录项
-        if (currentHeading) {
-          const id = currentHeading.getAttribute('id');
-          if (id) {
-            const activeLink = tocLinks.find(
-              (link) => link.getAttribute("href") === `#${id}`
-            );
-            if (activeLink) {
-              // 高亮当前目录项
-              activeLink.classList.add("text-primary-600", "dark:text-primary-400", "font-medium");
-              
-              // 可选: 确保当前激活的目录项在可视区域内
-              const tocContainer = tocContent.querySelector('ul');
-              if (tocContainer) {
-                const linkOffsetTop = activeLink.offsetTop;
-                const containerScrollTop = tocContainer.scrollTop;
-                const containerHeight = tocContainer.clientHeight;
+        addListener(window, "resize", checkTocVisibility);
+        checkTocVisibility();
+
+        // 处理目录链接点击跳转
+        const tocLinks = tocContent.querySelectorAll("a");
+        console.log(`[文章脚本:${scriptInstanceId}] 找到目录链接数量:`, tocLinks.length);
+        
+        tocLinks.forEach(link => {
+          addListener(link, "click", (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute("href")?.substring(1);
+            if (!targetId) return;
+
+            const targetElement = document.getElementById(targetId);
+            if (targetElement) {
+              const offset = 100;
+              const targetPosition = targetElement.getBoundingClientRect().top + window.scrollY - offset;
+
+              window.scrollTo({
+                top: targetPosition,
+                behavior: "smooth",
+              });
+
+              targetElement.classList.add("bg-primary-50", "dark:bg-primary-900/20");
+              setTimeout(() => {
+                targetElement.classList.remove("bg-primary-50", "dark:bg-primary-900/20");
+              }, 2000);
+            }
+          });
+        });
+
+        // 监听滚动以更新当前活动的目录项
+        const article = document.querySelector("article");
+        if (!article) {
+          console.warn(`[文章脚本:${scriptInstanceId}] 未找到文章内容元素`);
+          return;
+        }
+
+        let ticking = false;
+
+        function updateActiveHeading() {
+          const headings = Array.from(article.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+          const tocLinks = Array.from(tocContent.querySelectorAll("a"));
+
+          // 清除所有活动状态
+          tocLinks.forEach((link) => {
+            link.classList.remove("text-primary-600", "dark:text-primary-400", "font-medium");
+          });
+
+          // 找出当前可见的标题
+          const scrollPosition = window.scrollY + 150;
+          let currentHeading = null;
+
+          for (const heading of headings) {
+            const headingTop = heading.getBoundingClientRect().top + window.scrollY;
+            if (headingTop <= scrollPosition) {
+              currentHeading = heading;
+            } else {
+              break;
+            }
+          }
+
+          // 高亮当前标题对应的目录项
+          if (currentHeading) {
+            const id = currentHeading.getAttribute('id');
+            if (id) {
+              const activeLink = tocLinks.find(
+                (link) => link.getAttribute("href") === `#${id}`
+              );
+              if (activeLink) {
+                // 高亮当前目录项
+                activeLink.classList.add("text-primary-600", "dark:text-primary-400", "font-medium");
                 
-                // 如果当前项不在视口内，滚动目录
-                if (linkOffsetTop < containerScrollTop || 
-                    linkOffsetTop > containerScrollTop + containerHeight) {
-                  tocContainer.scrollTop = linkOffsetTop - containerHeight / 2;
+                // 可选: 确保当前激活的目录项在可视区域内
+                const tocContainer = tocContent.querySelector('ul');
+                if (tocContainer) {
+                  const linkOffsetTop = activeLink.offsetTop;
+                  const containerScrollTop = tocContainer.scrollTop;
+                  const containerHeight = tocContainer.clientHeight;
+                  
+                  // 如果当前项不在视口内，滚动目录
+                  if (linkOffsetTop < containerScrollTop || 
+                      linkOffsetTop > containerScrollTop + containerHeight) {
+                    tocContainer.scrollTop = linkOffsetTop - containerHeight / 2;
+                  }
                 }
               }
             }
           }
         }
+
+        addListener(window, "scroll", () => {
+          if (!ticking) {
+            window.requestAnimationFrame(() => {
+              updateActiveHeading();
+              ticking = false;
+            });
+            ticking = true;
+          }
+        });
+
+        updateActiveHeading();
       }
 
-      addListener(window, "scroll", () => {
-        if (!ticking) {
-          window.requestAnimationFrame(() => {
-            updateActiveHeading();
-            ticking = false;
-          });
-          ticking = true;
+      // 4. Mermaid图表渲染
+      function setupMermaid() {
+        console.log(`[文章脚本:${scriptInstanceId}] 检查Mermaid图表`);
+        // 查找所有mermaid代码块
+        const mermaidBlocks = document.querySelectorAll(
+          'pre.language-mermaid, pre > code.language-mermaid, .mermaid'
+        );
+        
+        if (mermaidBlocks.length === 0) {
+          console.log(`[文章脚本:${scriptInstanceId}] 未找到Mermaid图表`);
+          return;
         }
-      });
-
-      updateActiveHeading();
-    }
-
-    // 6. 处理Mermaid图表渲染
-    function setupMermaid() {
-      // 查找所有mermaid代码块 - 支持多种可能的类名和选择器
-      const mermaidBlocks = document.querySelectorAll(
-        'pre.language-mermaid, pre > code.language-mermaid, .mermaid'
-      );
-      
-      if (mermaidBlocks.length === 0) return;
-      
-      console.log('找到Mermaid代码块:', mermaidBlocks.length);
-      
-      // 动态加载mermaid库
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
-      
-      script.onload = function() {
-        console.log('Mermaid库加载完成，开始渲染图表');
         
-        // 初始化mermaid配置 - 始终使用默认主题，通过CSS控制样式
-        window.mermaid.initialize({
-          startOnLoad: false,
-          theme: 'default',
-          securityLevel: 'loose'
-        });
+        console.log(`[文章脚本:${scriptInstanceId}] 找到Mermaid图表数量:`, mermaidBlocks.length);
         
-        // 将所有mermaid代码块转换为可渲染的格式
-        mermaidBlocks.forEach((block, index) => {
-          // 获取mermaid代码
-          let code = '';
+        // 动态加载mermaid库
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+        
+        script.onload = function() {
+          console.log(`[文章脚本:${scriptInstanceId}] Mermaid库加载成功`);
           
-          // 检查元素类型并相应处理
-          if (block.tagName === 'CODE' && block.classList.contains('language-mermaid')) {
-            // 处理 code.language-mermaid 元素
-            code = block.textContent || '';
-            const pre = block.closest('pre');
-            if (pre) {
-              // 创建新的div元素替换整个pre
+          if (!window.mermaid) {
+            console.error(`[文章脚本:${scriptInstanceId}] Mermaid库加载后window.mermaid不存在`);
+            return;
+          }
+          
+          // 初始化mermaid配置
+          window.mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose'
+          });
+          
+          // 将所有mermaid代码块转换为可渲染的格式
+          mermaidBlocks.forEach((block, index) => {
+            // 获取mermaid代码
+            let code = '';
+            
+            // 检查元素类型并相应处理
+            if (block.tagName === 'CODE' && block.classList.contains('language-mermaid')) {
+              // 处理 code.language-mermaid 元素
+              code = block.textContent || '';
+              const pre = block.closest('pre');
+              if (pre) {
+                // 创建新的div元素替换整个pre
+                const div = document.createElement('div');
+                div.className = 'mermaid';
+                div.id = 'mermaid-diagram-' + index;
+                div.textContent = code;
+                pre.parentNode.replaceChild(div, pre);
+              }
+            } else if (block.tagName === 'PRE' && block.classList.contains('language-mermaid')) {
+              // 处理 pre.language-mermaid 元素
+              code = block.textContent || '';
               const div = document.createElement('div');
               div.className = 'mermaid';
               div.id = 'mermaid-diagram-' + index;
               div.textContent = code;
-              pre.parentNode.replaceChild(div, pre);
+              block.parentNode.replaceChild(div, block);
+            } else if (block.classList.contains('mermaid') && block.tagName !== 'DIV') {
+              // 如果是其他带mermaid类的元素但不是div，转换为div
+              code = block.textContent || '';
+              const div = document.createElement('div');
+              div.className = 'mermaid';
+              div.id = 'mermaid-diagram-' + index;
+              div.textContent = code;
+              block.parentNode.replaceChild(div, block);
             }
-          } else if (block.tagName === 'PRE' && block.classList.contains('language-mermaid')) {
-            // 处理 pre.language-mermaid 元素
-            code = block.textContent || '';
-            const div = document.createElement('div');
-            div.className = 'mermaid';
-            div.id = 'mermaid-diagram-' + index;
-            div.textContent = code;
-            block.parentNode.replaceChild(div, block);
-          } else if (block.classList.contains('mermaid') && block.tagName !== 'DIV') {
-            // 如果是其他带mermaid类的元素但不是div，转换为div
-            code = block.textContent || '';
-            const div = document.createElement('div');
-            div.className = 'mermaid';
-            div.id = 'mermaid-diagram-' + index;
-            div.textContent = code;
-            block.parentNode.replaceChild(div, block);
-          }
-        });
-        
-        // 初始化渲染
-        try {
-          console.log('开始渲染Mermaid图表');
-          window.mermaid.run().catch(err => {
-            console.error('Mermaid渲染出错:', err);
           });
-        } catch (error) {
-          console.error('初始化Mermaid渲染失败:', error);
-        }
-      };
-      
-      script.onerror = function() {
-        console.error('加载Mermaid库失败');
-        // 显示错误信息
-        mermaidBlocks.forEach(block => {
-          if (block.tagName === 'CODE') block = block.closest('pre');
-          if (block) {
-            block.innerHTML = '<div class="mermaid-error-message">无法加载Mermaid图表库</div>';
+          
+          // 初始化渲染
+          try {
+            console.log(`[文章脚本:${scriptInstanceId}] 开始渲染Mermaid图表`);
+            window.mermaid.run().catch(err => {
+              console.error(`[文章脚本:${scriptInstanceId}] Mermaid渲染出错:`, err);
+            });
+          } catch (error) {
+            console.error(`[文章脚本:${scriptInstanceId}] 初始化Mermaid渲染失败:`, error);
           }
-        });
-      };
-      
-      document.head.appendChild(script);
-      
-      // 添加到清理列表，确保后续页面跳转时能删除脚本
-      listeners.push({
-        element: script,
-        eventType: 'remove',
-        handler: () => {
+        };
+        
+        script.onerror = function() {
+          console.error(`[文章脚本:${scriptInstanceId}] 加载Mermaid库失败`);
+          // 显示错误信息
+          mermaidBlocks.forEach(block => {
+            if (block.tagName === 'CODE') block = block.closest('pre');
+            if (block) {
+              block.innerHTML = '<div class="mermaid-error-message">无法加载Mermaid图表库</div>';
+            }
+          });
+        };
+        
+        document.head.appendChild(script);
+        
+        // 添加Mermaid清理任务
+        customCleanupTasks.push(() => {
+          console.log(`[文章脚本:${scriptInstanceId}] 执行Mermaid特殊清理`);
+          
+          // 移除脚本标签
           if (script.parentNode) {
             script.parentNode.removeChild(script);
           }
           
           // 清除全局mermaid对象
           if (window.mermaid) {
-            window.mermaid = undefined;
+            console.log(`[文章脚本:${scriptInstanceId}] 清除window.mermaid对象`);
+            try {
+              // 尝试清理mermaid内部状态
+              if (typeof window.mermaid.destroy === 'function') {
+                window.mermaid.destroy();
+              }
+              window.mermaid = undefined;
+            } catch (e) {
+              console.error(`[文章脚本:${scriptInstanceId}] 清理mermaid对象出错:`, e);
+            }
           }
           
           // 移除页面上可能留下的mermaid相关元素
@@ -837,70 +952,27 @@ const tableOfContents = generateTableOfContents(headings);
             
             document.querySelectorAll(mermaidElements.join(', ')).forEach(el => {
               if (el && el.parentNode) {
+                console.log(`[文章脚本:${scriptInstanceId}] 移除Mermaid元素:`, el.id || el.className);
                 el.parentNode.removeChild(el);
               }
             });
           } catch (e) {
-            console.error('清理Mermaid元素时出错:', e);
+            console.error(`[文章脚本:${scriptInstanceId}] 清理Mermaid元素时出错:`, e);
           }
-        },
-        options: null
-      });
-    }
-
-    // 初始化所有功能
-    function init() {
-      if (!document.querySelector("article")) return;
+        });
+      }
       
-      setupCodeCopy();  // 只保留代码复制功能
+      // 启动所有功能
+      setupCodeCopy();
       setupProgressBar();
       setupTableOfContents();
       setupMermaid();
+      
+      console.log(`[文章脚本:${scriptInstanceId}] 所有功能初始化完成`);
     }
-
-    // 注册清理函数
-    function registerCleanup() {
-      // 使用 once: true 确保事件只触发一次
-      document.addEventListener("astro:before-preparation", cleanup, { once: true });
-      document.addEventListener("astro:before-swap", cleanup, { once: true });
-      document.addEventListener("swup:willReplaceContent", cleanup, { once: true });
-      window.addEventListener("beforeunload", cleanup, { once: true });
-    }
-
-    // 处理页面跳转事件
-    function setupPageTransitionEvents() {
-      // 页面转换后事件
-      const pageTransitionEvents = [
-        { name: "astro:after-swap", delay: 10 },
-        { name: "astro:page-load", delay: 10 },
-        { name: "swup:contentReplaced", delay: 10 },
-      ];
-
-      // 设置每个页面转换事件
-      pageTransitionEvents.forEach(({ name, delay }) => {
-        document.addEventListener(name, () => {
-          cleanup(); // 立即清理
-
-          // 延迟初始化，确保DOM完全更新
-          setTimeout(() => {
-            cleanup(); // 再次清理，确保没有遗漏
-            init();
-          }, delay);
-        });
-      });
-    }
-
-    // 页面加载后初始化
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => {
-        init();
-        registerCleanup();
-        setupPageTransitionEvents();
-      }, { once: true });
-    } else {
-      init();
-      registerCleanup();
-      setupPageTransitionEvents();
-    }
+    
+    // 执行初始化
+    registerCleanupEvents();
+    initializeFeatures();
   })();
 </script>

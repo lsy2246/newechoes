@@ -187,97 +187,99 @@ const breadcrumbs: Breadcrumb[] = pathSegments
 </div> 
 
 <script is:inline>
-  // 返回按钮点击事件处理
+  // 面包屑返回按钮处理 - 自销毁模式
   (function() {
-    // 页面导航计数器
-    let pageNavigationCount = 0;
-    
-    // 存储事件监听器，便于统一清理
-    const listeners = [];
-    
-    // 清理按钮事件监听器
-    function cleanupButtonListeners() {
-      // 查找所有返回按钮
-      const buttons = document.querySelectorAll('.back-button');
-      
-      buttons.forEach(button => {
-        // 移除所有可能的事件
-        if (button._clickHandler) {
-          button.removeEventListener('click', button._clickHandler);
-          delete button._clickHandler;
-        }
-        
-        // 清除其他可能的事件
-        const otherClickHandlers = button.__backButtonClickHandlers || [];
-        otherClickHandlers.forEach(handler => {
-          try {
-            button.removeEventListener('click', handler);
-          } catch (e) {
-            // 忽略错误
-          }
-        });
-        
-        // 重置处理函数数组
-        button.__backButtonClickHandlers = [];
-      });
+
+    // 跳过非文章页面，只在文章详情页执行
+    const isArticlePage = document.querySelector('.back-button');
+    if (!isArticlePage) {
+      return;
     }
+    
+    // 集中管理所有事件监听器
+    const allListeners = [];
+    
+    // 单独保存清理事件的监听器引用
+    const cleanupListeners = [];
     
     // 添加事件监听器并记录，方便后续统一清理
     function addListener(element, eventType, handler, options) {
-      if (!element) return null;
-      
-      // 确保先移除可能已存在的同类型事件处理函数
-      if (eventType === 'click' && element.classList.contains('back-button')) {
-        if (element._clickHandler) {
-          element.removeEventListener('click', element._clickHandler);
-        }
-        element._clickHandler = handler;
-        
-        // 保存到数组中以便清理
-        if (!element.__backButtonClickHandlers) {
-          element.__backButtonClickHandlers = [];
-        }
-        element.__backButtonClickHandlers.push(handler);
+      if (!element) {
+        console.warn(`[面包屑尝试为不存在的元素添加事件`);
+        return null;
       }
-      
+
       element.addEventListener(eventType, handler, options);
-      listeners.push({ element, eventType, handler, options });
+      allListeners.push({ element, eventType, handler, options });
       return handler;
     }
     
-    // 清理函数 - 移除所有事件监听器
-    function cleanup() {
-      // 先直接从按钮清理事件
-      cleanupButtonListeners();
-      
-      // 移除所有监听器
-      listeners.forEach(({ element, eventType, handler, options }) => {
+    // 统一的清理函数，执行完整清理并自销毁
+    function selfDestruct() {
+      // 1. 移除所有普通事件监听器
+      allListeners.forEach(({ element, eventType, handler, options }) => {
         try {
           element.removeEventListener(eventType, handler, options);
         } catch (err) {
-          // 忽略错误
+          console.error(`[面包屑移除事件监听器出错:`, err);
         }
       });
       
-      // 清空数组
-      listeners.length = 0;
+      // 清空监听器数组
+      allListeners.length = 0;
+      
+      // 2. 最后移除清理事件监听器自身
+      cleanupListeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          console.error(`[面包屑移除清理监听器出错:`, err);
+        }
+      });
+      
+      // 清空清理监听器数组
+      cleanupListeners.length = 0;
     }
     
-    // 设置返回按钮事件
-    function setupBackButton() {
-      // 确保当前没有活动的返回按钮事件
-      cleanup();
+    // 注册清理事件，并保存引用
+    function registerCleanupEvents() {
+      // 创建一次性事件处理函数
+      const beforeSwapHandler = () => {
+        selfDestruct();
+      };
       
+      const beforeUnloadHandler = () => {
+        selfDestruct();
+      };
+      
+      // 添加清理事件监听器并保存引用
+      document.addEventListener("astro:before-swap", beforeSwapHandler, { once: true });
+      window.addEventListener("beforeunload", beforeUnloadHandler, { once: true });
+      
+      // 如果页面使用swup，也注册swup相关的清理事件
+      if (typeof window.swup !== 'undefined') {
+        document.addEventListener("swup:willReplaceContent", beforeSwapHandler, { once: true });
+      }
+      
+      // 保存清理事件引用，用于完全销毁
+      cleanupListeners.push(
+        { element: document, eventType: "astro:before-swap", handler: beforeSwapHandler, options: { once: true } },
+        { element: window, eventType: "beforeunload", handler: beforeUnloadHandler, options: { once: true } }
+      );
+      
+      if (typeof window.swup !== 'undefined') {
+        cleanupListeners.push(
+          { element: document, eventType: "swup:willReplaceContent", handler: beforeSwapHandler, options: { once: true } }
+        );
+      }
+    }
+    
+    // 设置返回按钮功能
+    function setupBackButton() {
       const backButton = document.querySelector('.back-button');
       
       if (!backButton) {
         return;
-      }
-      
-      try {
-        backButton.style.pointerEvents = 'auto';
-      } catch (e) {
-        // 忽略样式错误
       }
       
       const clickHandler = (e) => {
@@ -301,100 +303,43 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       addListener(backButton, 'click', clickHandler);
     }
     
-    // 注册清理函数 - 确保在每次页面转换前清理事件
-    function registerCleanup() {
-      const cleanupEvents = [
-        'astro:before-preparation',
-        'astro:before-swap',
-        'astro:beforeload',
-        'swup:willReplaceContent'
-      ];
+    // 主初始化函数
+    function init() {
+      // 注册清理事件
+      registerCleanupEvents();
       
-      // 为每个事件注册一次性清理函数
-      cleanupEvents.forEach(eventName => {
-        const handler = () => {
-          cleanup();
+      // 设置返回按钮
+      setupBackButton();
+      
+      // 注册页面加载后的处理函数 - 仅当使用View Transitions或Swup时
+      if (typeof document.startViewTransition !== 'undefined' || typeof window.swup !== 'undefined') {
+        // 仅监听一个事件，保持最小侵入性
+        const pageLoadHandler = () => {
+          // 检查是否在文章页面
+          const backButton = document.querySelector('.back-button');
+          if (backButton) {
+            // 先销毁已有的所有处理函数
+            selfDestruct();
+            // 重新初始化
+            init();
+          }
         };
         
-        document.addEventListener(eventName, handler, { once: true });
-      });
-      
-      // 页面卸载时清理
-      window.addEventListener('beforeunload', () => {
-        cleanup();
-      }, { once: true });
-    }
-    
-    // 初始化函数
-    function init() {
-      pageNavigationCount++;
-      setupBackButton();
-      registerCleanup();
-    }
-    
-    // 监听页面转换事件
-    function setupPageTransitionEvents() {
-      // 确保事件处理程序唯一性的函数
-      function setupUniqueEvent(eventName, callback) {
-        const eventKey = `__back_button_event_${eventName.replace(/:/g, '_')}`;
-        
-        // 移除可能存在的旧处理函数
-        if (window[eventKey]) {
-          document.removeEventListener(eventName, window[eventKey]);
+        if (typeof document.startViewTransition !== 'undefined') {
+          addListener(document, 'astro:page-load', pageLoadHandler);
         }
         
-        // 保存新处理函数并注册
-        window[eventKey] = callback;
-        document.addEventListener(eventName, window[eventKey]);
+        if (typeof window.swup !== 'undefined') {
+          addListener(document, 'swup:contentReplaced', pageLoadHandler);
+        }
       }
-      
-      // 页面转换后事件
-      const pageTransitionEvents = [
-        { name: 'astro:after-swap', delay: 10 },
-        { name: 'astro:page-load', delay: 10 },
-        { name: 'swup:contentReplaced', delay: 10 }
-      ];
-      
-      // 设置每个页面转换事件
-      pageTransitionEvents.forEach(({ name, delay }) => {
-        setupUniqueEvent(name, () => {
-          cleanupButtonListeners(); // 立即清理按钮上的事件
-          
-          // 延迟初始化，确保DOM完全更新
-          setTimeout(() => {
-            cleanupButtonListeners(); // 再次清理，确保没有遗漏
-            init();
-          }, delay);
-        });
-      });
-      
-      // 特别处理 swup:pageView 事件
-      setupUniqueEvent('swup:pageView', () => {
-        // 对于偶数次页面跳转，特别确保事件被正确重新绑定
-        if (pageNavigationCount % 2 === 0) {
-          setTimeout(() => {
-            const buttons = document.querySelectorAll('.back-button');
-            if (buttons.length > 0) {
-              cleanupButtonListeners();
-              setupBackButton();
-            }
-          }, 50);
-        }
-      });
     }
     
-    // 设置页面转换事件监听
-    setupPageTransitionEvents();
-    
-    // 在页面加载后初始化
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        init();
-      }, { once: true });
+    // 判断DOM是否已加载
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init, { once: true });
     } else {
-      setTimeout(() => {
-        init();
-      }, 0);
+      init();
     }
   })();
 </script> 
