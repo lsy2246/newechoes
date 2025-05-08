@@ -335,12 +335,8 @@ const navSelectorClassName = "mr-4";
 <script is:inline>
 // 导航逻辑 - 自销毁模式
 (function() {
-  // 尽早检查导航元素是否存在，如果不存在则终止执行
+  // 尽早检查导航元素是否存在
   const navSelector = document.querySelector('.nav-selector');
-  if (!navSelector) {
-    console.warn(`导航脚本未找到导航选择器元素，不执行导航脚本`);
-    return;
-  }
   
   // 集中管理所有事件监听器
   const allListeners = [];

@@ -603,25 +603,111 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     date: "all",
   }));
 
+  // 添加一个专门处理return_filter的函数
+  const processReturnFilter = useCallback(() => {
+    if (!isClient) return null;
+    
+    // 获取URL中的return_filter参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnFilter = urlParams.get('return_filter');
+    
+    if (!returnFilter) return null;
+    
+    try {
+      // 解析 Base64 编码的 JSON 参数
+      const jsonStr = atob(returnFilter);
+      const paramsObj = JSON.parse(jsonStr);
+      
+      // 从解析后的对象中提取筛选条件
+      const tagsParam = paramsObj['tags'] ? paramsObj['tags'].split(',') : [];
+      const sortParam = paramsObj['sort'] || 'newest';
+      const pageSizeParam = parseInt(paramsObj['limit'] || '12');
+      const currentPageParam = parseInt(paramsObj['page'] || '1');
+      
+      // 处理日期参数
+      let startDateParam = '';
+      let endDateParam = '';
+      
+      if (paramsObj['date'] && paramsObj['date'] !== 'all') {
+        const [start, end] = paramsObj['date'].split(',');
+        startDateParam = start || '';
+        endDateParam = end || '';
+      }
+      
+      // 构造日期字符串
+      const finalDateParam = startDateParam || endDateParam 
+        ? `${startDateParam},${endDateParam}`
+        : "all";
+      
+      // 修改当前URL，移除return_filter参数但保留筛选参数
+      const newParams = new URLSearchParams();
+      if (tagsParam.length > 0) newParams.set('tags', tagsParam.join(','));
+      if (sortParam !== 'newest') newParams.set('sort', sortParam);
+      if (pageSizeParam !== 12) newParams.set('limit', pageSizeParam.toString());
+      if (currentPageParam !== 1) newParams.set('page', currentPageParam.toString());
+      
+      // 使用单独的 startDate 和 endDate 参数
+      if (startDateParam) newParams.set('startDate', startDateParam);
+      if (endDateParam) newParams.set('endDate', endDateParam);
+      
+      // 更新URL
+      const newUrl = `${window.location.pathname}${newParams.toString() ? `?${newParams.toString()}` : ""}`;
+      window.history.replaceState({}, '', newUrl);
+      
+      // 返回提取的参数
+      return {
+        tags: tagsParam,
+        sort: sortParam,
+        pageSize: pageSizeParam,
+        currentPage: currentPageParam,
+        date: finalDateParam
+      };
+    } catch (error) {
+      console.error("解析return_filter参数出错:", error);
+      return null;
+    }
+  }, [isClient]);
+
   // 在客户端加载后应用URL参数
   useEffect(() => {
     if (isClient) {
-      const startDateParam = getParamValue("startDate", "");
-      const endDateParam = getParamValue("endDate", "");
-      
-      // 转换字符串日期为Date对象
-      const startDateObj = startDateParam ? new Date(startDateParam) : null;
-      const endDateObj = endDateParam ? new Date(endDateParam) : null;
-      
-      setActiveFilters({
-        tags: getParamArrayValue("tags"),
-        sort: getParamValue("sort", "newest"),
-        pageSize: parseInt(getParamValue("limit", "12")),
-        currentPage: parseInt(getParamValue("page", "1")),
-        date: startDateParam && endDateParam ? `${startDateParam},${endDateParam}` : "all",
-      });
+      try {
+        // 首先尝试处理return_filter参数
+        const returnFilterParams = processReturnFilter();
+        
+        if (returnFilterParams) {
+          // 如果成功提取了return_filter参数，直接应用
+          setActiveFilters(returnFilterParams);
+        } else {
+          // 否则，使用普通URL参数
+          const tagsParam = getParamArrayValue("tags");
+          const sortParam = getParamValue("sort", "newest");
+          const pageSizeParam = parseInt(getParamValue("limit", "12"));
+          const currentPageParam = parseInt(getParamValue("page", "1"));
+          
+          // 获取日期参数
+          const startDateParam = getParamValue("startDate", "");
+          const endDateParam = getParamValue("endDate", "");
+          
+          // 构造日期字符串
+          const dateParam = startDateParam || endDateParam 
+            ? `${startDateParam},${endDateParam}`
+            : "all";
+          
+          // 一次性设置所有筛选参数
+          setActiveFilters({
+            tags: tagsParam,
+            sort: sortParam,
+            pageSize: isNaN(pageSizeParam) ? 12 : pageSizeParam,
+            currentPage: isNaN(currentPageParam) ? 1 : currentPageParam,
+            date: dateParam
+          });
+        }
+      } catch (error) {
+        console.error("解析URL参数出错:", error);
+      }
     }
-  }, [isClient, getParamValue, getParamArrayValue]);
+  }, [isClient, getParamValue, getParamArrayValue, processReturnFilter]);
 
   const [allAvailableTags, setAllAvailableTags] = useState<string[]>([]);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
@@ -666,8 +752,15 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       // 添加所有需要的参数
       if (updatedFilters.tags && updatedFilters.tags.length > 0) params.set("tags", updatedFilters.tags.join(","));
       if (updatedFilters.sort && updatedFilters.sort !== "newest") params.set("sort", updatedFilters.sort);
-      if (updatedFilters.date && updatedFilters.date !== "all") params.set("date", updatedFilters.date);
-      if (updatedFilters.pageSize && updatedFilters.pageSize !== 12) params.set("pageSize", updatedFilters.pageSize.toString());
+      
+      // 日期参数处理 - 始终使用 startDate 和 endDate 参数
+      if (updatedFilters.date && updatedFilters.date !== "all") {
+        const [startDate, endDate] = updatedFilters.date.split(',');
+        if (startDate) params.set("startDate", startDate);
+        if (endDate) params.set("endDate", endDate);
+      }
+      
+      if (updatedFilters.pageSize && updatedFilters.pageSize !== 12) params.set("limit", updatedFilters.pageSize.toString());
       if (updatedFilters.currentPage > 1) params.set("page", updatedFilters.currentPage.toString());
 
       // 构建新的URL
@@ -676,7 +769,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       // 更新浏览器URL而不刷新页面
       window.history.pushState({ path: newUrl }, "", newUrl);
 
-      // 如果WASM模块已加载，执行筛选逻辑
+      // 如果WASM模块已加载，立即执行筛选逻辑
       if (wasmModule && isArticlesLoaded) {
         applyFilteringLogic(updatedFilters);
       }
@@ -686,7 +779,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   // 添加文章筛选逻辑函数
   const applyFilteringLogic = async (filters: FilterState) => {
     if (!wasmModule || !wasmModule.ArticleFilterJS) {
-      console.error("[筛选] WASM模块未初始化");
+      console.error("WASM模块未初始化");
       return;
     }
 
@@ -711,7 +804,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       
       // 处理结果
       if (!result || typeof result !== 'object') {
-        console.error("[筛选] WASM返回结果格式错误");
+        console.error("WASM返回结果格式错误");
         throw new Error("筛选结果格式错误");
       }
       
@@ -722,7 +815,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         if (Array.isArray(result.articles)) {
           articles = result.articles;
         } else {
-          console.error("[筛选] 返回的articles不是数组");
+          console.error("返回的articles不是数组");
           // 尝试修复格式问题
           try {
             if (typeof result.articles === 'string') {
@@ -733,7 +826,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               }
             }
           } catch (e) {
-            console.error("[筛选] 尝试修复articles格式失败");
+            console.error("尝试修复articles格式失败");
           }
         }
       }
@@ -755,7 +848,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       // 检查组件是否仍然挂载
       if (!isMountedRef.current) return;
       
-      console.error("[筛选] 应用筛选逻辑出错:", error);
+      console.error("应用筛选逻辑出错:", error);
       setError("筛选文章时出错，请刷新页面重试");
     } finally {
       // 检查组件是否仍然挂载
@@ -970,7 +1063,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
             
             // 添加日期筛选
             if (currentFilters.date !== "all") {
-              params.set("date", currentFilters.date);
+              const [startDate, endDate] = currentFilters.date.split(',');
+              if (startDate) params.set("startDate", startDate);
+              if (endDate) params.set("endDate", endDate);
             }
 
             // 添加分页信息
@@ -997,14 +1092,14 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
           // 检查组件是否仍然挂载
           if (!isMountedRef.current) return;
           
-          console.error("WASM执行失败");
-          throw new Error(`WASM执行失败`);
+          console.error("WASM执行失败", wasmError);
+          throw new Error(`WASM执行失败: ${wasmError}`);
         }
       } catch (error) {
         // 检查组件是否仍然挂载
         if (!isMountedRef.current) return;
         
-        console.error("初始加载文章出错");
+        console.error("初始加载文章出错", error);
         setError("加载文章时出错，请刷新页面重试");
         return {
           articles: [],
@@ -1035,9 +1130,21 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   useEffect(() => {
     // 只有当WASM模块和文章已经加载完成后，才根据筛选条件更新
     if (wasmModule && isArticlesLoaded) {
-      applyFilters();
+      applyFilteringLogic(activeFilters);
     }
-  }, [wasmModule, isArticlesLoaded]);
+  }, [wasmModule, isArticlesLoaded, activeFilters]);
+
+  // 当文章加载状态改变为true时，确保应用当前的筛选条件
+  useEffect(() => {
+    if (isArticlesLoaded && wasmModule) {
+      // 检查URL中是否有筛选参数
+      const hasFilterParams = window.location.search.length > 0;
+      
+      if (hasFilterParams) {
+        applyFilteringLogic(activeFilters);
+      }
+    }
+  }, [isArticlesLoaded, wasmModule, activeFilters]);
 
   // 点击外部关闭标签下拉菜单
   useEffect(() => {
@@ -1170,22 +1277,6 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         return `已选 ${activeFilters.tags.length} 个标签`;
       }
       return "选择标签";
-    };
-
-    // 处理排序方式变更
-    const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const value = e.target.value;
-
-      // 先更新UI状态
-      setActiveFilters((prev) => ({
-        ...prev,
-        sort: value,
-      }));
-
-      // 直接传递新的排序状态给筛选函数，并更新URL
-      applyFilters({
-        sort: value,
-      });
     };
 
     // 处理每页数量变更
@@ -1711,6 +1802,54 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     );
   };
 
+  // 在 ArticleFilter 组件中添加一个新函数，用于生成带有查询参数的链接
+  const generateArticleLink = useCallback((articleUrl: string) => {
+    // 只在客户端执行
+    if (typeof window === 'undefined') return articleUrl;
+    
+    // 获取当前URL的查询参数
+    const currentParams = new URLSearchParams(window.location.search);
+    
+    // 如果没有查询参数，直接返回原始URL
+    if (!currentParams.toString()) return articleUrl;
+    
+    // 创建一个参数对象
+    const paramsObj: Record<string, string> = {};
+    
+    // 提取日期参数
+    let startDate = currentParams.get('startDate') || '';
+    let endDate = currentParams.get('endDate') || '';
+    
+    // 添加其他参数
+    for (const [key, value] of currentParams.entries()) {
+      // 跳过 return_filter, startDate, endDate 参数
+      if (key === 'return_filter' || key === 'startDate' || key === 'endDate') continue;
+      
+      // 添加其他所有参数
+      paramsObj[key] = value;
+    }
+    
+    // 如果有日期参数，添加 date 字段
+    if (startDate || endDate) {
+      paramsObj['date'] = `${startDate},${endDate}`;
+    }
+    
+    // 将参数对象转换为JSON字符串
+    const paramsJson = JSON.stringify(paramsObj);
+    
+    // 检查文章URL是否已经包含查询参数
+    const hasQueryParams = articleUrl.includes('?');
+    
+    // 如果已包含参数，使用&连接，否则使用?开始
+    const connector = hasQueryParams ? '&' : '?';
+    
+    // 附加处理后的查询参数，使用 Base64 编码
+    const base64Params = btoa(paramsJson);
+    
+    // 返回最终链接
+    return `${articleUrl}${connector}return_filter=${base64Params}`;
+  }, []);
+
   // 渲染文章列表
   const renderArticleList = () => {
     if (filteredArticles.length === 0) {
@@ -1769,7 +1908,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
             key={`${article.url}-${index}`}
             className="article-card"
           >
-            <a href={article.url} className="article-card-link" data-astro-prefetch="viewport">
+            <a href={generateArticleLink(article.url)} className="article-card-link" data-astro-prefetch="viewport">
               <div className="article-card-content">
                 <div className="article-card-icon">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

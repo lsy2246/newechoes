@@ -189,13 +189,6 @@ const breadcrumbs: Breadcrumb[] = pathSegments
 <script is:inline>
   // 面包屑返回按钮处理 - 自销毁模式
   (function() {
-
-    // 跳过非文章页面，只在文章详情页执行
-    const isArticlePage = document.querySelector('.back-button');
-    if (!isArticlePage) {
-      return;
-    }
-    
     // 集中管理所有事件监听器
     const allListeners = [];
     
