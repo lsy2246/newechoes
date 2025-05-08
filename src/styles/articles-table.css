@@ -1,13 +1,14 @@
 /* 表格样式 - 与全局主题配色协调 */
-table {
+.table-container {
+  container-type: inline-size;
   width: 100%;
-  margin-bottom: 1.5rem;
-  border-collapse: separate;
-  border-spacing: 0;
-  border-radius: 0.5rem;
   overflow-x: auto;
-  display: block;
-  max-width: 100%;
+  border-radius: 0.5rem;
+}
+
+table {
+  display: table;
+  width: 100%;
 }
 
 thead {

@@ -57,18 +57,51 @@
   color: #10b981;
 }
 
-/* 代码内容容器 - 移除背景 */
+/* 代码内容容器 - 修改为 flex 布局 */
 .code-block-content {
   position: relative;
-  overflow-x: auto;
+  display: flex;
   background-color: transparent;
+}
+
+/* 行号容器 - 固定宽度和位置 */
+.line-numbers-container {
+  flex: 0 0 2.5rem;
+  background-color: #f1f5f9;
+  border-right: 1px solid #e2e8f0;
+  z-index: 1;
+  position: sticky;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.15rem 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* 行号元素样式 */
+.line-number {
+  width: 100%;
+  height: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+/* 代码内容容器 - 允许水平滚动 */
+.code-content-container {
+  flex: 1;
+  overflow-x: auto;
 }
 
 /* 基础代码块样式 - 减小内边距 */
 pre {
   margin: 0;
   padding: 0.15rem 0;
-  overflow-x: auto;
+  overflow-x: visible; /* 改为 visible，滚动由父容器处理 */
 }
 
 pre code {
@@ -85,45 +118,14 @@ pre code {
   position: relative;
 }
 
-/* 行号背景条 - 减小宽度 */
-.line-numbers::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2.5rem;
-  background-color: #f1f5f9;
-  border-right: 1px solid #e2e8f0;
-  z-index: 1;
-}
-
-/* 行样式 - 进一步减小行间距和缩进 */
+/* 行样式 - 移除左侧 padding */
 .line-numbers .line {
   position: relative;
   counter-increment: line;
-  padding-left: 3rem;
+  padding-left: 0.5rem; /* 减小左侧内边距 */
   padding-right: 0.4rem;
   min-height: 1.4rem;
   white-space: pre;
-}
-
-/* 行号 - 调整位置 */
-.line-numbers .line::before {
-  content: counter(line);
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 2.5rem;
-  height: 100%;
-  text-align: center;
-  color: #94a3b8;
-  font-size: 0.85rem;
-  user-select: none;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* 暗色模式 */
@@ -154,16 +156,16 @@ pre code {
   background-color: transparent;
 }
 
-/* 暗色模式行号样式 */
-[data-theme='dark'] .line-numbers::before {
+/* 暗色模式行号容器样式 */
+[data-theme='dark'] .line-numbers-container {
   background-color: #1e293b;
   border-right-color: #334155;
 }
 
-[data-theme='dark'] .line-numbers .line::before {
+/* 暗色模式行号样式 */
+[data-theme='dark'] .line-number {
   color: #64748b;
 }
-
 
 /* 确保所有代码元素没有背景 */
 code, pre, .code-block-content,
@@ -201,11 +203,8 @@ pre.shiki, pre.astro-code,
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.875rem;
   color: var(--color-primary-700);
-  background-color: var(--color-primary-50);
-  padding: 0.2rem 0.4rem;
   margin: 0 0.2rem;
   border-radius: 0.3rem;
-  border: 1px solid var(--color-primary-100);
   white-space: normal;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -219,8 +218,6 @@ pre.shiki, pre.astro-code,
 /* 行内代码块黑暗模式样式 */
 [data-theme='dark'] :not(pre) > code {
   color: var(--color-primary-300);
-  background-color: rgba(75, 107, 255, 0.1);
-  border-color: var(--color-primary-700);
 }
 
 /* 长路径的行内代码块样式特殊处理 */
@@ -239,14 +236,10 @@ pre.shiki, pre.astro-code,
 /* 针对文件路径的特殊样式 - 适用于Windows路径 */
 :not(pre) > code.file-path {
   color: var(--color-gray-700);
-  background-color: var(--color-gray-100);
-  border-color: var(--color-gray-200);
 }
 
 /* 针对文件路径的特殊样式 - 黑暗模式 */
 [data-theme='dark'] :not(pre) > code.file-path {
   color: var(--color-gray-300);
-  background-color: var(--color-gray-800);
-  border-color: var(--color-gray-700);
 }
 

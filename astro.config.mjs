@@ -15,6 +15,7 @@ import compressor from "astro-compressor";
 import vercel from "@astrojs/vercel";
 import { articleIndexerIntegration } from "./src/plugins/build-article-index.js";
 import { rehypeCodeBlocks } from "./src/plugins/rehype-code-blocks.js";
+import { rehypeTables } from "./src/plugins/rehype-tables.js";
 
 function getArticleDate(articleId) {
   try {
@@ -129,7 +130,8 @@ export default defineConfig({
     ],
     rehypePlugins: [
       [rehypeExternalLinks, { target: '_blank', rel: ['nofollow', 'noopener', 'noreferrer'] }],
-      rehypeCodeBlocks
+      rehypeCodeBlocks,
+      rehypeTables
     ],
     gfm: true,
   },

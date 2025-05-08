@@ -200,6 +200,20 @@ export function rehypeCodeBlocks() {
           { type: 'text', value: ' 复制' }
         ];
         
+        // 计算代码行数，用于生成行号
+        const lineCount = originalCode.split('\n').length;
+        
+        // 生成行号元素
+        const lineNumberElements = [];
+        for (let i = 1; i <= lineCount; i++) {
+          lineNumberElements.push({
+            type: 'element',
+            tagName: 'div',
+            properties: { className: ['line-number'] },
+            children: [{ type: 'text', value: String(i) }]
+          });
+        }
+        
         // 创建新的代码块容器结构
         const codeBlockContainer = {
           type: 'element',
@@ -235,25 +249,40 @@ export function rehypeCodeBlocks() {
                 }
               ]
             },
-            // 代码内容区域 - 保留原始结构
+            // 代码内容区域 - 修改结构，将代码内容和行号分离
             {
               type: 'element',
               tagName: 'div',
               properties: { className: ['code-block-content'] },
               children: [
-                // 保留原始的 pre 元素及其所有关键属性
+                // 行号容器
                 {
                   type: 'element',
-                  tagName: 'pre',
-                  properties: {
-                    style: nodeStyle,
-                    className: nodeClasses,
-                    // 其他可能的重要属性
-                    'data-theme': node.properties['data-theme']
-                  },
+                  tagName: 'div',
+                  properties: { className: ['line-numbers-container'] },
+                  children: lineNumberElements
+                },
+                // 代码内容容器
+                {
+                  type: 'element',
+                  tagName: 'div',
+                  properties: { className: ['code-content-container'] },
                   children: [
-                    // 保留原始的code元素，不做修改
-                    codeElement
+                    // 保留原始的 pre 元素及其所有关键属性
+                    {
+                      type: 'element',
+                      tagName: 'pre',
+                      properties: {
+                        style: nodeStyle,
+                        className: nodeClasses,
+                        // 其他可能的重要属性
+                        'data-theme': node.properties['data-theme']
+                      },
+                      children: [
+                        // 保留原始的code元素，不做修改
+                        codeElement
+                      ]
+                    }
                   ]
                 }
               ]

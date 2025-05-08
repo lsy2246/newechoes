@@ -507,9 +507,48 @@ const Search: React.FC<SearchProps> = ({
       }
     }
 
-    // 回车键直接执行搜索
+    // 回车键处理逻辑
     if (e.key === "Enter") {
       e.preventDefault();
+      
+      // 情况1: 如果有当前选中的内联建议（推荐或纠正）
+      if (inlineSuggestion.visible && inlineSuggestion.text) {
+        const suggestionText = inlineSuggestion.text;
+        
+        // 先检查当前搜索结果中是否有完全匹配的结果
+        const exactMatchForSuggestion = allItems.find(item => 
+          item.title.replace(/<\/?mark>/g, '').toLowerCase() === suggestionText.toLowerCase()
+        );
+        
+        if (exactMatchForSuggestion) {
+          // 如果有完全匹配的结果，直接导航
+          window.location.href = exactMatchForSuggestion.url;
+          return;
+        }
+        
+        // 没有完全匹配，先补全建议并导航到第一个结果
+        completeInlineSuggestion(true); // 传入true表示需要导航到第一个结果
+        return;
+      } 
+      // 情况2: 如果没有内联建议，但有搜索结果
+      else if (allItems.length > 0 && query.trim()) {
+        // 尝试找到完全匹配当前查询的结果
+        const exactMatch = allItems.find(item => 
+          item.title.replace(/<\/?mark>/g, '').toLowerCase() === query.trim().toLowerCase()
+        );
+        
+        if (exactMatch) {
+          // 找到完全匹配，直接导航到该文章
+          window.location.href = exactMatch.url;
+          return;
+        }
+        
+        // 如果没有完全匹配，但有搜索结果，进入第一个结果
+        window.location.href = allItems[0].url;
+        return;
+      }
+      
+      // 如果以上条件都不满足，执行普通搜索
       performSearch(query, false);
     }
   };
@@ -561,7 +600,7 @@ const Search: React.FC<SearchProps> = ({
   }, [updateCaretPosition]);
 
   // 执行搜索
-  const performSearch = async (searchQuery: string, isLoadMore: boolean = false) => {
+  const performSearch = async (searchQuery: string, isLoadMore: boolean = false, shouldNavigateToFirstResult: boolean = false) => {
     if (!wasmModule || !isIndexLoaded || !indexData || !searchQuery.trim()) {
       return;
     }
@@ -639,6 +678,11 @@ const Search: React.FC<SearchProps> = ({
       
       // 更新加载状态
       setLoadingState(prev => ({ ...prev, status: 'success' }));
+      
+      // 如果需要导航到第一个结果，并且有结果
+      if (shouldNavigateToFirstResult && result.items.length > 0) {
+        window.location.href = result.items[0].url;
+      }
     } catch (err) {
       // 检查组件是否仍然挂载
       if (!isMountedRef.current) return;
@@ -652,7 +696,7 @@ const Search: React.FC<SearchProps> = ({
   };
 
   // 自动补全内联建议 - 不使用useCallback，避免循环依赖
-  const completeInlineSuggestion = () => {
+  const completeInlineSuggestion = (shouldNavigateToFirstResult = false) => {
     if (inlineSuggestion.visible && inlineSuggestion.text) {
       // 保存建议文本
       const textToComplete = inlineSuggestion.text;
@@ -678,7 +722,7 @@ const Search: React.FC<SearchProps> = ({
       setQuery(textToComplete);
       
       // 立即执行搜索
-      performSearch(textToComplete, false);
+      performSearch(textToComplete, false, shouldNavigateToFirstResult);
       
       // 聚焦输入框并设置光标位置
       if (searchInputRef.current) {

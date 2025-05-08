@@ -37,10 +37,10 @@ export const NAV_STRUCTURE = [
         ]
     },
     {
-        id: 'others',
+        id: 'other',
         text: '其他',
         items: [
-            { id: 'other', text: '其他', href: '/other' },
+            { id: 'about', text: '关于', href: '/other' },
             { id: 'projects', text: '项目', href: '/projects' }
         ]
     }
