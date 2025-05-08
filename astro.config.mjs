@@ -125,9 +125,6 @@ export default defineConfig({
       // 启用代码换行
       wrap: true
     },
-    remarkPlugins: [
-      [remarkEmoji, { emoticon: false, padded: true }]
-    ],
     rehypePlugins: [
       [rehypeExternalLinks, { target: '_blank', rel: ['nofollow', 'noopener', 'noreferrer'] }],
       rehypeCodeBlocks,

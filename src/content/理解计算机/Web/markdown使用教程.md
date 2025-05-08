@@ -1,5 +1,5 @@
 ---
-title: "MDX使用教程"
+title: "markdown使用教程"
 date: 2023-03-03
 tags: []
 ---
@@ -50,14 +50,6 @@ tags: []
 ```
 
 ~~这是删除线文本~~
-
-#### 1.2.5 下划线文本
-
-```markdown
-<u>这是下划线文本</u>
-```
-
-<u>这是下划线文本</u>
 
 ### 1.3 列表
 
@@ -172,9 +164,9 @@ function greet(user: User): string {
 ```
 
 > 📌 **最佳实践**
-> 
+>
 > 好的文章需要有清晰的结构和流畅的表达。
-> 
+>
 > 可以包含多个段落
 
 ### 1.7 链接和图片
@@ -204,58 +196,3 @@ function greet(user: User): string {
 <br/>
 
 ---
-
-### 1.9 表情符号
-
-
-| 表情名称 | 语法 | 效果 |
-|:--------|:-----|:-----|
-| 笑脸 | `:smile:` | :smile: |
-| 大笑 | `:laughing:` | :laughing: |
-| 哭泣 | `:cry:` | :cry: |
-| 心形 | `:heart:` | :heart: |
-| 火箭 | `:rocket:` | :rocket: |
-| 星星 | `:star:` | :star: |
-| 警告 | `:warning:` | :warning: |
-| 检查标记 | `:white_check_mark:` | :white_check_mark: |
-
-## 2. HTML/JSX 语法部分
-
-### 2.1 HTML 标签
-
-#### 2.1.1 下划线文本
-
-```mdx
-<u>这是下划线文本</u>
-```
-
-<u>这是下划线文本</u>
-
-#### 2.1.2 收纳语法
-
-```mdx
-<details>
-<summary>点击展开</summary>
-
-这里是被收纳的内容。
-可以包含任何 MDX 格式的内容。
-
-- 列表项1
-- 列表项2
-- 列表项3
-
-</details>
-```
-
-<details>
-<summary>点击展开</summary>
-
-这里是被收纳的内容。
-可以包含任何 MDX 格式的内容。
-
-- 列表项1
-- 列表项2
-- 列表项3
-
-</details>
-

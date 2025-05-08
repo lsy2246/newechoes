@@ -237,8 +237,6 @@ import { VISITED_PLACES } from '@/consts';
 
 ### Mermaid 图表支持
 
-你可以在 Markdown 文件中使用 Mermaid 语法创建各种图表：
-
 ````markdown
 ```mermaid
 graph TD;
@@ -249,20 +247,13 @@ graph TD;
 ```
 ````
 
-系统将自动渲染这些图表，并支持深色/浅色主题自动适应。
-
-### 代码块样式优化
-
-代码块支持多种主题和语言高亮，内置了复制按钮：
-
-````markdown
-```javascript
-// 示例代码
-function example() {
-  console.log("Hello, world!");
-}
+```mermaid
+graph TD;
+    A[开始] -->|处理数据| B(处理结果);
+    B --> C{判断条件};
+    C -->|条件1| D[结果1];
+    C -->|条件2| E[结果2];
 ```
-````
 
 ## SEO 优化
 

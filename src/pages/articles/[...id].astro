@@ -179,32 +179,91 @@ function generateTableOfContents(headings: Heading[]) {
 
   // 查找最低级别的标题（数值最小）
   const minDepth = Math.min(...headings.map((h) => h.depth));
-
-  let tocHtml = '<ul class="space-y-2">';
-
+  
+  // 按照标题层级构建嵌套结构
+  const tocTree: any[] = [];
+  const levelMap: Record<number, any[]> = {};
+  
   headings.forEach((heading) => {
-    // 计算相对缩进，以最小深度为基准
     const relativeDepth = heading.depth - minDepth;
-    const indent = relativeDepth * 0.75;
-
-    // 基于相对深度而非绝对深度决定样式
-    const isHigherLevel = relativeDepth <= 1; // 仅最高级和次高级标题使用较重的样式
-
-    tocHtml += `<li>
-      <a href="#${heading.slug}" 
-         class="block hover:text-primary-600 dark:hover:text-primary-400 duration-50 ${
-           isHigherLevel
-             ? "text-secondary-800 dark:text-secondary-200 font-medium"
-             : "text-secondary-600 dark:text-secondary-400"
-         }"
-         style="padding-left: ${indent}rem;">
-        ${heading.text}
-      </a>
-    </li>`;
+    
+    // 构建标题项
+    const headingItem = {
+      slug: heading.slug,
+      text: heading.text,
+      depth: relativeDepth,
+      children: [],
+    };
+    
+    // 更精确地处理嵌套关系
+    if (relativeDepth === 0) {
+      // 顶级标题直接加入到树中
+      tocTree.push(headingItem);
+      levelMap[0] = tocTree;
+    } else {
+      // 查找当前标题的父级
+      let parentDepth = relativeDepth - 1;
+      // 向上查找可能的父级
+      while (parentDepth >= 0 && !levelMap[parentDepth]) {
+        parentDepth--;
+      }
+      
+      if (parentDepth >= 0 && levelMap[parentDepth] && levelMap[parentDepth].length > 0) {
+        // 找到父层级，将此标题添加到最近的父标题的子标题数组中
+        const parentItems = levelMap[parentDepth];
+        const parent = parentItems[parentItems.length - 1];
+        parent.children.push(headingItem);
+        
+        // 更新当前深度的映射
+        if (!levelMap[relativeDepth]) {
+          levelMap[relativeDepth] = [];
+        }
+        levelMap[relativeDepth].push(headingItem);
+      } else {
+        // 找不到有效父级，作为顶级标题处理
+        tocTree.push(headingItem);
+        levelMap[relativeDepth] = [headingItem];
+      }
+    }
   });
 
-  tocHtml += "</ul>";
-  return tocHtml;
+  // 递归生成HTML
+  function generateTocHTML(items: any[], level = 0) {
+    if (items.length === 0) return '';
+    
+    const isTopLevel = level === 0;
+    let html = `<ul class="space-y-2 toc-list ${isTopLevel ? '' : 'toc-sublist hidden'}" ${level > 0 ? 'aria-expanded="false"' : ''}>`;
+    
+    items.forEach(item => {
+      const hasChildren = item.children && item.children.length > 0;
+      const isHigherLevel = item.depth <= 1; // 只有最高级和次高级标题使用较重的样式
+      
+      html += `<li class="toc-item" data-depth="${item.depth}">
+        <div class="toc-item-container">
+          <a href="#${item.slug}" 
+             class="toc-link block duration-50 ${
+               isHigherLevel
+                 ? "text-secondary-800 dark:text-secondary-200 font-medium"
+                 : "text-secondary-600 dark:text-secondary-400"
+             }"
+             style="padding-left: ${item.depth * 0.75}rem;">
+            ${item.text}
+          </a>
+          ${hasChildren ? `<button class="toc-toggle ml-1 p-1 text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400" aria-expanded="false">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>` : ''}
+        </div>
+        ${generateTocHTML(item.children, level + 1)}
+      </li>`;
+    });
+    
+    html += '</ul>';
+    return html;
+  }
+
+  return generateTocHTML(tocTree);
 }
 
 // 生成目录HTML
@@ -378,18 +437,14 @@ const tableOfContents = generateTableOfContents(headings);
 
     <!-- 目录 -->
     <section
-      class="hidden 2xl:block fixed right-[calc(50%-44rem)] top-20 w-64 z-30"
+      class="hidden 2xl:block"
       id="toc-panel"
     >
-      <div
-        class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95"
-      >
+      <div>
         <div
-          class="border-b border-secondary-100 dark:border-gray-700 p-4 pb-3 sticky top-0 bg-white dark:bg-gray-800 bg-opacity-95 dark:bg-opacity-95 backdrop-filter backdrop-blur-sm z-10 rounded-t-xl"
+          class="panel-header"
         >
-          <h3
-            class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2"
-          >
+          <h3>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="h-4 w-4"
@@ -409,7 +464,7 @@ const tableOfContents = generateTableOfContents(headings);
         </div>
         <div
           id="toc-content"
-          class="text-sm p-4 pt-2 overflow-y-auto max-h-[calc(100vh-8rem-42px)] scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
+          class="scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
           set:html={tableOfContents}
         >
           <!-- 目录内容在服务端生成 -->
@@ -742,8 +797,42 @@ const tableOfContents = generateTableOfContents(headings);
           addListener(window, "resize", checkTocVisibility);
           checkTocVisibility();
 
+          // 处理目录折叠/展开功能
+          const tocToggles = tocContent.querySelectorAll(".toc-toggle");
+          
+          tocToggles.forEach((toggle) => {
+            addListener(toggle, "click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              const expanded = toggle.getAttribute("aria-expanded") === "true";
+              toggle.setAttribute("aria-expanded", expanded ? "false" : "true");
+              
+              // 更新图标旋转
+              const svg = toggle.querySelector("svg");
+              if (svg) {
+                svg.style.transform = expanded ? "" : "rotate(-180deg)";
+              }
+              
+              // 切换子菜单显示状态
+              const listItem = toggle.closest(".toc-item");
+              if (listItem) {
+                const sublist = listItem.querySelector(".toc-sublist");
+                if (sublist) {
+                  if (expanded) {
+                    sublist.classList.add("hidden");
+                    sublist.setAttribute("aria-expanded", "false");
+                  } else {
+                    sublist.classList.remove("hidden");
+                    sublist.setAttribute("aria-expanded", "true");
+                  }
+                }
+              }
+            });
+          });
+
           // 处理目录链接点击跳转
-          const tocLinks = tocContent.querySelectorAll("a");
+          const tocLinks = tocContent.querySelectorAll(".toc-link");
 
           tocLinks.forEach((link) => {
             addListener(link, "click", (e) => {
@@ -790,7 +879,8 @@ const tableOfContents = generateTableOfContents(headings);
             const headings = Array.from(
               article.querySelectorAll("h1, h2, h3, h4, h5, h6"),
             );
-            const tocLinks = Array.from(tocContent.querySelectorAll("a"));
+            const tocLinks = Array.from(tocContent.querySelectorAll(".toc-link"));
+            const tocItems = Array.from(tocContent.querySelectorAll(".toc-item"));
 
             // 清除所有活动状态
             tocLinks.forEach((link) => {
@@ -815,7 +905,10 @@ const tableOfContents = generateTableOfContents(headings);
               }
             }
 
-            // 高亮当前标题对应的目录项
+            // 记录当前活动的项目和其所有父级
+            const activeItems = new Set();
+
+            // 高亮当前标题对应的目录项并展开父菜单
             if (currentHeading) {
               const id = currentHeading.getAttribute("id");
               if (id) {
@@ -830,8 +923,34 @@ const tableOfContents = generateTableOfContents(headings);
                     "font-medium",
                   );
 
-                  // 可选: 确保当前激活的目录项在可视区域内
-                  const tocContainer = tocContent.querySelector("ul");
+                  // 展开当前激活项的所有父菜单并收集到活动项集合中
+                  let parent = activeLink.closest(".toc-item");
+                  while (parent) {
+                    // 添加到活动项目集合
+                    activeItems.add(parent);
+                    
+                    const parentSublist = parent.querySelector(".toc-sublist");
+                    const parentToggle = parent.querySelector(".toc-toggle");
+                    
+                    if (parentSublist && parentSublist.classList.contains("hidden")) {
+                      parentSublist.classList.remove("hidden");
+                      parentSublist.setAttribute("aria-expanded", "true");
+                      
+                      if (parentToggle) {
+                        parentToggle.setAttribute("aria-expanded", "true");
+                        const svg = parentToggle.querySelector("svg");
+                        if (svg) {
+                          svg.style.transform = "rotate(-180deg)";
+                        }
+                      }
+                    }
+                    
+                    // 向上查找父级
+                    parent = parent.parentElement?.closest(".toc-item");
+                  }
+
+                  // 确保当前激活的目录项在可视区域内
+                  const tocContainer = tocContent;
                   if (tocContainer) {
                     const linkOffsetTop = activeLink.offsetTop;
                     const containerScrollTop = tocContainer.scrollTop;
@@ -849,6 +968,28 @@ const tableOfContents = generateTableOfContents(headings);
                 }
               }
             }
+
+            // 关闭不在当前活动路径上的所有子菜单
+            tocItems.forEach(item => {
+              // 如果不在活动路径上且有子菜单
+              if (!activeItems.has(item)) {
+                const sublist = item.querySelector('.toc-sublist');
+                const toggle = item.querySelector('.toc-toggle');
+                
+                if (sublist && !sublist.classList.contains('hidden')) {
+                  sublist.classList.add('hidden');
+                  sublist.setAttribute('aria-expanded', 'false');
+                  
+                  if (toggle) {
+                    toggle.setAttribute('aria-expanded', 'false');
+                    const svg = toggle.querySelector('svg');
+                    if (svg) {
+                      svg.style.transform = '';
+                    }
+                  }
+                }
+              }
+            });
           }
 
           addListener(window, "scroll", () => {
@@ -861,6 +1002,18 @@ const tableOfContents = generateTableOfContents(headings);
             }
           });
 
+          // 初始化时收起所有子菜单
+          const topLevelToggles = tocContent.querySelectorAll(".toc-list > .toc-item > .toc-item-container > .toc-toggle");
+          topLevelToggles.forEach(toggle => {
+            toggle.setAttribute("aria-expanded", "false");
+            const sublist = toggle.closest(".toc-item").querySelector(".toc-sublist");
+            if (sublist) {
+              sublist.classList.add("hidden");
+              sublist.setAttribute("aria-expanded", "false");
+            }
+          });
+
+          // 初始更新一次活动标题，确保相关父菜单展开
           updateActiveHeading();
         }
 
