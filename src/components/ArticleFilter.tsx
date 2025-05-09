@@ -615,7 +615,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     
     try {
       // 解析 Base64 编码的 JSON 参数
-      const jsonStr = atob(returnFilter);
+      const jsonStr = decodeURIComponent(atob(returnFilter));
       const paramsObj = JSON.parse(jsonStr);
       
       // 从解析后的对象中提取筛选条件
@@ -1844,7 +1844,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     const connector = hasQueryParams ? '&' : '?';
     
     // 附加处理后的查询参数，使用 Base64 编码
-    const base64Params = btoa(paramsJson);
+    // 修改: 先使用 encodeURIComponent 处理 JSON 字符串，再使用 btoa 进行 Base64 编码
+    // 这样可以处理中文等非ASCII字符
+    const base64Params = btoa(encodeURIComponent(paramsJson));
     
     // 返回最终链接
     return `${articleUrl}${connector}return_filter=${base64Params}`;

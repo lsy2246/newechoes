@@ -521,12 +521,15 @@ const Search: React.FC<SearchProps> = ({
         );
         
         if (exactMatchForSuggestion) {
-          // 如果有完全匹配的结果，直接导航
+          // 如果有完全匹配的结果，关闭搜索结果面板并导航
+          setShowResults(false);
+          setInlineSuggestion(prev => ({ ...prev, visible: false }));
           window.location.href = exactMatchForSuggestion.url;
           return;
         }
         
         // 没有完全匹配，先补全建议并导航到第一个结果
+        // completeInlineSuggestion会自动处理关闭搜索结果的逻辑
         completeInlineSuggestion(true); // 传入true表示需要导航到第一个结果
         return;
       } 
@@ -538,12 +541,16 @@ const Search: React.FC<SearchProps> = ({
         );
         
         if (exactMatch) {
-          // 找到完全匹配，直接导航到该文章
+          // 找到完全匹配，关闭搜索结果面板并导航
+          setShowResults(false);
+          setInlineSuggestion(prev => ({ ...prev, visible: false }));
           window.location.href = exactMatch.url;
           return;
         }
         
-        // 如果没有完全匹配，但有搜索结果，进入第一个结果
+        // 如果没有完全匹配，但有搜索结果，关闭搜索结果面板并进入第一个结果
+        setShowResults(false);
+        setInlineSuggestion(prev => ({ ...prev, visible: false }));
         window.location.href = allItems[0].url;
         return;
       }
@@ -721,8 +728,14 @@ const Search: React.FC<SearchProps> = ({
       // 更新React状态
       setQuery(textToComplete);
       
-      // 立即执行搜索
-      performSearch(textToComplete, false, shouldNavigateToFirstResult);
+      // 如果需要导航到第一个结果，保持结果面板显示状态，立即执行搜索
+      if (shouldNavigateToFirstResult) {
+        performSearch(textToComplete, false, true);
+      } else {
+        // 如果不需要导航，关闭搜索结果面板，但仍然执行搜索以更新结果
+        setShowResults(false);
+        performSearch(textToComplete, false, false);
+      }
       
       // 聚焦输入框并设置光标位置
       if (searchInputRef.current) {
@@ -763,7 +776,12 @@ const Search: React.FC<SearchProps> = ({
   // 处理提交搜索
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    performSearch(query, false); // 传入false表示不是加载更多
+    // 执行搜索但不立即关闭结果面板，等待搜索完成
+    performSearch(query, false);
+    // 如果查询为空，关闭搜索结果面板
+    if (!query.trim()) {
+      setShowResults(false);
+    }
   };
 
   // 加载更多结果
@@ -1133,6 +1151,11 @@ const Search: React.FC<SearchProps> = ({
                   <a 
                     href={item.url} 
                     className="group block hover:bg-primary-200/80 dark:hover:bg-primary-800/20 hover:shadow-md rounded-lg transition-all duration-200 ease-in-out p-2 -m-2 border border-transparent hover:border-primary-300/60 dark:hover:border-primary-700/30"
+                    onClick={() => {
+                      // 点击搜索结果项时关闭搜索结果面板
+                      setShowResults(false);
+                      setInlineSuggestion(prev => ({ ...prev, visible: false }));
+                    }}
                   >
                     <div className="flex items-start">
                       <div className="flex-grow min-w-0">

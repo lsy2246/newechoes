@@ -1052,16 +1052,6 @@ import "../styles/theme-toggle.css";
       // 设置主题切换功能
       setupThemeToggle();
       
-      // 设置防止内存泄漏的自动清理 - 最多30秒后自毁
-      setTimeout(() => {
-        // 如果页面没有被卸载，检查是否已经清理过
-        if (document.body && !document._themeToggleCleanedUp) {
-          // 为避免重复清理，设置一个标记
-          document._themeToggleCleanedUp = true;
-          // 执行清理
-          selfDestruct();
-        }
-      }, 30000);
     }
 
     // 判断DOM是否已加载

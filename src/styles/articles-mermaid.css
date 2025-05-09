@@ -16,6 +16,15 @@
   font-family: inherit !important;
 }
 
+/* 添加edgeLabel文本颜色样式 */
+.mermaid .edgeLabel,
+.mermaid .edgeLabel p,
+.mermaid .edgeLabel span {
+  color: var(--color-secondary-800) !important;
+  fill: var(--color-secondary-800) !important;
+  background-color: transparent !important;
+}
+
 /* 节点样式设置 */
 .mermaid .node rect, 
 .mermaid .node circle, 
@@ -118,6 +127,14 @@
 [data-theme='dark'] .mermaid .noteText,
 [data-theme='dark'] .mermaid .taskText,
 [data-theme='dark'] .mermaid .classLabel .label {
+  color: var(--color-secondary-300) !important;
+  fill: var(--color-secondary-300) !important;
+}
+
+/* 暗色模式edgeLabel文本颜色样式 */
+[data-theme='dark'] .mermaid .edgeLabel,
+[data-theme='dark'] .mermaid .edgeLabel p,
+[data-theme='dark'] .mermaid .edgeLabel span {
   color: var(--color-secondary-300) !important;
   fill: var(--color-secondary-300) !important;
 }
