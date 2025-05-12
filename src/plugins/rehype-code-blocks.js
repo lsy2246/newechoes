@@ -22,10 +22,16 @@ export function rehypeCodeBlocks() {
           className => typeof className === 'string' && className.startsWith('language-')
         );
         
-        // 提取语言标识
+        // 从父节点获取 Shiki 设置的语言标识（dataLanguage 属性）
+        let shikiLanguage = '';
+        if (node.properties && node.properties.dataLanguage) {
+          shikiLanguage = node.properties.dataLanguage;
+        }
+        
+        // 提取语言标识 - 优先使用 language 类，其次使用 Shiki 语言标识
         const language = languageClass
           ? languageClass.split('-')[1].toUpperCase()
-          : 'TEXT';
+          : (shikiLanguage ? shikiLanguage.toUpperCase() : 'TEXT');
           
         // 跳过处理 mermaid 图表
         if (language === 'MERMAID') {

@@ -343,6 +343,11 @@ const navSelectorClassName = "mr-4";
   
   // 单独保存清理事件的监听器引用
   const cleanupListeners = [];
+  // 获取当前URL路径
+  function getCurrentPath() {
+    const path = window.location.pathname;
+    return path === '/' ? '/' : path.endsWith('/') ? path.slice(0, -1) : path;
+  }
   
   // 添加事件监听器并记录，方便后续统一清理
   function addListener(element, eventType, handler, options) {
@@ -387,7 +392,6 @@ const navSelectorClassName = "mr-4";
   
   // 注册清理事件，并保存引用
   function registerCleanupEvents() {
-    
     // 创建一次性事件处理函数
     const beforeSwapHandler = () => {
       selfDestruct();
@@ -629,6 +633,113 @@ const navSelectorClassName = "mr-4";
   // 注册清理事件
   registerCleanupEvents();
   
+  // 更新高亮背景 - 提升到全局作用域
+  function updateHighlights(immediate = false) {
+    requestAnimationFrame(() => {
+      const highlightPositions = calculateHighlightPositions({
+        navSelector,
+        immediate
+      });
+      
+      if (highlightPositions) {
+        highlightPositions.applyPositions(immediate);
+      }
+    });
+  }
+  
+  // 初始化当前页面的激活状态 - 提升到全局作用域
+  function initActiveState() {
+    // 获取当前路径
+    const currentPath = getCurrentPath();
+    
+    // 先清除所有导航项的激活状态
+    const allNavItems = document.querySelectorAll('.nav-item, .nav-subitem');
+    allNavItems.forEach(item => {
+      item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+      item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+    });
+    
+    const allNavGroups = document.querySelectorAll('.nav-group');
+    allNavGroups.forEach(group => {
+      group.classList.remove('active');
+      const toggle = group.querySelector('.nav-group-toggle');
+      if (toggle) {
+        toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      }
+    });
+    
+    // 标记变量，用于跟踪是否找到匹配的导航项
+    let foundMatch = false;
+    
+    // 先检查子菜单项
+    const subItems = document.querySelectorAll('.nav-subitem');
+    for (const subItem of subItems) {
+      const href = subItem.getAttribute('href');
+      if (!href) continue;
+      
+      // 检查是否匹配当前路径（完全匹配或前缀匹配，但排除根路径的前缀匹配）
+      if (href === currentPath || (currentPath.startsWith(href) && href !== '/')) {
+        // 找到匹配项，设置为active
+        subItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+        subItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        
+        // 激活父组
+        const parentId = subItem.dataset.parentId;
+        if (parentId) {
+          const parentGroup = document.querySelector(`.nav-group[data-group-id="${parentId}"]`);
+          if (parentGroup) {
+            parentGroup.classList.add('active');
+            
+            // 设置组切换按钮样式
+            const toggle = parentGroup.querySelector('.nav-group-toggle');
+            if (toggle) {
+              toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+              toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            }
+            
+            // 确保子菜单可见
+            const items = parentGroup.querySelector('.nav-group-items');
+            if (items) {
+              items.classList.remove('hidden');
+              items.classList.add('menu-visible');
+            }
+          }
+        }
+        
+        foundMatch = true;
+        break;
+      }
+    }
+    
+    // 如果没找到匹配的子菜单项，检查主菜单项
+    if (!foundMatch) {
+      const items = document.querySelectorAll('.nav-item');
+      for (const item of items) {
+        const href = item.getAttribute('href');
+        if (!href) continue;
+        
+        // 检查是否匹配当前路径（完全匹配或前缀匹配，但排除根路径的前缀匹配）
+        if (href === currentPath || (currentPath.startsWith(href) && href !== '/')) {
+          // 找到匹配项，设置为active
+          item.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+          item.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          
+          foundMatch = true;
+          break;
+        }
+      }
+    }
+    
+    // 如果仍然没找到匹配项，记录警告
+    if (!foundMatch) {
+      console.warn(`导航: 找不到与当前路径匹配的导航项: ${currentPath}`);
+    }
+    
+    // 计算正确高亮位置
+    updateHighlights(true);
+  }
+  
   // DOM加载完成后执行初始化
   function initNavigation() {
     // 检查DOM是否已加载
@@ -641,13 +752,64 @@ const navSelectorClassName = "mr-4";
   
   // 主要设置函数
   function setupNavigation() {
-    
     // 设置桌面导航
     setupNavSelector();
     
     // 设置移动端导航
     setupMobileNav();
     
+    // 记录最后一次路径值
+    let lastPathLogged = getCurrentPath();
+    
+    // 统一的路径变化处理函数
+    function handlePathChange() {
+      const currentPath = getCurrentPath();
+      if (currentPath !== lastPathLogged) {
+        // 主动调用初始化和更新高亮
+        initActiveState();
+        updateHighlights(true);
+        
+        lastPathLogged = currentPath;
+      }
+    }
+    
+    // 监听hashchange事件 - 当URL的hash部分改变时触发
+    addListener(window, 'hashchange', () => {
+      handlePathChange();
+    });
+    
+    // 为所有导航链接添加点击拦截
+    addListener(document, 'click', (e) => {
+      // 检查点击的是否为站内导航链接
+      const link = e.target.closest('a');
+      if (link && link.host === window.location.host && !e.ctrlKey && !e.metaKey) {
+        // 延迟检查以确保导航已完成
+        setTimeout(handlePathChange, 50);
+      }
+    });
+    
+    // 监听history API的方法
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+    
+    // 重写pushState
+    window.history.pushState = function() {
+      originalPushState.apply(this, arguments);
+      handlePathChange();
+    };
+    
+    // 重写replaceState
+    window.history.replaceState = function() {
+      originalReplaceState.apply(this, arguments);
+      handlePathChange();
+    };
+    
+    // 添加到清理列表
+    addListener(window, 'beforeunload', () => {
+      // 恢复原始history方法
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+    }, { once: true });
   }
   
   // 初始化导航选择器
@@ -666,8 +828,6 @@ const navSelectorClassName = "mr-4";
       console.warn(`导航脚本未找到高亮元素，导航功能可能不完整`);
     }
     
-    // 获取过渡动画持续时间
-    const transitionDuration = parseInt(navSelector.dataset.duration || 300);
     const activeClass = "font-medium";
     
     // 当前活动项的状态 - 从DOM中提取当前激活状态
@@ -730,64 +890,7 @@ const navSelectorClassName = "mr-4";
       });
     }
     
-    // 兼容swup的导航方法
-    function navigateTo(href) {
-      // 如果使用swup
-      const hasSwup = typeof window.swup !== 'undefined';
-      
-      if (hasSwup) {
-        try {
-          // 正确使用swup的API
-          window.swup.navigate(href);
-          return;
-        } catch (err) {
-          // 尝试使用swup的替代方法
-          try {
-            window.swup.loadPage({
-              url: href
-            });
-            return;
-          } catch (err2) {
-            console.warn(`导航脚本Swup导航失败:`, err2);
-          }
-        }
-      }
-      
-      // 检查是否有匹配的链接，使用其点击事件可能会触发注册在链接上的swup事件
-      const existingLink = document.querySelector(`a[href="${href}"]`);
-      if (existingLink) {
-        existingLink.click();
-        return;
-      }
-      
-      // 以下是在swup不可用或出错时的回退方案
-      
-      // 如果使用Astro的View Transitions
-      if (document.startViewTransition) {
-        document.startViewTransition(() => {
-          window.location.href = href;
-        });
-        return;
-      }
-      
-      // 最后的回退：普通导航
-      window.location.href = href;
-    }
-    
-    // 更新高亮背景
-    function updateHighlights(immediate = false) {
-      requestAnimationFrame(() => {
-        const highlightPositions = calculateHighlightPositions({
-          navSelector,
-          immediate
-        });
-        
-        if (highlightPositions) {
-          highlightPositions.applyPositions(immediate);
-        }
-      });
-    }
-    
+
     // 设置激活的一级菜单项
     function setActiveItem(itemId) {
       // 清除所有菜单状态
@@ -1036,12 +1139,11 @@ const navSelectorClassName = "mr-4";
         // 设置激活状态
         activeGroupId = groupId;
         
-        // 如果没有选中的二级菜单项，则选中第一个并导航
+        // 如果没有选中的二级菜单项，则选中第一个并模拟点击
         if (!activeSubItemId || !activeSubItemId.startsWith(groupId)) {
           const firstSubItem = targetGroup.querySelector('.nav-subitem');
           if (firstSubItem) {
             const subItemId = firstSubItem.dataset.subitemId;
-            const href = firstSubItem.getAttribute('href');
             
             // 清除所有二级菜单项的高亮
             navSubItems.forEach(item => {
@@ -1058,10 +1160,10 @@ const navSelectorClassName = "mr-4";
             // 设置高亮
             activeSubItemId = subItemId;
             
-            // 导航到第一个子项
-            if (href) {
-              navigateTo(href);
-            }
+            // 直接模拟点击第一个子菜单项
+            setTimeout(() => {
+              firstSubItem.click();
+            }, 10);
           }
         } else {
           // 已有选中的二级菜单项，找到并重新设置高亮
@@ -1086,38 +1188,6 @@ const navSelectorClassName = "mr-4";
       }
     }
     
-    // 初始化当前页面的激活状态
-    function initActiveState() {
-      // 高亮背景已经在服务器端渲染时预设，现在需确保应用正确的文字颜色
-      
-      // 查找当前活动项
-      const activeItemElement = document.querySelector('.nav-item.active');
-      const activeSubItemElement = document.querySelector('.nav-subitem.active');
-      const activeGroupElement = document.querySelector('.nav-group.active');
-      
-      // 应用激活文字样式
-      if (activeItemElement) {
-        activeItemElement.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        activeItemElement.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-      }
-      
-      if (activeSubItemElement) {
-        activeSubItemElement.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        activeSubItemElement.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-      }
-      
-      if (activeGroupElement) {
-        const toggle = activeGroupElement.querySelector('.nav-group-toggle');
-        if (toggle) {
-          toggle.classList.add('font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
-        }
-      }
-      
-      // 计算正确高亮位置
-      updateHighlights(true);
-    }
-    
     // 注册事件监听
     
     // 普通菜单项点击
@@ -1126,15 +1196,11 @@ const navSelectorClassName = "mr-4";
         e.preventDefault();
         
         const itemId = item.dataset.itemId;
-        const href = item.getAttribute('href');
         
         // 设置高亮
         setActiveItem(itemId);
         
-        // 导航到目标页面
-        if (href) {
-          navigateTo(href);
-        }
+
       });
     });
     
@@ -1157,15 +1223,11 @@ const navSelectorClassName = "mr-4";
         e.preventDefault();
         
         const subItemId = item.dataset.subitemId;
-        const href = item.getAttribute('href');
         
         // 设置高亮
         setActiveSubItem(subItemId);
         
-        // 导航到目标页面
-        if (href) {
-          navigateTo(href);
-        }
+
       });
     });
     
@@ -1177,12 +1239,9 @@ const navSelectorClassName = "mr-4";
     if (hasSwup) {
       // 页面内容替换后重新初始化
       addListener(document, 'swup:contentReplaced', () => {
-        setTimeout(initActiveState, 50);
-      });
-      
-      // 视图转换开始
-      addListener(document, 'swup:animationInStart', () => {
-        // 这里可以添加动画开始时的处理逻辑
+        setTimeout(() => {
+          initActiveState();
+        }, 50);
       });
       
       // 视图转换结束
@@ -1194,23 +1253,33 @@ const navSelectorClassName = "mr-4";
       });
     }
     
+    // 添加 astro:after-swap 事件监听
+    addListener(document, 'astro:after-swap', () => {
+      setTimeout(() => {
+        initActiveState();
+        updateHighlights(true);
+      }, 50);
+    });
+    
     // 添加Astro View Transitions事件监听
     addListener(document, 'astro:page-load', () => {
       setTimeout(initActiveState, 50);
       updateHighlights(true);
     });
     
+    // 添加popstate事件监听
+    addListener(window, 'popstate', () => {
+      setTimeout(() => {
+        initActiveState();
+        updateHighlights(true);
+      }, 50);
+    });
+    
+    
     // 窗口大小变化时重新计算高亮位置
     addListener(window, 'resize', () => {
       updateHighlights(true);
     });
-    
-    // 在document上添加自定义方法，方便外部调用，但使用弱引用避免内存泄漏
-    if (!document.resetNavigation) {
-      document.resetNavigation = function() {
-        initActiveState();
-      };
-    }
   }
   
   // 初始化移动端菜单和搜索功能
@@ -1459,12 +1528,6 @@ const navSelectorClassName = "mr-4";
     // 初始调用一次设置子菜单切换按钮和更新高亮状态
     setupMobileSubmenuToggles();
     updateMobileMenuHighlight();
-    
-    // 在document上添加自定义方法，方便外部调用（可选）
-    document.updateMobileMenuHighlight = updateMobileMenuHighlight;
-    document.closeMobileMenu = closeMobileMenu;
-    document.closeMobileSearch = closeMobileSearch;
-    document.toggleMobileSubmenu = toggleSubmenu;
     
     return updateMobileMenuHighlight;
   }

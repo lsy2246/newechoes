@@ -74,7 +74,7 @@ const pageTitle = currentPath ? currentPath : '文章列表';
   <slot name="head" slot="head" />
   
   <div class="py-6 w-full">
-    <!-- 导航栏 -->
+    <!-- 导航栏/面包屑 - 保持不变 -->
     <div class="bg-white dark:bg-gray-800 rounded-xl mb-4 shadow-lg border border-gray-200 dark:border-gray-700">
       <div class="px-4 py-3">
         <Breadcrumb 
@@ -85,149 +85,151 @@ const pageTitle = currentPath ? currentPath : '文章列表';
       </div>
     </div>
     
-    <!-- 内容卡片网格 -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-      {/* 上一级目录卡片 - 仅在浏览目录时显示 */}
-      {pathSegments.length > 0 && (
-        <a href={`/articles/${pathSegments.length > 1 ? pathSegments.slice(0, -1).join('/') : ''}/`} 
-           class="group flex flex-col h-full p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 shadow-lg"
-           data-astro-prefetch="hover">
-          <div class="flex items-center">
-            <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-600 group-hover:bg-primary-200">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
-              </svg>
-            </div>
-            <div class="ml-3 flex-1">
-              <div class="font-bold text-base text-gray-800 dark:text-gray-100 group-hover:text-primary-700 dark:group-hover:text-primary-300">返回上级目录</div>
-              <div class="text-xs text-gray-500">返回上一级</div>
-            </div>
-            <div class="text-primary-500 opacity-0 group-hover:opacity-100">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-              </svg>
-            </div>
-          </div>
-        </a>
-      )}
-      
-      {/* 目录卡片 */}
-      {currentSections.map(section => {
-        // 确保目录链接正确生成
-        const dirLink = currentPath ? `${currentPath}/${section.name}` : section.name;
-        
-        return (
-          <a href={`/articles/${dirLink}/`} 
+    <!-- 内容区域 - 只有这部分参与视图切换 -->
+    <div id="article-content">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        {/* 上一级目录卡片 - 仅在浏览目录时显示 */}
+        {pathSegments.length > 0 && (
+          <a href={`/articles/${pathSegments.length > 1 ? pathSegments.slice(0, -1).join('/') : ''}`} 
              class="group flex flex-col h-full p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 shadow-lg"
-             data-astro-prefetch="viewport">
+             data-astro-prefetch="hover">
             <div class="flex items-center">
               <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-600 group-hover:bg-primary-200">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
                 </svg>
               </div>
               <div class="ml-3 flex-1">
-                <div class="font-bold text-base text-gray-800 dark:text-gray-100 group-hover:text-primary-700 dark:group-hover:text-primary-300 line-clamp-1">{section.name}</div>
-                <div class="text-xs text-gray-500 flex items-center mt-1">
-                  {section.sections.length > 0 && (
-                    <span class="flex items-center mr-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                      </svg>
-                      {section.sections.length} 个子目录
-                    </span>
-                  )}
-                  {section.articles.length > 0 && (
-                    <span class="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      {section.articles.length} 篇文章
-                    </span>
-                  )}
-                </div>
+                <div class="font-bold text-base text-gray-800 dark:text-gray-100 group-hover:text-primary-700 dark:group-hover:text-primary-300">返回上级目录</div>
+                <div class="text-xs text-gray-500">返回上一级</div>
               </div>
               <div class="text-primary-500 opacity-0 group-hover:opacity-100">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
                 </svg>
               </div>
             </div>
           </a>
-        );
-      })}
-      
-      {/* 文章卡片 */}
-      {currentArticles.map(articlePath => {
-        // 获取文章ID - 不需要移除src/content前缀，因为contentStructure中已经是相对路径
-        const articleId = articlePath;
+        )}
         
-        // 尝试匹配文章
-        const article = articles.find(a => a.id === articleId);
-        
-        if (!article) {
+        {/* 目录卡片 */}
+        {currentSections.map(section => {
+          // 确保目录链接正确生成
+          const dirLink = currentPath ? `${currentPath}/${section.name}` : section.name;
+          
           return (
-            <div class="flex flex-col h-full p-5 border border-red-200 rounded-xl bg-red-50 shadow-lg">
-              <div class="flex items-start">
-                <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-red-100 text-red-600">
+            <a href={`/articles/${dirLink}/`} 
+               class="group flex flex-col h-full p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 shadow-lg"
+               data-astro-prefetch="viewport">
+              <div class="flex items-center">
+                <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-600 group-hover:bg-primary-200">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
                   </svg>
                 </div>
                 <div class="ml-3 flex-1">
-                  <h3 class="font-bold text-base text-red-800">文章不存在</h3>
-                  <p class="text-xs text-red-600 mt-1">
-                    <div>原始路径: {articlePath}</div>
-                    <div>文章ID: {articleId}</div>
-                    <div>当前目录: {currentPath}</div>
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        }
-        
-        return (
-          <div class="article-card">
-            <a href={`/articles/${article.id}`} 
-               class="article-card-link"
-               data-astro-prefetch="viewport">
-              <div class="article-card-content">
-                <div class="article-card-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                  </svg>
-                </div>
-                <div class="article-card-body">
-                  <h3 class="article-card-title">{article.data.title}</h3>
-                  {article.body && (
-                    <p class="article-card-summary">
-                      {article.data.summary}
-                    </p>
-                  )}
-                  <div class="article-card-footer">
-                    <time datetime={article.data.date.toISOString()} class="article-card-date">
-                      {article.data.date.toLocaleDateString('zh-CN', {year: 'numeric', month: 'long', day: 'numeric'})}
-                    </time>
-                    <span class="article-card-read-more">阅读全文</span>
+                  <div class="font-bold text-base text-gray-800 dark:text-gray-100 group-hover:text-primary-700 dark:group-hover:text-primary-300 line-clamp-1">{section.name}</div>
+                  <div class="text-xs text-gray-500 flex items-center mt-1">
+                    {section.sections.length > 0 && (
+                      <span class="flex items-center mr-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                        {section.sections.length} 个子目录
+                      </span>
+                    )}
+                    {section.articles.length > 0 && (
+                      <span class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        {section.articles.length} 篇文章
+                      </span>
+                    )}
                   </div>
+                </div>
+                <div class="text-primary-500 opacity-0 group-hover:opacity-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
                 </div>
               </div>
             </a>
-          </div>
-        );
-      })}
-    </div>
-    
-    {/* 空内容提示 */}
-    {(currentSections.length === 0 && currentArticles.length === 0) && (
-      <div class="text-center py-16 bg-white rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-12">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-primary-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-        </svg>
-        <h3 class="text-2xl font-bold text-gray-700 mb-2">此目录为空</h3>
-        <p class="text-gray-500 max-w-md mx-auto">此目录下暂无内容，请浏览其他目录或返回上一级</p>
+          );
+        })}
+        
+        {/* 文章卡片 */}
+        {currentArticles.map(articlePath => {
+          // 获取文章ID - 不需要移除src/content前缀，因为contentStructure中已经是相对路径
+          const articleId = articlePath;
+          
+          // 尝试匹配文章
+          const article = articles.find(a => a.id === articleId);
+          
+          if (!article) {
+            return (
+              <div class="flex flex-col h-full p-5 border border-red-200 rounded-xl bg-red-50 shadow-lg">
+                <div class="flex items-start">
+                  <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-red-100 text-red-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div class="ml-3 flex-1">
+                    <h3 class="font-bold text-base text-red-800">文章不存在</h3>
+                    <p class="text-xs text-red-600 mt-1">
+                      <div>原始路径: {articlePath}</div>
+                      <div>文章ID: {articleId}</div>
+                      <div>当前目录: {currentPath}</div>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          
+          return (
+            <div class="article-card">
+              <a href={`/articles/${article.id}`} 
+                 class="article-card-link"
+                 data-astro-prefetch="viewport">
+                <div class="article-card-content">
+                  <div class="article-card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                    </svg>
+                  </div>
+                  <div class="article-card-body">
+                    <h3 class="article-card-title">{article.data.title}</h3>
+                    {article.body && (
+                      <p class="article-card-summary">
+                        {article.data.summary}
+                      </p>
+                    )}
+                    <div class="article-card-footer">
+                      <time datetime={article.data.date.toISOString()} class="article-card-date">
+                        {article.data.date.toLocaleDateString('zh-CN', {year: 'numeric', month: 'long', day: 'numeric'})}
+                      </time>
+                      <span class="article-card-read-more">阅读全文</span>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </div>
+          );
+        })}
       </div>
-    )}
+      
+      {/* 空内容提示 */}
+      {(currentSections.length === 0 && currentArticles.length === 0) && (
+        <div class="text-center py-16 bg-white rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-12">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-primary-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+          <h3 class="text-2xl font-bold text-gray-700 mb-2">此目录为空</h3>
+          <p class="text-gray-500 max-w-md mx-auto">此目录下暂无内容，请浏览其他目录或返回上一级</p>
+        </div>
+      )}
+    </div>
   </div>
 </Layout>

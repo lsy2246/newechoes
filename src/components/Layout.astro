@@ -92,51 +92,99 @@ const {
       ]}
     />
 
-    <!-- 主题切换脚本 -->
+    <!-- 主题切换脚本 - 升级为自销毁模式 -->
     <script is:inline>
       // 立即执行主题初始化，采用"无闪烁"加载方式
       (function () {
-        // 存储事件监听器，便于清理
-        const listeners = [];
+        // 集中管理所有事件监听器
+        const allListeners = [];
+        
+        // 单独保存清理事件的监听器引用
+        const cleanupListeners = [];
+        
+        // 定时器引用
+        let themeUpdateTimeout = null;
         
         // 添加事件监听器并记录，方便后续统一清理
         function addListener(element, eventType, handler, options) {
-          if (!element) return null;
-          
+          if (!element) {
+            console.error(`尝试为不存在的元素添加事件:`, eventType);
+            return null;
+          }
+
           element.addEventListener(eventType, handler, options);
-          listeners.push({ element, eventType, handler, options });
+          allListeners.push({ element, eventType, handler, options });
           return handler;
         }
         
-        // 清理函数 - 移除所有事件监听器
-        function cleanup() {
-          listeners.forEach(({ element, eventType, handler, options }) => {
+        // 统一的清理函数，执行完整清理并自销毁
+        function selfDestruct() {
+          // 1. 清理所有计时器
+          if (themeUpdateTimeout) {
+            clearTimeout(themeUpdateTimeout);
+            themeUpdateTimeout = null;
+          }
+          
+          // 2. 移除普通事件监听器
+          allListeners.forEach(({ element, eventType, handler, options }) => {
             try {
               element.removeEventListener(eventType, handler, options);
             } catch (err) {
-              // 忽略错误
+              console.error(`主题初始化移除事件监听器出错:`, err);
             }
           });
           
-          // 清空数组
-          listeners.length = 0;
+          // 清空监听器数组
+          allListeners.length = 0;
+          
+          // 3. 最后移除清理事件监听器自身
+          cleanupListeners.forEach(({ element, eventType, handler, options }) => {
+            try {
+              element.removeEventListener(eventType, handler, options);
+            } catch (err) {
+              console.error(`主题初始化移除清理监听器出错:`, err);
+            }
+          });
+          
+          // 清空清理监听器数组
+          cleanupListeners.length = 0;
         }
         
-        // 注册清理函数 - 确保在页面转换前清理事件
-        function registerCleanup() {
-          const cleanupEvents = [
-            "astro:before-preparation",
-            "astro:before-swap",
-            "swup:willReplaceContent"
-          ];
-
-          // 为每个事件注册一次性清理函数
-          cleanupEvents.forEach((eventName) => {
-            document.addEventListener(eventName, cleanup, { once: true });
-          });
-
-          // 页面卸载时清理
-          window.addEventListener("beforeunload", cleanup, { once: true });
+        // 注册清理事件，并保存引用
+        function registerCleanupEvents() {
+          // 创建一次性事件处理函数
+          const beforeSwapHandler = () => {
+            selfDestruct();
+          };
+          
+          const beforeUnloadHandler = () => {
+            selfDestruct();
+          };
+          
+          // 添加清理事件监听器并保存引用
+          document.addEventListener("astro:before-swap", beforeSwapHandler, { once: true });
+          window.addEventListener("beforeunload", beforeUnloadHandler, { once: true });
+          
+          // Astro特有的页面准备事件
+          document.addEventListener("astro:before-preparation", beforeSwapHandler, { once: true });
+          
+          // SPA框架可能使用的事件
+          if (typeof document.addEventListener === 'function') {
+            document.addEventListener("swup:willReplaceContent", beforeSwapHandler, { once: true });
+          }
+          
+          // 保存清理事件引用，用于完全销毁
+          cleanupListeners.push(
+            { element: document, eventType: "astro:before-swap", handler: beforeSwapHandler, options: { once: true } },
+            { element: window, eventType: "beforeunload", handler: beforeUnloadHandler, options: { once: true } },
+            { element: document, eventType: "astro:before-preparation", handler: beforeSwapHandler, options: { once: true } }
+          );
+          
+          if (typeof document.addEventListener === 'function') {
+            cleanupListeners.push(
+              { element: document, eventType: "swup:willReplaceContent", handler: beforeSwapHandler, options: { once: true } }
+            );
+          }
         }
 
         try {
@@ -181,28 +229,54 @@ const {
           addListener(mediaQuery, "change", handleMediaChange);
           
           // 注册清理函数
-          registerCleanup();
+          registerCleanupEvents();
           
           // 监听页面转换事件，确保在页面转换后重新初始化
           function onPageTransition() {
-            // 重新初始化主题
-            if (storedTheme) {
-              document.documentElement.dataset.theme = storedTheme;
-            } else {
-              const systemTheme = getSystemTheme();
-              document.documentElement.dataset.theme = systemTheme;
+            // 防止重复执行，使用防抖
+            if (themeUpdateTimeout) {
+              clearTimeout(themeUpdateTimeout);
             }
+            
+            // 使用微小延迟确保DOM完全就绪
+            themeUpdateTimeout = setTimeout(() => {
+              try {
+                // 重新初始化主题
+                const storedTheme = localStorage.getItem("theme");
+                if (storedTheme) {
+                  document.documentElement.dataset.theme = storedTheme;
+                } else {
+                  const systemTheme = getSystemTheme();
+                  document.documentElement.dataset.theme = systemTheme;
+                }
+              } catch (err) {
+                console.error("页面转换后主题更新出错:", err);
+              } finally {
+                themeUpdateTimeout = null;
+              }
+            }, 10);
           }
           
           // 设置页面转换事件监听
-          document.addEventListener("astro:page-load", onPageTransition);
-          document.addEventListener("astro:after-swap", onPageTransition);
+          addListener(document, "astro:page-load", onPageTransition);
+          addListener(document, "astro:after-swap", onPageTransition);
           
         } catch (error) {
+          console.error("主题初始化失败:", error);
           // 出错时应用默认浅色主题，确保页面正常显示
           document.documentElement.dataset.theme = "light";
+          // 即使出错也尝试注册清理事件
+          try {
+            registerCleanupEvents();
+          } catch (e) {
+            // 忽略清理注册错误
+          }
         }
       })();
+    </script>
+
+    <script>
+      import '../scripts/swup-init.js';
     </script>
   </head>
   <body
@@ -219,37 +293,5 @@ const {
       psbIcpUrl={PSB_ICP_URL}
     />
 
-    <!-- 预获取脚本 -->
-    <script is:inline>
-      // 在DOM加载完成后执行
-      document.addEventListener("astro:page-load", () => {
-        // 获取所有视口预获取链接
-        const viewportLinks = document.querySelectorAll(
-          '[data-astro-prefetch="viewport"]',
-        );
-
-        if (viewportLinks.length > 0) {
-          // 创建一个交叉观察器
-          const observer = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-              if (entry.isIntersecting) {
-                const link = entry.target;
-                // 进入视口时，添加data-astro-prefetch="true"属性触发预获取
-                if (link.getAttribute("data-astro-prefetch") === "viewport") {
-                  link.setAttribute("data-astro-prefetch", "true");
-                }
-                // 一旦预获取，就不再观察这个链接
-                observer.unobserve(link);
-              }
-            });
-          });
-
-          // 观察所有视口预获取链接
-          viewportLinks.forEach((link) => {
-            observer.observe(link);
-          });
-        }
-      });
-    </script>
   </body>
 </html>

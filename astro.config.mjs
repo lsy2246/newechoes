@@ -8,7 +8,6 @@ import rehypeExternalLinks from "rehype-external-links";
 import sitemap from "@astrojs/sitemap";
 import fs from "node:fs";
 import path from "node:path";
-import swup from "@swup/astro"
 import { SITE_URL } from "./src/consts";
 import compressor from "astro-compressor";
 import vercel from "@astrojs/vercel";
@@ -54,10 +53,6 @@ export default defineConfig({
   integrations: [
     // 使用Astro官方的MDX支持
     mdx(),
-    swup({
-      cache: true,
-      preload: true,
-    }),
     react(),
     // 使用文章索引生成器
     articleIndexerIntegration(),

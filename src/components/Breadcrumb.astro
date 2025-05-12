@@ -195,10 +195,11 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     // 单独保存清理事件的监听器引用
     const cleanupListeners = [];
     
+    
     // 添加事件监听器并记录，方便后续统一清理
     function addListener(element, eventType, handler, options) {
       if (!element) {
-        console.warn(`[面包屑尝试为不存在的元素添加事件`);
+        console.warn(`[面包屑]尝试为不存在的元素添加事件`);
         return null;
       }
 
@@ -214,7 +215,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
         try {
           element.removeEventListener(eventType, handler, options);
         } catch (err) {
-          console.error(`[面包屑移除事件监听器出错:`, err);
+          console.error(`[面包屑]移除事件监听器出错:`, err);
         }
       });
       
@@ -226,12 +227,392 @@ const breadcrumbs: Breadcrumb[] = pathSegments
         try {
           element.removeEventListener(eventType, handler, options);
         } catch (err) {
-          console.error(`[面包屑移除清理监听器出错:`, err);
+          console.error(`[面包屑]移除清理监听器出错:`, err);
         }
       });
       
       // 清空清理监听器数组
       cleanupListeners.length = 0;
+    }
+    
+    // 获取当前URL路径（与导航栏保持一致）
+    function getCurrentPath() {
+      const path = window.location.pathname;
+      return path === '/' ? '/' : path.endsWith('/') ? path.slice(0, -1) : path;
+    }
+    
+    // 解析URL参数
+    function getUrlSearchParams() {
+      return new URLSearchParams(window.location.search);
+    }
+    
+    // 获取页面类型
+    function getPageType(path) {
+      if (path === '/filtered' || path.startsWith('/filtered')) {
+        return 'filter';
+      } else if (path.includes('/articles/') && !path.endsWith('/articles/')) {
+        // 检查是否是文章详情页
+        const segments = path.split('/').filter(s => s);
+        // 如果路径中包含.html或.md，则认为是文章详情页
+        if (segments.length > 1 && (segments[segments.length - 1].includes('.html') || segments[segments.length - 1].includes('.md'))) {
+          return 'article';
+        }
+        return 'grid'; // 默认为网格视图
+      } else {
+        return 'grid'; // 默认为网格视图
+      }
+    }
+    
+    // 提取路径段
+    function getPathSegments(path) {
+      // 如果路径为空或根路径，直接返回空数组
+      if (!path || path === '/') {
+        return [];
+      }
+      
+      // 标准化路径：移除结尾的斜杠并确保开头有斜杠
+      let normalizedPath = path;
+      if (normalizedPath.endsWith('/')) {
+        normalizedPath = normalizedPath.slice(0, -1);
+      }
+      if (!normalizedPath.startsWith('/')) {
+        normalizedPath = '/' + normalizedPath;
+      }
+      
+      // 拆分路径为段落
+      const segments = normalizedPath.split('/').filter(s => s);
+      
+      // 确定基础路径部分 - 在本应用中是 "articles"
+      const basePathSegment = 'articles';
+      
+      // 移除基础路径部分（如果存在于路径的第一段）
+      const pathWithoutBase = segments[0] === basePathSegment 
+        ? segments.slice(1) 
+        : segments;
+      
+      // 移除尾部的文件名（如果存在）
+      let result = [...pathWithoutBase];
+      const lastSegment = result[result.length - 1];
+      if (lastSegment && (lastSegment.includes('.html') || lastSegment.includes('.md'))) {
+        result.pop();
+      }
+      
+      // 对每个段进行解码
+      return result.map(segment => decodeURIComponent(segment));
+    }
+    
+    // 获取文章标题（对于文章页面）
+    function getArticleTitle(path) {
+      // 从路径中提取文件名
+      const segments = path.split('/');
+      const fileName = segments[segments.length - 1];
+      
+      if (fileName && (fileName.includes('.html') || fileName.includes('.md'))) {
+        // 移除扩展名，将连字符替换为空格，首字母大写
+        let title = fileName.replace(/\.(html|md)$/, '')
+                           .replace(/-/g, ' ')
+                           .replace(/\b\w/g, c => c.toUpperCase());
+        return title;
+      }
+      
+      return '';
+    }
+    
+    // 动态更新面包屑
+    function updateBreadcrumbs() {
+      // 获取当前路径和相关信息
+      const currentPath = getCurrentPath();
+      const pageType = getPageType(currentPath);
+      const searchParams = getUrlSearchParams();
+      const pathSegments = getPathSegments(currentPath);
+      const articleTitle = pageType === 'article' ? getArticleTitle(currentPath) : '';
+      
+      // 获取面包屑容器
+      const breadcrumbContainer = document.querySelector('.flex.items-center.text-sm.overflow-hidden');
+      if (!breadcrumbContainer) {
+        console.warn('[面包屑]找不到面包屑容器，无法更新');
+        return;
+      }
+      
+      // 生成路径面包屑HTML
+      let breadcrumbsHtml = `
+        <a href="/articles/" class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center flex-shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+          </svg>
+          文章
+        </a>
+      `;
+      
+      // 网格视图或文章详情中的目录路径
+      if (pageType === 'grid' || (pageType === 'article' && pathSegments.length > 0)) {
+        breadcrumbsHtml += `<div class="flex items-center overflow-hidden">
+          <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>`;
+        
+        // 移动端使用智能截断
+        breadcrumbsHtml += `<div class="flex md:hidden items-center">`;
+        
+        if (pathSegments.length > 2) {
+          // 第一个路径段
+          const firstSegment = pathSegments[0];
+          const firstPath = encodeURIComponent(pathSegments.slice(0, 1).join('/'));
+          
+          breadcrumbsHtml += `
+            <a 
+              href="/articles/${firstPath}/" 
+              class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[100px] flex-shrink-0"
+            >
+              ${firstSegment}
+            </a>
+            
+            <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">...</span>
+          `;
+          
+          // 最后一个路径段
+          if (pathSegments.length > 1) {
+            const lastSegment = pathSegments[pathSegments.length - 1];
+            const lastPath = pathSegments.map(encodeURIComponent).join('/');
+            
+            breadcrumbsHtml += `
+              <a 
+                href="/articles/${lastPath}/" 
+                class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[120px] flex-shrink-0"
+              >
+                ${lastSegment}
+              </a>
+            `;
+          }
+        } else {
+          // 如果段落不多，则全部显示
+          breadcrumbsHtml += pathSegments.map((segment, index) => {
+            const segmentPath = pathSegments.slice(0, index + 1).map(encodeURIComponent).join('/');
+            return `
+              <span class="flex items-center flex-shrink-0">
+                ${index > 0 ? '<span class="mx-2 text-secondary-300 dark:text-secondary-600">/</span>' : ''}
+                <a 
+                  href="/articles/${segmentPath}/" 
+                  class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[100px] sm:max-w-[150px]"
+                >
+                  ${segment}
+                </a>
+              </span>
+            `;
+          }).join('');
+        }
+        
+        breadcrumbsHtml += `</div>`;
+        
+        // 桌面端显示全部路径段
+        breadcrumbsHtml += `<div class="hidden md:flex items-center flex-wrap">`;
+        
+        breadcrumbsHtml += pathSegments.map((segment, index) => {
+          const segmentPath = pathSegments.slice(0, index + 1).map(encodeURIComponent).join('/');
+          return `
+            <span class="flex items-center flex-shrink-0">
+              ${index > 0 ? '<span class="mx-2 text-secondary-300 dark:text-secondary-600">/</span>' : ''}
+              <a 
+                href="/articles/${segmentPath}/" 
+                class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[200px] lg:max-w-[250px] xl:max-w-[300px]"
+              >
+                ${segment}
+              </a>
+            </span>
+          `;
+        }).join('');
+        
+        breadcrumbsHtml += `</div></div>`;
+      }
+      
+      // 筛选视图中的搜索参数展示
+      if (pageType === 'filter' && searchParams.toString()) {
+        breadcrumbsHtml += `
+          <div class="flex items-center overflow-hidden">
+            <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+            <span class="text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
+              筛选
+              ${searchParams.toString() ? '<span class="ml-1">- 搜索结果</span>' : ''}
+            </span>
+          </div>
+        `;
+      }
+      
+      // 文章标题 - 仅在文章详情页显示
+      if (pageType === 'article' && articleTitle) {
+        breadcrumbsHtml += `
+          <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+          <span class="text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">${articleTitle}</span>
+        `;
+      }
+      
+      // 更新面包屑容器内容
+      breadcrumbContainer.innerHTML = breadcrumbsHtml;
+      
+      // 更新视图切换按钮
+      updateViewSwitchButtons(pageType, currentPath, searchParams);
+      
+      // 更新返回按钮（对于文章页面）
+      if (pageType === 'article') {
+        updateBackButton(currentPath, pathSegments.join('/'));
+      }
+    }
+    
+    // 更新视图切换按钮
+    function updateViewSwitchButtons(pageType, currentPath, searchParams) {
+      // 获取视图切换按钮容器
+      const viewSwitchContainer = document.querySelector('.flex.items-center.gap-px.flex-shrink-0.ml-auto');
+      if (!viewSwitchContainer || !(pageType === 'filter' || pageType === 'grid')) {
+        return;
+      }
+      
+      const searchParamsStr = searchParams.toString() ? `?${searchParams.toString()}` : '';
+      const pathStr = currentPath.includes('/articles/') ? currentPath.replace('/articles/', '') : '';
+      
+      // 生成视图切换按钮HTML
+      const switchButtonsHtml = `
+        <a href="/filtered${searchParamsStr}"
+           class="px-3 py-1.5 flex items-center gap-1 ${
+             pageType === 'filter' 
+               ? 'text-primary-600 dark:text-primary-400 font-medium' 
+               : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
+           }"
+           data-astro-prefetch="hover">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <span class="hidden sm:inline text-xs">筛选</span>
+        </a>
+        <a href="${pathStr ? `/articles/${pathStr}/` : `/articles/`}"
+           class="px-3 py-1.5 flex items-center gap-1 ${
+             pageType === 'grid' 
+               ? 'text-primary-600 dark:text-primary-400 font-medium' 
+               : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
+           }"
+           data-astro-prefetch="hover">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+          </svg>
+          <span class="hidden sm:inline text-xs">网格</span>
+        </a>
+      `;
+      
+      // 更新视图切换按钮容器内容
+      viewSwitchContainer.innerHTML = switchButtonsHtml;
+    }
+    
+    // 更新返回按钮
+    function updateBackButton(currentPath, pathWithoutFile) {
+      // 获取视图切换按钮容器的父元素
+      const parentContainer = document.querySelector('.flex.items-center.justify-between.w-full.flex-wrap.sm\\:flex-nowrap');
+      if (!parentContainer) {
+        return;
+      }
+      
+      // 检查是否已有返回按钮容器
+      let backButtonContainer = document.querySelector('.flex.items-center.shrink-0.ml-auto');
+      
+      // 如果没有返回按钮容器，创建一个
+      if (!backButtonContainer) {
+        backButtonContainer = document.createElement('div');
+        backButtonContainer.className = 'flex items-center shrink-0 ml-auto';
+        parentContainer.appendChild(backButtonContainer);
+      }
+      
+      // 确保路径使用编码后的形式用于URL
+      const encodedPath = pathWithoutFile.split('/').map(encodeURIComponent).join('/');
+      
+      // 生成返回按钮HTML
+      const backButtonHtml = `
+        <a
+          href="/articles/${encodedPath}/"
+          class="text-secondary-500 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center text-sm back-button"
+          data-astro-prefetch="hover"
+          data-path="/articles/${encodedPath}/"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-4 w-4 mr-1"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            ></path>
+          </svg>
+          返回文章列表
+        </a>
+      `;
+      
+      // 更新返回按钮容器内容
+      backButtonContainer.innerHTML = backButtonHtml;
+      
+      // 设置返回按钮功能
+      setupBackButton();
+    }
+    
+    // 添加路径变化检测和自动更新
+    function setupPathChangeDetection() {
+      let lastPathChecked = getCurrentPath();
+      
+      // 统一的路径变化处理函数
+      function handlePathChange() {
+        const currentPath = getCurrentPath();
+        if (currentPath !== lastPathChecked) {
+          // 更新面包屑
+          updateBreadcrumbs();
+          
+          // 更新记录的路径
+          lastPathChecked = currentPath;
+        }
+      }
+      
+      // 监听hashchange事件 - 当URL的hash部分改变时触发
+      addListener(window, 'hashchange', () => {
+        handlePathChange();
+      });
+      
+      // 为所有导航链接添加点击拦截
+      addListener(document, 'click', (e) => {
+        // 检查点击的是否为站内导航链接
+        const link = e.target.closest('a');
+        if (link && link.host === window.location.host && !e.ctrlKey && !e.metaKey) {
+          // 延迟检查以确保导航已完成
+          setTimeout(handlePathChange, 50);
+        }
+      });
+      
+      // 监听history API的方法
+      const originalPushState = window.history.pushState;
+      const originalReplaceState = window.history.replaceState;
+      
+      // 重写pushState
+      window.history.pushState = function() {
+        originalPushState.apply(this, arguments);
+        handlePathChange();
+      };
+      
+      // 重写replaceState
+      window.history.replaceState = function() {
+        originalReplaceState.apply(this, arguments);
+        handlePathChange();
+      };
+      
+      // 添加到清理列表
+      addListener(window, 'beforeunload', () => {
+        // 恢复原始history方法
+        window.history.pushState = originalPushState;
+        window.history.replaceState = originalReplaceState;
+      }, { once: true });
+      
+      // 监听popstate事件
+      addListener(window, 'popstate', () => {
+        setTimeout(() => {
+          handlePathChange();
+        }, 50);
+      });
     }
     
     // 注册清理事件，并保存引用
@@ -275,25 +656,33 @@ const breadcrumbs: Breadcrumb[] = pathSegments
         return;
       }
       
-      const clickHandler = (e) => {
-        e.preventDefault();
-        
-        const url = new URL(window.location.href);
-        const searchParams = url.search;
-        
-        // 检查URL中是否有查询参数
-        if (searchParams) {
-          // 有查询参数，返回筛选页面
-          window.location.href = `/filtered${searchParams}`;
-        } else {
-          // 没有查询参数，返回默认路径
-          const defaultPath = backButton.getAttribute('data-path') || '';
-          window.location.href = defaultPath;
-        }
-      };
+      // 获取当前URL信息
+      const url = new URL(window.location.href);
+      const searchParams = url.search;
       
-      // 添加点击事件监听
-      addListener(backButton, 'click', clickHandler);
+      // 根据是否有查询参数确定返回目标
+      let targetHref;
+      if (searchParams) {
+        // 有查询参数，返回筛选页面
+        targetHref = `/filtered${searchParams}`;
+      } else {
+        // 没有查询参数，返回默认路径
+        targetHref = backButton.getAttribute('data-path') || '';
+      }
+      
+      // 修改返回按钮属性，使其成为swup可识别的链接
+      backButton.setAttribute('href', targetHref);
+      
+      // 如果支持swup，确保swup能处理此链接
+      if (typeof window.swup !== 'undefined') {
+        // 移除可能阻止swup处理的属性
+        backButton.removeAttribute('data-no-swup');
+        
+        // 确保链接有正确的prefetch属性
+        if (!backButton.hasAttribute('data-astro-prefetch')) {
+          backButton.setAttribute('data-astro-prefetch', 'hover');
+        }
+      }
     }
     
     // 主初始化函数
@@ -301,21 +690,22 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       // 注册清理事件
       registerCleanupEvents();
       
+      // 设置路径变化检测
+      setupPathChangeDetection();
+      
+      // 执行初始更新
+      updateBreadcrumbs();
+      
       // 设置返回按钮
       setupBackButton();
       
       // 注册页面加载后的处理函数 - 仅当使用View Transitions或Swup时
       if (typeof document.startViewTransition !== 'undefined' || typeof window.swup !== 'undefined') {
-        // 仅监听一个事件，保持最小侵入性
+        // 监听页面加载事件
         const pageLoadHandler = () => {
-          // 检查是否在文章页面
-          const backButton = document.querySelector('.back-button');
-          if (backButton) {
-            // 先销毁已有的所有处理函数
-            selfDestruct();
-            // 重新初始化
-            init();
-          }
+          // 重新执行一次更新
+          updateBreadcrumbs();
+          setupBackButton();
         };
         
         if (typeof document.startViewTransition !== 'undefined') {

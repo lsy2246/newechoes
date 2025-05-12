@@ -9,7 +9,7 @@ const searchParams = Astro.url.searchParams;
 
 <Layout title="文章筛选">
   <div class="w-full">
-    <!-- 导航栏 -->
+    <!-- 导航栏/面包屑 - 不参与视图切换 -->
     <div
       class="bg-white dark:bg-gray-800 rounded-xl mb-4 shadow-lg border border-gray-200 dark:border-gray-700"
     >
@@ -21,11 +21,13 @@ const searchParams = Astro.url.searchParams;
       </div>
     </div>
 
-    <!-- 使用ArticleFilter组件 -->
-    <ArticleFilter
-      searchParams={searchParams}
-      client:load
-    />
+    <!-- 内容区域 - 只有这部分参与视图切换 -->
+    <div id="article-content">
+      <ArticleFilter
+        searchParams={searchParams}
+        client:load
+      />
+    </div>
   </div>
 </Layout>
 
