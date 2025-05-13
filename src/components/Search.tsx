@@ -449,7 +449,50 @@ const Search: React.FC<SearchProps> = ({
     }
   };
 
-  // 修改处理键盘导航的函数，增加上下箭头键切换建议
+  // 添加关闭移动端搜索面板的函数
+  const closeMobileSearchPanel = useCallback(() => {
+    // 查找移动端搜索面板
+    const mobileSearch = document.getElementById('mobile-search');
+    if (mobileSearch && !mobileSearch.classList.contains('hidden')) {
+      // 关闭移动端搜索面板
+      mobileSearch.classList.add('hidden');
+      
+      // 更新按钮状态
+      const searchButton = document.getElementById('mobile-search-button');
+      if (searchButton) {
+        searchButton.setAttribute('aria-expanded', 'false');
+      }
+    }
+  }, []);
+
+  // 修改navigateToUrl函数，确保在跳转前关闭界面元素
+  const navigateToUrl = useCallback((url: string) => {
+    // 先关闭所有相关UI元素
+    setShowResults(false);
+    setInlineSuggestion(prev => ({ ...prev, visible: false }));
+    closeMobileSearchPanel();
+    
+    // 使用短暂延迟确保UI状态先更新
+    setTimeout(() => {
+      // 创建一个临时链接元素
+      const linkEl = document.createElement('a');
+      linkEl.href = url;
+      
+      // 设置导航同源属性，确保使用内部导航机制
+      linkEl.setAttribute('data-astro-prefetch', 'true');
+      
+      // 添加到DOM中并触发点击
+      document.body.appendChild(linkEl);
+      linkEl.click();
+      
+      // 清理临时元素
+      setTimeout(() => {
+        document.body.removeChild(linkEl);
+      }, 100);
+    }, 10); // 很短的延迟，只是让UI状态更新
+  }, [closeMobileSearchPanel]);
+
+  // 修改handleKeyDown函数中的回车键处理逻辑
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     
     // Tab键处理内联建议补全
@@ -515,6 +558,12 @@ const Search: React.FC<SearchProps> = ({
       if (inlineSuggestion.visible && inlineSuggestion.text) {
         const suggestionText = inlineSuggestion.text;
         
+        // 立即更新搜索框内容和状态
+        setQuery(suggestionText);
+        if (searchInputRef.current) {
+          searchInputRef.current.value = suggestionText;
+        }
+        
         // 先检查当前搜索结果中是否有完全匹配的结果
         const exactMatchForSuggestion = allItems.find(item => 
           item.title.replace(/<\/?mark>/g, '').toLowerCase() === suggestionText.toLowerCase()
@@ -524,12 +573,14 @@ const Search: React.FC<SearchProps> = ({
           // 如果有完全匹配的结果，关闭搜索结果面板并导航
           setShowResults(false);
           setInlineSuggestion(prev => ({ ...prev, visible: false }));
-          window.location.href = exactMatchForSuggestion.url;
+          // 关闭移动端搜索面板
+          closeMobileSearchPanel();
+          // 使用新的导航函数替代直接修改location
+          navigateToUrl(exactMatchForSuggestion.url);
           return;
         }
         
         // 没有完全匹配，先补全建议并导航到第一个结果
-        // completeInlineSuggestion会自动处理关闭搜索结果的逻辑
         completeInlineSuggestion(true); // 传入true表示需要导航到第一个结果
         return;
       } 
@@ -544,14 +595,20 @@ const Search: React.FC<SearchProps> = ({
           // 找到完全匹配，关闭搜索结果面板并导航
           setShowResults(false);
           setInlineSuggestion(prev => ({ ...prev, visible: false }));
-          window.location.href = exactMatch.url;
+          // 关闭移动端搜索面板
+          closeMobileSearchPanel();
+          // 使用新的导航函数替代直接修改location
+          navigateToUrl(exactMatch.url);
           return;
         }
         
         // 如果没有完全匹配，但有搜索结果，关闭搜索结果面板并进入第一个结果
         setShowResults(false);
         setInlineSuggestion(prev => ({ ...prev, visible: false }));
-        window.location.href = allItems[0].url;
+        // 关闭移动端搜索面板
+        closeMobileSearchPanel();
+        // 使用新的导航函数替代直接修改location
+        navigateToUrl(allItems[0].url);
         return;
       }
       
@@ -688,7 +745,10 @@ const Search: React.FC<SearchProps> = ({
       
       // 如果需要导航到第一个结果，并且有结果
       if (shouldNavigateToFirstResult && result.items.length > 0) {
-        window.location.href = result.items[0].url;
+        // 关闭移动端搜索面板
+        closeMobileSearchPanel();
+        // 使用新的导航函数替代直接修改location
+        navigateToUrl(result.items[0].url);
       }
     } catch (err) {
       // 检查组件是否仍然挂载
@@ -708,9 +768,9 @@ const Search: React.FC<SearchProps> = ({
       // 保存建议文本
       const textToComplete = inlineSuggestion.text;
       
-      // 直接更新DOM和状态
+      // 立即更新搜索框内容和状态
+      setQuery(textToComplete);
       if (searchInputRef.current) {
-        // 立即更新输入框值
         searchInputRef.current.value = textToComplete;
       }
       
@@ -725,11 +785,11 @@ const Search: React.FC<SearchProps> = ({
         suggestionText: ""
       });
       
-      // 更新React状态
-      setQuery(textToComplete);
-      
       // 如果需要导航到第一个结果，保持结果面板显示状态，立即执行搜索
       if (shouldNavigateToFirstResult) {
+        // 立即关闭搜索面板，然后执行搜索
+        setShowResults(false);
+        closeMobileSearchPanel();
         performSearch(textToComplete, false, true);
       } else {
         // 如果不需要导航，关闭搜索结果面板，但仍然执行搜索以更新结果
@@ -1151,10 +1211,13 @@ const Search: React.FC<SearchProps> = ({
                   <a 
                     href={item.url} 
                     className="group block hover:bg-primary-200/80 dark:hover:bg-primary-800/20 hover:shadow-md rounded-lg transition-all duration-200 ease-in-out p-2 -m-2 border border-transparent hover:border-primary-300/60 dark:hover:border-primary-700/30"
-                    onClick={() => {
-                      // 点击搜索结果项时关闭搜索结果面板
-                      setShowResults(false);
-                      setInlineSuggestion(prev => ({ ...prev, visible: false }));
+                    data-astro-prefetch="hover"
+                    onClick={(e) => {
+                      // 防止默认行为，由我们自己处理导航
+                      e.preventDefault();
+                      
+                      // 使用导航函数处理跳转，它会关闭所有面板
+                      navigateToUrl(item.url);
                     }}
                   >
                     <div className="flex items-start">
@@ -1234,6 +1297,25 @@ const Search: React.FC<SearchProps> = ({
       }
     };
   }, []);
+
+  // 为搜索组件添加视图切换事件监听
+  useEffect(() => {
+    const handlePageChange = () => {
+      // 确保在页面切换时关闭所有搜索相关界面
+      setShowResults(false);
+      setInlineSuggestion(prev => ({ ...prev, visible: false }));
+      closeMobileSearchPanel();
+    };
+    
+    // 监听Astro视图转换事件
+    document.addEventListener('astro:after-swap', handlePageChange);
+    document.addEventListener('astro:page-load', handlePageChange);
+    
+    return () => {
+      document.removeEventListener('astro:after-swap', handlePageChange);
+      document.removeEventListener('astro:page-load', handlePageChange);
+    };
+  }, [closeMobileSearchPanel]);
 
   // 渲染结束
   const returnBlock = (

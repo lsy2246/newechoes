@@ -153,7 +153,7 @@ const navSelectorClassName = "mr-4";
           
           <!-- 使用自定义主题切换组件 -->
           <div class="flex items-center">
-            <ThemeToggle className="group" transitionDuration={700} />
+            <ThemeToggle  transitionDuration={700} />
           </div>
         </div>
 
@@ -343,6 +343,15 @@ const navSelectorClassName = "mr-4";
   
   // 单独保存清理事件的监听器引用
   const cleanupListeners = [];
+  
+  // 内部状态管理
+  const state = {
+    isCleaningUp: false,
+    lastPathLogged: '',
+    originalPushState: window.history.pushState,
+    originalReplaceState: window.history.replaceState
+  };
+  
   // 获取当前URL路径
   function getCurrentPath() {
     const path = window.location.pathname;
@@ -361,8 +370,30 @@ const navSelectorClassName = "mr-4";
     return handler;
   }
   
+  // 更新高亮背景的函数声明（提前声明）
+  let updateHighlights;
+  
+  // 初始化当前页面的激活状态函数声明（提前声明） 
+  let initActiveState;
+  
+  // 统一的路径变化处理函数
+  function handlePathChange() {
+    if (state.isCleaningUp) return;
+    
+    const currentPath = getCurrentPath();
+    if (currentPath !== state.lastPathLogged) {
+      // 主动调用初始化和更新高亮
+      initActiveState();
+      updateHighlights(true);
+      
+      state.lastPathLogged = currentPath;
+    }
+  }
+  
   // 统一的清理函数，执行完整清理并自销毁
   function selfDestruct() {
+    // 标记清理状态
+    state.isCleaningUp = true;
     
     // 1. 移除所有普通事件监听器
     allListeners.forEach(({ element, eventType, handler, options }) => {
@@ -376,7 +407,17 @@ const navSelectorClassName = "mr-4";
     // 清空监听器数组
     allListeners.length = 0;
     
-    // 2. 最后移除清理事件监听器自身
+    // 2. 恢复原始history方法
+    if (state.originalPushState && state.originalReplaceState) {
+      try {
+        window.history.pushState = state.originalPushState;
+        window.history.replaceState = state.originalReplaceState;
+      } catch (err) {
+        console.error('恢复History方法失败:', err);
+      }
+    }
+    
+    // 3. 最后移除清理事件监听器自身
     cleanupListeners.forEach(({ element, eventType, handler, options }) => {
       try {
         element.removeEventListener(eventType, handler, options);
@@ -387,29 +428,30 @@ const navSelectorClassName = "mr-4";
     
     // 清空清理监听器数组
     cleanupListeners.length = 0;
-    
   }
   
   // 注册清理事件，并保存引用
   function registerCleanupEvents() {
-    // 创建一次性事件处理函数
-    const beforeSwapHandler = () => {
-      selfDestruct();
-    };
+    // 所有可能触发清理的事件
+    const cleanupEvents = [
+      { element: document, eventType: "astro:before-swap", options: { once: true } },
+      { element: window, eventType: "beforeunload", options: { once: true } },
+      { element: document, eventType: "page-transition", options: null }
+    ];
     
-    const beforeUnloadHandler = () => {
-      selfDestruct();
-    };
-    
-    // 添加清理事件监听器并保存引用
-    document.addEventListener("astro:before-swap", beforeSwapHandler, { once: true });
-    window.addEventListener("beforeunload", beforeUnloadHandler, { once: true });
-    
-    // 保存清理事件引用，用于完全销毁
-    cleanupListeners.push(
-      { element: document, eventType: "astro:before-swap", handler: beforeSwapHandler, options: { once: true } },
-      { element: window, eventType: "beforeunload", handler: beforeUnloadHandler, options: { once: true } }
-    );
+    // 为每个事件添加监听器
+    cleanupEvents.forEach(({ element, eventType, options }) => {
+      // 添加监听器
+      element.addEventListener(eventType, selfDestruct, options);
+      
+      // 保存引用以便后续清理
+      cleanupListeners.push({ 
+        element, 
+        eventType, 
+        handler: selfDestruct, 
+        options 
+      });
+    });
   }
 
   // 创建一个共享的计算高亮位置的函数
@@ -633,8 +675,8 @@ const navSelectorClassName = "mr-4";
   // 注册清理事件
   registerCleanupEvents();
   
-  // 更新高亮背景 - 提升到全局作用域
-  function updateHighlights(immediate = false) {
+  // 更新高亮背景 - 提升到顶部作用域
+  updateHighlights = function(immediate = false) {
     requestAnimationFrame(() => {
       const highlightPositions = calculateHighlightPositions({
         navSelector,
@@ -645,10 +687,10 @@ const navSelectorClassName = "mr-4";
         highlightPositions.applyPositions(immediate);
       }
     });
-  }
+  };
   
-  // 初始化当前页面的激活状态 - 提升到全局作用域
-  function initActiveState() {
+  // 初始化当前页面的激活状态 - 提升到顶部作用域
+  initActiveState = function() {
     // 获取当前路径
     const currentPath = getCurrentPath();
     
@@ -738,7 +780,7 @@ const navSelectorClassName = "mr-4";
     
     // 计算正确高亮位置
     updateHighlights(true);
-  }
+  };
   
   // DOM加载完成后执行初始化
   function initNavigation() {
@@ -752,26 +794,14 @@ const navSelectorClassName = "mr-4";
   
   // 主要设置函数
   function setupNavigation() {
+    // 初始化路径记录
+    state.lastPathLogged = getCurrentPath();
+    
     // 设置桌面导航
     setupNavSelector();
     
     // 设置移动端导航
     setupMobileNav();
-    
-    // 记录最后一次路径值
-    let lastPathLogged = getCurrentPath();
-    
-    // 统一的路径变化处理函数
-    function handlePathChange() {
-      const currentPath = getCurrentPath();
-      if (currentPath !== lastPathLogged) {
-        // 主动调用初始化和更新高亮
-        initActiveState();
-        updateHighlights(true);
-        
-        lastPathLogged = currentPath;
-      }
-    }
     
     // 监听hashchange事件 - 当URL的hash部分改变时触发
     addListener(window, 'hashchange', () => {
@@ -788,28 +818,38 @@ const navSelectorClassName = "mr-4";
       }
     });
     
-    // 监听history API的方法
-    const originalPushState = window.history.pushState;
-    const originalReplaceState = window.history.replaceState;
+    // 设置History API监控
+    setupHistoryMonitoring();
+  }
+  
+  // 监听history API的方法
+  function setupHistoryMonitoring() {
+    // 保存初始状态 - 确保引用正确
+    state.originalPushState = window.history.pushState;
+    state.originalReplaceState = window.history.replaceState;
+    
+    // 监听页面转换事件来设置清理标记
+    addListener(document, 'page-transition', () => {
+      state.isCleaningUp = true;
+    });
     
     // 重写pushState
     window.history.pushState = function() {
-      originalPushState.apply(this, arguments);
+      if (state.isCleaningUp) {
+        return state.originalPushState.apply(this, arguments);
+      }
+      state.originalPushState.apply(this, arguments);
       handlePathChange();
     };
     
     // 重写replaceState
     window.history.replaceState = function() {
-      originalReplaceState.apply(this, arguments);
+      if (state.isCleaningUp) {
+        return state.originalReplaceState.apply(this, arguments);
+      }
+      state.originalReplaceState.apply(this, arguments);
       handlePathChange();
     };
-    
-    // 添加到清理列表
-    addListener(window, 'beforeunload', () => {
-      // 恢复原始history方法
-      window.history.pushState = originalPushState;
-      window.history.replaceState = originalReplaceState;
-    }, { once: true });
   }
   
   // 初始化导航选择器
@@ -1459,54 +1499,32 @@ const navSelectorClassName = "mr-4";
       });
     }
     
-    // 为移动端菜单的所有链接添加点击事件，点击后关闭菜单
-    const mobileMenuLinks = document.querySelectorAll('#mobile-menu a');
-    mobileMenuLinks.forEach(link => {
-      addListener(link, 'click', (e) => {
-        // 如果使用客户端路由（如swup或Astro View Transitions），阻止默认行为
-        const hasSwup = typeof window.swup !== 'undefined';
-        const hasViewTransitions = typeof document.startViewTransition !== 'undefined';
+    // 为主题切换容器添加点击事件
+    const themeToggleContainer = document.getElementById('theme-toggle-container');
+    if (themeToggleContainer) {
+      addListener(themeToggleContainer, 'click', (e) => {
+        // 阻止事件冒泡，防止多次触发
+        e.stopPropagation();
         
-        if (hasSwup || hasViewTransitions) {
-          e.preventDefault();
+        // 获取容器内的主题切换按钮
+        const themeToggleButton = themeToggleContainer.querySelector('#theme-toggle-button');
+        
+        // 如果找到按钮，通过创建自定义事件来传递坐标
+        if (themeToggleButton) {
+          // 创建自定义点击事件并携带原始事件的坐标信息
+          const clickEvent = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: e.clientX,
+            clientY: e.clientY
+          });
           
-          // 获取链接地址
-          const href = link.getAttribute('href');
-          if (!href) return;
-          
-          // 先关闭菜单
-          closeMobileMenu();
-          closeMobileSearch();
-          
-          // 延迟导航，确保菜单关闭动画完成
-          setTimeout(() => {
-            // 使用适当的导航方法
-            if (hasSwup) {
-              try {
-                window.swup.navigate(href);
-              } catch (err) {
-                try {
-                  window.swup.loadPage({ url: href });
-                } catch (err2) {
-                  window.location.href = href;
-                }
-              }
-            } else if (hasViewTransitions) {
-              document.startViewTransition(() => {
-                window.location.href = href;
-              });
-            } else {
-              window.location.href = href;
-            }
-          }, 50);
-        } else {
-          // 普通链接导航，浏览器会自动处理跳转
-          // 但仍然需要关闭菜单
-          closeMobileMenu();
-          closeMobileSearch();
+          // 使用自定义事件触发按钮点击
+          themeToggleButton.dispatchEvent(clickEvent);
         }
       });
-    });
+    }
     
     // 为Astro View Transitions添加事件处理
     addListener(document, 'astro:page-load', () => {
@@ -1525,11 +1543,71 @@ const navSelectorClassName = "mr-4";
       }, 50);
     });
     
+    // 为移动端菜单链接添加点击事件，点击后关闭菜单
+    function setupMobileMenuLinks() {
+      const mobileMenuLinks = document.querySelectorAll('#mobile-menu a');
+      mobileMenuLinks.forEach(link => {
+        // 避免重复添加事件监听器
+        addListener(link, 'click', (e) => {
+          // 如果是站内链接且不是控制键或Meta键点击（新窗口打开）
+          if (link.host === window.location.host && !e.ctrlKey && !e.metaKey) {
+            // 延迟关闭导航栏，确保页面跳转感知和点击体验更流畅
+            setTimeout(() => {
+              closeMobileMenu();
+            }, 50);
+          }
+        });
+      });
+    }
+    
     // 初始调用一次设置子菜单切换按钮和更新高亮状态
     setupMobileSubmenuToggles();
     updateMobileMenuHighlight();
+    setupMobileMenuLinks(); // 添加对移动端链接的点击监听
     
-    return updateMobileMenuHighlight;
+    // 当菜单显示状态变化时重新绑定链接点击事件
+    addListener(mobileMenuButton, 'click', () => {
+      // 确保每次打开菜单时重新设置链接点击事件
+      setTimeout(() => {
+        setupMobileMenuLinks();
+      }, 50);
+    });
+    
+    // 添加点击空白区域关闭菜单和搜索面板的事件监听
+    addListener(document, 'click', (e) => {
+      // 获取事件目标
+      const target = e.target;
+      
+      // 处理移动端菜单内的链接点击
+      const menuLink = target.closest('#mobile-menu a');
+      if (menuLink && !e.ctrlKey && !e.metaKey) {
+        // 延迟关闭导航栏
+        setTimeout(() => {
+          closeMobileMenu();
+        }, 50);
+        return; // 如果是菜单链接点击，处理完成后返回
+      }
+      
+      // 检查移动端菜单是否打开，点击空白区域关闭
+      if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+        // 检查点击是否在菜单区域外
+        // 菜单按钮和菜单内容都应该排除
+        if (!mobileMenu.contains(target) && 
+            mobileMenuButton && !mobileMenuButton.contains(target)) {
+          closeMobileMenu();
+        }
+      }
+      
+      // 检查移动端搜索面板是否打开，点击空白区域关闭
+      if (mobileSearch && !mobileSearch.classList.contains('hidden')) {
+        // 检查点击是否在搜索面板区域外
+        // 搜索按钮和搜索面板内容都应该排除
+        if (!mobileSearch.contains(target) && 
+            mobileSearchButton && !mobileSearchButton.contains(target)) {
+          closeMobileSearch();
+        }
+      }
+    });
   }
   
   // 开始初始化

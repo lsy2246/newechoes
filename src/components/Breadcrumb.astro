@@ -208,33 +208,6 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       return handler;
     }
     
-    // 统一的清理函数，执行完整清理并自销毁
-    function selfDestruct() {
-      // 1. 移除所有普通事件监听器
-      allListeners.forEach(({ element, eventType, handler, options }) => {
-        try {
-          element.removeEventListener(eventType, handler, options);
-        } catch (err) {
-          console.error(`[面包屑]移除事件监听器出错:`, err);
-        }
-      });
-      
-      // 清空监听器数组
-      allListeners.length = 0;
-      
-      // 2. 最后移除清理事件监听器自身
-      cleanupListeners.forEach(({ element, eventType, handler, options }) => {
-        try {
-          element.removeEventListener(eventType, handler, options);
-        } catch (err) {
-          console.error(`[面包屑]移除清理监听器出错:`, err);
-        }
-      });
-      
-      // 清空清理监听器数组
-      cleanupListeners.length = 0;
-    }
-    
     // 获取当前URL路径（与导航栏保持一致）
     function getCurrentPath() {
       const path = window.location.pathname;
@@ -556,9 +529,15 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     // 添加路径变化检测和自动更新
     function setupPathChangeDetection() {
       let lastPathChecked = getCurrentPath();
+      let isCleaningUp = false; // 标记是否在清理中
       
       // 统一的路径变化处理函数
       function handlePathChange() {
+        // 如果正在清理中，不要继续更新
+        if (isCleaningUp) {
+          return;
+        }
+        
         const currentPath = getCurrentPath();
         if (currentPath !== lastPathChecked) {
           // 更新面包屑
@@ -571,81 +550,138 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       
       // 监听hashchange事件 - 当URL的hash部分改变时触发
       addListener(window, 'hashchange', () => {
+        if (isCleaningUp) return;
         handlePathChange();
       });
       
-      // 为所有导航链接添加点击拦截
-      addListener(document, 'click', (e) => {
-        // 检查点击的是否为站内导航链接
-        const link = e.target.closest('a');
-        if (link && link.host === window.location.host && !e.ctrlKey && !e.metaKey) {
-          // 延迟检查以确保导航已完成
-          setTimeout(handlePathChange, 50);
-        }
+      // 监听popstate事件
+      addListener(window, 'popstate', () => {
+        if (isCleaningUp) return;
+        handlePathChange();
       });
       
-      // 监听history API的方法
-      const originalPushState = window.history.pushState;
-      const originalReplaceState = window.history.replaceState;
+      // 监听页面转换事件，设置清理标志
+      addListener(document, 'page-transition', () => {
+        // 设置清理标志，阻止后续的handlePathChange调用
+        isCleaningUp = true;
+      });
+      
+      // 监听页面内容替换完成后更新面包屑
+      addListener(document, 'swup:contentReplaced', () => {
+        if (isCleaningUp) return;
+        setTimeout(() => {
+          // 在DOM更新后，重新计算面包屑
+          handlePathChange();
+        }, 10);
+      });
+      
+      // 保存原始history方法
+      originalPushState = window.history.pushState;
+      originalReplaceState = window.history.replaceState;
       
       // 重写pushState
       window.history.pushState = function() {
+        // 如果正在清理中，不要执行被重写的方法，直接调用原始方法
+        if (isCleaningUp) {
+          return originalPushState.apply(this, arguments);
+        }
+        
         originalPushState.apply(this, arguments);
         handlePathChange();
       };
       
       // 重写replaceState
       window.history.replaceState = function() {
+        // 如果正在清理中，不要执行被重写的方法，直接调用原始方法
+        if (isCleaningUp) {
+          return originalReplaceState.apply(this, arguments);
+        }
+        
         originalReplaceState.apply(this, arguments);
         handlePathChange();
       };
+    }
+    
+    // 统一的清理函数，执行完整清理并自销毁
+    function selfDestruct() {
       
-      // 添加到清理列表
-      addListener(window, 'beforeunload', () => {
-        // 恢复原始history方法
-        window.history.pushState = originalPushState;
-        window.history.replaceState = originalReplaceState;
-      }, { once: true });
-      
-      // 监听popstate事件
-      addListener(window, 'popstate', () => {
-        setTimeout(() => {
-          handlePathChange();
-        }, 50);
+      // 1. 移除所有普通事件监听器
+      allListeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          console.error(`[面包屑] 移除事件监听器出错:`, err);
+        }
       });
+      
+      // 清空监听器数组
+      allListeners.length = 0;
+      
+      // 恢复原始的history方法
+      if (originalPushState && originalReplaceState) {
+        try {
+          // 立即恢复原始方法，确保后续pushState调用直接使用原始方法
+          const tempOriginalPushState = originalPushState;
+          const tempOriginalReplaceState = originalReplaceState;
+          
+          window.history.pushState = tempOriginalPushState;
+          window.history.replaceState = tempOriginalReplaceState;
+          
+          // 清空引用
+          originalPushState = null;
+          originalReplaceState = null;
+          
+        } catch (err) {
+          console.error('[面包屑] 恢复History方法失败:', err);
+        }
+      } else {
+        console.warn('[面包屑] 找不到原始History方法引用');
+      }
+      
+      // 2. 最后移除清理事件监听器自身
+      cleanupListeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          console.error(`[面包屑] 移除清理监听器出错:`, err);
+        }
+      });
+      
+      // 清空清理监听器数组
+      cleanupListeners.length = 0;
+      
     }
     
     // 注册清理事件，并保存引用
     function registerCleanupEvents() {
-      // 创建一次性事件处理函数
+      // 创建事件处理函数
+      const pageTransitionHandler = (event) => {
+        selfDestruct();
+      };
+      
+      // Astro视图转换事件 - 保留这个作为后备
       const beforeSwapHandler = () => {
         selfDestruct();
       };
       
+      // 页面卸载事件 - 保留这个作为后备
       const beforeUnloadHandler = () => {
         selfDestruct();
       };
       
-      // 添加清理事件监听器并保存引用
+      // 只监听统一的页面转换事件
+      document.addEventListener("page-transition", pageTransitionHandler);
+      
+      // 保留Astro和页面卸载事件作为后备
       document.addEventListener("astro:before-swap", beforeSwapHandler, { once: true });
       window.addEventListener("beforeunload", beforeUnloadHandler, { once: true });
       
-      // 如果页面使用swup，也注册swup相关的清理事件
-      if (typeof window.swup !== 'undefined') {
-        document.addEventListener("swup:willReplaceContent", beforeSwapHandler, { once: true });
-      }
-      
       // 保存清理事件引用，用于完全销毁
       cleanupListeners.push(
+        { element: document, eventType: "page-transition", handler: pageTransitionHandler, options: null },
         { element: document, eventType: "astro:before-swap", handler: beforeSwapHandler, options: { once: true } },
         { element: window, eventType: "beforeunload", handler: beforeUnloadHandler, options: { once: true } }
       );
-      
-      if (typeof window.swup !== 'undefined') {
-        cleanupListeners.push(
-          { element: document, eventType: "swup:willReplaceContent", handler: beforeSwapHandler, options: { once: true } }
-        );
-      }
     }
     
     // 设置返回按钮功能

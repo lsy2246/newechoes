@@ -31,6 +31,7 @@ import "../styles/theme-toggle.css";
   tabindex="0"
   data-transition-mode={transitionMode}
   data-transition-duration={transitionDuration}
+  data-theme-transitioning="false"
 >
   <!-- 月亮图标 (暗色模式) -->
   <svg
@@ -78,6 +79,9 @@ import "../styles/theme-toggle.css";
     let transitionTimeout = null;
     let rippleTimeout = null;
     
+    // 局部存储当前过渡的引用
+    let currentTransition = null;
+    
     // 主题过渡模式
     const TRANSITION_MODES = {
       EXPAND: 'expand',     // 扩散模式
@@ -96,8 +100,35 @@ import "../styles/theme-toggle.css";
     // 动画配置（毫秒）
     const ANIMATION_BUFFER = 100;   // 动画缓冲时间
     const TOTAL_TRANSITION_TIME = ANIMATION_DURATION + ANIMATION_BUFFER; // 总过渡时间
-    // 防抖时间动态计算，始终比动画时间略长一些
-    const DEBOUNCE_TIME = TOTAL_TRANSITION_TIME + 200; // 防抖时间比总过渡时间多200ms
+    // 简化的冷却时间追踪 - 使用单一的上次切换时间
+    let lastThemeToggleTime = 0;
+    const COOLDOWN_TIME = TOTAL_TRANSITION_TIME + 200; // 防抖冷却时间
+    
+    // 辅助函数：设置/获取按钮的过渡状态
+    function setTransitioning(button, isTransitioning) {
+      if (!button) return;
+      button.dataset.themeTransitioning = isTransitioning.toString();
+    }
+    
+    function isTransitioning(button) {
+      if (!button) return false;
+      return button.dataset.themeTransitioning === 'true';
+    }
+    
+    // 检查是否可以执行切换（冷却中检查）
+    function canToggleTheme() {
+      const now = Date.now();
+      // 如果距离上次切换时间小于冷却时间，不允许切换
+      if (now - lastThemeToggleTime < COOLDOWN_TIME) {
+        return false;
+      }
+      return true;
+    }
+    
+    // 记录切换时间
+    function recordToggleTime() {
+      lastThemeToggleTime = Date.now();
+    }
     
     // 从本地存储获取主题过渡模式
     function getThemeTransitionMode() {
@@ -122,13 +153,13 @@ import "../styles/theme-toggle.css";
     // 统一的清理函数，执行完整清理并自销毁
     function selfDestruct() {
       // 0. 取消正在进行的transition
-      if (window._themeTransition && typeof window._themeTransition.skipTransition === 'function') {
+      if (currentTransition && typeof currentTransition.skipTransition === 'function') {
         try {
-          window._themeTransition.skipTransition();
+          currentTransition.skipTransition();
         } catch (err) {
           // 忽略AbortError，这是正常现象
         } finally {
-          window._themeTransition = null;
+          currentTransition = null;
         }
       }
       
@@ -158,8 +189,16 @@ import "../styles/theme-toggle.css";
           ripple.parentNode.removeChild(ripple);
         }
       });
+
+      // 5. 重置全局状态
+      lastThemeToggleTime = 0;
+
+      // 6. 重置所有主题切换按钮的状态
+      document.querySelectorAll("#theme-toggle-button").forEach(button => {
+        setTransitioning(button, false);
+      });
       
-      // 5. 移除普通事件监听器
+      // 7. 移除普通事件监听器
       allListeners.forEach(({ element, eventType, handler, options }) => {
         try {
           element.removeEventListener(eventType, handler, options);
@@ -171,7 +210,7 @@ import "../styles/theme-toggle.css";
       // 清空监听器数组
       allListeners.length = 0;
       
-      // 6. 最后移除清理事件监听器自身
+      // 8. 最后移除清理事件监听器自身
       cleanupListeners.forEach(({ element, eventType, handler, options }) => {
         try {
           element.removeEventListener(eventType, handler, options);
@@ -186,24 +225,31 @@ import "../styles/theme-toggle.css";
     
     // 注册清理事件，并保存引用
     function registerCleanupEvents() {
-      // 创建一次性事件处理函数
-      const beforeSwapHandler = () => {
+      // 创建统一的清理处理函数
+      const cleanup = () => {
         selfDestruct();
       };
       
-      const beforeUnloadHandler = () => {
-        selfDestruct();
-      };
+      // 定义需要监听的所有清理事件
+      const cleanupEventTypes = [
+        { element: document, eventType: "astro:before-swap", options: { once: true } },
+        { element: window, eventType: "beforeunload", options: { once: true } },
+        { element: document, eventType: "page-transition", options: { once: true } }
+      ];
       
-      // 添加清理事件监听器并保存引用
-      document.addEventListener("astro:before-swap", beforeSwapHandler, { once: true });
-      window.addEventListener("beforeunload", beforeUnloadHandler, { once: true });
-      
-      // 保存清理事件引用，用于完全销毁
-      cleanupListeners.push(
-        { element: document, eventType: "astro:before-swap", handler: beforeSwapHandler, options: { once: true } },
-        { element: window, eventType: "beforeunload", handler: beforeUnloadHandler, options: { once: true } }
-      );
+      // 注册所有清理事件
+      cleanupEventTypes.forEach(({ element, eventType, options }) => {
+        // 添加事件监听
+        element.addEventListener(eventType, cleanup, options);
+        
+        // 保存事件引用到清理列表
+        cleanupListeners.push({
+          element,
+          eventType,
+          handler: cleanup,
+          options
+        });
+      });
     }
     
     // 创建波纹动画元素
@@ -269,16 +315,16 @@ import "../styles/theme-toggle.css";
     // 使用View Transitions API创建全屏过渡效果
     function createViewTransition(callback, x, y, fromTheme, toTheme, transitionMode) {
       // 如果已有正在进行的过渡，先取消它
-      if (window._themeTransition) {
+      if (currentTransition) {
         try {
-          if (typeof window._themeTransition.skipTransition === 'function') {
-            window._themeTransition.skipTransition();
+          if (typeof currentTransition.skipTransition === 'function') {
+            currentTransition.skipTransition();
           }
         } catch (e) {
           // 忽略取消先前过渡的错误
         } finally {
           // 无论成功与否，都清除引用
-          window._themeTransition = null;
+          currentTransition = null;
         }
       }
       
@@ -416,7 +462,7 @@ import "../styles/theme-toggle.css";
         const transition = document.startViewTransition(safeCallback);
         
         // 存储transition引用以便清理
-        window._themeTransition = transition;
+        currentTransition = transition;
         
         // 生成动画需要的SVG资源
         const gradientOffset = 0.75;
@@ -703,7 +749,7 @@ import "../styles/theme-toggle.css";
           .then(() => {
             // 移除主题过渡标记类
             document.documentElement.classList.remove('theme-transition-active');
-            window._themeTransition = null;
+            currentTransition = null;
           })
           .catch(error => {
             if (error.name !== 'AbortError') {
@@ -713,7 +759,7 @@ import "../styles/theme-toggle.css";
             document.documentElement.classList.remove('theme-transition-active');
             
             // 清除引用
-            window._themeTransition = null;
+            currentTransition = null;
           });
       } catch (error) {
         console.error(`主题切换错误:`, error);
@@ -735,14 +781,6 @@ import "../styles/theme-toggle.css";
         return;
       }
 
-      // 防抖配置 - 使用前面定义的动态计算值
-      let lastClickTime = 0;
-      let transitioning = false;
-      
-      // 将transitioning状态暴露给全局，便于其他脚本检查
-      window._themeTransitioning = false;
-      window._lastThemeToggleClickTime = 0;
-      
       // 状态清理函数 - 在页面切换、错误和超时情况下调用
       const resetThemeToggleState = () => {
         if (transitionTimeout) {
@@ -750,8 +788,13 @@ import "../styles/theme-toggle.css";
           transitionTimeout = null;
         }
         
-        transitioning = false;
-        window._themeTransitioning = false;
+        // 重置全局切换时间状态
+        lastThemeToggleTime = 0;
+        
+        // 重置所有按钮的状态
+        themeToggleButtons.forEach(button => {
+          setTransitioning(button, false);
+        });
         
         // 移除所有残留的波纹效果
         document.querySelectorAll(".theme-ripple").forEach(ripple => {
@@ -784,10 +827,11 @@ import "../styles/theme-toggle.css";
         // 不处理未冒泡到document的事件
         if (!e || !e.target) return;
         
-        // 如果点击事件来自于主题切换相关元素，且正在过渡中，拦截所有后续处理
-        if (window._themeTransitioning && 
-            (e.target.closest('#theme-toggle-button') || 
-             e.target.closest('#theme-toggle-container'))) {
+        // 获取点击的按钮元素
+        const button = e.target.closest('#theme-toggle-button');
+        
+        // 如果点击按钮，且按钮正在过渡中或在冷却期内，拦截后续处理
+        if (button && (isTransitioning(button) || !canToggleTheme())) {
           e.stopPropagation();
           e.preventDefault();
         }
@@ -825,17 +869,6 @@ import "../styles/theme-toggle.css";
         }
       };
 
-      // 防抖函数 - 确保在指定时间内只执行一次
-      const isThrottled = () => {
-        const now = Date.now();
-        if (transitioning || now - lastClickTime < DEBOUNCE_TIME) {
-          return true;
-        }
-        lastClickTime = now;
-        window._lastThemeToggleClickTime = now;
-        return false;
-      };
-
       // 为所有触发点提供统一的处理函数
       const handleThemeToggle = (e, targetButton) => {
         // 防止事件默认行为和冒泡，无论如何都要先阻止
@@ -845,24 +878,37 @@ import "../styles/theme-toggle.css";
         if (e && typeof e.stopPropagation === 'function') {
           e.stopPropagation();
         }
-
-        // 第1层保护：全局事件防抖
-        if (isThrottled()) {
+        
+        // 确保有有效的按钮参数，必要时从事件中获取
+        if (!targetButton && e) {
+          targetButton = e.target.closest('#theme-toggle-button');
+        }
+        
+        // 确保有按钮可以操作
+        if (!targetButton) {
           return;
         }
 
-        // 第2层保护：transitioning状态检查
-        if (window._themeTransitioning) {
+        // 保护：全局冷却期检查
+        if (!canToggleTheme()) {
           return;
         }
 
-        // 第3层保护：视图过渡检查
-        if (window._themeTransition) {
+        // 保护：按钮过渡中检查
+        if (isTransitioning(targetButton)) {
           return;
         }
 
-        // 立即设置transitioning状态，阻止后续点击
-        window._themeTransitioning = true;
+        // 保护：视图过渡检查
+        if (currentTransition) {
+          return;
+        }
+
+        // 记录此次切换时间
+        recordToggleTime();
+        
+        // 立即设置过渡状态，阻止后续点击
+        setTransitioning(targetButton, true);
         
         try {
           // 计算点击坐标或使用按钮中心坐标
@@ -933,7 +979,7 @@ import "../styles/theme-toggle.css";
           ).then(() => {
             // 过渡完成后恢复状态
             setTimeout(() => {
-              window._themeTransitioning = false;
+              setTransitioning(targetButton, false);
             }, ANIMATION_BUFFER); // 添加缓冲时间
           }).catch(error => {
             // 出现错误时强制执行主题切换以确保功能可用
@@ -944,13 +990,13 @@ import "../styles/theme-toggle.css";
             }
             
             setTimeout(() => {
-              window._themeTransitioning = false;
+              setTransitioning(targetButton, false);
             }, ANIMATION_BUFFER);
           });
 
           // 设置防抖保底 - 防止transition.finished不触发导致状态卡死
           transitionTimeout = setTimeout(() => {
-            window._themeTransitioning = false;
+            setTransitioning(targetButton, false);
           }, TOTAL_TRANSITION_TIME + 200); // 总过渡时间加额外缓冲
         } catch (err) {
           // 即使发生错误，也要确保主题能切换
@@ -976,7 +1022,7 @@ import "../styles/theme-toggle.css";
           }
           
           // 确保状态被重置
-          window._themeTransitioning = false;
+          setTransitioning(targetButton, false);
         }
       };
 
@@ -994,6 +1040,9 @@ import "../styles/theme-toggle.css";
 
       // 为每个按钮添加事件
       themeToggleButtons.forEach(button => {
+        // 确保初始化状态
+        setTransitioning(button, false);
+        
         // 点击事件 - 使用捕获模式
         addListener(button, "click", (e) => handleThemeToggle(e, button), { capture: true });
 
@@ -1007,39 +1056,6 @@ import "../styles/theme-toggle.css";
         addListener(button, "keydown", keydownHandler);
       });
       
-      // 处理移动端主题切换容器 - 使用同样的逻辑处理
-      const themeToggleContainer = document.getElementById("theme-toggle-container");
-      if (themeToggleContainer) {
-        const containerClickHandler = (e) => {
-          // 如果点击的是按钮内部，让按钮自己处理
-          if (e.target.closest("#theme-toggle-button")) {
-            return;
-          }
-          
-          // 找到容器内的主题切换按钮
-          const button = themeToggleContainer.querySelector("#theme-toggle-button");
-          if (button) {
-            // 调用统一的处理函数
-            handleThemeToggle(e, button);
-          }
-        };
-        
-        // 使用capture模式确保事件在捕获阶段就被处理
-        addListener(themeToggleContainer, "click", containerClickHandler, { capture: true });
-        
-        // 为移动端容器添加关闭移动端菜单的功能
-        const closeMenuHandler = (e) => {
-          // 检查是否有closeMobileMenu全局函数（来自Header.astro）
-          if (typeof window.closeMobileMenu === 'function') {
-            // 这个函数会在点击主题切换容器后被调用，无论是否真正触发主题切换
-            window.closeMobileMenu();
-          }
-        };
-        
-        // 使用冒泡阶段，确保在主题切换处理后执行
-        addListener(themeToggleContainer, "click", closeMenuHandler, { capture: false });
-      }
-
       // 初始化主题
       initializeTheme();
     }
@@ -1051,7 +1067,6 @@ import "../styles/theme-toggle.css";
       
       // 设置主题切换功能
       setupThemeToggle();
-      
     }
 
     // 判断DOM是否已加载

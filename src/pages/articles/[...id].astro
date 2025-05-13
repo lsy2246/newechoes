@@ -561,7 +561,6 @@ const tableOfContents = generateTableOfContents(headings);
           class="scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
           set:html={tableOfContents}
         >
-          <!-- 目录内容在服务端生成 -->
         </div>
       </div>
     </section>
@@ -628,38 +627,31 @@ const tableOfContents = generateTableOfContents(headings);
 
       // 注册清理事件，并保存引用
       function registerCleanupEvents() {
-        // 创建一次性事件处理函数
-        const beforeSwapHandler = () => {
+        // 创建统一的清理处理函数
+        const cleanup = () => {
           selfDestruct();
         };
-
-        const beforeUnloadHandler = () => {
-          selfDestruct();
-        };
-
-        // 添加清理事件监听器并保存引用
-        document.addEventListener("astro:before-swap", beforeSwapHandler, {
-          once: true,
+        
+        // 定义需要监听的所有清理事件
+        const cleanupEventTypes = [
+          { element: document, eventType: "astro:before-swap", options: { once: true } },
+          { element: window, eventType: "beforeunload", options: { once: true } },
+          { element: document, eventType: "page-transition", options: { once: true } }
+        ];
+        
+        // 注册所有清理事件
+        cleanupEventTypes.forEach(({ element, eventType, options }) => {
+          // 添加事件监听
+          element.addEventListener(eventType, cleanup, options);
+          
+          // 保存事件引用到清理列表
+          cleanupListeners.push({
+            element,
+            eventType,
+            handler: cleanup,
+            options
+          });
         });
-        window.addEventListener("beforeunload", beforeUnloadHandler, {
-          once: true,
-        });
-
-        // 保存清理事件引用，用于完全销毁
-        cleanupListeners.push(
-          {
-            element: document,
-            eventType: "astro:before-swap",
-            handler: beforeSwapHandler,
-            options: { once: true },
-          },
-          {
-            element: window,
-            eventType: "beforeunload",
-            handler: beforeUnloadHandler,
-            options: { once: true },
-          },
-        );
       }
 
       // 初始化所有功能

@@ -1,0 +1,36 @@
+/* Swup页面过渡动画样式 */
+
+/* 基础过渡效果 */
+.transition-fade {
+  transition: opacity 0.3s ease;
+  animation-duration: 0.3s;
+  opacity: 1;
+}
+
+/* 文章内容过渡效果 */
+.swup-transition-article {
+  transition: opacity 0.3s ease;
+  animation-duration: 0.3s;
+  opacity: 1;
+}
+
+/* 直接为article-content元素设置动画 */
+#article-content {
+  transition: opacity 0.3s ease;
+  animation-duration: 0.3s;
+  opacity: 1;
+}
+
+/* 淡出状态 */
+html.is-animating .transition-fade,
+html.is-animating .swup-transition-article,
+html.is-animating #article-content {
+  opacity: 0;
+}
+
+/* 淡入状态 */
+html.is-changing .transition-fade,
+html.is-changing .swup-transition-article,
+html.is-changing #article-content {
+  opacity: 1;
+} 
