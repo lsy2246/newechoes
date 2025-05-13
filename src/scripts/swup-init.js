@@ -111,7 +111,12 @@ document.addEventListener('DOMContentLoaded', () => {
   swup.use(preloadPlugin);
   
   // 创建并注册Head插件，用于解决CSS丢失问题
-  const headPlugin = new SwupHeadPlugin();
+  const headPlugin = new SwupHeadPlugin({
+    persistTags: 'link[rel="stylesheet"], style, meta',  // 保留所有样式表和相关标签
+    persistAssets: true, // 保留已加载的资源
+    keepScrollOnReload: true, // 保持滚动位置
+    awaitAssets: true // 等待资源加载完成再显示页面
+  });
   swup.use(headPlugin);
   
   // 添加Scripts插件 - 确保页面转场后脚本能重新执行
