@@ -337,12 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setElementOpacity(activeElement, 0);
   });
   
-  // 4. 页面退出动画结束 - 只有在这里才会替换内容
-  swup.hooks.on('animation:out:end', () => {
-    // 什么也不做，等待内容替换
-  });
   
-  // 5. 内容替换中 - 确保加载动画可见
   swup.hooks.on('content:replace', () => {
     // 重新设置过渡样式，但不要立即隐藏加载动画
     setTimeout(() => {
@@ -350,17 +345,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 10);
   });
   
-  // 6. 页面进入动画开始 - 控制新内容的显示
+  // 5. 页面进入动画开始 - 控制新内容的显示
   swup.hooks.on('animation:in:start', () => {
     setTimeout(() => {
       // 获取并淡入当前活跃元素
       const activeElement = getActiveElement();
       setElementOpacity(activeElement, 1);
       
-      // 动画开始后等待一段时间再隐藏加载动画，确保不会在过渡期间显示
-      setTimeout(() => {
-        hideLoadingSpinner(spinner);
-      }, 100);
+      hideLoadingSpinner(spinner);
     }, 50);
   });
   
