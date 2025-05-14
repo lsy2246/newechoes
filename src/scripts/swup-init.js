@@ -96,29 +96,7 @@ function showLoadingSpinner(spinner, forceNew = false) {
 
 // 隐藏加载动画
 function hideLoadingSpinner(spinner) {
-  if (!spinner) return;
-  
-  if (!spinner.classList.contains('is-active')) {
-    return;
-  }
-  
-  // 检查元素是否在DOM中
-  if (!document.body.contains(spinner)) {
-    return;
-  }
-  
-  completeHideLoadingSpinner(spinner);
-}
-
-// 实际执行隐藏加载动画的函数
-function completeHideLoadingSpinner(spinner) {
-  if (!spinner) return;
-  
-  if (!document.body.contains(spinner)) {
-    return;
-  }
-  
-  if (!spinner.classList.contains('is-active')) {
+  if (!spinner || !document.body.contains(spinner) || !spinner.classList.contains('is-active')) {
     return;
   }
   
@@ -192,8 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 页面状态跟踪
   let isLoading = false;
-  let contentReplaced = false;
-  let spinnerCheckInterval = null;
+  let contentReady = false;
+  let animationInProgress = false;
   
   // 创建Swup实例
   const swup = new Swup({
@@ -218,27 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
       detail: { timestamp: Date.now() }
     });
     document.dispatchEvent(event);
-  }
-  
-  // 检查加载动画状态并根据需要重新显示
-  function checkAndRestoreSpinner() {
-    if (isLoading && !contentReplaced && spinner) {
-      // 如果正在加载但加载动画不可见，则重新显示
-      if (!spinner.classList.contains('is-active') || spinner.style.display === 'none') {
-        showLoadingSpinner(spinner, true);
-      }
-    } else if (!isLoading || contentReplaced) {
-      // 如果加载已完成但动画仍在显示，隐藏动画
-      if (spinner && spinner.classList.contains('is-active')) {
-        hideLoadingSpinner(spinner);
-      }
-      
-      // 如果有轮询，停止轮询
-      if (spinnerCheckInterval) {
-        clearInterval(spinnerCheckInterval);
-        spinnerCheckInterval = null;
-      }
-    }
   }
   
   // 添加预加载插件 - 代替原有的预加载功能
@@ -321,158 +278,20 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 初始化时设置
   setupTransition();
-  
-  // 监听willReplaceContent事件，确保加载动画在内容替换前可见
-  document.addEventListener('swup:willReplaceContent', () => {
-    if (isLoading && !contentReplaced && spinner) {
-      // 确保加载动画在内容替换过程中可见
-      if (!spinner.classList.contains('is-active')) {
-        showLoadingSpinner(spinner, true);
-      }
-    }
-  });
-  
-  // 注册从服务器获取内容事件 - 使用正确的钩子名称
-  swup.hooks.on('visit:start', () => {
-    isLoading = true;
-    contentReplaced = false;
-    
-    // 开始定期检查加载动画状态
-    if (spinnerCheckInterval) {
-      clearInterval(spinnerCheckInterval);
-    }
-    
-    spinnerCheckInterval = setInterval(() => {
-      checkAndRestoreSpinner();
-    }, 500); // 每500ms检查一次
-  });
-  
-  // 注册内容加载完成事件
-  swup.hooks.on('content:replace', () => {
-    contentReplaced = true;
-    
-    // 重新设置过渡样式
-    setTimeout(() => {
-      setupTransition();
-    }, 10);
-    
-    // 只有在完成内容替换后才隐藏加载动画
-    hideLoadingSpinner(spinner);
-    
-    // 停止轮询
-    if (spinnerCheckInterval) {
-      clearInterval(spinnerCheckInterval);
-      spinnerCheckInterval = null;
-    }
-  });
-  
-  // 页面加载完成事件
-  swup.hooks.on('page:view', () => {
-    isLoading = false;
-    
-    // 如果内容替换失败，确保隐藏加载动画
-    if (!contentReplaced) {
-      hideLoadingSpinner(spinner);
-    }
-    
-    // 停止轮询
-    if (spinnerCheckInterval) {
-      clearInterval(spinnerCheckInterval);
-      spinnerCheckInterval = null;
-    }
-  });
-  
-  // 加载失败处理
-  swup.hooks.on('fetch:error', (error) => {
-    isLoading = false;
-    
-    // 错误处理时确保隐藏加载动画
-    hideLoadingSpinner(spinner);
-    
-    // 停止轮询
-    if (spinnerCheckInterval) {
-      clearInterval(spinnerCheckInterval);
-      spinnerCheckInterval = null;
-    }
-    
-    // 可以在这里添加错误提示UI
-    alert('页面加载失败，请重试或检查网络连接。');
-  });
-  
-  // 监听动画开始和结束
-  swup.hooks.on('animation:out:start', () => {
-    // 发送页面切换事件
-    sendPageTransitionEvent();
-    
-    // 获取并淡出当前活跃元素
-    const activeElement = getActiveElement();
-    setElementOpacity(activeElement, 0);
-  });
-  
-  swup.hooks.on('animation:in:start', () => {
-    // 等待短暂延迟后恢复可见度
-    setTimeout(() => {
-      // 获取并淡入当前活跃元素
-      const activeElement = getActiveElement();
-      setElementOpacity(activeElement, 1);
-    }, 50); // 短暂延迟确保可以看到效果
-  });
-  
-  // 添加手动强制动画事件
-  document.addEventListener('swup:willReplaceContent', () => {
-    // 发送页面切换事件
-    sendPageTransitionEvent();
-    
-    // 获取并淡出当前活跃元素
-    const activeElement = getActiveElement();
-    setElementOpacity(activeElement, 0);
-  });
 
-  // 在页面内容替换后强制应用动画
-  document.addEventListener('swup:contentReplaced', () => {
-    // 获取活跃元素
-    const activeElement = getActiveElement();
-    if (!activeElement) return;
-    
-    // 先设置透明
-    setElementOpacity(activeElement, 0);
-    
-    // 重新应用适当的类
-    if (isArticlePage() && activeElement.id === 'article-content') {
-      activeElement.classList.add('swup-transition-article');
-      setElementTransition(activeElement);
-    } else if (!isArticlePage() && activeElement.tagName.toLowerCase() === 'main') {
-      activeElement.classList.add('transition-fade');
-      setElementTransition(activeElement);
-    }
-    
-    // 延迟后淡入
-    setTimeout(() => {
-      setElementOpacity(activeElement, 1);
-    }, 50);
-    
-    // 确保加载动画在内容加载完成后立即隐藏
-    if (spinner && spinner.classList.contains('is-active')) {
-      hideLoadingSpinner(spinner);
-    }
-  });
+  // ===== 重新优化生命周期钩子 =====
   
-  // 监听URL变化以更新动画行为
+  // 1. 访问开始 - 显示加载动画，准备页面退出
   swup.hooks.on('visit:start', (visit) => {
+    isLoading = true;
+    contentReady = false;
+    animationInProgress = true;
+    
     // 发送页面切换事件
     sendPageTransitionEvent();
     
-    // 确保先前的加载动画已隐藏
-    if (spinner.classList.contains('is-active')) {
-      completeHideLoadingSpinner(spinner);
-      // 短暂延迟后再显示新的加载动画
-      setTimeout(() => {
-        showLoadingSpinner(spinner, true);
-      }, 50);
-    } else {
-      // 直接显示加载动画
-      showLoadingSpinner(spinner);
-    }
+    // 显示加载动画
+    showLoadingSpinner(spinner);
     
     // 检查目标URL是否为文章相关页面
     const isTargetArticlePage = visit.to.url.includes('/articles') || visit.to.url.includes('/filtered');
@@ -496,11 +315,116 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
+  // 2. 内容已加载但尚未替换 - 设置内容状态
+  swup.hooks.on('page:load', (visit) => {
+    contentReady = true;
+    
+    // 如果快速加载，先检查动画是否完成
+    if (!animationInProgress) {
+      // 如果动画已经完成，允许加载动画淡出
+      setTimeout(() => {
+        hideLoadingSpinner(spinner);
+      }, 50);
+    }
+  });
+  
+  // 3. 页面退出动画开始 - 添加动画逻辑
+  swup.hooks.on('animation:out:start', () => {
+    animationInProgress = true;
+    
+    // 获取并淡出当前活跃元素
+    const activeElement = getActiveElement();
+    setElementOpacity(activeElement, 0);
+  });
+  
+  // 4. 页面退出动画结束 - 只有在这里才会替换内容
+  swup.hooks.on('animation:out:end', () => {
+    // 什么也不做，等待内容替换
+  });
+  
+  // 5. 内容替换中 - 确保加载动画可见
+  swup.hooks.on('content:replace', () => {
+    // 重新设置过渡样式，但不要立即隐藏加载动画
+    setTimeout(() => {
+      setupTransition();
+    }, 10);
+  });
+  
+  // 6. 页面进入动画开始 - 控制新内容的显示
+  swup.hooks.on('animation:in:start', () => {
+    setTimeout(() => {
+      // 获取并淡入当前活跃元素
+      const activeElement = getActiveElement();
+      setElementOpacity(activeElement, 1);
+      
+      // 动画开始后等待一段时间再隐藏加载动画，确保不会在过渡期间显示
+      setTimeout(() => {
+        hideLoadingSpinner(spinner);
+      }, 100);
+    }, 50);
+  });
+  
+  // 7. 页面进入动画结束 - 完成所有过渡
+  swup.hooks.on('animation:in:end', () => {
+    animationInProgress = false;
+    isLoading = false;
+    
+    // 确保隐藏加载动画
+    hideLoadingSpinner(spinner);
+  });
+  
+  // 8. 页面完全加载完成
+  swup.hooks.on('page:view', () => {
+    isLoading = false;
+    contentReady = false;
+    animationInProgress = false;
+    
+    // 最终确保隐藏加载动画
+    hideLoadingSpinner(spinner);
+  });
+  
+  // 加载失败处理
+  swup.hooks.on('fetch:error', (error) => {
+    isLoading = false;
+    contentReady = false;
+    animationInProgress = false;
+    hideLoadingSpinner(spinner);
+    
+    // 可以在这里添加错误提示UI
+    alert('页面加载失败，请重试或检查网络连接。');
+  });
+  
+  // 在页面内容替换后确保新内容动画正确显示
+  document.addEventListener('swup:contentReplaced', () => {
+    // 获取活跃元素
+    const activeElement = getActiveElement();
+    if (!activeElement) return;
+    
+    // 先设置透明
+    setElementOpacity(activeElement, 0);
+    
+    // 重新应用适当的类
+    if (isArticlePage() && activeElement.id === 'article-content') {
+      activeElement.classList.add('swup-transition-article');
+      setElementTransition(activeElement);
+    } else if (!isArticlePage() && activeElement.tagName.toLowerCase() === 'main') {
+      activeElement.classList.add('transition-fade');
+      setElementTransition(activeElement);
+    }
+    
+    // 延迟后淡入 - 但不要立刻隐藏加载动画
+    setTimeout(() => {
+      setElementOpacity(activeElement, 1);
+    }, 50);
+  });
+  
   // 监听Fragment插件是否成功应用
   document.addEventListener('swup:fragmentReplaced', () => {
     // 确保新内容有正确的过渡样式
     setTimeout(() => {
       setupTransition();
+      
+      hideLoadingSpinner(spinner);
     }, 10);
   });
 
@@ -509,17 +433,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 发送页面切换事件
     sendPageTransitionEvent();
     
-    // 清除轮询定时器
-    if (spinnerCheckInterval) {
-      clearInterval(spinnerCheckInterval);
-      spinnerCheckInterval = null;
-    }
-    
     if (swup) {
       swup.unuse(fragmentPlugin);
       swup.unuse(headPlugin);
       swup.unuse(preloadPlugin);
-      swup.unuse(scriptsPlugin); // 也需要卸载Scripts插件
+      swup.unuse(scriptsPlugin);
       swup.destroy();
     }
   };
