@@ -421,7 +421,7 @@ const tableOfContents = generateTableOfContents(headings);
           <div class="flex flex-wrap gap-2 mb-6">
             {article.data.tags.map((tag: string) => (
               <a
-                href={`/articles?tags=${tag}`}
+                href={`/filtered?tags=${tag}`}
                 class="text-xs bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 py-1 px-2 rounded hover:bg-primary-100 dark:hover:bg-primary-800/30"
                 data-astro-prefetch="hover"
               >
