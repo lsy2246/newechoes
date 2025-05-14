@@ -6,6 +6,11 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+default = []
+wee_alloc = ["dep:wee_alloc"]
+
+
 [dependencies]
 wasm-bindgen = { workspace = true }
 serde = { workspace = true }
@@ -17,3 +22,4 @@ js-sys = { workspace = true }
 kdtree = { workspace = true }
 console_error_panic_hook = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
+wee_alloc = { workspace = true, optional = true }

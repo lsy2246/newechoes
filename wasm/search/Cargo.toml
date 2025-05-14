@@ -7,6 +7,10 @@ description = "WebAssembly module for article search functionality"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+wee_alloc = ["dep:wee_alloc"]
+
 [dependencies]
 wasm-bindgen.workspace = true
 serde.workspace = true
@@ -18,8 +22,4 @@ console_error_panic_hook.workspace = true
 web-sys = { workspace = true, features = ["console", "Window", "Performance"] }
 regex.workspace = true
 utils-common = { path = "../utils-common" }
-
-# 优化WebAssembly二进制大小
-[profile.release]
-lto = true
-opt-level = "s" 
+wee_alloc = { workspace = true, optional = true }

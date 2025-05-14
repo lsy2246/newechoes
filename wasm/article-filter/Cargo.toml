@@ -7,6 +7,10 @@ description = "Filter for articles"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+wee_alloc = ["dep:wee_alloc"]
+
 [dependencies]
 wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }
@@ -20,3 +24,4 @@ flate2 = { workspace = true }
 once_cell = { workspace = true }
 web-sys = { version = "0.3", features = ["console"] }
 utils-common = { path = "../utils-common" }
+wee_alloc = { workspace = true, optional = true }
