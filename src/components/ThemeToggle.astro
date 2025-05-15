@@ -494,28 +494,7 @@ import "../styles/theme-toggle.css";
       { element: document, eventType: 'astro:before-swap', handler: resetThemeToggleState },
       { element: document, eventType: 'astro:after-swap', handler: resetThemeToggleState }
     );
-    
-    // 全局点击事件拦截器
-    const globalClickHandler = (e) => {
-      if (!e || !e.target) return;
-      
-      const button = e.target.closest('#theme-toggle-button');
-      
-      if (button && (isTransitioning(button) || !canToggleTheme())) {
-        e.stopPropagation();
-        e.preventDefault();
-      }
-    };
-    
-    // 在document级别添加事件捕获
-    document.addEventListener('click', globalClickHandler, { capture: true });
-    allListeners.push({ 
-      element: document, 
-      eventType: 'click', 
-      handler: globalClickHandler, 
-      options: { capture: true } 
-    });
-    
+
     // 获取系统首选主题
     const getSystemTheme = () => {
       return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";

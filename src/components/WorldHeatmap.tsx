@@ -249,11 +249,109 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     }
   }, [wasmModule, visitedPlaces, mapData.worldData, mapData.chinaData]);
 
+  // 添加对页面转换事件的监听
+  useEffect(() => {
+    // 统一存储所有事件监听器
+    const allListeners: Array<{
+      element: EventTarget;
+      eventType: string;
+      handler: EventListener;
+      options?: boolean | AddEventListenerOptions;
+    }> = [];
+    
+    // 添加事件监听器并记录
+    const addListener = (
+      element: EventTarget,
+      eventType: string,
+      handler: EventListener,
+      options?: boolean | AddEventListenerOptions
+    ) => {
+      if (!element) {
+        console.warn("[WorldHeatmap] 尝试为不存在的元素添加事件");
+        return null;
+      }
+      
+      element.addEventListener(eventType, handler, options);
+      allListeners.push({ element, eventType, handler, options });
+      return handler;
+    };
+    
+    // 监听页面转换事件的处理函数
+    const handlePageTransition = () => {
+      // 1. 清理所有注册的事件监听器
+      allListeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          console.error(`[WorldHeatmap] 清理事件 ${eventType} 出错:`, err);
+        }
+      });
+      
+      // 2. 清理Three.js资源
+      if (sceneRef.current) {
+        // 取消动画帧
+        if (sceneRef.current.animationId !== null) {
+          cancelAnimationFrame(sceneRef.current.animationId);
+          sceneRef.current.animationId = null;
+        }
+        
+        try {
+          // 优先清理Three.js对象
+          if (sceneRef.current.scene) {
+            sceneRef.current.scene.clear();
+          }
+          
+          // 清理控制器
+          if (sceneRef.current.controls) {
+            sceneRef.current.controls.dispose();
+          }
+          
+          // 移除标签渲染器
+          if (sceneRef.current.labelRenderer) {
+            if (sceneRef.current.labelRenderer.domElement.parentNode) {
+              sceneRef.current.labelRenderer.domElement.remove();
+            }
+          }
+          
+          // 最后处理WebGL渲染器
+          sceneRef.current.renderer.dispose();
+          sceneRef.current.renderer.forceContextLoss();
+          if (sceneRef.current.renderer.domElement.parentNode) {
+            sceneRef.current.renderer.domElement.remove();
+          }
+        } catch (err) {
+          console.error("[WorldHeatmap] 清理Three.js资源错误:", err);
+        }
+      }
+      
+      // 强制将场景引用置为null，避免后续访问
+      sceneRef.current = null;
+    };
+    
+    // 添加页面转换事件监听
+    addListener(document, "page-transition", handlePageTransition);
+    addListener(document, "astro:before-swap", handlePageTransition);
+    addListener(window, "beforeunload", handlePageTransition);
+    
+    // 清理函数 - 这个通常不会执行，因为页面转换时组件会被销毁
+    // 但为了完整性，我们仍然添加此清理逻辑
+    return () => {
+      allListeners.forEach(({ element, eventType, handler, options }) => {
+        try {
+          element.removeEventListener(eventType, handler, options);
+        } catch (err) {
+          console.error(`[WorldHeatmap] 清理事件 ${eventType} 出错:`, err);
+        }
+      });
+    };
+  }, []);
+  
+  // 主要Three.js初始化和清理
   useEffect(() => {
     if (!containerRef.current || !wasmModule || !wasmReady || !geoProcessor) {
       return;
     }
-
+    
     // 清理之前的场景
     if (sceneRef.current) {
       if (sceneRef.current.animationId !== null) {
@@ -286,13 +384,13 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         // 根据当前模式设置颜色
         const getColors = () => {
           return {
-            earthBase: isDarkMode ? "#111827" : "#2a4d69", // 深色模式保持深色，浅色模式改为更柔和的蓝色
-            visited: isDarkMode ? "#065f46" : "#34d399", // 访问过的颜色更鲜明
-            border: isDarkMode ? "#6b7280" : "#e0e0e0", // 边界颜色调整为更亮的浅灰色
-            visitedBorder: isDarkMode ? "#10b981" : "#0d9488", // 访问过的边界颜色
-            chinaBorder: isDarkMode ? "#f87171" : "#ef4444", // 中国边界使用红色
-            text: isDarkMode ? "#f9fafb" : "#1f2937", // 文本颜色对比更强
-            highlight: isDarkMode ? "#fcd34d" : "#60a5fa", // 高亮颜色改为浅蓝色，更配合背景
+            earthBase: isDarkMode ? "#111827" : "#2a4d69", 
+            visited: isDarkMode ? "#065f46" : "#34d399", 
+            border: isDarkMode ? "#6b7280" : "#e0e0e0", 
+            visitedBorder: isDarkMode ? "#10b981" : "#0d9488", 
+            chinaBorder: isDarkMode ? "#f87171" : "#ef4444", 
+            text: isDarkMode ? "#f9fafb" : "#1f2937", 
+            highlight: isDarkMode ? "#fcd34d" : "#60a5fa", 
           };
         };
     
@@ -321,7 +419,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         const earthMaterial = createMaterial(
           colors.earthBase,
           FrontSide,
-          isDarkMode ? 0.9 : 0.9, // 调整明亮模式下的不透明度
+          isDarkMode ? 0.9 : 0.9, 
         );
         const earth = new Mesh(earthGeometry, earthMaterial);
         earth.renderOrder = 1;
@@ -330,13 +428,13 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         // 添加光源
         const ambientLight = new AmbientLight(
           0xffffff,
-          isDarkMode ? 0.7 : 0.85, // 微调明亮模式下的光照强度
+          isDarkMode ? 0.7 : 0.85, 
         );
         scene.add(ambientLight);
     
         const directionalLight = new DirectionalLight(
-          isDarkMode ? 0xeeeeff : 0xffffff, // 恢复明亮模式下的纯白光源
-          isDarkMode ? 0.6 : 0.65, // 微调明亮模式下的定向光强度
+          isDarkMode ? 0xeeeeff : 0xffffff, 
+          isDarkMode ? 0.6 : 0.65, 
         );
         directionalLight.position.set(5, 3, 5);
         scene.add(directionalLight);
@@ -381,10 +479,10 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         // 添加控制器
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.25; // 大幅增加阻尼因子，从0.1到0.25提高稳定性
-        controls.rotateSpeed = 0.2; // 降低旋转速度，提高稳定性
+        controls.dampingFactor = 0.25; 
+        controls.rotateSpeed = 0.2; 
         controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.3; // 降低自动旋转速度
+        controls.autoRotateSpeed = 0.3; 
         controls.minDistance = 5;
         controls.maxDistance = 15;
     
@@ -446,9 +544,9 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
               
               const lineMaterial = new LineBasicMaterial({
                 color: borderColor,
-                linewidth: is_visited ? 1.8 : 1.2, // 微调线条宽度，保持已访问区域更明显
+                linewidth: is_visited ? 1.8 : 1.2, 
                 transparent: true,
-                opacity: is_visited ? 0.95 : 0.85, // 调整不透明度，使边界明显但不突兀
+                opacity: is_visited ? 0.95 : 0.85, 
               });
     
               const line = new Line(lineGeometry, lineMaterial);
@@ -836,32 +934,77 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       mounted = false;
       
       // 执行所有保存的清理函数
-      cleanupFunctions.forEach(fn => fn());
+      cleanupFunctions.forEach((fn, index) => {
+        try {
+          fn();
+        } catch (err) {
+          console.error(`[WorldHeatmap] 清理函数执行错误:`, err);
+        }
+      });
       
-      // 清理资源和事件监听器
+      // 清理资源和事件监听器 - 改进错误处理
       if (sceneRef.current) {
-        // 取消动画帧
-        if (sceneRef.current.animationId !== null) {
-          cancelAnimationFrame(sceneRef.current.animationId);
+        // 1. 取消动画帧 - 单独错误处理
+        try {
+          if (sceneRef.current.animationId !== null) {
+            cancelAnimationFrame(sceneRef.current.animationId);
+            sceneRef.current.animationId = null;
+          }
+        } catch (err) {
+          console.error("[WorldHeatmap] 清理动画帧错误:", err);
         }
 
-        // 处理渲染器的处理
-        sceneRef.current.renderer.dispose();
-        sceneRef.current.renderer.forceContextLoss();
-        sceneRef.current.renderer.domElement.remove();
-
-        // 移除标签渲染器
-        if (sceneRef.current.labelRenderer) {
-          sceneRef.current.labelRenderer.domElement.remove();
+        // 2. 清理渲染器 - 单独错误处理
+        try {
+          if (sceneRef.current.renderer) {
+            sceneRef.current.renderer.dispose();
+            sceneRef.current.renderer.forceContextLoss();
+            if (sceneRef.current.renderer.domElement && sceneRef.current.renderer.domElement.parentNode) {
+              sceneRef.current.renderer.domElement.remove();
+            }
+          }
+        } catch (err) {
+          console.error("[WorldHeatmap] 清理渲染器错误:", err);
         }
 
-        // 释放控制器
-        if (sceneRef.current.controls) {
-          sceneRef.current.controls.dispose();
+        // 3. 移除标签渲染器 - 单独错误处理
+        try {
+          if (sceneRef.current.labelRenderer) {
+            if (sceneRef.current.labelRenderer.domElement && sceneRef.current.labelRenderer.domElement.parentNode) {
+              sceneRef.current.labelRenderer.domElement.remove();
+            }
+          }
+        } catch (err) {
+          console.error("[WorldHeatmap] 清理标签渲染器错误:", err);
+        }
+
+        // 4. 释放控制器 - 单独错误处理
+        try {
+          if (sceneRef.current.controls) {
+            sceneRef.current.controls.dispose();
+          }
+        } catch (err) {
+          console.error("[WorldHeatmap] 清理控制器错误:", err);
+        }
+        
+        // 5. 清理场景 - 单独错误处理
+        try {
+          if (sceneRef.current.scene) {
+            sceneRef.current.scene.clear();
+          }
+        } catch (err) {
+          console.error("[WorldHeatmap] 清理场景错误:", err);
+        }
+        
+        // 6. 最后将引用置为null
+        try {
+          sceneRef.current = null;
+        } catch (err) {
+          console.error("[WorldHeatmap] 重置场景引用错误:", err);
         }
       }
     };
-  }, [visitedPlaces, theme, wasmReady, geoProcessor]); // 添加geoProcessor依赖
+  }, [visitedPlaces, theme, wasmReady, geoProcessor]);
 
   return (
     <div className="relative">
