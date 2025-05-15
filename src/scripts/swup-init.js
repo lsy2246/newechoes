@@ -116,6 +116,11 @@ function isArticlePage() {
   return path.includes('/articles') || path.includes('/filtered');
 }
 
+// 检查DOM中是否存在指定的容器
+function containerExists(selector) {
+  return document.querySelector(selector) !== null;
+}
+
 // 为元素设置过渡状态
 function setElementTransition(element) {
   if (!element) return;
@@ -173,16 +178,48 @@ document.addEventListener('DOMContentLoaded', () => {
   let contentReady = false;
   let animationInProgress = false;
   
+  
+  // 根据当前页面动态确定容器配置
+  const containers = ['main']; // 主容器始终存在
+  
+  // 只有当文章内容容器存在时才添加
+  if (containerExists('#article-content')) {
+    containers.push('#article-content');
+  }
+  
   // 创建Swup实例
   const swup = new Swup({
     // Swup的基本配置
     animationSelector: '[class*="transition-"], .swup-transition-article, #article-content',
     cache: true,
-    containers: ['main'],
+    containers: containers, // 使用动态容器配置
     animationScope: 'html', // 确保动画状态类添加到html元素
     linkSelector: 'a[href^="/"]:not([data-no-swup]), a[href^="' + window.location.origin + '"]:not([data-no-swup])',
-    skipPopStateHandling: (event) => {
-      return event.state && event.state.source === 'swup';
+    // 使用默认的skipPopStateHandling设置，只处理由swup创建的历史记录
+    skipPopStateHandling: (event) => event.state?.source !== 'swup',
+    // 修复resolveUrl实现，确保返回URL字符串而不是对象
+    resolveUrl: function(url) {
+      // 直接返回URL字符串
+      return url;
+    },
+    // 增加自定义容器解析，解决容器不匹配的问题
+    resolveContainers: async function(visit) {
+      // 根据URL路径动态决定要使用哪些容器
+      const isFromArticlePage = visit?.from?.url.includes('/articles') || visit?.from?.url.includes('/filtered');
+      const isToArticlePage = visit?.to?.url.includes('/articles') || visit?.to?.url.includes('/filtered');
+      
+      // 当从文章页到非文章页，或从非文章页到文章页时
+      if (isFromArticlePage !== isToArticlePage) {
+        return ['main'];
+      }
+      
+      // 对于文章页面之间的导航，使用两个容器
+      if (isFromArticlePage && isToArticlePage) {
+        return ['main', '#article-content'];
+      }
+      
+      // 默认情况：使用main容器
+      return ['main'];
     },
     plugins: [] // 手动添加插件以控制顺序
   });
@@ -240,9 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   swup.use(scriptsPlugin);
   
-  // 创建Fragment插件 - 简化规则避免匹配问题
+  // 创建Fragment插件 - 只在需要的页面使用
   const fragmentPlugin = new SwupFragmentPlugin({
     debug: false, // 关闭调试模式
+    // 修改规则，增加更细致的配置
     rules: [
       {
         name: 'article-pages',
@@ -250,16 +288,58 @@ document.addEventListener('DOMContentLoaded', () => {
         to: ['/articles', '/filtered'],
         containers: ['#article-content']
       }
-    ]
+    ],
+    // 默认情况下忽略URL片段，只使用路径部分
+    considerFragment: false
   });
   
-  // 添加Fragment插件到Swup
+  // 修改Fragment插件的加载逻辑 - 始终加载，但根据页面类型动态启用/禁用
   swup.use(fragmentPlugin);
   
   // 初始化后手动扫描并预加载带有data-swup-preload属性的链接
-  setTimeout(() => {
-    swup.preloadLinks();
-  }, 1000);
+  const preloadLinks = document.querySelectorAll('[data-swup-preload]');
+  if (preloadLinks.length > 0) {
+    preloadLinks.forEach(link => {
+      // 检查链接是否符合预加载条件
+      if (link.tagName.toLowerCase() === 'a' && link.href) {
+        // 调用预加载插件的方法
+        preloadPlugin.preloadPage(link.href);
+      }
+    });
+  }
+  
+  // 初始化历史状态 - 确保第一个页面正确记录
+  if (window.history && window.history.replaceState) {
+    // 获取当前页面的关键信息
+    const pageData = {
+      url: window.location.pathname + window.location.search,
+      title: document.title,
+      scroll: {
+        x: window.scrollX,
+        y: window.scrollY
+      },
+      timestamp: Date.now()
+    };
+    
+    // 记录初始状态，确保返回时能正确恢复
+    try {
+      const currentState = window.history.state || {};
+      // 保留所有现有状态，添加swup需要的内容
+      const newState = {
+        ...currentState,
+        url: pageData.url,
+        title: pageData.title,
+        scroll: pageData.scroll,
+        source: 'swup', // 修改为source标记，以符合默认skipPopStateHandling
+        id: Math.random().toString(36).substring(2, 11) // 生成唯一ID
+      };
+      
+      // 使用replaceState不增加历史记录
+      window.history.replaceState(newState, pageData.title, pageData.url);
+    } catch (e) {
+      console.error('Failed to initialize history state:', e);
+    }
+  }
   
   // 重新设置过渡元素
   function setupTransition() {
@@ -279,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 初始化时设置
   setupTransition();
 
-  // ===== 重新优化生命周期钩子 =====
+  // ===== 生命周期钩子 =====
   
   // 1. 访问开始 - 显示加载动画，准备页面退出
   swup.hooks.on('visit:start', (visit) => {
@@ -318,6 +398,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. 内容已加载但尚未替换 - 设置内容状态
   swup.hooks.on('page:load', (visit) => {
     contentReady = true;
+    // 如果是载入文章页面但Fragment插件未加载，则加载它
+    if ((visit.to.url.includes('/articles') || visit.to.url.includes('/filtered')) && 
+        !swup.findPlugin('fragment')) {
+      swup.use(fragmentPlugin);
+    }
     
     // 如果快速加载，先检查动画是否完成
     if (!animationInProgress) {
@@ -336,7 +421,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeElement = getActiveElement();
     setElementOpacity(activeElement, 0);
   });
-  
   
   swup.hooks.on('content:replace', () => {
     // 重新设置过渡样式，但不要立即隐藏加载动画
@@ -382,9 +466,59 @@ document.addEventListener('DOMContentLoaded', () => {
     animationInProgress = false;
     hideLoadingSpinner(spinner);
     
-    // 可以在这里添加错误提示UI
-    alert('页面加载失败，请重试或检查网络连接。');
+    console.error('Fetch error:', error);
+    
+    // 在严重错误时回退到页面刷新
+    try {
+      const targetUrl = error?.visit?.to?.url || window.location.pathname;
+      window.location.href = targetUrl;
+    } catch (e) {
+      // 如果获取目标URL失败，刷新当前页面
+      window.location.reload();
+    }
   });
+  
+  // 处理容器不匹配错误
+  const originalErrorHandler = window.console.error;
+  window.console.error = function(...args) {
+    // 调用原始错误处理器
+    originalErrorHandler.apply(this, args);
+    
+    // 检查是否是容器不匹配错误
+    if (
+      args.length > 0 && 
+      typeof args[0] === 'string' && 
+      (args[0].includes('Container missing') || args[0].includes('Container mismatch'))
+    ) {
+      // 尝试恢复
+      try {
+        // 隐藏加载动画
+        hideLoadingSpinner(spinner);
+        
+        // 重置状态
+        isLoading = false;
+        contentReady = false;
+        animationInProgress = false;
+        
+        // 检查是否可以使用备用容器
+        const mainContainer = document.querySelector('main');
+        if (mainContainer) {
+          // 强制使用main容器
+          swup.options.containers = ['main'];
+          
+          // 手动为main容器添加过渡状态
+          mainContainer.classList.add('transition-fade');
+          setElementTransition(mainContainer);
+          setElementOpacity(mainContainer, 1);
+        }
+        
+        // 发送页面转换事件
+        sendPageTransitionEvent();
+      } catch (e) {
+        console.error('Recovery failed:', e);
+      }
+    }
+  };
   
   // 在页面内容替换后确保新内容动画正确显示
   document.addEventListener('swup:contentReplaced', () => {
@@ -426,7 +560,10 @@ document.addEventListener('DOMContentLoaded', () => {
     sendPageTransitionEvent();
     
     if (swup) {
-      swup.unuse(fragmentPlugin);
+      // 移除所有已使用的插件
+      if (swup.findPlugin('fragment')) {
+        swup.unuse(fragmentPlugin);
+      }
       swup.unuse(headPlugin);
       swup.unuse(preloadPlugin);
       swup.unuse(scriptsPlugin);

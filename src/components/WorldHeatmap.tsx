@@ -19,22 +19,6 @@ import {
 } from "three";
 import type { Side } from "three";
 
-// 为requestIdleCallback添加类型声明
-interface RequestIdleCallbackOptions {
-  timeout: number;
-}
-
-interface Window {
-  requestIdleCallback?: (
-    callback: (deadline: {
-      didTimeout: boolean;
-      timeRemaining: () => number;
-    }) => void,
-    opts?: RequestIdleCallbackOptions
-  ) => number;
-  cancelIdleCallback?: (handle: number) => void;
-}
-
 // 需要懒加载的模块
 const loadControlsAndRenderers = () => Promise.all([
   import("three/examples/jsm/controls/OrbitControls.js"),

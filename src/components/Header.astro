@@ -347,7 +347,7 @@ const navSelectorClassName = "mr-4";
   // 内部状态管理
   const state = {
     isCleaningUp: false,
-    lastPathLogged: '',
+    lastActivePath: '',
     originalPushState: window.history.pushState,
     originalReplaceState: window.history.replaceState
   };
@@ -361,7 +361,7 @@ const navSelectorClassName = "mr-4";
   // 添加事件监听器并记录，方便后续统一清理
   function addListener(element, eventType, handler, options) {
     if (!element) {
-      console.warn(`导航脚本尝试为不存在的元素添加事件:`, eventType);
+      console.warn(`导航元素不存在`);
       return null;
     }
 
@@ -381,12 +381,13 @@ const navSelectorClassName = "mr-4";
     if (state.isCleaningUp) return;
     
     const currentPath = getCurrentPath();
-    if (currentPath !== state.lastPathLogged) {
+    
+    if (currentPath !== state.lastActivePath) {
       // 主动调用初始化和更新高亮
       initActiveState();
-      updateHighlights(true);
+      updateHighlights(false);
       
-      state.lastPathLogged = currentPath;
+      state.lastActivePath = currentPath;
     }
   }
   
@@ -462,7 +463,10 @@ const navSelectorClassName = "mr-4";
     const primaryHighlight = document.getElementById('nav-primary-highlight');
     const secondaryHighlight = document.getElementById('nav-secondary-highlight');
     
-    if (!primaryHighlight || !secondaryHighlight) return null;
+    if (!primaryHighlight || !secondaryHighlight) {
+      console.warn(`导航高亮元素未找到`);
+      return null;
+    }
     
     // 获取标准高度
     const getStandardHeight = () => {
@@ -709,6 +713,17 @@ const navSelectorClassName = "mr-4";
         toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
         toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
       }
+      
+      // 处理子菜单状态
+      const menuItems = group.querySelector('.nav-group-items');
+      if (menuItems) {
+        const wasVisible = menuItems.classList.contains('menu-visible');
+        
+        if (wasVisible) {
+          menuItems.classList.remove('menu-visible');
+          menuItems.classList.add('hidden');
+        }
+      }
     });
     
     // 标记变量，用于跟踪是否找到匹配的导航项
@@ -716,6 +731,7 @@ const navSelectorClassName = "mr-4";
     
     // 先检查子菜单项
     const subItems = document.querySelectorAll('.nav-subitem');
+    
     for (const subItem of subItems) {
       const href = subItem.getAttribute('href');
       if (!href) continue;
@@ -757,6 +773,7 @@ const navSelectorClassName = "mr-4";
     // 如果没找到匹配的子菜单项，检查主菜单项
     if (!foundMatch) {
       const items = document.querySelectorAll('.nav-item');
+      
       for (const item of items) {
         const href = item.getAttribute('href');
         if (!href) continue;
@@ -775,11 +792,11 @@ const navSelectorClassName = "mr-4";
     
     // 如果仍然没找到匹配项，记录警告
     if (!foundMatch) {
-      console.warn(`导航: 找不到与当前路径匹配的导航项: ${currentPath}`);
+      console.warn(`找不到匹配当前路径的导航项: ${currentPath}`);
     }
     
     // 计算正确高亮位置
-    updateHighlights(true);
+    updateHighlights(false);
   };
   
   // DOM加载完成后执行初始化
@@ -795,7 +812,7 @@ const navSelectorClassName = "mr-4";
   // 主要设置函数
   function setupNavigation() {
     // 初始化路径记录
-    state.lastPathLogged = getCurrentPath();
+    state.lastActivePath = getCurrentPath();
     
     // 设置桌面导航
     setupNavSelector();
@@ -838,6 +855,7 @@ const navSelectorClassName = "mr-4";
       if (state.isCleaningUp) {
         return state.originalPushState.apply(this, arguments);
       }
+      
       state.originalPushState.apply(this, arguments);
       handlePathChange();
     };
@@ -847,6 +865,7 @@ const navSelectorClassName = "mr-4";
       if (state.isCleaningUp) {
         return state.originalReplaceState.apply(this, arguments);
       }
+      
       state.originalReplaceState.apply(this, arguments);
       handlePathChange();
     };
@@ -865,7 +884,7 @@ const navSelectorClassName = "mr-4";
     const navSubItems = document.querySelectorAll('.nav-subitem');
     
     if (!primaryHighlight || !secondaryHighlight) {
-      console.warn(`导航脚本未找到高亮元素，导航功能可能不完整`);
+      console.warn(`导航高亮元素未找到`);
     }
     
     const activeClass = "font-medium";
@@ -1066,6 +1085,7 @@ const navSelectorClassName = "mr-4";
     function toggleNavGroup(groupId, forceState = null) {
       const targetGroup = document.querySelector(`.nav-group[data-group-id="${groupId}"]`);
       if (!targetGroup) {
+        console.error(`导航组未找到: ${groupId}`);
         return;
       }
       
@@ -1073,6 +1093,7 @@ const navSelectorClassName = "mr-4";
       const toggle = targetGroup.querySelector('.nav-group-toggle');
       
       if (!items || !toggle) {
+        console.error(`导航组元素未找到: ${groupId}`);
         return;
       }
       
@@ -1129,7 +1150,7 @@ const navSelectorClassName = "mr-4";
           
           // 给DOM渲染一些时间，然后更新高亮
           setTimeout(() => {
-            updateHighlights(true);
+            updateHighlights(false);
           }, 50);
         }, duration);
       } 
@@ -1172,7 +1193,7 @@ const navSelectorClassName = "mr-4";
           
           // 当菜单展开后更新高亮背景
           setTimeout(() => {
-            updateHighlights(true);
+            updateHighlights(false);
           }, 50);
         });
         
@@ -1223,7 +1244,7 @@ const navSelectorClassName = "mr-4";
           }
           
           // 更新高亮
-          updateHighlights(true);
+          updateHighlights(false);
         }
       }
     }
@@ -1239,8 +1260,6 @@ const navSelectorClassName = "mr-4";
         
         // 设置高亮
         setActiveItem(itemId);
-        
-
       });
     });
     
@@ -1266,8 +1285,6 @@ const navSelectorClassName = "mr-4";
         
         // 设置高亮
         setActiveSubItem(subItemId);
-        
-
       });
     });
     
@@ -1289,7 +1306,7 @@ const navSelectorClassName = "mr-4";
         // 再次调用初始化
         initActiveState();
         // 确保高亮背景位置正确
-        updateHighlights(true);
+        updateHighlights(false);
       });
     }
     
@@ -1297,28 +1314,48 @@ const navSelectorClassName = "mr-4";
     addListener(document, 'astro:after-swap', () => {
       setTimeout(() => {
         initActiveState();
-        updateHighlights(true);
+        updateHighlights(false);
       }, 50);
     });
     
     // 添加Astro View Transitions事件监听
     addListener(document, 'astro:page-load', () => {
       setTimeout(initActiveState, 50);
-      updateHighlights(true);
+      updateHighlights(false);
     });
     
     // 添加popstate事件监听
-    addListener(window, 'popstate', () => {
+    addListener(window, 'popstate', (e) => {
       setTimeout(() => {
         initActiveState();
-        updateHighlights(true);
+        updateHighlights(false);
+        
+        // 修复：确保激活的菜单组的子菜单是可见的
+        const activeGroupsAfter = document.querySelectorAll('.nav-group.active');
+        activeGroupsAfter.forEach(group => {
+          const groupId = group.dataset.groupId;
+          const items = group.querySelector('.nav-group-items');
+          
+          if (items && !items.classList.contains('menu-visible')) {
+            // 移除隐藏状态并添加可见状态
+            items.classList.remove('hidden', 'menu-hidden');
+            items.classList.add('menu-visible');
+            
+            // 确保切换按钮也具有正确的状态
+            const toggle = group.querySelector('.nav-group-toggle');
+            if (toggle) {
+              toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
+              toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            }
+          }
+        });
       }, 50);
     });
     
     
     // 窗口大小变化时重新计算高亮位置
     addListener(window, 'resize', () => {
-      updateHighlights(true);
+      updateHighlights(false);
     });
   }
   
@@ -1332,7 +1369,7 @@ const navSelectorClassName = "mr-4";
     const menuCloseIcon = document.getElementById('menu-close-icon');
     
     if (!mobileMenuButton || !mobileMenu) {
-      console.warn(`导航脚本未找到移动端菜单组件`);
+      console.warn(`移动端菜单组件未找到`);
       return;
     }
     
