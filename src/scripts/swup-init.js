@@ -308,39 +308,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // 初始化历史状态 - 确保第一个页面正确记录
-  if (window.history && window.history.replaceState) {
-    // 获取当前页面的关键信息
-    const pageData = {
-      url: window.location.pathname + window.location.search,
-      title: document.title,
-      scroll: {
-        x: window.scrollX,
-        y: window.scrollY
-      },
-      timestamp: Date.now()
-    };
-    
-    // 记录初始状态，确保返回时能正确恢复
-    try {
-      const currentState = window.history.state || {};
-      // 保留所有现有状态，添加swup需要的内容
-      const newState = {
-        ...currentState,
-        url: pageData.url,
-        title: pageData.title,
-        scroll: pageData.scroll,
-        source: 'swup', // 修改为source标记，以符合默认skipPopStateHandling
-        id: Math.random().toString(36).substring(2, 11) // 生成唯一ID
-      };
-      
-      // 使用replaceState不增加历史记录
-      window.history.replaceState(newState, pageData.title, pageData.url);
-    } catch (e) {
-      console.error('Failed to initialize history state:', e);
-    }
-  }
-  
   // 重新设置过渡元素
   function setupTransition() {
     // 应用过渡效果

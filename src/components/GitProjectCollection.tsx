@@ -230,27 +230,47 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
   };
 
   const getLanguageColor = (language: string) => {
-    const colors: Record<string, string> = {
-      JavaScript: 'bg-yellow-300',
-      TypeScript: 'bg-blue-400',
-      Python: 'bg-blue-600',
-      Java: 'bg-red-500',
-      Go: 'bg-blue-300',
-      Rust: 'bg-orange-600',
-      C: 'bg-gray-500',
-      'C++': 'bg-pink-500',
-      'C#': 'bg-green-500',
-      PHP: 'bg-purple-500',
-      Ruby: 'bg-red-600',
-      Swift: 'bg-orange-500',
-      Kotlin: 'bg-purple-400',
-      Dart: 'bg-blue-500',
-      HTML: 'bg-orange-400',
-      CSS: 'bg-blue-400',
-      Shell: 'bg-green-600',
+    // 确保语言名不为空
+    if (!language || language.trim() === '') {
+      return '#94a3b8'; // 默认灰色
+    }
+
+    // 哈希函数 - 将字符串转换为数字
+    const hashCode = (str: string) => {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        // 字符的Unicode值乘以位置和一个素数
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash; // 转换为32位整数
+      }
+      return Math.abs(hash);
     };
 
-    return colors[language] || 'bg-gray-400';
+    // 从预定义的颜色数组中选择颜色
+    const colors = [
+      '#ef4444', // red
+      '#f97316', // orange
+      '#f59e0b', // amber
+      '#eab308', // yellow
+      '#84cc16', // lime
+      '#22c55e', // green
+      '#10b981', // emerald
+      '#14b8a6', // teal
+      '#06b6d4', // cyan
+      '#0ea5e9', // blue
+      '#6366f1', // indigo
+      '#8b5cf6', // violet
+      '#a855f7', // purple
+      '#d946ef', // fuchsia
+      '#ec4899', // pink
+      '#f43f5e'  // rose
+    ];
+    
+    // 基于语言名生成的哈希值选择颜色
+    const hash = hashCode(language);
+    const colorIndex = hash % colors.length;
+    
+    return colors[colorIndex];
   };
 
   const breakpointColumnsObj = {
@@ -367,7 +387,15 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
                       <div className="flex flex-wrap items-center text-xs gap-4">
                         {project.language && (
                           <div className="flex items-center">
-                            <span className={`w-3 h-3 rounded-full mr-1.5 ${getLanguageColor(project.language)}`}></span>
+                            <span 
+                              style={{ 
+                                backgroundColor: getLanguageColor(project.language),
+                                width: '0.75rem',
+                                height: '0.75rem',
+                                borderRadius: '9999px',
+                                marginRight: '0.375rem'
+                              }}
+                            ></span>
                             <span className="text-gray-600 dark:text-gray-400">{project.language}</span>
                           </div>
                         )}
