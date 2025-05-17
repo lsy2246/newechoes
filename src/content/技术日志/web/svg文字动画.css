@@ -1,0 +1,47 @@
+.animated-text path {
+    fill: transparent;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-dasharray: var(--path-length);
+    stroke-dashoffset: var(--path-length);
+    animation: logo-anim 10s ease-in-out infinite;
+  }
+  
+  @keyframes logo-anim {
+    0% {
+      stroke-dashoffset: var(--path-length);
+      fill: transparent;
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+      stroke-dashoffset: var(--path-length);
+    }
+    50% {
+      stroke-dashoffset: 0;
+      fill: transparent;
+    }
+    60% {
+      stroke-dashoffset: 0;
+      fill: currentColor;
+    }
+    80% {
+      stroke-dashoffset: 0;
+      fill: currentColor;
+    }
+    90% {
+      stroke-dashoffset: var(--path-length);
+      fill: transparent;
+    }
+    100% {
+      stroke-dashoffset: var(--path-length);
+      fill: transparent;
+      opacity: 0;
+    }
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .animated-text path {
+      stroke: currentColor;
+    }
+  }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ReactMasonryCss from 'react-masonry-css';
 
 interface DoubanItem {
@@ -34,6 +34,26 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
   // 使用 ref 避免竞态条件
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
+
+  // 标题文本
+  const titleText = useMemo(() => 
+    type === 'movie' ? '观影记录' : '读书记录', 
+  [type]);
+
+  // 加载动画组件
+  const LoadingSpinner = useCallback(() => (
+    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  ), []);
+
+  // 公共标题组件
+  const Title = useCallback(() => (
+    <h2 className="text-2xl font-bold mb-6 text-primary-700 dark:text-primary-400">
+      {titleText}
+    </h2>
+  ), [titleText]);
 
   const fetchData = useCallback(async (start = 0) => {
     // 如果已经有一个请求在进行中，取消它
@@ -127,10 +147,6 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
       current: page
     }));
     
-    // 清空当前项目，显示加载状态
-    setItems([]);
-    setLoading(true);
-    
     // 获取新页面的数据
     fetchData(start);
   }, [fetchData, isPageChanging]);
@@ -158,29 +174,31 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
     1100: 2,
     700: 1
   };
+  
+  // 渲染内容的容器
+  const Container = useCallback(({ children }: { children: React.ReactNode }) => (
+    <div className={`douban-collection ${className}`}>
+      <Title />
+      {children}
+    </div>
+  ), [className, Title]);
 
   // 加载中状态
   if (loading && items.length === 0) {
     return (
-      <div className={`douban-collection ${className}`}>
-        <h2 className="text-2xl font-bold mb-6 text-primary-700 dark:text-primary-400">
-          {type === 'movie' ? '观影记录' : '读书记录'}
-        </h2>
+      <Container>
         <div className="flex justify-center items-center p-8">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
           <p className="ml-2 text-gray-600 dark:text-gray-400">加载中...</p>
         </div>
-      </div>
+      </Container>
     );
   }
 
   // 错误状态
   if (error) {
     return (
-      <div className={`douban-collection ${className}`}>
-        <h2 className="text-2xl font-bold mb-6 text-primary-700 dark:text-primary-400">
-          {type === 'movie' ? '观影记录' : '读书记录'}
-        </h2>
+      <Container>
         <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg border border-red-200 dark:border-red-800">
           <div className="flex items-center">
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,30 +213,52 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
             重试
           </button>
         </div>
-      </div>
+      </Container>
     );
   }
 
   // 数据为空状态
   if (items.length === 0) {
     return (
-      <div className={`douban-collection ${className}`}>
-        <h2 className="text-2xl font-bold mb-6 text-primary-700 dark:text-primary-400">
-          {type === 'movie' ? '观影记录' : '读书记录'}
-        </h2>
+      <Container>
         <div className="text-center p-8 text-gray-500 dark:text-gray-400">
           暂无{type === 'movie' ? '观影' : '读书'}记录
         </div>
-      </div>
+      </Container>
     );
   }
 
-  return (
-    <div className={`douban-collection ${className}`}>
-      <h2 className="text-2xl font-bold mb-6 text-primary-700 dark:text-primary-400">
-        {type === 'movie' ? '观影记录' : '读书记录'}
-      </h2>
+  // 渲染分页按钮
+  const renderPaginationButton = useCallback((
+    direction: 'prev' | 'next', 
+    onClick: () => void, 
+    disabled: boolean
+  ) => {
+    const buttonText = direction === 'prev' ? '上一页' : '下一页';
+    
+    const buttonClass = `px-4 py-2 rounded ${disabled 
+      ? 'bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed' 
+      : 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600'}`;
       
+    return (
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={buttonClass}
+        aria-label={buttonText}
+      >
+        {isPageChanging ? (
+          <span className="flex items-center">
+            <LoadingSpinner />
+            加载中
+          </span>
+        ) : buttonText}
+      </button>
+    );
+  }, [isPageChanging, LoadingSpinner]);
+
+  return (
+    <Container>
       <ReactMasonryCss
         breakpointCols={breakpointColumnsObj}
         className="flex -ml-4 w-auto"
@@ -260,50 +300,24 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
       {/* 分页 */}
       {pagination.total > 1 && (
         <div className="flex justify-center mt-8 space-x-2">
-          <button
-            onClick={() => handlePageChange(pagination.current - 1)}
-            disabled={!pagination.hasPrev || pagination.current <= 1 || isPageChanging}
-            className={`px-4 py-2 rounded ${!pagination.hasPrev || pagination.current <= 1 || isPageChanging 
-              ? 'bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed' 
-              : 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600'}`}
-            aria-label="上一页"
-          >
-            {isPageChanging ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                加载中
-              </span>
-            ) : '上一页'}
-          </button>
+          {renderPaginationButton(
+            'prev',
+            () => handlePageChange(pagination.current - 1),
+            !pagination.hasPrev || isPageChanging
+          )}
           
           <span className="px-4 py-2 bg-secondary-100 dark:bg-secondary-800 rounded">
             {pagination.current} / {pagination.total}
           </span>
           
-          <button
-            onClick={() => handlePageChange(pagination.current + 1)}
-            disabled={!pagination.hasNext || pagination.current >= pagination.total || isPageChanging}
-            className={`px-4 py-2 rounded ${!pagination.hasNext || pagination.current >= pagination.total || isPageChanging 
-              ? 'bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed' 
-              : 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600'}`}
-            aria-label="下一页"
-          >
-            {isPageChanging ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                加载中
-              </span>
-            ) : '下一页'}
-          </button>
+          {renderPaginationButton(
+            'next',
+            () => handlePageChange(pagination.current + 1),
+            !pagination.hasNext || isPageChanging
+          )}
         </div>
       )}
-    </div>
+    </Container>
   );
 };
 
