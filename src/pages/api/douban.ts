@@ -9,16 +9,6 @@ const MAX_RETRIES = 0;        // 最大重试次数
 const RETRY_DELAY = 1500;     // 重试延迟（毫秒）
 const REQUEST_TIMEOUT = 10000; // 请求超时时间（毫秒）
 
-// 生成随机的bid Cookie值
-function generateBid() {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < 11; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
 // 添加延迟函数
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -100,36 +90,18 @@ export const GET: APIRoute = async ({ request }) => {
       try {
         let doubanUrl = '';
         if (type === 'book') {
-          doubanUrl = `https://book.douban.com/people/${doubanId}/collect?start=${start}&sort=time&rating=all&filter=all&mode=grid`;
+          doubanUrl = `https://book.douban.com/people/${doubanId}/collect?start=${start}`;
         } else {
-          doubanUrl = `https://movie.douban.com/people/${doubanId}/collect?start=${start}&sort=time&rating=all&filter=all&mode=grid`;
+          doubanUrl = `https://movie.douban.com/people/${doubanId}/collect?start=${start}`;
         }
-
-        // 生成随机bid
-        const bid = generateBid();
-        
-        // 随机化一些请求参数，减少被检测的风险
-        const userAgents = [
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0'
-        ];
-        
-        const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
 
         // 使用带超时的fetch发送请求
         const response = await fetchWithTimeout(doubanUrl, {
           headers: {
-            'User-Agent': randomUserAgent,
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-User': '?1',
-            'Sec-Fetch-Dest': 'document',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Cache-Control': 'max-age=0',
-            'Cookie': `bid=${bid}`
+            'Cookie': `bid=doubanAPIClient`
           }
         }, REQUEST_TIMEOUT);
         

@@ -1,27 +1,51 @@
 ---
 import Layout from "@/components/Layout.astro";
 import { Countdown } from "@/components/Countdown";
-import WorldHeatmap from '@/components/WorldHeatmap';
-import { VISITED_PLACES } from '@/consts';
+import WorldHeatmap from "@/components/WorldHeatmap";
+const VISITED_PLACES = [
+  "中国-黑龙江",
+  "中国-吉林",
+  "中国-辽宁",
+  "中国-北京",
+  "中国-天津",
+  "中国-广东",
+  "中国-西藏",
+  "中国-河北",
+  "中国-山东",
+  "中国-湖南",
+  "中国-重庆",
+  "中国-四川",
+  "马来西亚",
+  "印度尼西亚",
+  "泰国",
+];
 ---
 
 <Layout title="其他">
-    <div class="container mx-auto px-4 py-8">
-        <section class="mb-16">
-            <h2 class="text-3xl font-semibold text-center mb-6">距离退休还有</h2>
-            <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 hover:shadow-xl">
-                <Countdown client:load targetDate={"2070-04-06"} />
-            </div>
-        </section>
-        
-        <section class="mb-16">
-            <h2 class="text-3xl font-semibold text-center mb-6">我的旅行足迹</h2>
-            <div class="mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl">
-                <WorldHeatmap 
-                    client:only="react" 
-                    visitedPlaces={VISITED_PLACES}
-                />
-            </div>
-        </section>
-    </div>
-</Layout> 
+  <div class="container mx-auto px-4 py-8">
+    <section class="mb-16">
+      <h2 class="text-3xl font-semibold text-center mb-6">距离退休还有</h2>
+      <div
+        class="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 hover:shadow-xl"
+      >
+        <Countdown
+          client:load
+          targetDate={"2070-04-06"}
+        />
+      </div>
+    </section>
+
+    <section class="mb-16">
+      <h2 class="text-3xl font-semibold text-center mb-6">我的旅行足迹</h2>
+      <div
+        class="mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl"
+      >
+        <WorldHeatmap
+          client:only="react"
+          visitedPlaces={VISITED_PLACES}
+        />
+      </div>
+    </section>
+  </div>
+</Layout>
+

@@ -64,16 +64,11 @@ export const NAV_STRUCTURE = [
     }
 ];
 
-// 备案信息（如果需要）
+// 备案信息
 export const ICP = "你的ICP备案号";
 export const PSB_ICP = "你的公安备案号";
 export const PSB_ICP_URL = "备案链接";
 
-// 豆瓣配置
-export const DOUBAN_ID = "你的豆瓣ID";
-
-// 旅行足迹
-export const VISITED_PLACES = ["中国-北京", "中国-上海", "美国-纽约"];
 ```
 
 ## 文章写作
@@ -176,14 +171,14 @@ import MediaGrid from '@/components/MediaGrid.astro';
 <MediaGrid
   type="movie"              // 类型：movie 或 book
   title="我看过的电影"      // 显示标题
-  doubanId={DOUBAN_ID}     // 使用配置文件中的豆瓣ID
+  doubanId="id"    // 豆瓣ID
 />
 
 // 展示读书记录
 <MediaGrid
   type="book"
   title="我读过的书"
-  doubanId={DOUBAN_ID}
+  doubanId="id"
 />
 ```
 
