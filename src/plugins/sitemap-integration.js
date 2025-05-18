@@ -36,7 +36,7 @@ ${entries.map(entry => `  <url>
 </urlset>`;
 }
 
-// 生成XSLT样式表
+// 生成XSLT样式表 - 简化版直接嵌入解码后的URL
 function generateXsltStylesheet(entries) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0" 
@@ -52,199 +52,113 @@ function generateXsltStylesheet(entries) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
         <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+          /* 基础样式 */
+          :root {
+            --background: #fff;
+            --text: #222;
+            --link: #0366d6;
+            --border: #eee;
+            --header-bg: #f8f9fa;
           }
           
+          /* 深色模式 */
           @media (prefers-color-scheme: dark) {
-            body {
-              background-color: #1a1a1a;
-              color: #f0f0f0;
+            :root {
+              --background: #121212;
+              --text: #eee;
+              --link: #58a6ff;
+              --border: #333;
+              --header-bg: #222;
             }
-            a {
-              color: #4da6ff;
-            }
-            a:visited {
-              color: #c58fff;
-            }
-            .table {
-              border-color: #444;
-            }
-            .table th, .table td {
-              border-color: #444;
-            }
-            .table thead th {
-              background-color: #2a2a2a;
-            }
-            .table tbody tr:nth-child(odd) {
-              background-color: #252525;
-            }
-            .table tbody tr:hover {
-              background-color: #303030;
-            }
-            .stat-box {
-              background-color: #2a2a2a;
-            }
-            .copy-btn {
-              background-color: #2a2a2a;
-              color: #f0f0f0;
-              border: 1px solid #444;
-            }
-            .copy-btn:hover {
-              background-color: #3a3a3a;
-            }
-            .copy-btn:active {
-              background-color: #4a4a4a;
-            }
+          }
+          
+          body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
           }
           
           .page-header {
+            background: var(--header-bg);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          
+          .copy-btn {
+            cursor: pointer;
+            padding: 8px 16px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
+            gap: 5px;
+            border: 1px solid var(--border);
+            background: var(--background);
+            color: var(--text);
+            border-radius: 4px;
           }
           
-          .page-title {
-            margin: 0;
-            font-size: 2.2rem;
+          .copy-icon {
+            width: 16px;
+            height: 16px;
           }
           
-          h1 {
-            margin-top: 0;
-            font-size: 2.2rem;
+          .copy-btn.success {
+            background: #28a745;
+            color: white;
           }
           
-          .meta {
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-            color: #666;
+          /* 表格样式 - 最关键部分 */
+          .table-container {
+            width: 100%;
+            overflow-x: auto;
           }
           
           .table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
-            table-layout: fixed;
+            margin-top: 20px;
+            min-width: 100%;
           }
           
           .table th, .table td {
-            padding: 10px 15px;
-            border: 1px solid #ddd;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
             text-align: left;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: nowrap; /* 防止URL换行 */
           }
           
-          .table thead th {
-            background-color: #f5f5f5;
-            font-weight: 600;
-          }
-          
-          .table tbody tr:nth-child(odd) {
-            background-color: #f9f9f9;
-          }
-          
-          .table tbody tr:hover {
-            background-color: #f0f0f0;
+          .table th {
+            background: var(--header-bg);
           }
           
           .url {
-            word-break: break-all;
-            width: 80%;
+            width: 85%;
           }
           
           .priority {
-            width: 20%;
+            width: 15%;
             text-align: center;
           }
           
-          .stats {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
+          .table a {
+            color: var(--link);
+            text-decoration: none;
+          }
+          
+          .table a:hover {
+            text-decoration: underline;
+          }
+          
+          /* 其他组件样式 */
+          .meta {
             margin-bottom: 20px;
-          }
-          
-          .stat-box {
-            padding: 15px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
-            flex: 1;
-            min-width: 200px;
-          }
-          
-          .stat-box h3 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            font-size: 1rem;
-            color: #666;
-          }
-          
-          .stat-box p {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: 600;
-          }
-          
-          .footer {
-            margin-top: 30px;
-            font-size: 0.9rem;
-            color: #666;
-            text-align: center;
-          }
-          
-          @media (max-width: 768px) {
-            .table {
-              display: block;
-              overflow-x: auto;
-            }
-            
-            .page-header {
-              flex-direction: column;
-              align-items: flex-start;
-              gap: 10px;
-            }
-          }
-          
-          .copy-btn {
-            padding: 8px 16px;
-            background-color: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-          }
-          
-          .copy-btn:hover {
-            background-color: #e5e5e5;
-          }
-          
-          .copy-btn:active {
-            background-color: #d5d5d5;
-            transform: translateY(1px);
-          }
-          
-          .copy-btn.success {
-            background-color: #4caf50;
-            color: white;
-            border-color: #4caf50;
-          }
-          
-          .copy-icon {
-            width: 14px;
-            height: 14px;
-            display: inline-block;
-            vertical-align: middle;
           }
         </style>
         <script>
@@ -255,7 +169,7 @@ function generateXsltStylesheet(entries) {
             const urls = [];
             
             // 收集所有URL
-            document.querySelectorAll('#sitemap-table tbody a').forEach(function(link) {
+            document.querySelectorAll('.table-container #sitemap-table tbody a').forEach(function(link) {
               urls.push(link.textContent.trim());
             });
             
@@ -305,69 +219,43 @@ function generateXsltStylesheet(entries) {
           <p>此网站地图包含 <xsl:value-of select="count(sitemap:urlset/sitemap:url)" /> 个 URL</p>
         </div>
         
-        <div class="stats">
-          <div class="stat-box">
-            <h3>总页面数</h3>
-            <p><xsl:value-of select="count(sitemap:urlset/sitemap:url)" /></p>
-          </div>
-        </div>
-        
-        <table id="sitemap-table" class="table">
-          <thead>
-            <tr>
-              <th class="url">URL</th>
-              <th class="priority">优先级</th>
-            </tr>
-          </thead>
-          <tbody>
-            <xsl:for-each select="sitemap:urlset/sitemap:url">
-              <xsl:sort select="sitemap:priority" order="descending" />
-              <xsl:variable name="url" select="sitemap:loc/text()" />
-              <xsl:variable name="decodedUrl">
-                <xsl:call-template name="decode-url">
-                  <xsl:with-param name="url" select="$url" />
-                </xsl:call-template>
-              </xsl:variable>
+        <div class="table-container" style="overflow-x: auto;">
+          <table id="sitemap-table" class="table">
+            <thead>
               <tr>
-                <td class="url">
-                  <a href="{$url}">
-                    <xsl:value-of select="$decodedUrl" />
-                  </a>
-                </td>
-                <td class="priority">
-                  <xsl:value-of select="sitemap:priority" />
-                </td>
+                <th class="url">URL</th>
+                <th class="priority">优先级</th>
               </tr>
-            </xsl:for-each>
-          </tbody>
-        </table>
-        
-        <div class="footer">
-          <p>此网站地图使用 XSLT 样式表生成，既适合搜索引擎索引，又方便人类阅读</p>
+            </thead>
+            <tbody>
+              <!-- 直接内联解码后的URL映射 -->
+              ${entries.map(entry => `<xsl:variable name="urlMap_${entry.url.replace(/[^a-zA-Z0-9]/g, '_')}" select="'${escapeXml(entry.url)}'" />`).join('\n              ')}
+              
+              <xsl:for-each select="sitemap:urlset/sitemap:url">
+                <xsl:sort select="sitemap:priority" order="descending" />
+                <xsl:variable name="url" select="sitemap:loc/text()" />
+                <tr>
+                  <td class="url">
+                    <a href="{$url}">
+                      <!-- 使用直接构建时生成的解码URL -->
+                      ${entries.map((entry, index) => 
+                        index === 0 
+                          ? `<xsl:if test="$url = '${escapeXml(entry.url)}'"><xsl:value-of select="'${escapeXml(entry.decodedUrl)}'" /></xsl:if>`
+                          : `<xsl:if test="$url = '${escapeXml(entry.url)}'"><xsl:value-of select="'${escapeXml(entry.decodedUrl)}'" /></xsl:if>`
+                      ).join('\n                      ')}
+                    </a>
+                  </td>
+                  <td class="priority">
+                    <xsl:value-of select="sitemap:priority" />
+                  </td>
+                </tr>
+              </xsl:for-each>
+            </tbody>
+          </table>
         </div>
       </body>
     </html>
   </xsl:template>
-  
-  <!-- 自定义URL解码模板 -->
-  <xsl:template name="decode-url">
-    <xsl:param name="url" />
-    <!-- 直接输出预先解码的URL映射 -->
-    <xsl:variable name="urlKey" select="$url" />
-    <xsl:choose>
-      <xsl:when test="document('')/*/xsl:variable[@name='url-mapping']/url[@key=$urlKey]">
-        <xsl:value-of select="document('')/*/xsl:variable[@name='url-mapping']/url[@key=$urlKey]/@decoded" />
-      </xsl:when>
-      <xsl:otherwise>
-        <xsl:value-of select="$url" />
-      </xsl:otherwise>
-    </xsl:choose>
-  </xsl:template>
-  
-  <!-- URL映射变量 -->
-  <xsl:variable name="url-mapping">
-    ${entries.map(entry => `<url key="${escapeXml(entry.url)}" decoded="${escapeXml(entry.decodedUrl)}" />`).join('\n    ')}
-  </xsl:variable>
 </xsl:stylesheet>`;
 }
 
