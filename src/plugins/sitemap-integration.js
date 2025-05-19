@@ -125,11 +125,12 @@ function generateXsltStylesheet(entries) {
             border-collapse: collapse;
             margin-top: 20px;
             min-width: 100%;
+            border: 1px solid var(--border);
           }
           
           .table th, .table td {
             padding: 10px;
-            border-bottom: 1px solid var(--border);
+            border: 1px solid var(--border);
             text-align: left;
             white-space: nowrap; /* 防止URL换行 */
           }
@@ -339,7 +340,6 @@ export function customSitemapIntegration() {
             buildDirPath = String(dir);
           }
           
-          console.log(`构建目录路径: ${buildDirPath}`);
           
           // 收集所有页面信息
           const sitemapEntries = [];
@@ -360,16 +360,16 @@ export function customSitemapIntegration() {
             // 确定页面优先级
             let priority = 0.7;
             
-            // 首页最高优先级
-            if (page.pathname === '/') {
+            // 首页最高优先级 - 增强匹配逻辑
+            if (page.pathname === '/' || urlObj.pathname === '/' || decodedPathname === '/') {
               priority = 1.0;
             }
             // 文章列表页次高优先级
-            else if (page.pathname === '/articles/') {
+            else if (page.pathname === '/articles/' || decodedPathname === '/articles/') {
               priority = 0.9;
             }
             // 文章页面
-            else if (page.pathname.includes('/articles/')) {
+            else if (page.pathname.startsWith('/articles/') || decodedPathname.startsWith('/articles/')) {
               priority = 0.8;
             }
             
