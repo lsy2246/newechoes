@@ -135,8 +135,6 @@ export const ARTICLE_EXPIRY_CONFIG = {
 
 用于展示 Git 平台的项目列表。
 
-基本用法：
-
 ```astro
 ---
 import GitProjectCollection from '@/components/GitProjectCollection';
@@ -156,43 +154,58 @@ import { GitPlatform } from '@/components/GitProjectCollection';
 
 ## 观影和读书记录
 
-### MediaGrid 组件
-
-`MediaGrid` 组件用于展示豆瓣的观影和读书记录。
-
-基本用法：
+用于展示豆瓣的观影和读书记录。
 
 ```astro
 ---
-import MediaGrid from '@/components/MediaGrid.astro';
+import DoubanCollection from '@/components/DoubanCollection.astro';
 ---
 
 // 展示电影记录
-<MediaGrid
+<DoubanCollection
   type="movie"              // 类型：movie 或 book
   title="我看过的电影"      // 显示标题
-  doubanId="id"    // 豆瓣ID
+  doubanId="lsy22"    // 豆瓣ID
 />
 
 // 展示读书记录
-<MediaGrid
+<DoubanCollection
   type="book"
   title="我读过的书"
-  doubanId="id"
+  doubanId="lsy22"
 />
 ```
 
+## 微信读书书单组件
+
+用于展示微信读书的书单内容，支持错误处理和优雅的加载状态。
+
+```astro
+---
+import WereadBookList from '@/components/WereadBookList';
+---
+
+<WereadBookList 
+  listId="12345678"    // 必填：微信读书书单ID，从书单URL中获取
+  client:load          // Astro 指令：客户端加载
+/>
+```
+
+### 获取微信读书书单ID
+
+1. **打开微信读书**：在浏览器中访问微信读书网页版或使用微信读书小程序/App
+2. **打开书单页面**：找到你想展示的书单并打开,点击分享，分享到浏览器
+3. **获取书单ID**：从URL中提取书单ID，例如：`https://weread.qq.com/misc/booklist/12345678` 中的 `12345678` 即为书单ID
+
 ## 旅行足迹组件
 
-`WorldHeatmap` 组件用于展示你去过的地方，以热力图的形式在世界地图上显示。
+用于展示你去过的地方，以热力图的形式在世界地图上显示。
 
-基本用法：
-
-在 `src/consts.ts` 中配置你去过的地方：
-
-```typescript
+```astro
+---
+import WorldHeatmap from '@/components/WorldHeatmap';
 // 配置你去过的地方
-export const VISITED_PLACES = [
+const VISITED_PLACES = [
   // 国内地区格式：'中国-省份/城市'
   "中国-黑龙江",
   "中国-北京",
@@ -202,28 +215,12 @@ export const VISITED_PLACES = [
   "泰国",
   "美国",
 ];
-```
-
-然后在页面中使用：
-
-```astro
----
-import Layout from "@/components/Layout.astro";
-import WorldHeatmap from '@/components/WorldHeatmap';
-import { VISITED_PLACES } from '@/consts';
 ---
 
-<Layout title="旅行足迹">
-  <section>
-    <h2 class="text-3xl font-semibold text-center mb-6">我的旅行足迹</h2>
-    <div class="mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-      <WorldHeatmap
-        client:only="react"
-        visitedPlaces={VISITED_PLACES}
-      />
-    </div>
-  </section>
-</Layout>
+<WorldHeatmap
+  client:only="react"
+  visitedPlaces={VISITED_PLACES}
+/>
 ```
 
 ## 代码块与 Mermaid 图表支持

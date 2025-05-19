@@ -9,8 +9,8 @@ export const NAV_STRUCTURE = [
         href: '/'
     },
     {
-        id: 'douban',
-        text: '豆瓣',
+        id: 'art',
+        text: '艺术',
         items: [
             { id: 'movies', text: '观影', href: '/movies' },
             { id: 'books', text: '读书', href: '/books' }

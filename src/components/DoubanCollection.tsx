@@ -1,323 +1,468 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import ReactMasonryCss from 'react-masonry-css';
-
-interface DoubanItem {
-  imageUrl: string;
-  title: string;
-  subtitle: string;
-  link: string;
-  intro: string;
-  rating: number;
-  date: string;
-}
-
-interface Pagination {
-  current: number;
-  total: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
+import React, { useEffect, useRef, useState, useCallback } from "react";
 
 interface DoubanCollectionProps {
-  type: 'movie' | 'book';
-  doubanId?: string; // 可选参数，使其与 MediaGrid 保持一致
-  className?: string; // 添加自定义类名
+  type: "movie" | "book";
+  doubanId: string;
+  className?: string; // 添加可选的className属性以提高灵活性
+}
+
+interface DoubanItem {
+  title: string;
+  imageUrl: string;
+  link: string;
 }
 
 const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, className = '' }) => {
   const [items, setItems] = useState<DoubanItem[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({ current: 1, total: 1, hasNext: false, hasPrev: false });
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMoreContent, setHasMoreContent] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [isPageChanging, setIsPageChanging] = useState(false);
-  
-  // 使用 ref 避免竞态条件
+  const itemsPerPage = 15;
+  const contentListRef = useRef<HTMLDivElement>(null);
+  const lastScrollTime = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const isMountedRef = useRef(true);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const scrollDetectorRef = useRef<HTMLDivElement | null>(null);
+  // 添加一个 ref 来标记组件是否已挂载
+  const isMountedRef = useRef<boolean>(true);
 
-  // 标题文本
-  const titleText = useMemo(() => 
-    type === 'movie' ? '观影记录' : '读书记录', 
-  [type]);
+  // 使用ref来跟踪关键状态，避免闭包问题
+  const stateRef = useRef({
+    isLoading: false,
+    hasMoreContent: true,
+    currentPage: 1,
+    error: null as string | null,
+  });
 
-  // 加载动画组件
-  const LoadingSpinner = useCallback(() => (
-    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-  ), []);
+  // 封装fetch函数使用useCallback避免重新创建
+  const fetchDoubanData = useCallback(async (page = 1, append = false) => {
+    // 使用ref中的最新状态
+    if (
+      stateRef.current.isLoading ||
+      (!append && !stateRef.current.hasMoreContent) ||
+      (append && !stateRef.current.hasMoreContent)
+    ) {
+      return;
+    }
 
-  // 公共标题组件
-  const Title = useCallback(() => (
-    <h2 className="text-2xl font-bold mb-6 text-primary-700 dark:text-primary-400">
-      {titleText}
-    </h2>
-  ), [titleText]);
-
-  const fetchData = useCallback(async (start = 0) => {
-    // 如果已经有一个请求在进行中，取消它
+    // 取消之前的请求
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     
-    // 创建新的 AbortController
+    // 创建新的AbortController
     abortControllerRef.current = new AbortController();
-    
-    setLoading(true);
-    setError(null);
-    
-    const params = new URLSearchParams();
-    params.append('type', type);
-    params.append('start', start.toString());
-    
-    if (doubanId) {
-      params.append('doubanId', doubanId);
+
+    // 更新状态和ref
+    setIsLoading(true);
+    stateRef.current.isLoading = true;
+
+    // 只在首次加载时清除错误
+    if (!append) {
+      setError(null);
+      stateRef.current.error = null;
     }
-    
-    const url = `/api/douban?${params.toString()}`;
-    
+
+    const start = (page - 1) * itemsPerPage;
     try {
-      const response = await fetch(url, {
-        signal: abortControllerRef.current.signal
-      });
+      const response = await fetch(
+        `/api/douban?type=${type}&start=${start}&doubanId=${doubanId}`,
+        { signal: abortControllerRef.current.signal }
+      );
       
-      // 如果组件已卸载，不继续处理
-      if (!isMountedRef.current) return;
-      
-      if (!response.ok) {
-        throw new Error(`获取数据失败：状态码 ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      setItems(data.items || []);
-      setPagination(data.pagination || { current: 1, total: 1, hasNext: false, hasPrev: false });
-    } catch (err) {
-      // 如果是取消请求的错误，不设置错误状态
-      if (err instanceof Error && err.name === 'AbortError') {
+      // 检查组件是否已卸载，如果卸载则不继续处理
+      if (!isMountedRef.current) {
         return;
       }
       
-      // 如果组件已卸载，不设置状态
-      if (!isMountedRef.current) return;
+      if (!response.ok) {
+        // 解析响应内容，获取详细错误信息
+        let errorMessage = `获取${type === "movie" ? "电影" : "图书"}数据失败`;
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+            if (errorData.message) {
+              errorMessage += `: ${errorData.message}`;
+            }
+          }
+        } catch (e) {
+          // 无法解析JSON，使用默认错误信息
+        }
+
+        // 针对不同错误提供更友好的提示
+        if (response.status === 403) {
+          errorMessage = "豆瓣接口访问受限，可能是请求过于频繁，请稍后再试";
+        } else if (response.status === 404) {
+          // 对于404错误，如果是追加模式，说明已经到了最后一页，设置hasMoreContent为false
+          if (append) {
+            setHasMoreContent(false);
+            stateRef.current.hasMoreContent = false;
+            setIsLoading(false);
+            stateRef.current.isLoading = false;
+            return; // 直接返回，不设置错误，不清空已有数据
+          } else {
+            errorMessage = "未找到相关内容，请检查豆瓣ID是否正确";
+          }
+        }
+
+        // 设置错误状态和ref
+        setError(errorMessage);
+        stateRef.current.error = errorMessage;
+
+        // 只有非追加模式才清空数据
+        if (!append) {
+          setItems([]);
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+
+      // 再次检查组件是否已卸载
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      if (data.items.length === 0) {
+        // 如果返回的项目为空，则认为已经没有更多内容
+        setHasMoreContent(false);
+        stateRef.current.hasMoreContent = false;
+        if (!append) {
+          setItems([]);
+        }
+      } else {
+        if (append) {
+          setItems((prev) => {
+            const newItems = [...prev, ...data.items];
+            return newItems;
+          });
+        } else {
+          setItems(data.items);
+        }
+        // 更新页码状态和ref
+        setCurrentPage(data.pagination.current);
+        stateRef.current.currentPage = data.pagination.current;
+
+        // 更新是否有更多内容的状态和ref
+        const newHasMoreContent = data.pagination.hasNext;
+        setHasMoreContent(newHasMoreContent);
+        stateRef.current.hasMoreContent = newHasMoreContent;
+      }
+    } catch (error) {
+      // 检查组件是否已卸载
+      if (!isMountedRef.current) {
+        return;
+      }
       
-      console.error('获取豆瓣数据失败:', err);
-      setError(err instanceof Error ? err.message : '未知错误');
-      setItems([]);
+      // 如果是取消的请求，不显示错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('请求被取消', error.message);
+        // 如果是取消请求，重置加载状态但不显示错误
+        setIsLoading(false);
+        stateRef.current.isLoading = false;
+        return;
+      }
+      
+      // 只有在非追加模式下才清空已加载的内容
+      if (!append) {
+        setItems([]);
+      }
     } finally {
-      // 如果组件已卸载，不设置状态
-      if (!isMountedRef.current) return;
-      
-      setLoading(false);
-      setIsPageChanging(false);
+      // 检查组件是否已卸载
+      if (isMountedRef.current) {
+        // 重置加载状态
+        setIsLoading(false);
+        stateRef.current.isLoading = false;
+      }
     }
   }, [type, doubanId]);
 
+  // 处理滚动事件
+  const handleScroll = useCallback(() => {
+    // 获取关键滚动值
+    const scrollY = window.scrollY;
+    const windowHeight = window.innerHeight;
+    const documentHeight = document.documentElement.scrollHeight;
+    const scrollPosition = scrollY + windowHeight;
+    const threshold = documentHeight - 300;
+
+    // 限制滚动日志频率，每秒最多输出一次
+    const now = Date.now();
+    if (now - lastScrollTime.current < 1000) {
+      return;
+    }
+    lastScrollTime.current = now;
+
+    // 使用ref中的最新状态来检查
+    if (
+      stateRef.current.isLoading ||
+      !stateRef.current.hasMoreContent ||
+      stateRef.current.error
+    ) {
+      return;
+    }
+
+    // 当滚动到距离底部300px时加载更多
+    if (scrollPosition >= threshold) {
+      fetchDoubanData(stateRef.current.currentPage + 1, true);
+    }
+  }, [fetchDoubanData]);
+
+  // 更新ref值以跟踪状态变化
   useEffect(() => {
-    // 组件挂载时设置标记
+    stateRef.current.isLoading = isLoading;
+  }, [isLoading]);
+
+  useEffect(() => {
+    stateRef.current.hasMoreContent = hasMoreContent;
+  }, [hasMoreContent]);
+
+  useEffect(() => {
+    stateRef.current.currentPage = currentPage;
+  }, [currentPage]);
+
+  useEffect(() => {
+    stateRef.current.error = error;
+  }, [error]);
+
+  // 设置和清理IntersectionObserver
+  const setupIntersectionObserver = useCallback(() => {
+    // 清理旧的Observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    
+    // 清理旧的检测元素
+    if (scrollDetectorRef.current) {
+      scrollDetectorRef.current.remove();
+      scrollDetectorRef.current = null;
+    }
+
+    // 创建新的IntersectionObserver
+    const observerOptions = {
+      root: null,
+      rootMargin: "300px",
+      threshold: 0.1,
+    };
+
+    observerRef.current = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+
+      if (
+        entry.isIntersecting &&
+        !stateRef.current.isLoading &&
+        stateRef.current.hasMoreContent &&
+        !stateRef.current.error
+      ) {
+        fetchDoubanData(stateRef.current.currentPage + 1, true);
+      }
+    }, observerOptions);
+
+    // 创建并添加检测底部的元素
+    const footer = document.createElement("div");
+    footer.id = "scroll-detector";
+    footer.style.width = "100%";
+    footer.style.height = "10px";
+    scrollDetectorRef.current = footer;
+
+    // 确保contentListRef有父元素
+    if (contentListRef.current && contentListRef.current.parentElement) {
+      // 插入到grid后面而不是内部
+      contentListRef.current.parentElement.insertBefore(
+        footer,
+        contentListRef.current.nextSibling,
+      );
+      observerRef.current.observe(footer);
+    }
+  }, [fetchDoubanData]);
+
+  // 组件初始化和依赖变化时重置
+  useEffect(() => {
+    // 设置组件挂载状态
     isMountedRef.current = true;
     
-    fetchData();
+    // 重置状态
+    setCurrentPage(1);
+    stateRef.current.currentPage = 1;
+
+    setHasMoreContent(true);
+    stateRef.current.hasMoreContent = true;
+
+    setError(null);
+    stateRef.current.error = null;
+
+    setIsLoading(false);
+    stateRef.current.isLoading = false;
+
+    // 清空列表
+    setItems([]);
+
+    // 取消可能存在的请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // 加载第一页数据
+    fetchDoubanData(1, false);
+
+    // 设置滚动事件监听器
+    window.addEventListener("scroll", handleScroll, { passive: true });
     
-    // 组件卸载时清理
+    // 设置IntersectionObserver
+    setupIntersectionObserver();
+
+    // 初始检查一次，以防内容不足一屏
+    const timeoutId = setTimeout(() => {
+      if (stateRef.current.hasMoreContent && !stateRef.current.isLoading) {
+        handleScroll();
+      }
+    }, 500);
+
+    // 清理函数
     return () => {
+      // 标记组件已卸载
       isMountedRef.current = false;
+      
+      clearTimeout(timeoutId);
+      window.removeEventListener("scroll", handleScroll);
+      
+      // 清理IntersectionObserver
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+      
+      // 清理scroll detector元素
+      if (scrollDetectorRef.current) {
+        scrollDetectorRef.current.remove();
+        scrollDetectorRef.current = null;
+      }
+      
+      // 取消正在进行的请求
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [fetchData]);
+  }, [type, doubanId, handleScroll, fetchDoubanData, setupIntersectionObserver]);
 
-  const handlePageChange = useCallback((page: number) => {
-    if (isPageChanging) return;
-    
-    setIsPageChanging(true);
-    
-    // 计算新页面的起始项
-    const start = (page - 1) * 15;
-    
-    // 更新分页状态
-    setPagination(prev => ({
-      ...prev,
-      current: page
-    }));
-    
-    // 获取新页面的数据
-    fetchData(start);
-  }, [fetchData, isPageChanging]);
+  // 错误提示组件
+  const ErrorMessage = () => {
+    if (!error) return null;
 
-  const renderStars = useCallback((rating: number) => {
     return (
-      <div className="flex">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <svg 
-            key={star} 
-            className={`w-4 h-4 ${star <= rating ? 'text-accent-400' : 'text-secondary-300 dark:text-secondary-600'}`} 
-            fill="currentColor" 
-            viewBox="0 0 20 20"
-            aria-hidden="true"
+      <div className="col-span-full text-center bg-red-50 p-4 rounded-md">
+        <div className="flex flex-col items-center justify-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-12 w-12 text-red-500 mb-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
-        ))}
-      </div>
-    );
-  }, []);
+          <h3 className="text-lg font-medium text-red-800">访问错误</h3>
+          <p className="mt-1 text-sm text-red-700">{error}</p>
+          <button
+            onClick={() => {
+              // 重置错误和加载状态
+              setError(null);
+              stateRef.current.error = null;
 
-  const breakpointColumnsObj = {
-    default: 3,
-    1100: 2,
-    700: 1
-  };
-  
-  // 渲染内容的容器
-  const Container = useCallback(({ children }: { children: React.ReactNode }) => (
-    <div className={`douban-collection ${className}`}>
-      <Title />
-      {children}
-    </div>
-  ), [className, Title]);
+              // 允许再次加载
+              setHasMoreContent(true);
+              stateRef.current.hasMoreContent = true;
 
-  // 加载中状态
-  if (loading && items.length === 0) {
-    return (
-      <Container>
-        <div className="flex justify-center items-center p-8">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-          <p className="ml-2 text-gray-600 dark:text-gray-400">加载中...</p>
-        </div>
-      </Container>
-    );
-  }
-
-  // 错误状态
-  if (error) {
-    return (
-      <Container>
-        <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg border border-red-200 dark:border-red-800">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <p>错误: {error}</p>
-          </div>
-          <button 
-            onClick={() => fetchData()} 
-            className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-800/50 text-red-700 dark:text-red-300 rounded"
+              // 重新获取当前页
+              fetchDoubanData(currentPage, false);
+            }}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
           >
             重试
           </button>
         </div>
-      </Container>
+      </div>
     );
-  }
+  };
 
-  // 数据为空状态
-  if (items.length === 0) {
-    return (
-      <Container>
-        <div className="text-center p-8 text-gray-500 dark:text-gray-400">
-          暂无{type === 'movie' ? '观影' : '读书'}记录
-        </div>
-      </Container>
-    );
-  }
+  // 没有更多内容提示
+  const EndMessage = () => {
+    if (isLoading || !items.length || error) return null;
 
-  // 渲染分页按钮
-  const renderPaginationButton = useCallback((
-    direction: 'prev' | 'next', 
-    onClick: () => void, 
-    disabled: boolean
-  ) => {
-    const buttonText = direction === 'prev' ? '上一页' : '下一页';
-    
-    const buttonClass = `px-4 py-2 rounded ${disabled 
-      ? 'bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed' 
-      : 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600'}`;
-      
     return (
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className={buttonClass}
-        aria-label={buttonText}
-      >
-        {isPageChanging ? (
-          <span className="flex items-center">
-            <LoadingSpinner />
-            加载中
-          </span>
-        ) : buttonText}
-      </button>
+      <div className="text-center py-8">
+        <p className="text-gray-600">已加载全部内容</p>
+      </div>
     );
-  }, [isPageChanging, LoadingSpinner]);
+  };
 
   return (
-    <Container>
-      <ReactMasonryCss
-        breakpointCols={breakpointColumnsObj}
-        className="flex -ml-4 w-auto"
-        columnClassName="pl-4 bg-clip-padding"
+    <div className={`w-full ${className}`}>
+      <div
+        ref={contentListRef}
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
       >
-        {items.map((item, index) => (
-          <div 
-            key={`${item.title}-${index}`} 
-            className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg"
-          >
-            <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
-              <div className="relative pb-[140%] overflow-hidden">
-                <img 
-                  src={item.imageUrl} 
-                  alt={item.title} 
-                  className="absolute inset-0 w-full h-full object-cover hover:scale-105"
+        {error && items.length === 0 ? (
+          <ErrorMessage />
+        ) : items.length > 0 ? (
+          items.map((item, index) => (
+            <div
+              key={`${item.title}-${index}`}
+              className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl"
+            >
+              <div className="relative pb-[150%] overflow-hidden">
+                <img
+                  src={item.imageUrl}
+                  alt={item.title}
+                  className="absolute top-0 left-0 w-full h-full object-cover hover:scale-105"
                   loading="lazy"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYwIiBoZWlnaHQ9IjIyNCIgdmlld0JveD0iMCAwIDE2MCAyMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjE2MCIgaGVpZ2h0PSIyMjQiIGZpbGw9IiNmMWYxZjEiLz48dGV4dCB4PSI4MCIgeT0iMTEyIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM5OTk5OTkiPuWbuuWumuWbvueJh+acquivu+WPlzwvdGV4dD48L3N2Zz4=';
-                  }}
                 />
-              </div>
-              <div className="p-4">
-                <h3 className="font-bold text-lg mb-1 line-clamp-1 text-primary-800 dark:text-primary-300">{item.title}</h3>
-                {item.subtitle && <p className="text-secondary-600 dark:text-secondary-400 text-sm mb-2 line-clamp-1">{item.subtitle}</p>}
-                <div className="flex justify-between items-center mb-2">
-                  {renderStars(item.rating)}
-                  <span className="text-sm text-secondary-500 dark:text-secondary-400">{item.date}</span>
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                  <h3 className="font-bold text-white text-sm line-clamp-2">
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-blue-300"
+                    >
+                      {item.title}
+                    </a>
+                  </h3>
                 </div>
-                <p className="text-secondary-700 dark:text-secondary-300 text-sm line-clamp-3">{item.intro}</p>
               </div>
-            </a>
+            </div>
+          ))
+        ) : !isLoading ? (
+          <div className="col-span-full text-center">
+            暂无{type === "movie" ? "电影" : "图书"}数据
           </div>
-        ))}
-      </ReactMasonryCss>
+        ) : null}
+      </div>
 
-      {/* 分页 */}
-      {pagination.total > 1 && (
-        <div className="flex justify-center mt-8 space-x-2">
-          {renderPaginationButton(
-            'prev',
-            () => handlePageChange(pagination.current - 1),
-            !pagination.hasPrev || isPageChanging
-          )}
-          
-          <span className="px-4 py-2 bg-secondary-100 dark:bg-secondary-800 rounded">
-            {pagination.current} / {pagination.total}
-          </span>
-          
-          {renderPaginationButton(
-            'next',
-            () => handlePageChange(pagination.current + 1),
-            !pagination.hasNext || isPageChanging
-          )}
+      {error && items.length > 0 && (
+        <div className="mt-4">
+          <ErrorMessage />
         </div>
       )}
-    </Container>
+
+      {isLoading && (
+        <div className="text-center py-8">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <p className="mt-2 text-gray-600">加载更多...（第{currentPage}页）</p>
+        </div>
+      )}
+
+      {!hasMoreContent && items.length > 0 && !isLoading && <EndMessage />}
+    </div>
   );
 };
 

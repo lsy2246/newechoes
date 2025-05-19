@@ -174,8 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const spinner = createLoadingSpinner();
   
   // 页面状态跟踪
-  let isLoading = false;
-  let contentReady = false;
   let animationInProgress = false;
   
   

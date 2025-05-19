@@ -1,6 +1,6 @@
 ---
 import Layout from "@/components/Layout.astro";
-import MediaGrid from "@/components/MediaGrid.tsx";
+import DoubanCollection from "@/components/DoubanCollection";
 ---
 
 <Layout
@@ -10,7 +10,7 @@ import MediaGrid from "@/components/MediaGrid.tsx";
 >
   <h1 class="text-3xl font-bold mb-6">我看过的电影</h1>
 
-  <MediaGrid
+  <DoubanCollection
     type="movie"
     doubanId="lsy22"
     client:load

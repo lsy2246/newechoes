@@ -4,35 +4,6 @@ date: 2023-05-26T20:21:00+00:00
 tags: ["Docker-compose"]
 ---
 
-## 准备数据库
-
-### 1. 登录到数据库
-
-```bash
-mysql -u root -p
-```
-
-### 2. 创建一个将被 Gitea 使用的数据库用户，并使用密码进行身份验证
-
-```sql
-CREATE USER 'gitea' IDENTIFIED BY 'Password';
-```
-
-> 将`Password`改为自己的密码
-
-### 3. 使用 UTF-8 字符集和大小写敏感的排序规则创建数据库
-
-```sql
-CREATE DATABASE giteadb CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_bin';
-```
-
-### 4. 将数据库上的所有权限授予上述创建的数据库用户
-
-```sql
-GRANT ALL PRIVILEGES ON giteadb.* TO 'gitea';
-FLUSH PRIVILEGES;
-```
-
 ## 直通配置
 
 ### 1. 创建一个名为 `git` 的用户
