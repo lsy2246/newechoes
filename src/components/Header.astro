@@ -14,7 +14,6 @@ const normalizedPath =
       ? currentPath.slice(0, -1)
       : currentPath;
 
-// 定义导航链接
 
 // 在服务器端预先查找激活项
 let activeItem = null;
@@ -49,17 +48,8 @@ if (!activeSubItem) {
   }
 }
 
-// 样式变量 - 用于设置高亮背景的默认属性
-let primaryHighlightStyle = activeItem || activeGroupId ? "opacity: 1;" : "opacity: 0;";
-let secondaryHighlightStyle = activeSubItem ? "opacity: 1;" : "opacity: 0;";
-
-// 导航选择器样式设置
-const activeClass = "font-medium";
-const itemClass = "px-4 py-2 text-sm font-medium";
-const primaryHighlightClass = "bg-primary-100 dark:bg-primary-800/30 rounded-xl shadow-md backdrop-blur-sm";
-const secondaryHighlightClass = "bg-primary-300/80 dark:bg-primary-700/60 rounded-xl shadow-md backdrop-blur-sm";
-const transitionDuration = 300;
-const navSelectorClassName = "mr-4";
+// 计算活动状态
+const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : false;
 ---
 
 <header
@@ -92,14 +82,12 @@ const navSelectorClassName = "mr-4";
         <!-- 导航链接 - 集成NavSelector组件 -->
         <div class="hidden md:flex md:items-center md:space-x-4">
           <!-- 集成的NavSelector代码 -->
-          <nav class={`nav-selector relative ${navSelectorClassName}`} style="--primary-highlight-bg: transparent; --secondary-highlight-bg: transparent;" data-duration={transitionDuration} data-has-active={Boolean(activeItem || activeGroupId || activeSubItem).toString()}>
+          <nav class="nav-selector relative mr-4" data-duration="300" data-has-active={hasActiveNavItem.toString()}>
             <!-- 高亮背景元素 -->
             <div id="nav-primary-highlight" 
-                class={`absolute z-0 hover:shadow-lg rounded-xl ${primaryHighlightClass}`} 
-                style={primaryHighlightStyle}></div>
+                class={`absolute z-0 bg-primary-100 dark:bg-primary-800/30 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300 ${hasActiveNavItem ? 'opacity-100' : 'opacity-0'}`}></div>
             <div id="nav-secondary-highlight" 
-                class={`absolute z-10 hover:shadow-lg rounded-xl ${secondaryHighlightClass}`}
-                style={secondaryHighlightStyle}></div>
+                class={`absolute z-10 bg-primary-300/80 dark:bg-primary-700/60 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300 ${activeSubItem ? 'opacity-100' : 'opacity-0'}`}></div>
             
             <!-- 导航菜单项 -->
             <div class="flex items-center relative z-20 space-x-8">
@@ -109,7 +97,9 @@ const navSelectorClassName = "mr-4";
                     <!-- 单项导航 -->
                     <a 
                       href={item.href} 
-                      class={`nav-item relative flex items-center justify-center h-10 ${itemClass} ${activeItem && activeItem.id === item.id ? activeClass + ' active font-semibold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
+                      class={`nav-item relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium ${activeItem && activeItem.id === item.id 
+                        ? 'active font-semibold text-primary-700 dark:text-primary-300' 
+                        : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
                       data-item-id={item.id}
                       data-astro-prefetch="hover"
                     >
@@ -121,7 +111,9 @@ const navSelectorClassName = "mr-4";
                       <!-- 一级菜单按钮 -->
                       <button 
                         type="button"
-                        class={`nav-group-toggle relative flex items-center justify-center h-10 ${itemClass} ${activeGroupId === item.id ? 'menu-up font-semibold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
+                        class={`nav-group-toggle relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium ${activeGroupId === item.id 
+                          ? 'menu-up font-semibold text-primary-700 dark:text-primary-300' 
+                          : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
                         data-toggle-id={item.id}
                         data-height-reference="true"
                       >
@@ -134,7 +126,9 @@ const navSelectorClassName = "mr-4";
                           {item.items.map((subItem) => (
                             <a 
                               href={subItem.href} 
-                              class={`nav-subitem relative flex items-center justify-center h-10 ${itemClass} ${activeSubItem && activeSubItem.id === subItem.id ? activeClass + ' active font-semibold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
+                              class={`nav-subitem relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium ${activeSubItem && activeSubItem.id === subItem.id 
+                                ? 'active font-semibold text-primary-700 dark:text-primary-300' 
+                                : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
                               data-subitem-id={`${item.id}-${subItem.id}`}
                               data-parent-id={item.id}
                               data-astro-prefetch="hover"
@@ -1000,18 +994,21 @@ const navSelectorClassName = "mr-4";
     // 设置激活的二级菜单项
     function setActiveSubItem(subItemId) {
       if (!subItemId) {
+        console.warn(`[导航日志] 无效的subItemId`);
         return;
       }
       
       // 查找目标项
       const targetItem = document.querySelector(`.nav-subitem[data-subitem-id="${subItemId}"]`);
       if (!targetItem) {
+        console.warn(`[导航日志] 未找到目标子菜单项: ${subItemId}`);
         return;
       }
       
       // 获取父组ID
       const parentId = targetItem.dataset.parentId;
       if (!parentId) {
+        console.warn(`[导航日志] 目标子菜单项没有父组ID: ${subItemId}`);
         return;
       }
       
@@ -1201,7 +1198,9 @@ const navSelectorClassName = "mr-4";
         activeGroupId = groupId;
         
         // 如果没有选中的二级菜单项，则选中第一个并模拟点击
-        if (!activeSubItemId || !activeSubItemId.startsWith(groupId)) {
+        const activeSubItemBelongsToGroup = activeSubItemId && new RegExp(`^${groupId}-`).test(activeSubItemId);
+        
+        if (!activeSubItemId || !activeSubItemBelongsToGroup) {
           const firstSubItem = targetGroup.querySelector('.nav-subitem');
           if (firstSubItem) {
             const subItemId = firstSubItem.dataset.subitemId;
@@ -1223,8 +1222,26 @@ const navSelectorClassName = "mr-4";
             
             // 直接模拟点击第一个子菜单项
             setTimeout(() => {
-              firstSubItem.click();
-            }, 10);
+              try {
+                // 检查元素是否仍然存在于DOM中
+                const currentFirstSubItem = document.querySelector(`.nav-subitem[data-subitem-id="${subItemId}"]`);
+                if (currentFirstSubItem) {
+                  // 使用事件分发而不是直接点击，可能更可靠
+                  const clickEvent = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                  });
+                  currentFirstSubItem.dispatchEvent(clickEvent);
+                } else {
+                  console.error(`[导航日志] 模拟点击失败，元素不再存在于DOM中`);
+                }
+              } catch (err) {
+                console.error(`[导航日志] 模拟点击出错: ${err.message}`);
+              }
+            }, 50); // 增加延迟时间以确保DOM已更新
+          } else {
+            console.warn(`[导航日志] 未找到子菜单项，无法选中第一项`);
           }
         } else {
           // 已有选中的二级菜单项，找到并重新设置高亮
