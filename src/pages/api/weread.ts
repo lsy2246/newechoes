@@ -62,111 +62,77 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: nu
   }
 }
 
-// 从脚本中提取书籍数据（简单直接的方法）
+// 从HTML页面中提取书籍数据
 function extractBooksFromScript(html: string): { title: string; author: string; cover: string; }[] | null {
   try {
-    // 1. 提取函数参数列表，用于解析参数引用
-    const paramsMatch = html.match(/\(function\(([^)]*)\)/);
-    if (!paramsMatch) {
-      console.error('未找到函数参数列表');
+    // 使用Cheerio解析HTML
+    const $ = load(html);
+    
+    // 1. 从HTML结构中提取书名和作者信息（保证准确性）
+    const htmlBooks = new Map<string, string>(); // 以书名为键，作者为值
+    const orderedTitles: string[] = []; // 保持HTML中的顺序
+    
+    $('.booklist_books li').each((index, element) => {
+      const title = $(element).find('.booklist_book_title').text().trim();
+      const author = $(element).find('.booklist_book_author').text().trim();
+      
+      if (title && author) {
+        htmlBooks.set(title, author);
+        orderedTitles.push(title);
+      }
+    });
+    
+    if (htmlBooks.size === 0) {
+      console.error('[WeRead] 无法从HTML中提取书籍信息');
       return null;
     }
     
-    const params = paramsMatch[1].split(',').map(p => p.trim());
-    
-    // 2. 提取bookEntities对象
+    // 2. 从脚本中提取封面URL
     const bookEntitiesMatch = html.match(/bookEntities:(\{.*?\}),bookIds/s);
     if (!bookEntitiesMatch) {
-      console.error('未找到bookEntities数据');
-      return null;
-    }
-    
-    // 3. 提取bookIds数组
-    const bookIdsMatch = html.match(/bookIds:\[(.*?)\]/s);
-    if (!bookIdsMatch) {
-      console.error('未找到bookIds数据');
-      return null;
-    }
-    
-    const bookIdsStr = bookIdsMatch[1];
-    const bookIds = bookIdsStr.split(',')
-      .map(id => id.trim().replace(/"/g, ''))
-      .filter(id => id && id !== '');
-    
-    // 4. 创建参数到实际ID的映射
-    // 首先提取所有bookId参数引用
-    const bookIdParamPattern = /"([^"]+)":\{bookId:([^,]+),/g;
-    const paramToIdMap = new Map<string, string>();
-    let bookIdMatch;
-    
-    while ((bookIdMatch = bookIdParamPattern.exec(bookEntitiesMatch[1])) !== null) {
-      const entityId = bookIdMatch[1];  // 如 "728774"
-      const paramRef = bookIdMatch[2];  // 如 "h"
+      console.error('[WeRead] 未找到bookEntities数据，无法获取书籍封面');
       
-      if (paramRef.length === 1 && /[a-z]/.test(paramRef)) {
-        paramToIdMap.set(paramRef, entityId);
-      }
+      // 即使找不到封面URL，也可以返回标题和作者信息
+      const booksWithoutCovers = orderedTitles.map(title => ({
+        title,
+        author: htmlBooks.get(title) || '',
+        cover: ''
+      }));
+      
+      return booksWithoutCovers;
     }
     
-    // 5. 解析每本书的信息
-    const bookMap = new Map();
-    const bookPattern = /"([^"]+)":\{bookId:[^,]+,.*?author:([^,]+),.*?title:"([^"]+)",.*?cover:"([^"]+)"/g;
+    // 从bookEntities中提取标题和封面URL的映射
+    const coverMap = new Map<string, string>(); // 以标题为键，封面URL为值
+    const bookPattern = /"([^"]+)":\{.*?title:"([^"]+)",.*?cover:"([^"]+)".*?\}/g;
     
     let match;
-    let bookCount = 0;
-    
     while ((match = bookPattern.exec(bookEntitiesMatch[1])) !== null) {
-      const bookId = match[1];
-      const authorParam = match[2];
-      const title = match[3];
-      const cover = match[4].replace(/\\u002F/g, '/');
-      
-      // 处理作者参数引用
-      let author = authorParam;
-      if (authorParam.length === 1 && /[a-z]/.test(authorParam)) {
-        const paramIndex = authorParam.charCodeAt(0) - 'a'.charCodeAt(0);
-        if (paramIndex >= 0 && paramIndex < params.length) {
-          author = params[paramIndex].replace(/"/g, '');
-        }
-      } else if (authorParam.startsWith('"') && authorParam.endsWith('"')) {
-        author = authorParam.substring(1, authorParam.length - 1);
-      }
-      
-      // 同时用实体ID和参数引用作为键存储书籍信息
-      bookMap.set(bookId, { title, author, cover });
-      bookCount++;
+      const title = match[2]; // 书名
+      const cover = match[3].replace(/\\u002F/g, '/'); // 封面URL
+      coverMap.set(title, cover);
     }
     
-    // 6. 按照bookIds的顺序返回书籍，使用参数映射
-    const orderedBooks = [];
+    // 3. 合并数据，按照HTML中的顺序
+    const finalBooks: { title: string; author: string; cover: string; }[] = [];
     
-    for (const paramId of bookIds) {
-      // 如果是参数引用，使用映射查找实际ID
-      const actualId = paramToIdMap.get(paramId);
+    // 遍历HTML中的书籍顺序
+    for (const title of orderedTitles) {
+      const author = htmlBooks.get(title) || '';
+      const cover = coverMap.get(title) || '';
       
-      if (actualId) {
-        const book = bookMap.get(actualId);
-        if (book) {
-          orderedBooks.push(book);
-          continue;
-        }
-      }
-      
-      // 尝试直接使用paramId查找
-      const directBook = bookMap.get(paramId);
-      if (directBook) {
-        orderedBooks.push(directBook);
-      }
+      finalBooks.push({ title, author, cover });
     }
     
-    // 如果没有找到任何书籍，返回所有书籍
-    if (orderedBooks.length === 0) {
-      return Array.from(bookMap.values());
+    // 记录找不到封面的书籍数量
+    const missingCovers = finalBooks.filter(book => !book.cover).length;
+    if (missingCovers > 0) {
+      console.warn(`[WeRead] 警告：有${missingCovers}/${finalBooks.length}本书未找到封面URL`);
     }
     
-    return orderedBooks;
+    return finalBooks.length > 0 ? finalBooks : null;
   } catch (error) {
-    console.error('从脚本提取书籍数据时出错:', error);
+    console.error('[WeRead] 从HTML提取书籍数据时出错:', error);
     return null;
   }
 }

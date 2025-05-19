@@ -175,7 +175,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 页面状态跟踪
   let animationInProgress = false;
-  
+  // 添加状态变量
+  let isLoading = false;
+  let contentReady = false;
   
   // 根据当前页面动态确定容器配置
   const containers = ['main']; // 主容器始终存在
@@ -461,9 +463,9 @@ document.addEventListener('DOMContentLoaded', () => {
         hideLoadingSpinner(spinner);
         
         // 重置状态
+        animationInProgress = false;
         isLoading = false;
         contentReady = false;
-        animationInProgress = false;
         
         // 检查是否可以使用备用容器
         const mainContainer = document.querySelector('main');
