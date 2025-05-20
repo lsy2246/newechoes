@@ -187,36 +187,12 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             aria-label="打开菜单"
           >
             <span class="sr-only">打开菜单</span>
-            <svg
-              class="h-6 w-6 block"
-              id="menu-open-icon"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h16M4 12h16M4 18h16"
-              ></path>
-            </svg>
-            <svg
-              class="h-6 w-6 hidden"
-              id="menu-close-icon"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
+            <!-- 替换SVG图标为CSS汉堡菜单 -->
+            <div class="hamburger-menu">
+              <span class="hamburger-line line-1"></span>
+              <span class="hamburger-line line-2"></span>
+              <span class="hamburger-line line-3"></span>
+            </div>
           </button>
         </div>
       </div>
@@ -272,16 +248,18 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                       data-mobile-menu-toggle={item.id}
                     >
                       <span>{item.text}</span>
-                      <svg 
-                        class="mobile-menu-arrow h-5 w-5 text-gray-500 dark:text-gray-400" 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                      >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                      </svg>
+                      <div class="mobile-menu-icon w-5 h-5 flex items-center justify-center">
+                        <svg 
+                          class="mobile-menu-arrow w-4 h-4 text-gray-500 dark:text-gray-400" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </div>
                     </div>
-                    <div class="mobile-submenu pl-4 border-l-2 border-gray-200 dark:border-gray-700 hidden overflow-hidden" data-parent-id={item.id}>
+                    <div class="mobile-submenu pl-4 border-l-2 border-gray-200 dark:border-gray-700" data-parent-id={item.id}>
                       {item.items.map(subItem => (
                         <a
                           href={subItem.href}
@@ -325,6 +303,84 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   </nav>
 </header>
 
+<style is:global>
+  /* 汉堡菜单动画样式 */
+  .hamburger-menu {
+    width: 24px;
+    height: 24px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+  }
+
+  .hamburger-line {
+    width: 100%;
+    height: 2px;
+    background-color: currentColor;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+    transform-origin: center;
+  }
+
+  /* 菜单打开时的样式 */
+  [aria-expanded="true"] .hamburger-menu .line-1 {
+    transform: translateY(8px) rotate(45deg);
+  }
+
+  [aria-expanded="true"] .hamburger-menu .line-2 {
+    opacity: 0;
+  }
+
+  [aria-expanded="true"] .hamburger-menu .line-3 {
+    transform: translateY(-8px) rotate(-45deg);
+  }
+  
+  /* 移动端子菜单展开动画 */
+  .mobile-menu-arrow {
+    transition: transform 0.3s ease;
+  }
+  
+  /* 移动端菜单图标容器 */
+  .mobile-menu-icon {
+    position: relative;
+    transition: transform 0.3s ease;
+  }
+  
+  /* 子菜单展开/收起动画 - 完全重写 */
+  .mobile-submenu {
+    height: auto;
+    max-height: 0;
+    visibility: hidden;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(-10px);
+    transition: 
+      max-height 0.3s ease, 
+      opacity 0.3s ease, 
+      transform 0.3s ease,
+      visibility 0s linear 0.3s,  /* 延迟visibility变化 */
+      padding 0.3s ease;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  
+  .mobile-submenu.menu-visible {
+    max-height: 500px; /* 足够大以容纳所有内容 */
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+    transition: 
+      max-height 0.3s ease, 
+      opacity 0.3s ease, 
+      transform 0.3s ease,
+      visibility 0s linear 0s, /* 立即改变visibility */
+      padding 0.3s ease;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+</style>
 
 <script is:inline>
 // 导航逻辑 - 自销毁模式
@@ -1415,7 +1471,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           if (submenu) {
             const parentId = submenu.getAttribute('data-parent-id');
             const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
-            if (toggle && submenu.classList.contains('hidden')) {
+            if (toggle && !submenu.classList.contains('menu-visible')) {
               // 展开子菜单
               toggleSubmenu(parentId, true);
             }
@@ -1432,22 +1488,31 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     function toggleSubmenu(parentId, forceOpen = null) {
       const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
       const submenu = document.querySelector(`.mobile-submenu[data-parent-id="${parentId}"]`);
-      const arrow = toggle ? toggle.querySelector('.mobile-menu-arrow') : null;
+      const menuIcon = toggle ? toggle.querySelector('.mobile-menu-icon') : null;
+      const arrow = menuIcon ? menuIcon.querySelector('.mobile-menu-arrow') : null;
       
       if (!toggle || !submenu) return;
       
       // 确定是展开还是收起
-      const isHidden = submenu.classList.contains('hidden');
+      const isHidden = !submenu.classList.contains('menu-visible');
       const shouldOpen = forceOpen !== null ? forceOpen : isHidden;
       
       if (shouldOpen) {
-        // 展开子菜单
-        submenu.classList.remove('hidden');
-        if (arrow) arrow.style.transform = 'rotate(180deg)';
+        // 展开子菜单 - 移除hidden类已不需要，因为我们使用visibility控制
+        
+        // 使用requestAnimationFrame确保DOM更新后再添加过渡类
+        requestAnimationFrame(() => {
+          submenu.classList.add('menu-visible');
+          
+          // 设置图标动画
+          if (menuIcon) menuIcon.style.transform = 'rotate(180deg)';
+        });
       } else {
-        // 收起子菜单
-        submenu.classList.add('hidden');
-        if (arrow) arrow.style.transform = '';
+        // 收起子菜单 - 移除可见类触发过渡效果
+        submenu.classList.remove('menu-visible');
+        
+        // 重置图标动画
+        if (menuIcon) menuIcon.style.transform = '';
       }
     }
     
@@ -1457,7 +1522,13 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       toggles.forEach(toggle => {
         const parentId = toggle.getAttribute('data-mobile-menu-toggle');
         if (parentId) {
-          toggleSubmenu(parentId, false);
+          const submenu = document.querySelector(`.mobile-submenu[data-parent-id="${parentId}"]`);
+          const menuIcon = toggle ? toggle.querySelector('.mobile-menu-icon') : null;
+          
+          if (submenu) {
+            submenu.classList.remove('menu-visible');
+            if (menuIcon) menuIcon.style.transform = '';
+          }
         }
       });
     }
@@ -1486,12 +1557,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         
         if (mobileMenuButton) {
           mobileMenuButton.setAttribute('aria-expanded', 'false');
-          
-          // 重置菜单图标
-          if (menuOpenIcon && menuCloseIcon) {
-            menuOpenIcon.classList.remove('hidden');
-            menuCloseIcon.classList.add('hidden');
-          }
         }
         
         // 同时关闭所有子菜单
@@ -1518,12 +1583,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         
         // 更新按钮状态
         mobileMenuButton.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
-        
-        // 切换图标
-        if (menuOpenIcon && menuCloseIcon) {
-          menuOpenIcon.classList.toggle('hidden');
-          menuCloseIcon.classList.toggle('hidden');
-        }
         
         // 显示/隐藏菜单
         mobileMenu.classList.toggle('hidden');
