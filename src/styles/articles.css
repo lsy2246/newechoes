@@ -195,7 +195,7 @@
   color: var(--color-primary-600);
   text-decoration: none;
   border-bottom: 1px solid var(--color-primary-300);
-  transition: all 0.2s ease;
+  transition: border-bottom-color 0.2s ease;
 }
 
 .prose a:hover {
@@ -220,8 +220,6 @@
   border-bottom-color: var(--color-primary-400);
 }
 
-
-
 /* 收纳内容样式 */
 .details-content {
   margin-left: 1.5em;
@@ -243,7 +241,7 @@
   border-radius: 0.5rem;
   border: 1px solid var(--color-secondary-200);
   background-color: var(--color-gray-50);
-  transition: all 0.2s ease;
+  transition: box-shadow 0.2s ease;
   overflow: hidden;
 }
 
@@ -275,7 +273,7 @@
   display: flex;
   align-items: center;
   gap: 0.75em;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease;
   background: linear-gradient(to right, var(--color-primary-50), var(--color-gray-50));
   border-left: 4px solid var(--color-primary-100);
 }
@@ -361,13 +359,18 @@
   border-left-color: var(--color-primary-400);
 }
 
-/* 目录菜单样式 */
-/* 目录项样式 */
+/* 目录组件样式 */
+/* 目录项基础样式 */
+.toc-item {
+  position: relative;
+}
+
 .toc-item-container {
   display: flex;
   align-items: center;
 }
 
+/* 目录链接基础样式 */
 .toc-link {
   flex: 1;
   white-space: nowrap;
@@ -375,30 +378,38 @@
   text-overflow: ellipsis;
   padding: 0.25rem 0;
   border-radius: 0.25rem;
+  transition: background-color 0.3s ease;
+  position: relative;
 }
 
-/* 黑暗模式文本颜色 */
-.dark .text-secondary-800,
-[data-theme="dark"] .text-secondary-800 {
-  color: var(--color-secondary-200);
+/* 目录链接高亮指示器 */
+.toc-link-active::before {
+  content: '';
+  position: absolute;
+  left: -0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 1rem;
+  background: linear-gradient(to bottom, var(--color-primary-600), var(--color-primary-400));
+  border-radius: 0 2px 2px 0;
+  opacity: 1;
 }
 
-.dark .text-secondary-600,
-[data-theme="dark"] .text-secondary-600 {
-  color: var(--color-secondary-400);
+[data-theme="dark"] .toc-link-active::before {
+  background: linear-gradient(to bottom, var(--color-primary-400), var(--color-primary-600));
 }
 
+/* 目录链接悬停样式 */
 .toc-link:hover {
   background-color: rgba(0, 0, 0, 0.05);
-  color: var(--color-primary-600);
 }
 
-.dark .toc-link:hover,
 [data-theme="dark"] .toc-link:hover {
   background-color: rgba(255, 255, 255, 0.05);
-  color: var(--color-primary-400);
 }
 
+/* 目录切换按钮样式 */
 .toc-toggle {
   display: inline-flex;
   align-items: center;
@@ -409,25 +420,33 @@
   min-height: 1.5rem;
 }
 
+/* 展开/折叠图标动画 */
+.toc-toggle svg {
+  transition: transform 0.3s ease;
+}
+
+.toc-toggle[aria-expanded="true"] svg {
+  transform: rotate(-180deg);
+}
+
+/* 目录切换按钮悬停样式 */
 .toc-toggle:hover {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-.dark .toc-toggle:hover,
 [data-theme="dark"] .toc-toggle:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* 动画效果 */
-.toc-sublist.hidden {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
+/* 子目录列表样式 */
+.toc-list {
+  list-style-type: none;
+  transition: padding 0.3s ease;
 }
 
-.toc-sublist:not(.hidden) {
-  max-height: 1000px;
-  opacity: 1;
+/* 子目录展开/收起动画 */
+.toc-sublist {
+  transition: max-height 0.3s ease, opacity 0.3s ease;
 }
 
 /* 目录面板样式 */
@@ -437,99 +456,41 @@
   top: 5rem;
   width: 16rem;
   z-index: 30;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-#toc-panel > div {
-  background-color: white;
-  border: 1px solid var(--color-gray-200);
-  border-radius: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  backdrop-filter: blur(4px);
-  background-opacity: 0.95;
+@media (max-width: 1535px) {
+  #toc-panel.hidden {
+    opacity: 0;
+    transform: translateX(10px);
+    pointer-events: none;
+  }
 }
 
-.dark #toc-panel > div,
-[data-theme="dark"] #toc-panel > div {
-  background-color: var(--color-gray-800);
-  border-color: var(--color-gray-700);
-  background-opacity: 0.95;
-}
-
-#toc-panel .panel-header {
-  border-bottom: 1px solid var(--color-secondary-100);
-  padding: 1rem;
-  padding-bottom: 0.75rem;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  border-top-left-radius: 0.75rem;
-  border-top-right-radius: 0.75rem;
-  background-color: white;
-  background-opacity: 0.95;
-  backdrop-filter: blur(4px);
-}
-
-.dark #toc-panel .panel-header,
-[data-theme="dark"] #toc-panel .panel-header {
-  border-bottom-color: var(--color-gray-700);
-  background-color: var(--color-gray-800);
-}
-
-#toc-panel h3 {
-  font-weight: 700;
-  color: var(--color-primary-700);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.dark #toc-panel h3,
-[data-theme="dark"] #toc-panel h3 {
-  color: var(--color-primary-400);
-}
-
+/* 目录内容容器样式 */
 #toc-content {
   font-size: 0.875rem;
   padding: 1rem;
   padding-top: 0.5rem;
   overflow-y: auto;
   max-height: calc(100vh - 8rem - 42px);
-  background-color: white;
+  scroll-behavior: smooth;
 }
 
-.dark #toc-content,
-[data-theme="dark"] #toc-content {
-  background-color: var(--color-gray-800);
+/* 目录内容滚动条样式 */
+#toc-content::-webkit-scrollbar {
+  width: 4px;
 }
 
-/* 目录列表样式 */
-.toc-list {
-  list-style-type: none;
+#toc-content::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-/* 黑暗模式适配 */
-.dark .text-secondary-800,
-[data-theme="dark"] .text-secondary-800 {
-  color: var(--color-secondary-200);
+#toc-content::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary-200);
+  border-radius: 4px;
 }
 
-.dark .text-secondary-600,
-[data-theme="dark"] .text-secondary-600 {
-  color: var(--color-secondary-400);
-}
-
-.dark .text-primary-600,
-[data-theme="dark"] .text-primary-600 {
-  color: var(--color-primary-400);
-}
-
-/* 扩展目录高亮样式 */
-.toc-link.text-primary-600 {
-  font-weight: 500;
-}
-
-.dark .toc-link.text-primary-600,
-[data-theme="dark"] .toc-link.text-primary-600 {
-  font-weight: 500;
+[data-theme="dark"] #toc-content::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary-800);
 }

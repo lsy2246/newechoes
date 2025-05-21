@@ -22,7 +22,7 @@
 }
 
 /* 暗色模式下使用不同颜色变量 */
-.dark .theme-ripple {
+[data-theme="dark"] .theme-ripple {
   background-color: rgba(var(--theme-ripple-color, 200, 200, 200), 0.15);
 }
 

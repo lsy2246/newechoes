@@ -1,78 +1,56 @@
 /* 基础Mermaid样式覆盖 */
-.mermaid {
+.mermaid * {
   background-color: transparent !important;
 }
 
 /* Mermaid文本颜色统一 */
-.mermaid .label,
-.mermaid text,
-.mermaid span,
-.mermaid .messageText,
-.mermaid .loopText,
-.mermaid .noteText,
-.mermaid .taskText {
+.mermaid :is(text, span, div,span,p) {
   color: var(--color-secondary-800) !important;
   fill: var(--color-secondary-800) !important;
   font-family: inherit !important;
 }
 
 /* 添加edgeLabel文本颜色样式 */
-.mermaid .edgeLabel,
-.mermaid .edgeLabel p,
-.mermaid .edgeLabel span {
+.mermaid :is(.edgeLabel, .edgeLabel p, .edgeLabel div, .edgeLabel span) {
   color: var(--color-secondary-800) !important;
   fill: var(--color-secondary-800) !important;
-  background-color: transparent !important;
 }
 
 /* 节点样式设置 */
-.mermaid .node rect, 
-.mermaid .node circle, 
-.mermaid .node ellipse, 
-.mermaid .node polygon,
-.mermaid .node path {
+.mermaid :is(.node rect, .node circle, .node ellipse, .node polygon, .node path) {
   fill: var(--color-gray-100) !important;
   stroke: var(--color-gray-400) !important;
   stroke-width: 1px !important;
 }
 
 /* 连接线样式 */
-.mermaid .edgePath .path,
-.mermaid .flowchart-link,
-.mermaid line,
-.mermaid .messageLine0,
-.mermaid .messageLine1 {
+.mermaid :is(.edgePath .path, .flowchart-link, line, .messageLine0, .messageLine1) {
   stroke: var(--color-gray-600) !important;
   stroke-width: 1px !important;
   fill: none !important; /* 确保线条没有填充 */
 }
 
 /* 箭头填充 */
-.mermaid .arrowheadPath,
-.mermaid marker path {
+.mermaid :is(.arrowheadPath, marker path) {
   fill: var(--color-gray-600) !important;
   stroke: none !important;
 }
 
 /* 文本标签背景 */
-.mermaid .edgeLabel rect,
-.mermaid .labelBox {
+.mermaid :is(.edgeLabel rect, .labelBox) {
   fill: white !important;
   background-color: white !important;
 }
 
 /* 标题样式 */
-.mermaid .titleText,
-.mermaid .classTitle,
-.mermaid .cluster-label text {
+.mermaid :is(.titleText, .classTitle, .cluster-label text) {
   fill: var(--color-secondary-900) !important;
   color: var(--color-secondary-900) !important;
   font-weight: bold !important;
 }
 
 /* 集群/子图样式 */
-.mermaid .cluster rect,
-.mermaid .cluster polygon {
+.mermaid :is(.cluster rect, .cluster polygon) {
   fill: var(--color-gray-50) !important;
   stroke: var(--color-gray-400) !important;
   stroke-width: 1px !important;
@@ -92,22 +70,17 @@
 }
 
 /* 甘特图特殊样式 */
-.mermaid .section0,
-.mermaid .section2 {
+.mermaid :is(.section0, .section2) {
   fill: var(--color-gray-50) !important;
   opacity: 0.5 !important;
 }
 
-.mermaid .section1,
-.mermaid .section3 {
+.mermaid :is(.section1, .section3) {
   fill: var(--color-gray-100) !important;
   opacity: 0.4 !important;
 }
 
-.mermaid .task0,
-.mermaid .task1,
-.mermaid .task2,
-.mermaid .task3 {
+.mermaid :is(.task0, .task1, .task2, .task3) {
   fill: var(--color-primary-600) !important;
   stroke: var(--color-gray-400) !important;
 }
@@ -119,76 +92,50 @@
 }
 
 /* 暗色模式样式 */
-[data-theme='dark'] .mermaid .label,
-[data-theme='dark'] .mermaid text,
-[data-theme='dark'] .mermaid span,
-[data-theme='dark'] .mermaid .messageText,
-[data-theme='dark'] .mermaid .loopText,
-[data-theme='dark'] .mermaid .noteText,
-[data-theme='dark'] .mermaid .taskText,
-[data-theme='dark'] .mermaid .classLabel .label {
+[data-theme='dark'] .mermaid :is(.label, text, span, .messageText, .loopText, .noteText, .taskText, .classLabel .label) {
   color: var(--color-secondary-300) !important;
   fill: var(--color-secondary-300) !important;
 }
 
 /* 暗色模式edgeLabel文本颜色样式 */
-[data-theme='dark'] .mermaid .edgeLabel,
-[data-theme='dark'] .mermaid .edgeLabel p,
-[data-theme='dark'] .mermaid .edgeLabel span {
+[data-theme='dark'] .mermaid :is(.edgeLabel, .edgeLabel p, .edgeLabel span) {
   color: var(--color-secondary-300) !important;
   fill: var(--color-secondary-300) !important;
 }
 
-[data-theme='dark'] .mermaid .node rect, 
-[data-theme='dark'] .mermaid .node circle, 
-[data-theme='dark'] .mermaid .node ellipse, 
-[data-theme='dark'] .mermaid .node polygon,
-[data-theme='dark'] .mermaid .node path,
-[data-theme='dark'] .mermaid .actor {
+[data-theme='dark'] .mermaid :is(.node rect, .node circle, .node ellipse, .node polygon, .node path, .actor) {
   fill: var(--color-dark-hover) !important;
   stroke: var(--color-gray-600) !important;
 }
 
-/* 暗色模式连接线样式 - 分开处理 */
-[data-theme='dark'] .mermaid .edgePath .path,
-[data-theme='dark'] .mermaid .flowchart-link,
-[data-theme='dark'] .mermaid line,
-[data-theme='dark'] .mermaid .messageLine0,
-[data-theme='dark'] .mermaid .messageLine1 {
+/* 暗色模式连接线样式 */
+[data-theme='dark'] .mermaid :is(.edgePath .path, .flowchart-link, line, .messageLine0, .messageLine1) {
   stroke: var(--color-gray-400) !important;
-  fill: none !important; /* 确保线条没有填充 */
+  fill: none !important;
 }
 
-/* 暗色模式箭头样式 - 分开处理 */
-[data-theme='dark'] .mermaid .arrowheadPath,
-[data-theme='dark'] .mermaid marker path {
+/* 暗色模式箭头样式 */
+[data-theme='dark'] .mermaid :is(.arrowheadPath, marker path) {
   fill: var(--color-gray-400) !important;
   stroke: none !important;
 }
 
-[data-theme='dark'] .mermaid .edgeLabel rect,
-[data-theme='dark'] .mermaid .labelBox {
+[data-theme='dark'] .mermaid :is(.edgeLabel rect, .labelBox) {
   fill: var(--color-dark-surface) !important;
   background-color: var(--color-dark-surface) !important;
 }
 
-[data-theme='dark'] .mermaid .titleText,
-[data-theme='dark'] .mermaid .classTitle,
-[data-theme='dark'] .mermaid .cluster-label text {
+[data-theme='dark'] .mermaid :is(.titleText, .classTitle, .cluster-label text) {
   fill: var(--color-secondary-100) !important;
   color: var(--color-secondary-100) !important;
 }
 
-[data-theme='dark'] .mermaid .cluster rect,
-[data-theme='dark'] .mermaid .cluster polygon,
-[data-theme='dark'] .mermaid .section0,
-[data-theme='dark'] .mermaid .section2 {
+[data-theme='dark'] .mermaid :is(.cluster rect, .cluster polygon, .section0, .section2) {
   fill: var(--color-dark-card) !important;
   stroke: var(--color-gray-600) !important;
 }
 
-[data-theme='dark'] .mermaid .section1,
-[data-theme='dark'] .mermaid .section3 {
+[data-theme='dark'] .mermaid :is(.section1, .section3) {
   fill: var(--color-dark-hover) !important;
 }
 
@@ -196,10 +143,7 @@
   fill: var(--color-primary-300) !important;
 }
 
-[data-theme='dark'] .mermaid .task0,
-[data-theme='dark'] .mermaid .task1,
-[data-theme='dark'] .mermaid .task2,
-[data-theme='dark'] .mermaid .task3 {
+[data-theme='dark'] .mermaid :is(.task0, .task1, .task2, .task3) {
   fill: var(--color-primary-400) !important;
   stroke: var(--color-gray-600) !important;
 }

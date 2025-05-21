@@ -33,4 +33,93 @@ html.is-changing .transition-fade,
 html.is-changing .swup-transition-article,
 html.is-changing #article-content {
   opacity: 1;
+}
+
+/* 加载旋转动画 - 无遮罩版本 */
+.loading-spinner-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* 允许点击穿透 */
+}
+
+/* 激活状态 */
+.loading-spinner-container.is-active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 旋转动画元素 */
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid transparent;
+  border-top-color: var(--color-primary-500);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  position: relative;
+  /* 添加背景色以增强可见性 */
+  background-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+}
+
+/* 深色模式下旋转动画颜色 */
+[data-theme='dark'] .loading-spinner {
+  border-top-color: var(--color-primary-400);
+  background-color: rgba(15, 23, 42, 0.8);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+}
+
+.loading-spinner:before,
+.loading-spinner:after {
+  content: '';
+  position: absolute;
+  border: 3px solid transparent;
+  border-radius: 50%;
+}
+
+.loading-spinner:before {
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-top-color: var(--color-primary-300);
+  animation: spin 1.5s linear infinite;
+}
+
+.loading-spinner:after {
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  border-top-color: var(--color-primary-600);
+  animation: spin 0.75s linear infinite;
+}
+
+/* 深色模式下的内外圈颜色 */
+[data-theme='dark'] .loading-spinner:before {
+  border-top-color: var(--color-primary-200);
+}
+
+[data-theme='dark'] .loading-spinner:after {
+  border-top-color: var(--color-primary-500);
+}
+
+/* 旋转动画 */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 } 

@@ -174,7 +174,7 @@ function getArticleUrl(articleId: string) {
 // 预先生成目录结构
 function generateTableOfContents(headings: Heading[]) {
   if (!headings || headings.length === 0) {
-    return '<p class="text-secondary-500 dark:text-secondary-400 italic">此文章没有目录</p>';
+    return '<p class="text-gray-500 dark:text-gray-400 italic">此文章没有目录</p>';
   }
 
   // 查找最低级别的标题（数值最小）
@@ -232,7 +232,7 @@ function generateTableOfContents(headings: Heading[]) {
     if (items.length === 0) return '';
     
     const isTopLevel = level === 0;
-    let html = `<ul class="space-y-2 toc-list ${isTopLevel ? '' : 'toc-sublist hidden'}" ${level > 0 ? 'aria-expanded="false"' : ''}>`;
+    let html = `<ul class="toc-list space-y-2 ${isTopLevel ? '' : 'toc-sublist hidden'}" ${level > 0 ? 'aria-expanded="false"' : ''}>`;
     
     items.forEach(item => {
       const hasChildren = item.children && item.children.length > 0;
@@ -241,15 +241,15 @@ function generateTableOfContents(headings: Heading[]) {
       html += `<li class="toc-item" data-depth="${item.depth}">
         <div class="toc-item-container">
           <a href="#${item.slug}" 
-             class="toc-link block duration-50 ${
+             class="toc-link ${
                isHigherLevel
-                 ? "text-secondary-800 dark:text-secondary-200 font-medium"
-                 : "text-secondary-600 dark:text-secondary-400"
-             }"
+                 ? "text-gray-800 dark:text-gray-200 font-medium"
+                 : "text-gray-600 dark:text-gray-400"
+             } hover:text-primary-600 dark:hover:text-primary-400"
              style="padding-left: ${item.depth * 0.75}rem;">
             ${item.text}
           </a>
-          ${hasChildren ? `<button class="toc-toggle ml-1 p-1 text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400" aria-expanded="false">
+          ${hasChildren ? `<button class="toc-toggle text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 ml-1 p-1" aria-expanded="false">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
@@ -531,34 +531,21 @@ const tableOfContents = generateTableOfContents(headings);
 
     <!-- 目录 -->
     <section
-      class="hidden 2xl:block"
+      class="hidden 2xl:block fixed right-[calc(50%-44rem)] top-20 w-64 z-30 transition-transform duration-300"
       id="toc-panel"
     >
-      <div>
-        <div
-          class="panel-header"
-        >
-          <h3>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h16M4 12h16M4 18h7"
-              ></path>
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl flex flex-col backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 shadow-lg transition-opacity duration-300">
+        <div class="border-b border-gray-200 dark:border-gray-700 p-4 pb-3 sticky top-0 z-10 rounded-t-xl bg-white dark:bg-gray-800 bg-opacity-95 backdrop-blur-sm">
+          <h3 class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
             </svg>
             文章目录
           </h3>
         </div>
         <div
           id="toc-content"
-          class="scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
+          class="text-sm p-4 pt-2 overflow-y-auto max-h-[calc(100vh-8rem-42px)] bg-white dark:bg-gray-800 scroll-smooth scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
           set:html={tableOfContents}
         >
         </div>
@@ -783,10 +770,8 @@ const tableOfContents = generateTableOfContents(headings);
           function checkTocVisibility() {
             if (window.innerWidth < 1536) {
               tocPanel.classList.add("hidden");
-              tocPanel.classList.remove("2xl:block");
             } else {
               tocPanel.classList.remove("hidden");
-              tocPanel.classList.add("2xl:block");
             }
           }
 
@@ -804,23 +789,21 @@ const tableOfContents = generateTableOfContents(headings);
               const expanded = toggle.getAttribute("aria-expanded") === "true";
               toggle.setAttribute("aria-expanded", expanded ? "false" : "true");
               
-              // 更新图标旋转
-              const svg = toggle.querySelector("svg");
-              if (svg) {
-                svg.style.transform = expanded ? "" : "rotate(-180deg)";
-              }
-              
               // 切换子菜单显示状态
               const listItem = toggle.closest(".toc-item");
               if (listItem) {
                 const sublist = listItem.querySelector(".toc-sublist");
                 if (sublist) {
                   if (expanded) {
+                    // 收起子菜单
                     sublist.classList.add("hidden");
                     sublist.setAttribute("aria-expanded", "false");
+                    toggle.querySelector("svg").classList.remove("rotate-180");
                   } else {
+                    // 展开子菜单
                     sublist.classList.remove("hidden");
                     sublist.setAttribute("aria-expanded", "true");
+                    toggle.querySelector("svg").classList.add("rotate-180");
                   }
                 }
               }
@@ -849,6 +832,7 @@ const tableOfContents = generateTableOfContents(headings);
                   behavior: "smooth",
                 });
 
+                // 增强高亮效果
                 targetElement.classList.add(
                   "bg-primary-50",
                   "dark:bg-primary-900/20",
@@ -856,7 +840,7 @@ const tableOfContents = generateTableOfContents(headings);
                 setTimeout(() => {
                   targetElement.classList.remove(
                     "bg-primary-50",
-                    "dark:bg-primary-900/20",
+                    "dark:bg-primary-900/20"
                   );
                 }, 2000);
               }
@@ -876,14 +860,15 @@ const tableOfContents = generateTableOfContents(headings);
               article.querySelectorAll("h1, h2, h3, h4, h5, h6"),
             );
             const tocLinks = Array.from(tocContent.querySelectorAll(".toc-link"));
-            const tocItems = Array.from(tocContent.querySelectorAll(".toc-item"));
 
             // 清除所有活动状态
             tocLinks.forEach((link) => {
+              // 移除活动类
               link.classList.remove(
+                "toc-link-active",
                 "text-primary-600",
                 "dark:text-primary-400",
-                "font-medium",
+                "font-medium"
               );
             });
 
@@ -914,9 +899,10 @@ const tableOfContents = generateTableOfContents(headings);
                 if (activeLink) {
                   // 高亮当前目录项
                   activeLink.classList.add(
+                    "toc-link-active",
                     "text-primary-600",
                     "dark:text-primary-400",
-                    "font-medium",
+                    "font-medium"
                   );
 
                   // 展开当前激活项的所有父菜单并收集到活动项集合中
@@ -929,15 +915,13 @@ const tableOfContents = generateTableOfContents(headings);
                     const parentToggle = parent.querySelector(".toc-toggle");
                     
                     if (parentSublist && parentSublist.classList.contains("hidden")) {
+                      // 使用平滑动画展开
                       parentSublist.classList.remove("hidden");
                       parentSublist.setAttribute("aria-expanded", "true");
                       
                       if (parentToggle) {
                         parentToggle.setAttribute("aria-expanded", "true");
-                        const svg = parentToggle.querySelector("svg");
-                        if (svg) {
-                          svg.style.transform = "rotate(-180deg)";
-                        }
+                        parentToggle.querySelector("svg")?.classList.add("rotate-180");
                       }
                     }
                     
@@ -945,28 +929,42 @@ const tableOfContents = generateTableOfContents(headings);
                     parent = parent.parentElement?.closest(".toc-item");
                   }
 
-                  // 确保当前激活的目录项在可视区域内
-                  const tocContainer = tocContent;
-                  if (tocContainer) {
-                    const linkOffsetTop = activeLink.offsetTop;
-                    const containerScrollTop = tocContainer.scrollTop;
-                    const containerHeight = tocContainer.clientHeight;
-
-                    // 如果当前项不在视口内，滚动目录
-                    if (
-                      linkOffsetTop < containerScrollTop ||
-                      linkOffsetTop > containerScrollTop + containerHeight
-                    ) {
-                      tocContainer.scrollTop =
-                        linkOffsetTop - containerHeight / 2;
+                  // 确保当前激活的目录项在可视区域内 - 添加平滑滚动
+                  setTimeout(() => {
+                    // 延迟执行确保DOM已更新
+                    if (tocContent) {
+                      // 重新计算activeLink的位置，因为父菜单可能已展开
+                      const linkRect = activeLink.getBoundingClientRect();
+                      const containerRect = tocContent.getBoundingClientRect();
+                      
+                      // 检查当前项是否在目录容器的可视区域内
+                      const isInView = (
+                        linkRect.top >= containerRect.top &&
+                        linkRect.bottom <= containerRect.bottom
+                      );
+                      
+                      // 如果当前激活项不在视口内，滚动目录
+                      if (!isInView) {
+                        // 计算滚动位置，使激活项在容器中居中
+                        const scrollTop = tocContent.scrollTop + 
+                                         (linkRect.top - containerRect.top) - 
+                                         (containerRect.height / 2) + 
+                                         (linkRect.height / 2);
+                                            
+                        tocContent.scrollTo({
+                          top: scrollTop,
+                          behavior: "smooth"
+                        });
+                      }
                     }
-                  }
+                  }, 100); // 添加短延迟确保DOM已更新
                 }
               }
             }
 
-            // 关闭不在当前活动路径上的所有子菜单
-            tocItems.forEach(item => {
+            // 关闭不在当前活动路径上的所有子菜单 - 使用平滑动画
+            const allItems = Array.from(tocContent.querySelectorAll(".toc-item"));
+            allItems.forEach(item => {
               // 如果不在活动路径上且有子菜单
               if (!activeItems.has(item)) {
                 const sublist = item.querySelector('.toc-sublist');
@@ -978,10 +976,7 @@ const tableOfContents = generateTableOfContents(headings);
                   
                   if (toggle) {
                     toggle.setAttribute('aria-expanded', 'false');
-                    const svg = toggle.querySelector('svg');
-                    if (svg) {
-                      svg.style.transform = '';
-                    }
+                    toggle.querySelector("svg")?.classList.remove("rotate-180");
                   }
                 }
               }
