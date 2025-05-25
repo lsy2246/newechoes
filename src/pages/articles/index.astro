@@ -69,7 +69,11 @@ const pageTitle = currentPath ? currentPath : '文章列表';
 
 ---
 
-<Layout title={`${pageTitle}`} pageType="directory">
+<Layout 
+  title={`${pageTitle}`} 
+  pageType="directory"
+  description="文章列表"
+>
   <!-- 传递head槽位 -->
   <slot name="head" slot="head" />
   

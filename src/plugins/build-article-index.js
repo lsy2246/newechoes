@@ -1,6 +1,3 @@
-// build-article-index.js
-// 在Astro构建完成后生成文章索引的脚本
-
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

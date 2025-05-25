@@ -1,8 +1,3 @@
-/**
- * rehype 插件：增强代码块
- * 添加语言标签、复制按钮和行号
- * 支持明暗主题切换
- */
 import { visit } from 'unist-util-visit';
 
 export function rehypeCodeBlocks() {

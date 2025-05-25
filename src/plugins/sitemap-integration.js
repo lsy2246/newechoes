@@ -345,8 +345,8 @@ export function customSitemapIntegration() {
           const sitemapEntries = [];
           
           for (const page of pages) {
-            // 过滤掉API路径
-            if (page.pathname.includes('/api/')) {
+            // 过滤掉API路径和404页面
+            if (page.pathname.includes('/api/') || page.pathname.includes('/404/')) {
               continue;
             }
             

@@ -12,6 +12,7 @@ import { articleIndexerIntegration } from "./src/plugins/build-article-index.js"
 import { rehypeCodeBlocks } from "./src/plugins/rehype-code-blocks.js";
 import { rehypeTables } from "./src/plugins/rehype-tables.js";
 import { customSitemapIntegration } from "./src/plugins/sitemap-integration.js";
+import { rssIntegration } from "./src/plugins/rss-integration.js";
 
 // https://astro.build/config
 export default defineConfig({
@@ -34,6 +35,7 @@ export default defineConfig({
     // 使用文章索引生成器
     articleIndexerIntegration(),
     customSitemapIntegration(),
+    rssIntegration(),
     // 添加压缩插件 (必须放在最后位置)
     compressor()
   ],

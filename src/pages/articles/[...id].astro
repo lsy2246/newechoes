@@ -1,5 +1,6 @@
 ---
 import { getCollection, render } from "astro:content";
+import type { CollectionEntry } from "astro:content";
 import { getSpecialPath } from "@/content.config";
 import Layout from "@/components/Layout.astro";
 import Breadcrumb from "@/components/Breadcrumb.astro";
@@ -7,21 +8,35 @@ import { ARTICLE_EXPIRY_CONFIG } from "@/consts";
 import "@/styles/articles.css";
 
 // 定义文章类型
-interface ArticleEntry {
-  id: string;
-  data: {
-    title: string;
-    date: Date;
-    tags?: string[];
-    summary?: string;
-  };
-}
+type ArticleEntry = CollectionEntry<'articles'>;
 
 // 定义标题类型
 interface Heading {
   depth: number;
   slug: string;
   text: string;
+}
+
+// 生成文章摘要的辅助函数
+function generateArticleSummary(article: ArticleEntry): string {
+  if (article.data.summary) {
+    return article.data.summary;
+  }
+  
+  // 如果没有summary，从文章内容中提取
+  const rawContent = article.body;
+  // 移除Markdown语法和空白字符
+  const plainText = rawContent
+    .replace(/\s+/g, ' ')  // 将多个空白字符替换为单个空格
+    .replace(/[#*`~>]/g, '') // 移除Markdown标记
+    .replace(/\[.*?\]\(.*?\)/g, '') // 移除Markdown链接
+    .replace(/!\[.*?\]\(.*?\)/g, '') // 移除Markdown图片
+    .replace(/```[\s\S]*?```/g, '') // 移除代码块
+    .trim();
+  
+  return plainText.length > 150 
+    ? plainText.substring(0, 150) + '...'
+    : plainText;
 }
 
 export async function getStaticPaths() {
@@ -162,9 +177,7 @@ if (relatedArticles.length < 3) {
 }
 
 // 准备文章描述
-const description =
-  article.data.summary ||
-  `${article.data.title} - 发布于 ${article.data.date.toLocaleDateString("zh-CN")}`;
+const description = generateArticleSummary(article);
 
 // 处理特殊ID的函数
 function getArticleUrl(articleId: string) {
@@ -477,14 +490,9 @@ const tableOfContents = generateTableOfContents(headings);
                       <h3 class="article-card-title">
                         {relatedArticle.data.title}
                       </h3>
-                      <p class="article-card-date">
-                        {relatedArticle.data.date.toLocaleDateString("zh-CN")}
+                      <p class="article-card-summary">
+                        {generateArticleSummary(relatedArticle)}
                       </p>
-                      {relatedArticle.data.summary && (
-                        <p class="article-card-summary">
-                          {relatedArticle.data.summary}
-                        </p>
-                      )}
                       <div class="article-card-footer">
                         <time
                           datetime={relatedArticle.data.date.toISOString()}
