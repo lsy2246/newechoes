@@ -80,6 +80,9 @@ importers:
       three:
         specifier: ^0.176.0
         version: 0.176.0
+      unist-util-visit:
+        specifier: ^5.0.0
+        version: 5.0.0
     devDependencies:
       '@tailwindcss/typography':
         specifier: ^0.5.16

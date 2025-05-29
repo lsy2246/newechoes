@@ -32,7 +32,8 @@
     "react-masonry-css": "^1.0.16",
     "swup": "^4.8.2",
     "tailwindcss": "^4.1.4",
-    "three": "^0.176.0"
+    "three": "^0.176.0",
+    "unist-util-visit": "^5.0.0"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16",
