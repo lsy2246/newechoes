@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
+  "framework": "astro",
+  "outputDirectory": "dist",
+  "public": false,
+  "github": {
+    "silent": true
+  }
+} 
