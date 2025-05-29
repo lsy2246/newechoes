@@ -29,10 +29,10 @@ const breadcrumbs: Breadcrumb[] = pathSegments
   });
 ---
 
-<div class="flex items-center justify-between w-full flex-wrap sm:flex-nowrap">
-  <div class="flex items-center text-sm overflow-hidden">
+<div class="breadcrumb flex items-center justify-between w-full flex-wrap sm:flex-nowrap" data-page-type={pageType}>
+  <div class="breadcrumb-path flex items-center text-sm overflow-hidden">
     <!-- 文章列表链接 - 根据当前页面类型决定链接 -->
-    <a href={'/articles/'} class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center flex-shrink-0">
+    <a href={'/articles/'} class="breadcrumb-home text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center flex-shrink-0">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
       </svg>
@@ -41,29 +41,31 @@ const breadcrumbs: Breadcrumb[] = pathSegments
 
     <!-- 网格视图或文章详情中的目录路径 -->
     {(pageType === 'grid' || (pageType === 'article' && breadcrumbs.length > 0)) && (
-      <div class="flex items-center overflow-hidden">
-        <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+      <div class="breadcrumb-segments flex items-center overflow-hidden" data-segments-count={breadcrumbs.length}>
+        <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
         
         <!-- 移动端使用智能截断 -->
-        <div class="flex md:hidden items-center">
+        <div class="breadcrumb-mobile flex md:hidden items-center">
           {breadcrumbs.length > 2 ? (
             <>
               <!-- 第一个路径段 -->
               <a 
                 href={`/articles/${breadcrumbs[0].path}/`} 
-                class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[100px] flex-shrink-0"
+                class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[100px] flex-shrink-0"
+                data-segment-index="0"
               >
                 {breadcrumbs[0].name}
               </a>
               
               <!-- 省略号 -->
-              <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">...</span>
+              <span class="breadcrumb-ellipsis mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">...</span>
               
               <!-- 最后一个路径段 -->
               {breadcrumbs.length > 1 && (
                 <a 
                   href={`/articles/${breadcrumbs[breadcrumbs.length - 1].path}/`} 
-                  class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[120px] flex-shrink-0"
+                  class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[120px] flex-shrink-0"
+                  data-segment-index={breadcrumbs.length - 1}
                 >
                   {breadcrumbs[breadcrumbs.length - 1].name}
                 </a>
@@ -73,11 +75,12 @@ const breadcrumbs: Breadcrumb[] = pathSegments
             breadcrumbs.map((crumb: Breadcrumb, index: number) => {
               const crumbPath = breadcrumbs.slice(0, index + 1).map((b: Breadcrumb) => b.name).join('/');
               return (
-                <span class="flex items-center flex-shrink-0">
-                  {index > 0 && <span class="mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
+                <span class="breadcrumb-item flex items-center flex-shrink-0">
+                  {index > 0 && <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
                   <a 
                     href={`/articles/${crumbPath}/`} 
-                    class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[100px] sm:max-w-[150px]"
+                    class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[100px] sm:max-w-[150px]"
+                    data-segment-index={index}
                   >
                     {crumb.name}
                   </a>
@@ -88,15 +91,16 @@ const breadcrumbs: Breadcrumb[] = pathSegments
         </div>
         
         <!-- 桌面端显示全部路径段 -->
-        <div class="hidden md:flex items-center flex-wrap">
+        <div class="breadcrumb-desktop hidden md:flex items-center flex-wrap">
           {breadcrumbs.map((crumb: Breadcrumb, index: number) => {
             const crumbPath = breadcrumbs.slice(0, index + 1).map((b: Breadcrumb) => b.name).join('/');
             return (
-              <span class="flex items-center flex-shrink-0">
-                {index > 0 && <span class="mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
+              <span class="breadcrumb-item flex items-center flex-shrink-0">
+                {index > 0 && <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
                 <a 
                   href={`/articles/${crumbPath}/`} 
-                  class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[200px] lg:max-w-[250px] xl:max-w-[300px]"
+                  class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[200px] lg:max-w-[250px] xl:max-w-[300px]"
+                  data-segment-index={index}
                 >
                   {crumb.name}
                 </a>
@@ -109,11 +113,11 @@ const breadcrumbs: Breadcrumb[] = pathSegments
 
     <!-- 筛选视图中的搜索参数展示 -->
     {pageType === 'filter' && searchParams.toString() && (
-      <div class="flex items-center overflow-hidden">
-        <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
-        <span class="text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
+      <div class="breadcrumb-filter flex items-center overflow-hidden">
+        <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+        <span class="breadcrumb-filter-label text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
           筛选
-          {searchParams.toString() && <span class="ml-1">- 搜索结果</span>}
+          {searchParams.toString() && <span class="breadcrumb-search-result ml-1">- 搜索结果</span>}
         </span>
       </div>
     )}
@@ -121,21 +125,23 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     <!-- 文章标题 - 仅在文章详情页显示 -->
     {pageType === 'article' && articleTitle && (
       <>
-        <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
-        <span class="text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">{articleTitle}</span>
+        <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+        <span class="breadcrumb-article-title text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">{articleTitle}</span>
       </>
     )}
   </div>
 
   <!-- 视图切换按钮 - 仅在文章列表页面显示 -->
   {(pageType === 'filter' || pageType === 'grid') && (
-    <div class="flex items-center gap-px flex-shrink-0 ml-auto">
+    <div class="breadcrumb-view-switcher flex items-center gap-px flex-shrink-0 ml-auto">
       <a href={`/filtered${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
-         class={`px-3 py-1.5 flex items-center gap-1 ${
+         class="breadcrumb-filter-btn px-3 py-1.5 flex items-center gap-1 ${
            pageType === 'filter' 
              ? 'text-primary-600 dark:text-primary-400 font-medium' 
              : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
-         }`}
+         }"
+         data-view-type="filter"
+         data-active={pageType === 'filter' ? 'true' : 'false'}
          data-astro-prefetch="hover">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -143,11 +149,13 @@ const breadcrumbs: Breadcrumb[] = pathSegments
         <span class="hidden sm:inline text-xs">筛选</span>
       </a>
       <a href={path ? `/articles/${path}/` : `/articles/`}
-         class={`px-3 py-1.5 flex items-center gap-1 ${
+         class="breadcrumb-grid-btn px-3 py-1.5 flex items-center gap-1 ${
            pageType === 'grid' 
              ? 'text-primary-600 dark:text-primary-400 font-medium' 
              : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
-         }`}
+         }"
+         data-view-type="grid"
+         data-active={pageType === 'grid' ? 'true' : 'false'}
          data-astro-prefetch="hover">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -159,10 +167,10 @@ const breadcrumbs: Breadcrumb[] = pathSegments
   
   <!-- 文章详情页的返回按钮 -->
   {pageType === 'article' && (
-    <div class="flex items-center shrink-0 ml-auto">
+    <div class="breadcrumb-back flex items-center shrink-0 ml-auto">
       <a
         href={`/articles/${path}/`}
-        class="text-secondary-500 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center text-sm back-button"
+        class="breadcrumb-back-btn text-secondary-500 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center text-sm back-button"
         data-astro-prefetch="hover"
         data-path={`/articles/${path}/`}
       >
@@ -187,7 +195,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
 </div> 
 
 <script is:inline>
-  // 面包屑返回按钮处理 - 自销毁模式
+  // 面包屑控制器 - 自销毁模式
   (function() {
     // 集中管理所有事件监听器
     const allListeners = [];
@@ -195,6 +203,13 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     // 单独保存清理事件的监听器引用
     const cleanupListeners = [];
     
+    // 内部状态管理
+    const state = {
+      isCleaningUp: false,
+      lastActivePath: '',
+      originalPushState: window.history.pushState,
+      originalReplaceState: window.history.replaceState
+    };
     
     // 添加事件监听器并记录，方便后续统一清理
     function addListener(element, eventType, handler, options) {
@@ -301,15 +316,25 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       const articleTitle = pageType === 'article' ? getArticleTitle(currentPath) : '';
       
       // 获取面包屑容器
-      const breadcrumbContainer = document.querySelector('.flex.items-center.text-sm.overflow-hidden');
+      const breadcrumbContainer = document.querySelector('.breadcrumb');
       if (!breadcrumbContainer) {
         console.warn('[面包屑]找不到面包屑容器，无法更新');
         return;
       }
       
+      // 设置页面类型
+      breadcrumbContainer.setAttribute('data-page-type', pageType);
+      
+      // 获取面包屑路径容器
+      const breadcrumbPath = breadcrumbContainer.querySelector('.breadcrumb-path');
+      if (!breadcrumbPath) {
+        console.warn('[面包屑]找不到面包屑路径容器，无法更新');
+        return;
+      }
+      
       // 生成路径面包屑HTML
       let breadcrumbsHtml = `
-        <a href="/articles/" class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center flex-shrink-0">
+        <a href="/articles/" class="breadcrumb-home text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center flex-shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
           </svg>
@@ -319,11 +344,11 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       
       // 网格视图或文章详情中的目录路径
       if (pageType === 'grid' || (pageType === 'article' && pathSegments.length > 0)) {
-        breadcrumbsHtml += `<div class="flex items-center overflow-hidden">
-          <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>`;
+        breadcrumbsHtml += `<div class="breadcrumb-segments flex items-center overflow-hidden" data-segments-count="${pathSegments.length}">
+          <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>`;
         
         // 移动端使用智能截断
-        breadcrumbsHtml += `<div class="flex md:hidden items-center">`;
+        breadcrumbsHtml += `<div class="breadcrumb-mobile flex md:hidden items-center">`;
         
         if (pathSegments.length > 2) {
           // 第一个路径段
@@ -333,12 +358,13 @@ const breadcrumbs: Breadcrumb[] = pathSegments
           breadcrumbsHtml += `
             <a 
               href="/articles/${firstPath}/" 
-              class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[100px] flex-shrink-0"
+              class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[100px] flex-shrink-0"
+              data-segment-index="0"
             >
               ${firstSegment}
             </a>
             
-            <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">...</span>
+            <span class="breadcrumb-ellipsis mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">...</span>
           `;
           
           // 最后一个路径段
@@ -349,7 +375,8 @@ const breadcrumbs: Breadcrumb[] = pathSegments
             breadcrumbsHtml += `
               <a 
                 href="/articles/${lastPath}/" 
-                class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[120px] flex-shrink-0"
+                class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[120px] flex-shrink-0"
+                data-segment-index="${pathSegments.length - 1}"
               >
                 ${lastSegment}
               </a>
@@ -360,11 +387,12 @@ const breadcrumbs: Breadcrumb[] = pathSegments
           breadcrumbsHtml += pathSegments.map((segment, index) => {
             const segmentPath = pathSegments.slice(0, index + 1).map(encodeURIComponent).join('/');
             return `
-              <span class="flex items-center flex-shrink-0">
-                ${index > 0 ? '<span class="mx-2 text-secondary-300 dark:text-secondary-600">/</span>' : ''}
+              <span class="breadcrumb-item flex items-center flex-shrink-0">
+                ${index > 0 ? '<span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>' : ''}
                 <a 
                   href="/articles/${segmentPath}/" 
-                  class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[100px] sm:max-w-[150px]"
+                  class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[100px] sm:max-w-[150px]"
+                  data-segment-index="${index}"
                 >
                   ${segment}
                 </a>
@@ -376,16 +404,17 @@ const breadcrumbs: Breadcrumb[] = pathSegments
         breadcrumbsHtml += `</div>`;
         
         // 桌面端显示全部路径段
-        breadcrumbsHtml += `<div class="hidden md:flex items-center flex-wrap">`;
+        breadcrumbsHtml += `<div class="breadcrumb-desktop hidden md:flex items-center flex-wrap">`;
         
         breadcrumbsHtml += pathSegments.map((segment, index) => {
           const segmentPath = pathSegments.slice(0, index + 1).map(encodeURIComponent).join('/');
           return `
-            <span class="flex items-center flex-shrink-0">
-              ${index > 0 ? '<span class="mx-2 text-secondary-300 dark:text-secondary-600">/</span>' : ''}
+            <span class="breadcrumb-item flex items-center flex-shrink-0">
+              ${index > 0 ? '<span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>' : ''}
               <a 
                 href="/articles/${segmentPath}/" 
-                class="text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[200px] lg:max-w-[250px] xl:max-w-[300px]"
+                class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[200px] lg:max-w-[250px] xl:max-w-[300px]"
+                data-segment-index="${index}"
               >
                 ${segment}
               </a>
@@ -399,11 +428,11 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       // 筛选视图中的搜索参数展示
       if (pageType === 'filter' && searchParams.toString()) {
         breadcrumbsHtml += `
-          <div class="flex items-center overflow-hidden">
-            <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
-            <span class="text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
+          <div class="breadcrumb-filter flex items-center overflow-hidden">
+            <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+            <span class="breadcrumb-filter-label text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
               筛选
-              ${searchParams.toString() ? '<span class="ml-1">- 搜索结果</span>' : ''}
+              ${searchParams.toString() ? '<span class="breadcrumb-search-result ml-1">- 搜索结果</span>' : ''}
             </span>
           </div>
         `;
@@ -412,13 +441,13 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       // 文章标题 - 仅在文章详情页显示
       if (pageType === 'article' && articleTitle) {
         breadcrumbsHtml += `
-          <span class="mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
-          <span class="text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">${articleTitle}</span>
+          <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+          <span class="breadcrumb-article-title text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">${articleTitle}</span>
         `;
       }
       
       // 更新面包屑容器内容
-      breadcrumbContainer.innerHTML = breadcrumbsHtml;
+      breadcrumbPath.innerHTML = breadcrumbsHtml;
       
       // 更新视图切换按钮
       updateViewSwitchButtons(pageType, currentPath, searchParams);
@@ -432,7 +461,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     // 更新视图切换按钮
     function updateViewSwitchButtons(pageType, currentPath, searchParams) {
       // 获取视图切换按钮容器
-      const viewSwitchContainer = document.querySelector('.flex.items-center.gap-px.flex-shrink-0.ml-auto');
+      const viewSwitchContainer = document.querySelector('.breadcrumb-view-switcher');
       if (!viewSwitchContainer || !(pageType === 'filter' || pageType === 'grid')) {
         return;
       }
@@ -443,11 +472,13 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       // 生成视图切换按钮HTML
       const switchButtonsHtml = `
         <a href="/filtered${searchParamsStr}"
-           class="px-3 py-1.5 flex items-center gap-1 ${
+           class="breadcrumb-filter-btn px-3 py-1.5 flex items-center gap-1 ${
              pageType === 'filter' 
                ? 'text-primary-600 dark:text-primary-400 font-medium' 
                : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
            }"
+           data-view-type="filter"
+           data-active="${pageType === 'filter' ? 'true' : 'false'}"
            data-astro-prefetch="hover">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -455,11 +486,13 @@ const breadcrumbs: Breadcrumb[] = pathSegments
           <span class="hidden sm:inline text-xs">筛选</span>
         </a>
         <a href="${pathStr ? `/articles/${pathStr}/` : `/articles/`}"
-           class="px-3 py-1.5 flex items-center gap-1 ${
+           class="breadcrumb-grid-btn px-3 py-1.5 flex items-center gap-1 ${
              pageType === 'grid' 
                ? 'text-primary-600 dark:text-primary-400 font-medium' 
                : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
            }"
+           data-view-type="grid"
+           data-active="${pageType === 'grid' ? 'true' : 'false'}"
            data-astro-prefetch="hover">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -474,20 +507,20 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     
     // 更新返回按钮
     function updateBackButton(currentPath, pathWithoutFile) {
-      // 获取视图切换按钮容器的父元素
-      const parentContainer = document.querySelector('.flex.items-center.justify-between.w-full.flex-wrap.sm\\:flex-nowrap');
-      if (!parentContainer) {
+      // 获取面包屑容器
+      const breadcrumbContainer = document.querySelector('.breadcrumb');
+      if (!breadcrumbContainer) {
         return;
       }
       
       // 检查是否已有返回按钮容器
-      let backButtonContainer = document.querySelector('.flex.items-center.shrink-0.ml-auto');
+      let backButtonContainer = document.querySelector('.breadcrumb-back');
       
       // 如果没有返回按钮容器，创建一个
       if (!backButtonContainer) {
         backButtonContainer = document.createElement('div');
-        backButtonContainer.className = 'flex items-center shrink-0 ml-auto';
-        parentContainer.appendChild(backButtonContainer);
+        backButtonContainer.className = 'breadcrumb-back flex items-center shrink-0 ml-auto';
+        breadcrumbContainer.appendChild(backButtonContainer);
       }
       
       // 确保路径使用编码后的形式用于URL
@@ -497,7 +530,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       const backButtonHtml = `
         <a
           href="/articles/${encodedPath}/"
-          class="text-secondary-500 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center text-sm back-button"
+          class="breadcrumb-back-btn text-secondary-500 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center text-sm back-button"
           data-astro-prefetch="hover"
           data-path="/articles/${encodedPath}/"
         >
@@ -529,12 +562,11 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     // 添加路径变化检测和自动更新
     function setupPathChangeDetection() {
       let lastPathChecked = getCurrentPath();
-      let isCleaningUp = false; // 标记是否在清理中
       
       // 统一的路径变化处理函数
       function handlePathChange() {
         // 如果正在清理中，不要继续更新
-        if (isCleaningUp) {
+        if (state.isCleaningUp) {
           return;
         }
         
@@ -550,60 +582,80 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       
       // 监听hashchange事件 - 当URL的hash部分改变时触发
       addListener(window, 'hashchange', () => {
-        if (isCleaningUp) return;
+        if (state.isCleaningUp) return;
         handlePathChange();
       });
       
       // 监听popstate事件
       addListener(window, 'popstate', () => {
-        if (isCleaningUp) return;
+        if (state.isCleaningUp) return;
         handlePathChange();
       });
       
       // 监听页面转换事件，设置清理标志
       addListener(document, 'page-transition', () => {
         // 设置清理标志，阻止后续的handlePathChange调用
-        isCleaningUp = true;
+        state.isCleaningUp = true;
       });
       
       // 监听页面内容替换完成后更新面包屑
       addListener(document, 'swup:contentReplaced', () => {
-        if (isCleaningUp) return;
+        if (state.isCleaningUp) return;
         setTimeout(() => {
           // 在DOM更新后，重新计算面包屑
           handlePathChange();
         }, 10);
       });
       
-      // 保存原始history方法
-      originalPushState = window.history.pushState;
-      originalReplaceState = window.history.replaceState;
+      // 设置History API监控
+      setupHistoryMonitoring();
+    }
+    
+    // 设置History API监控
+    function setupHistoryMonitoring() {
+      // 保存初始状态
+      state.originalPushState = window.history.pushState;
+      state.originalReplaceState = window.history.replaceState;
       
       // 重写pushState
       window.history.pushState = function() {
         // 如果正在清理中，不要执行被重写的方法，直接调用原始方法
-        if (isCleaningUp) {
-          return originalPushState.apply(this, arguments);
+        if (state.isCleaningUp) {
+          return state.originalPushState.apply(this, arguments);
         }
         
-        originalPushState.apply(this, arguments);
-        handlePathChange();
+        state.originalPushState.apply(this, arguments);
+        setTimeout(() => {
+          const currentPath = getCurrentPath();
+          if (currentPath !== state.lastActivePath) {
+            updateBreadcrumbs();
+            state.lastActivePath = currentPath;
+          }
+        }, 10);
       };
       
       // 重写replaceState
       window.history.replaceState = function() {
         // 如果正在清理中，不要执行被重写的方法，直接调用原始方法
-        if (isCleaningUp) {
-          return originalReplaceState.apply(this, arguments);
+        if (state.isCleaningUp) {
+          return state.originalReplaceState.apply(this, arguments);
         }
         
-        originalReplaceState.apply(this, arguments);
-        handlePathChange();
+        state.originalReplaceState.apply(this, arguments);
+        setTimeout(() => {
+          const currentPath = getCurrentPath();
+          if (currentPath !== state.lastActivePath) {
+            updateBreadcrumbs();
+            state.lastActivePath = currentPath;
+          }
+        }, 10);
       };
     }
     
     // 统一的清理函数，执行完整清理并自销毁
     function selfDestruct() {
+      // 标记清理状态
+      state.isCleaningUp = true;
       
       // 1. 移除所有普通事件监听器
       allListeners.forEach(({ element, eventType, handler, options }) => {
@@ -618,18 +670,18 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       allListeners.length = 0;
       
       // 恢复原始的history方法
-      if (originalPushState && originalReplaceState) {
+      if (state.originalPushState && state.originalReplaceState) {
         try {
           // 立即恢复原始方法，确保后续pushState调用直接使用原始方法
-          const tempOriginalPushState = originalPushState;
-          const tempOriginalReplaceState = originalReplaceState;
+          const tempOriginalPushState = state.originalPushState;
+          const tempOriginalReplaceState = state.originalReplaceState;
           
           window.history.pushState = tempOriginalPushState;
           window.history.replaceState = tempOriginalReplaceState;
           
           // 清空引用
-          originalPushState = null;
-          originalReplaceState = null;
+          state.originalPushState = null;
+          state.originalReplaceState = null;
           
         } catch (err) {
           console.error('[面包屑] 恢复History方法失败:', err);
@@ -649,13 +701,12 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       
       // 清空清理监听器数组
       cleanupListeners.length = 0;
-      
     }
     
     // 注册清理事件，并保存引用
     function registerCleanupEvents() {
       // 创建事件处理函数
-      const pageTransitionHandler = (event) => {
+      const pageTransitionHandler = () => {
         selfDestruct();
       };
       
@@ -686,7 +737,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     
     // 设置返回按钮功能
     function setupBackButton() {
-      const backButton = document.querySelector('.back-button');
+      const backButton = document.querySelector('.breadcrumb-back-btn');
       
       if (!backButton) {
         return;

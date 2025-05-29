@@ -85,9 +85,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           <nav class="nav-selector relative mr-4" data-duration="300" data-has-active={hasActiveNavItem.toString()}>
             <!-- 高亮背景元素 -->
             <div id="nav-primary-highlight" 
-                class={`absolute z-0 bg-primary-100 dark:bg-primary-800/30 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300 ${hasActiveNavItem ? 'opacity-100' : 'opacity-0'}`}></div>
+                class="absolute z-0 bg-primary-100 dark:bg-primary-800/30 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300"></div>
             <div id="nav-secondary-highlight" 
-                class={`absolute z-10 bg-primary-300/80 dark:bg-primary-700/60 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300 ${activeSubItem ? 'opacity-100' : 'opacity-0'}`}></div>
+                class="absolute z-10 bg-primary-300/80 dark:bg-primary-700/60 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300"></div>
             
             <!-- 导航菜单项 -->
             <div class="flex items-center relative z-20 space-x-8">
@@ -97,24 +97,24 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                     <!-- 单项导航 -->
                     <a 
                       href={item.href} 
-                      class={`nav-item relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium ${activeItem && activeItem.id === item.id 
-                        ? 'active font-semibold text-primary-700 dark:text-primary-300' 
-                        : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
+                      class="nav-item relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
                       data-item-id={item.id}
+                      data-state={activeItem && activeItem.id === item.id ? "active" : "inactive"}
                       data-astro-prefetch="hover"
                     >
                       {item.text}
                     </a>
                   ) : (
                     <!-- 带子菜单的导航组 -->
-                    <div class={`nav-group relative flex items-center min-h-10 ${activeGroupId === item.id ? 'active rounded-xl' : ''}`} data-group-id={item.id}>
+                    <div class="nav-group relative flex items-center min-h-10" 
+                         data-group-id={item.id}
+                         data-expanded={activeGroupId === item.id ? "true" : "false"}>
                       <!-- 一级菜单按钮 -->
                       <button 
                         type="button"
-                        class={`nav-group-toggle relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium ${activeGroupId === item.id 
-                          ? 'menu-up font-semibold text-primary-700 dark:text-primary-300' 
-                          : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
+                        class="nav-group-toggle relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
                         data-toggle-id={item.id}
+                        data-state={activeGroupId === item.id ? "active" : "inactive"}
                         data-height-reference="true"
                       >
                         {item.text}
@@ -126,11 +126,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                           {item.items.map((subItem) => (
                             <a 
                               href={subItem.href} 
-                              class={`nav-subitem relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium ${activeSubItem && activeSubItem.id === subItem.id 
-                                ? 'active font-semibold text-primary-700 dark:text-primary-300' 
-                                : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'}`}
+                              class="nav-subitem relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
                               data-subitem-id={`${item.id}-${subItem.id}`}
                               data-parent-id={item.id}
+                              data-state={activeSubItem && activeSubItem.id === subItem.id ? "active" : "inactive"}
                               data-astro-prefetch="hover"
                             >
                               {subItem.text}
@@ -259,7 +258,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                         </svg>
                       </div>
                     </div>
-                    <div class="mobile-submenu pl-4 border-l-2 border-gray-200 dark:border-gray-700" data-parent-id={item.id}>
+                    <div class="mobile-submenu pl-4 border-l-2 border-gray-200 dark:border-gray-700" 
+                         data-parent-id={item.id}
+                         data-expanded="false">
                       {item.items.map(subItem => (
                         <a
                           href={subItem.href}
@@ -453,9 +454,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const standardHeight = getStandardHeight();
     
     // 查找活动元素
-    const activeItem = document.querySelector('.nav-item.active');
-    const activeGroup = document.querySelector('.nav-group.active');
-    const activeSubItem = document.querySelector('.nav-subitem.active');
+    const activeItem = document.querySelector('.nav-item[data-state="active"]');
+    const activeGroup = document.querySelector('.nav-group[data-expanded="true"]');
+    const activeSubItem = document.querySelector('.nav-subitem[data-state="active"]');
     
     // 计算一级高亮目标
     let primaryTarget = activeItem;
@@ -672,28 +673,22 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     // 先清除所有导航项的激活状态
     const allNavItems = document.querySelectorAll('.nav-item, .nav-subitem');
     allNavItems.forEach(item => {
-      item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-      item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      item.setAttribute('data-state', 'inactive');
     });
     
     const allNavGroups = document.querySelectorAll('.nav-group');
     allNavGroups.forEach(group => {
-      group.classList.remove('active');
+      group.setAttribute('data-expanded', 'false');
       const toggle = group.querySelector('.nav-group-toggle');
       if (toggle) {
-        toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        toggle.setAttribute('data-state', 'inactive');
       }
       
       // 处理子菜单状态
       const menuItems = group.querySelector('.nav-group-items');
       if (menuItems) {
-        const wasVisible = menuItems.classList.contains('menu-visible');
-        
-        if (wasVisible) {
-          menuItems.classList.remove('menu-visible');
-          menuItems.classList.add('hidden');
-        }
+        menuItems.classList.remove('menu-visible');
+        menuItems.classList.add('hidden');
       }
     });
     
@@ -710,21 +705,19 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       // 检查是否匹配当前路径（完全匹配或前缀匹配，但排除根路径的前缀匹配）
       if (href === currentPath || (currentPath.startsWith(href) && href !== '/')) {
         // 找到匹配项，设置为active
-        subItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        subItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        subItem.setAttribute('data-state', 'active');
         
         // 激活父组
         const parentId = subItem.dataset.parentId;
         if (parentId) {
           const parentGroup = document.querySelector(`.nav-group[data-group-id="${parentId}"]`);
           if (parentGroup) {
-            parentGroup.classList.add('active');
+            parentGroup.setAttribute('data-expanded', 'true');
             
             // 设置组切换按钮样式
             const toggle = parentGroup.querySelector('.nav-group-toggle');
             if (toggle) {
-              toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-              toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+              toggle.setAttribute('data-state', 'active');
             }
             
             // 确保子菜单可见
@@ -752,8 +745,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         // 检查是否匹配当前路径（完全匹配或前缀匹配，但排除根路径的前缀匹配）
         if (href === currentPath || (currentPath.startsWith(href) && href !== '/')) {
           // 找到匹配项，设置为active
-          item.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          item.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          item.setAttribute('data-state', 'active');
           
           foundMatch = true;
           break;
@@ -928,35 +920,28 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       
       // 清除所有激活状态
       navItems.forEach(item => {
-        item.classList.remove(...activeClass.split(' '));
-        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        item.setAttribute('data-state', 'inactive');
       });
       
       navSubItems.forEach(item => {
-        item.classList.remove(...activeClass.split(' '));
-        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        item.setAttribute('data-state', 'inactive');
       });
       
       // 清除所有组的激活状态和按钮样式
       navGroups.forEach(group => {
-        group.classList.remove('active');
+        group.setAttribute('data-expanded', 'false');
         
         // 清除组内按钮的激活状态
         const toggle = group.querySelector('.nav-group-toggle');
         if (toggle) {
-          toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          toggle.setAttribute('data-state', 'inactive');
         }
       });
       
       // 设置新的激活状态
       const targetItem = document.querySelector(`.nav-item[data-item-id="${itemId}"]`);
       if (targetItem) {
-        targetItem.classList.add(...activeClass.split(' '));
-        targetItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        targetItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        targetItem.setAttribute('data-state', 'active');
         
         // 更新状态
         activeItemId = itemId;
@@ -991,16 +976,12 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       
       // 清除所有普通菜单项的高亮
       navItems.forEach(item => {
-        item.classList.remove(...activeClass.split(' '));
-        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        item.setAttribute('data-state', 'inactive');
       });
       
       // 清除所有二级菜单项的高亮
       navSubItems.forEach(item => {
-        item.classList.remove(...activeClass.split(' '));
-        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        item.setAttribute('data-state', 'inactive');
       });
       
       // 清除所有组按钮的激活状态
@@ -1008,11 +989,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         const groupId = group.dataset.groupId;
         // 只保留当前激活组的激活状态
         if (groupId !== parentId) {
-          group.classList.remove('active');
+          group.setAttribute('data-expanded', 'false');
           const toggle = group.querySelector('.nav-group-toggle');
           if (toggle) {
-            toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-            toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            toggle.setAttribute('data-state', 'inactive');
           }
           
           // 确保子菜单是隐藏的
@@ -1025,9 +1005,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       });
       
       // 设置新的激活状态
-      targetItem.classList.add(...activeClass.split(' '));
-      targetItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-      targetItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+      targetItem.setAttribute('data-state', 'active');
       
       // 更新状态
       activeSubItemId = subItemId;
@@ -1037,15 +1015,14 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       // 确保父组处于激活状态
       const parentGroup = document.querySelector(`.nav-group[data-group-id="${parentId}"]`);
       if (parentGroup) {
-        parentGroup.classList.add('active');
+        parentGroup.setAttribute('data-expanded', 'true');
         
         // 确保二级菜单可见
         const items = parentGroup.querySelector('.nav-group-items');
         const toggle = parentGroup.querySelector('.nav-group-toggle');
         
         if (items && toggle) {
-          toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          toggle.setAttribute('data-state', 'active');
           items.classList.remove('hidden');
           items.classList.add('menu-visible');
         }
@@ -1075,21 +1052,19 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       const duration = parseInt(navSelector.dataset.duration || 300);
       
       // 当前菜单是否可见
-      const isVisible = items.classList.contains('menu-visible');
+      const isExpanded = targetGroup.getAttribute('data-expanded') === 'true';
       
       // 确定最终状态（展开或收起）
-      const shouldOpen = forceState !== null ? forceState : !isVisible;
+      const shouldOpen = forceState !== null ? forceState : !isExpanded;
       
       // 如果状态相同，无需操作
-      if ((shouldOpen && isVisible) || (!shouldOpen && !isVisible)) {
+      if ((shouldOpen && isExpanded) || (!shouldOpen && !isExpanded)) {
         return;
       }
       
       // 清除所有普通菜单项的高亮状态
       navItems.forEach(item => {
-        item.classList.remove(...activeClass.split(' '));
-        item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        item.setAttribute('data-state', 'inactive');
       });
       
       // 收起菜单
@@ -1100,11 +1075,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         // 延迟隐藏菜单，等待过渡完成
         setTimeout(() => {
           // 移除组的激活状态
-          targetGroup.classList.remove('active');
+          targetGroup.setAttribute('data-expanded', 'false');
           
           // 显示一级菜单按钮
-          toggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-          toggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+          toggle.setAttribute('data-state', 'inactive');
           
           // 隐藏二级菜单
           items.classList.remove('menu-visible');
@@ -1140,23 +1114,21 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         navGroups.forEach(group => {
           const gid = group.dataset.groupId;
           if (gid !== groupId) {
-            group.classList.remove('active');
+            group.setAttribute('data-expanded', 'false');
             
             // 清除组内按钮的激活状态
             const groupToggle = group.querySelector('.nav-group-toggle');
             if (groupToggle) {
-              groupToggle.classList.remove('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-              groupToggle.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+              groupToggle.setAttribute('data-state', 'inactive');
             }
           }
         });
         
         // 标记组为激活状态
-        targetGroup.classList.add('active');
+        targetGroup.setAttribute('data-expanded', 'true');
         
         // 设置一级菜单按钮样式
-        toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-        toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+        toggle.setAttribute('data-state', 'active');
         
         // 展开二级菜单
         items.classList.remove('hidden', 'menu-hidden');
@@ -1184,15 +1156,11 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             
             // 清除所有二级菜单项的高亮
             navSubItems.forEach(item => {
-              item.classList.remove(...activeClass.split(' '));
-              item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-              item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+              item.setAttribute('data-state', 'inactive');
             });
             
             // 设置新的二级菜单项高亮
-            firstSubItem.classList.add(...activeClass.split(' '));
-            firstSubItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-            firstSubItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            firstSubItem.setAttribute('data-state', 'active');
             
             // 设置高亮
             activeSubItemId = subItemId;
@@ -1226,15 +1194,11 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           if (activeSubItem) {
             // 清除所有二级菜单项的高亮
             navSubItems.forEach(item => {
-              item.classList.remove(...activeClass.split(' '));
-              item.classList.remove('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-              item.classList.add('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+              item.setAttribute('data-state', 'inactive');
             });
             
             // 设置高亮
-            activeSubItem.classList.add(...activeClass.split(' '));
-            activeSubItem.classList.add('active', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-            activeSubItem.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+            activeSubItem.setAttribute('data-state', 'active');
           }
           
           // 更新高亮
@@ -1392,7 +1356,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           if (submenu) {
             const parentId = submenu.getAttribute('data-parent-id');
             const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
-            if (toggle && !submenu.classList.contains('menu-visible')) {
+            if (toggle && !submenu.getAttribute('data-expanded') === 'true') {
               // 展开子菜单
               toggleSubmenu(parentId, true);
             }
@@ -1415,22 +1379,18 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       if (!toggle || !submenu) return;
       
       // 确定是展开还是收起
-      const isHidden = !submenu.classList.contains('menu-visible');
-      const shouldOpen = forceOpen !== null ? forceOpen : isHidden;
+      const isExpanded = submenu.getAttribute('data-expanded') === 'true';
+      const shouldOpen = forceOpen !== null ? forceOpen : !isExpanded;
       
       if (shouldOpen) {
-        // 展开子菜单 - 移除hidden类已不需要，因为我们使用visibility控制
+        // 展开子菜单
+        submenu.setAttribute('data-expanded', 'true');
         
-        // 使用requestAnimationFrame确保DOM更新后再添加过渡类
-        requestAnimationFrame(() => {
-          submenu.classList.add('menu-visible');
-          
-          // 设置图标动画
-          if (menuIcon) menuIcon.style.transform = 'rotate(180deg)';
-        });
+        // 设置图标动画
+        if (menuIcon) menuIcon.style.transform = 'rotate(180deg)';
       } else {
-        // 收起子菜单 - 移除可见类触发过渡效果
-        submenu.classList.remove('menu-visible');
+        // 收起子菜单
+        submenu.setAttribute('data-expanded', 'false');
         
         // 重置图标动画
         if (menuIcon) menuIcon.style.transform = '';
@@ -1447,7 +1407,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           const menuIcon = toggle ? toggle.querySelector('.mobile-menu-icon') : null;
           
           if (submenu) {
-            submenu.classList.remove('menu-visible');
+            submenu.setAttribute('data-expanded', 'false');
             if (menuIcon) menuIcon.style.transform = '';
           }
         }
