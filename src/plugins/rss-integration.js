@@ -228,7 +228,7 @@ export function rssIntegration() {
             if (existsSync(distPath)) {
               try {
                 const xmlContent = readFileSync(distPath, 'utf-8');
-                res.setHeader('Content-Type', 'application/xml');
+                res.setHeader('Content-Type', 'application/xml; charset=UTF-8');
                 res.end(xmlContent);
               } catch (error) {
                 res.statusCode = 500;
@@ -247,7 +247,7 @@ export function rssIntegration() {
             if (existsSync(distPath)) {
               try {
                 const xslContent = readFileSync(distPath, 'utf-8');
-                res.setHeader('Content-Type', 'application/xslt+xml');
+                res.setHeader('Content-Type', 'application/xslt+xml; charset=UTF-8');
                 res.end(xslContent);
               } catch (error) {
                 res.statusCode = 500;
@@ -332,12 +332,17 @@ export function rssIntegration() {
           // 按发布日期排序（最新的在前）
           rssEntries.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
           
+          // 添加 UTF-8 BOM 标记以确保浏览器正确识别编码
+          const BOM = '\uFEFF';
+          
           // 生成RSS XML
           const rssContent = generateRssXml(rssEntries);
-          await fs.writeFile(path.join(buildDirPath, 'rss.xml'), rssContent);
+          await fs.writeFile(path.join(buildDirPath, 'rss.xml'), BOM + rssContent, 'utf8');
+          console.log('已生成 rss.xml (UTF-8 with BOM)');
           
           // 生成XSLT样式表
-          await fs.writeFile(path.join(buildDirPath, 'rss.xsl'), generateRssXslt());
+          await fs.writeFile(path.join(buildDirPath, 'rss.xsl'), BOM + generateRssXslt(), 'utf8');
+          console.log('已生成 rss.xsl (UTF-8 with BOM)');
           
         } catch (error) {
           console.error('生成 RSS 时出错:', error);

@@ -279,7 +279,7 @@ export function customSitemapIntegration() {
             if (existsSync(distPath)) {
               try {
                 const xmlContent = readFileSync(distPath, 'utf-8');
-                res.setHeader('Content-Type', 'application/xml');
+                res.setHeader('Content-Type', 'application/xml; charset=UTF-8');
                 res.end(xmlContent);
               } catch (error) {
                 res.statusCode = 500;
@@ -300,7 +300,7 @@ export function customSitemapIntegration() {
             if (existsSync(distPath)) {
               try {
                 const xslContent = readFileSync(distPath, 'utf-8');
-                res.setHeader('Content-Type', 'application/xslt+xml');
+                res.setHeader('Content-Type', 'application/xslt+xml; charset=UTF-8');
                 res.end(xslContent);
                 console.log('已返回构建好的 sitemap.xsl 文件');
               } catch (error) {
@@ -386,13 +386,16 @@ export function customSitemapIntegration() {
           // 生成带XSLT的XML文件
           const xmlContent = generateXmlWithXslt(sitemapEntries);
           
+          // 添加 UTF-8 BOM 标记以确保浏览器正确识别编码
+          const BOM = '\uFEFF';
+          
           // 写入sitemap.xml
-          await fs.writeFile(path.join(buildDirPath, 'sitemap.xml'), xmlContent);
-          console.log('已生成 sitemap.xml');
+          await fs.writeFile(path.join(buildDirPath, 'sitemap.xml'), BOM + xmlContent, 'utf8');
+          console.log('已生成 sitemap.xml (UTF-8 with BOM)');
           
           // 写入XSLT样式表文件
-          await fs.writeFile(path.join(buildDirPath, 'sitemap.xsl'), generateXsltStylesheet(sitemapEntries));
-          console.log('已生成 sitemap.xsl');
+          await fs.writeFile(path.join(buildDirPath, 'sitemap.xsl'), BOM + generateXsltStylesheet(sitemapEntries), 'utf8');
+          console.log('已生成 sitemap.xsl (UTF-8 with BOM)');
           
         } catch (error) {
           console.error('生成 Sitemap 时出错:', error);
