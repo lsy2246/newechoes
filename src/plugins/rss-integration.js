@@ -212,7 +212,7 @@ async function generateArticleRss(article, content, buildDirPath) {
     
     // 构建单文章RSS
     const articleRss = `<?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/xsl" href="/rss.xsl"?>
+<?xml-stylesheet type="text/xsl" href="/article-rss.xsl"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${escapeXml(article.title)}</title>
@@ -272,7 +272,7 @@ function generateRssXml(entries) {
   const now = new Date().toUTCString();
   
   return `<?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/xsl" href="/rss.xsl"?>
+<?xml-stylesheet type="text/xsl" href="/index-rss.xsl"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${escapeXml(SITE_TITLE)}</title>
@@ -1237,29 +1237,29 @@ export function rssIntegration() {
             return;
           }
           
-          // 处理RSS样式表
-          if (req.url === '/rss.xsl' && req.method === 'GET') {
-            // 通过Referer头判断请求来源
-            const referer = req.headers.referer || '';
-            
-            // 生成合适的XSL内容
-            let xslContent;
-            if (referer.includes('/articles/') && referer.endsWith('/rss.xml')) {
-              // 文章页面样式
-              xslContent = generateRssXslt('article');
-              console.log('提供文章页样式表');
-            } else {
-              // 默认提供索引页样式
-              xslContent = generateRssXslt('index');
-              console.log('提供索引页样式表');
-            }
+          // 处理索引页RSS样式表
+          if (req.url === '/index-rss.xsl' && req.method === 'GET') {
+            // 生成索引页XSL内容
+            const xslContent = generateRssXslt('index');
             
             // 添加 UTF-8 BOM 标记
             const BOM = '\uFEFF';
-            xslContent = BOM + xslContent;
             
             res.setHeader('Content-Type', 'application/xslt+xml; charset=UTF-8');
-            res.end(xslContent);
+            res.end(BOM + xslContent);
+            return;
+          }
+          
+          // 处理文章页RSS样式表
+          if (req.url === '/article-rss.xsl' && req.method === 'GET') {
+            // 生成文章页XSL内容
+            const xslContent = generateRssXslt('article');
+            
+            // 添加 UTF-8 BOM 标记
+            const BOM = '\uFEFF';
+            
+            res.setHeader('Content-Type', 'application/xslt+xml; charset=UTF-8');
+            res.end(BOM + xslContent);
             return;
           }
           
@@ -1386,8 +1386,13 @@ export function rssIntegration() {
           
           // 生成索引页XSLT样式表
           const indexXsl = generateRssXslt('index');
-          await fs.writeFile(path.join(buildDirPath, 'rss.xsl'), BOM + indexXsl, 'utf8');
-          console.log('已生成 rss.xsl (UTF-8 with BOM)');
+          await fs.writeFile(path.join(buildDirPath, 'index-rss.xsl'), BOM + indexXsl, 'utf8');
+          console.log('已生成 index-rss.xsl (UTF-8 with BOM)');
+          
+          // 生成文章页XSLT样式表
+          const articleXsl = generateRssXslt('article');
+          await fs.writeFile(path.join(buildDirPath, 'article-rss.xsl'), BOM + articleXsl, 'utf8');
+          console.log('已生成 article-rss.xsl (UTF-8 with BOM)');
           
         } catch (error) {
           console.error('生成 RSS 时出错:', error);
