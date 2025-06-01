@@ -82,7 +82,7 @@ const {
     <AstroSeo
       title={title}
       description={description || `${SITE_TITLE} - 个人博客`}
-      canonical={canonicalURL.toString()}
+      canonical={rssLink || canonicalURL.toString()}
       openGraph={{
         type: pageType,
         url: canonicalURL.toString(),

@@ -210,20 +210,30 @@ async function generateArticleRss(article, content, buildDirPath) {
     // 转换内容为RSS友好格式
     const rssContent = transformContentForRss(content);
     
+    // 计算文件路径和RSS URL
+    const urlObj = new URL(article.url);
+    // 使用decodeURIComponent解码URL路径，确保中文字符正确显示
+    const pathName = decodeURIComponent(urlObj.pathname);
+    // 确保路径以/结尾
+    const normalizedPath = pathName.endsWith('/') ? pathName : `${pathName}/`;
+    // 构造RSS URL
+    const rssUrl = `${urlObj.origin}${normalizedPath}rss.xml`;
+    
     // 构建单文章RSS
     const articleRss = `<?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" href="/article-rss.xsl"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${escapeXml(article.title)}</title>
-    <link>${article.url}</link>
+    <link>${rssUrl}</link>
     <description>${escapeXml(article.description)}</description>
     <pubDate>${article.pubDate}</pubDate>
     <language>zh-CN</language>
-    <atom:link href="${article.url}" rel="self" type="application/rss+xml" />
+    <atom:link href="${rssUrl}" rel="self" type="application/rss+xml" />
+    <atom:link href="${article.url}" rel="alternate" type="text/html" title="原文链接" />
     <item>
       <title>${escapeXml(article.title)}</title>
-      <link>${article.url}</link>
+      <link>${rssUrl}</link>
       <guid>${article.url}</guid>
       <pubDate>${article.pubDate}</pubDate>
       <description><![CDATA[${rssContent}]]></description>
@@ -234,13 +244,6 @@ async function generateArticleRss(article, content, buildDirPath) {
     // 添加 UTF-8 BOM 标记
     const BOM = '\uFEFF';
     
-    // 计算文件路径 - 修复路径处理逻辑
-    const urlObj = new URL(article.url);
-    // 使用decodeURIComponent解码URL路径，确保中文字符正确显示
-    const pathName = decodeURIComponent(urlObj.pathname);
-    
-    // 确保路径以/结尾
-    const normalizedPath = pathName.endsWith('/') ? pathName : `${pathName}/`;
     // 在目录下生成rss.xml文件
     const rssPath = path.join(buildDirPath, normalizedPath, 'rss.xml');
     
@@ -287,8 +290,9 @@ function generateRssXml(entries) {
       // 解码URL路径
       const pathName = decodeURIComponent(urlObj.pathname);
       const normalizedPath = pathName.endsWith('/') ? pathName : `${pathName}/`;
-      // 只使用URL路径部分，不包含域名
-      const rssUrl = `${normalizedPath}rss.xml`;
+      // 构造RSS链接和原始文章链接
+      const rssUrl = `${urlObj.origin}${normalizedPath}rss.xml`;
+      const originalUrl = entry.url;
       
       // 确保描述内容中的HTML标签安全
       const safeDescription = entry.description || '';
@@ -296,11 +300,11 @@ function generateRssXml(entries) {
       return `
     <item>
       <title>${escapeXml(entry.title)}</title>
-      <link>${entry.url}</link>
-      <guid>${entry.url}</guid>
+      <link>${rssUrl}</link>
+      <guid>${originalUrl}</guid>
       <pubDate>${entry.pubDate}</pubDate>
       <description><![CDATA[${safeDescription}]]></description>
-      <atom:link rel="alternate" type="application/rss+xml" href="${rssUrl}" />
+      <atom:link rel="alternate" type="text/html" href="${originalUrl}" title="原文链接" />
     </item>`;
     }).join('\n    ')}
   </channel>
@@ -558,7 +562,7 @@ function generateRssXslt(type = 'index') {
       text-overflow: ellipsis;
     }
     
-    .rss-link {
+    .original-link {
       display: inline-flex;
       align-items: center;
       margin-top: 5px;
@@ -570,7 +574,7 @@ function generateRssXslt(type = 'index') {
       background: rgba(0,102,204,0.08);
     }
     
-    .rss-link:hover {
+    .original-link:hover {
       background: rgba(0,102,204,0.15);
     }
 
@@ -1124,7 +1128,7 @@ function generateRssXslt(type = 'index') {
             返回全部RSS
           </a>
           
-          <a href="{/rss/channel/item/link}" class="nav-link original-link">
+          <a href="{/rss/channel/item/guid}" class="nav-link original-link">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
               <polyline points="15 3 21 3 21 9"></polyline>
@@ -1186,13 +1190,13 @@ function generateRssXslt(type = 'index') {
                   <xsl:value-of select="substring-before(substring-after(pubDate, ', '), ' GMT')"/>
                 </span>
                 <xsl:if test="atom:link[@rel='alternate']">
-                  <a class="rss-link" href="{atom:link[@rel='alternate']/@href}">
+                  <a class="original-link" href="{atom:link[@rel='alternate']/@href}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M4 11a9 9 0 0 1 9 9"></path>
-                      <path d="M4 4a16 16 0 0 1 16 16"></path>
-                      <circle cx="5" cy="19" r="1"></circle>
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
                     </svg>
-                    RSS订阅
+                    原文链接
                   </a>
                 </xsl:if>
               </div>
