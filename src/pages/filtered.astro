@@ -7,7 +7,7 @@ import ArticleFilter from "@/components/ArticleFilter";
 const searchParams = Astro.url.searchParams;
 ---
 
-<Layout title="文章筛选" pageType="directory" description="文章筛选页面">
+<Layout title="文章筛选" pageType="directory" description="文章筛选页面" skipSrTitle={false}>
   <div class="w-full">
     <!-- 导航栏/面包屑 - 不参与视图切换 -->
     <div

@@ -28,7 +28,7 @@ tags: []
 ```typescript
 // 网站基本信息
 export const SITE_URL = "https://your-domain.com";
-export const SITE_NAME = "你的网站名称";
+export const SITE_TITLE = "你的网站名称";
 export const SITE_DESCRIPTION = "网站描述";
 
 // 导航链接结构 - 支持分层导航

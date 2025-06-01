@@ -1,5 +1,5 @@
 ---
-import { SITE_NAME, NAV_STRUCTURE } from "@/consts.ts";
+import { SITE_TITLE, NAV_STRUCTURE } from "@/consts.ts";
 import ThemeToggle from "@/components/ThemeToggle.astro";
 import Search from "@/components/Search.tsx";
 import "@/styles/header.css";
@@ -70,7 +70,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             href="/"
             class="text-xl md:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent hover:from-primary-500 hover:to-primary-300 dark:from-primary-400 dark:to-primary-200 dark:hover:from-primary-300 dark:hover:to-primary-100"
           >
-            {SITE_NAME}
+            {SITE_TITLE}
           </a>
         </div>
 
@@ -88,6 +88,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                 class="absolute z-0 bg-primary-100 dark:bg-primary-800/30 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300"></div>
             <div id="nav-secondary-highlight" 
                 class="absolute z-10 bg-primary-300/80 dark:bg-primary-700/60 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300"></div>
+            <!-- 悬停高亮元素 -->
+            <div id="nav-hover-highlight" 
+                class="absolute z-5 bg-primary-100/50 dark:bg-primary-800/20 rounded-xl shadow-sm backdrop-blur-sm transition-all duration-200 opacity-0"></div>
             
             <!-- 导航菜单项 -->
             <div class="flex items-center relative z-20 space-x-8">
@@ -841,6 +844,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     
     const primaryHighlight = document.getElementById('nav-primary-highlight');
     const secondaryHighlight = document.getElementById('nav-secondary-highlight');
+    const hoverHighlight = document.getElementById('nav-hover-highlight');
     const navItems = document.querySelectorAll('.nav-item');
     const navGroups = document.querySelectorAll('.nav-group');
     const navToggles = document.querySelectorAll('.nav-group-toggle');
@@ -849,6 +853,14 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     if (!primaryHighlight || !secondaryHighlight) {
       console.warn(`导航高亮元素未找到`);
     }
+    
+    // 悬停状态管理
+    const hoverState = {
+      currentTarget: null,
+      isHovering: false,
+      showHoverOnActive: false, // 是否在激活项上也显示悬停效果
+      debounceTimer: null
+    };
     
     const activeClass = "font-medium";
     
@@ -912,7 +924,108 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       });
     }
     
-
+    // 更新悬停高亮
+    function updateHoverHighlight(target) {
+      if (!hoverHighlight || !navSelector || !target) return;
+      
+      // 清除之前的定时器
+      if (hoverState.debounceTimer) {
+        clearTimeout(hoverState.debounceTimer);
+      }
+      
+      // 设置当前悬停目标
+      hoverState.currentTarget = target;
+      hoverState.isHovering = true;
+      
+      // 检查目标是否已激活
+      const isActive = target.getAttribute('data-state') === 'active';
+      
+      // 如果目标已激活且不希望在激活项上显示悬停效果，则直接返回
+      if (isActive && !hoverState.showHoverOnActive) {
+        hideHoverHighlight();
+        return;
+      }
+      
+      // 使用防抖处理，减少不必要的计算
+      hoverState.debounceTimer = setTimeout(() => {
+        // 确保在计算时仍处于悬停状态
+        if (!hoverState.isHovering) return;
+        
+        const navRect = navSelector.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        
+        // 获取标准高度
+        const getStandardHeight = () => {
+          // 尝试获取普通菜单项的高度作为标准
+          const standardItem = document.querySelector('.nav-item');
+          if (standardItem) {
+            return standardItem.offsetHeight;
+          }
+          // 如果没有普通菜单项，使用默认值
+          return 40; // 2.5rem 约等于 40px
+        };
+        
+        const standardHeight = getStandardHeight();
+        
+        // 计算元素中心点，使用标准高度
+        const centerY = targetRect.top - navRect.top + targetRect.height / 2;
+        
+        // 计算位置
+        const left = targetRect.left - navRect.left;
+        const top = centerY - standardHeight / 2;
+        const width = targetRect.width;
+        const height = standardHeight;
+        
+        // 应用位置
+        hoverHighlight.style.transition = 'left 200ms ease, top 200ms ease, width 200ms ease, height 200ms ease, opacity 200ms ease';
+        hoverHighlight.style.left = `${left}px`;
+        hoverHighlight.style.top = `${top}px`;
+        hoverHighlight.style.width = `${width}px`;
+        hoverHighlight.style.height = `${height}px`;
+        hoverHighlight.style.opacity = '1';
+      }, 10); // 短暂延迟，提高响应性
+    }
+    
+    // 隐藏悬停高亮
+    function hideHoverHighlight() {
+      if (!hoverHighlight) return;
+      
+      // 清除悬停状态
+      hoverState.isHovering = false;
+      hoverState.currentTarget = null;
+      
+      // 清除之前的定时器
+      if (hoverState.debounceTimer) {
+        clearTimeout(hoverState.debounceTimer);
+      }
+      
+      // 隐藏高亮
+      hoverHighlight.style.opacity = '0';
+    }
+    
+    // 处理导航项悬停
+    function handleNavItemHover(e, isEnter) {
+      const target = e.currentTarget;
+      
+      if (isEnter) {
+        // 更新悬停高亮
+        updateHoverHighlight(target);
+      } else {
+        // 检查是否离开到了其他导航项
+        const relatedTarget = e.relatedTarget;
+        const isStillInNav = relatedTarget && (
+          relatedTarget.classList.contains('nav-item') || 
+          relatedTarget.classList.contains('nav-subitem') ||
+          relatedTarget.classList.contains('nav-group-toggle')
+        );
+        
+        // 如果不是移动到其他导航项，则隐藏悬停高亮
+        if (!isStillInNav) {
+          hideHoverHighlight();
+        }
+      }
+    }
+    
     // 设置激活的一级菜单项
     function setActiveItem(itemId) {
       // 清除所有菜单状态
@@ -951,6 +1064,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       
       // 更新高亮背景
       updateHighlights();
+      
+      // 隐藏悬停高亮
+      hideHoverHighlight();
     }
     
     // 设置激活的二级菜单项
@@ -1030,6 +1146,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       
       // 更新高亮背景
       updateHighlights();
+      
+      // 隐藏悬停高亮
+      hideHoverHighlight();
     }
     
     // 切换导航组的显示状态
@@ -1205,6 +1324,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           updateHighlights(false);
         }
       }
+      
+      // 隐藏悬停高亮
+      hideHoverHighlight();
     }
     
     // 注册事件监听
@@ -1219,6 +1341,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         // 设置高亮
         setActiveItem(itemId);
       });
+      
+      // 添加悬停事件
+      addListener(item, 'mouseenter', (e) => handleNavItemHover(e, true));
+      addListener(item, 'mouseleave', (e) => handleNavItemHover(e, false));
     });
     
     // 一级菜单按钮点击
@@ -1232,6 +1358,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         // 切换菜单状态
         toggleNavGroup(groupId);
       });
+      
+      // 添加悬停事件
+      addListener(toggle, 'mouseenter', (e) => handleNavItemHover(e, true));
+      addListener(toggle, 'mouseleave', (e) => handleNavItemHover(e, false));
     });
     
     // 二级菜单项点击
@@ -1244,6 +1374,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         // 设置高亮
         setActiveSubItem(subItemId);
       });
+      
+      // 添加悬停事件
+      addListener(item, 'mouseenter', (e) => handleNavItemHover(e, true));
+      addListener(item, 'mouseleave', (e) => handleNavItemHover(e, false));
     });
     
     // 初始化
@@ -1314,6 +1448,12 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     // 窗口大小变化时重新计算高亮位置
     addListener(window, 'resize', () => {
       updateHighlights(false);
+      hideHoverHighlight(); // 重置悬停高亮
+    });
+    
+    // 添加全局鼠标移动监听，处理从导航区域外移入的情况
+    addListener(navSelector, 'mouseleave', () => {
+      hideHoverHighlight();
     });
   }
   

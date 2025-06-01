@@ -6,7 +6,7 @@ import {
   ICP,
   PSB_ICP,
   PSB_ICP_URL,
-  SITE_NAME,
+  SITE_TITLE,
   SITE_DESCRIPTION,
 } from "@/consts";
 import { AstroSeo } from "@astrolib/seo";
@@ -19,6 +19,7 @@ interface Props {
   tags?: string[];
   skipSrTitle?: boolean; // 控制是否跳过屏幕阅读器标题
   pageType?: "page" | "article" | "directory" ; // 更有语义的页面类型
+  rssLink?: string; // 文章的RSS链接
 }
 
 // 获取完整的 URL
@@ -26,12 +27,13 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
 // 从props中获取页面特定信息
 const {
-  title = SITE_NAME,
+  title = SITE_TITLE,
   description = SITE_DESCRIPTION,
   date,
   tags,
-  skipSrTitle = false, // 默认显示屏幕阅读器标题
+  skipSrTitle = true, 
   pageType = "page", // 默认为普通页面
+  rssLink,
 } = Astro.props;
 ---
 
@@ -60,23 +62,37 @@ const {
       content={Astro.generator}
     />
 
+    <!-- RSS链接 -->
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={`${SITE_TITLE} - RSS订阅`}
+      href="/rss.xml"
+    />
+    {rssLink && (
+      <link
+        rel="alternate"
+        type="application/rss+xml"
+        title={`${title} - RSS订阅`}
+        href={rssLink}
+      />
+    )}
 
     <!-- 使用 AstroSeo 组件替换原有的 SEO 标签 -->
     <AstroSeo
       title={title}
-      description={description || `${SITE_NAME} - 个人博客`}
+      description={description || `${SITE_TITLE} - 个人博客`}
       canonical={canonicalURL.toString()}
       openGraph={{
         type: pageType,
         url: canonicalURL.toString(),
         title: title,
-        description: description || `${SITE_NAME} - 个人博客`,
-        site_name: SITE_NAME,
+        description: description || `${SITE_TITLE} - 个人博客`,
       }}
       twitter={{
         cardType: "summary_large_image",
-        site: SITE_NAME,
-        handle: SITE_NAME,
+        site: SITE_TITLE,
+        handle: SITE_TITLE,
       }}
       additionalMetaTags={[
         // 仅对文章类型添加标准OpenGraph文章标记
