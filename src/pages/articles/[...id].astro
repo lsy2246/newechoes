@@ -179,13 +179,6 @@ if (relatedArticles.length < 3) {
 // 准备文章描述
 const description = generateArticleSummary(article);
 
-// 构造RSS链接 - 使用原始路径
-const articlePath = `/articles/${getSpecialPath(article.id)}`;
-// 移除末尾的斜杠(如果存在)，然后添加/rss.xml
-const rssLink = articlePath.endsWith('/') 
-  ? `${articlePath}rss.xml` 
-  : `${articlePath}/rss.xml`;
-
 // 处理特殊ID的函数 - 确保返回的是未编码的路径
 function getArticleUrl(articleId: string) {
   // 获取特殊路径
@@ -300,7 +293,6 @@ const tableOfContents = generateTableOfContents(headings);
   date={article.data.date}
   tags={article.data.tags}
   pageType="article"
-  rssLink={rssLink}
 >
   <div class="max-w-5xl py-8">
     <!-- 阅读进度条 -->
@@ -411,31 +403,6 @@ const tableOfContents = generateTableOfContents(headings);
           </svg>
           {article.data.date.toLocaleDateString("zh-CN")}
         </time>
-
-        <!-- RSS订阅按钮 -->
-        <a
-          href={rssLink}
-          class="flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-          target="_blank"
-          rel="noopener"
-          title="订阅此文章的RSS"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-4 w-4 mr-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 5c7.18 0 13 5.82 13 13M6 11a7 7 0 017 7M6 17a1 1 0 110-2 1 1 0 010 2z"
-            ></path>
-          </svg>
-          RSS订阅
-        </a>
       </div>
 
       {
