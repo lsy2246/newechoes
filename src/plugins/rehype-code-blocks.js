@@ -259,7 +259,7 @@ export function rehypeCodeBlocks() {
                 // 行号容器
                 {
                   type: 'element',
-                  tagName: 'div',
+                  tagName: 'nav',
                   properties: { className: ['line-numbers-container'] },
                   children: lineNumberElements
                 },

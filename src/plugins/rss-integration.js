@@ -800,7 +800,7 @@ export function rssIntegration() {
           // 生成主RSS XML
           const rssContent = generateRssXml(rssEntries);
           await fs.writeFile(path.join(buildDirPath, 'rss.xml'), BOM + rssContent, 'utf8');
-          console.log('已生成主索引 rss.xml (UTF-8 with BOM)');
+          console.log('已生成 rss.xml (UTF-8 with BOM)');
           
           // 生成索引页XSLT样式表
           const indexXsl = generateRssXslt();
