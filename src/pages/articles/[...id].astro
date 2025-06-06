@@ -681,7 +681,10 @@ const tableOfContents = generateTableOfContents(headings);
                 const encodedCode = button.getAttribute("data-code");
                 if (!encodedCode) return;
 
-                const code = atob(encodedCode);
+                // 解码Base64编码的代码，正确处理UTF-8字符
+                const code = new TextDecoder("utf-8").decode(
+                  Uint8Array.from(atob(encodedCode), (c) => c.charCodeAt(0)),
+                );
                 await navigator.clipboard.writeText(code);
 
                 // 保存原始SVG

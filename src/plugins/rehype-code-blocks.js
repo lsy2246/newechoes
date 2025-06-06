@@ -247,7 +247,7 @@ export function rehypeCodeBlocks() {
                   tagName: 'button',
                   properties: { 
                     className: ['code-block-copy'],
-                    'data-code': Buffer.from(originalCode).toString('base64'),
+                    'data-code': Buffer.from(originalCode, 'utf-8').toString('base64'),
                     'data-copy-text': '复制' // 添加data属性存储复制文本
                   },
                   children: copyButtonChildren
