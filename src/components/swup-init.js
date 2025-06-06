@@ -326,7 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // 初始化时设置
   setupTransition();
 
-  // ===== 生命周期钩子 =====
   
   // 1. 访问开始 - 显示加载动画，准备页面退出
   swup.hooks.on('visit:start', (visit) => {

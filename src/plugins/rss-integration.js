@@ -70,7 +70,6 @@ function transformContentForRss(htmlContent) {
   
   // 处理pre标签中的内容，确保HTML标记不被错误解析
   article.find('pre:not(.code-block-container pre)').each(function() {
-    const preContent = $(this).html();
     // 仅当pre内部没有code标签时，才直接处理内容
     if (!$(this).find('code').length) {
       $(this).text($(this).text()); // 重新设置为纯文本以转义HTML标签

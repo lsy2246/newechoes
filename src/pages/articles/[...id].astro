@@ -8,7 +8,7 @@ import { ARTICLE_EXPIRY_CONFIG } from "@/consts";
 import "@/styles/articles.css";
 
 // 定义文章类型
-type ArticleEntry = CollectionEntry<'articles'>;
+type ArticleEntry = CollectionEntry<"articles">;
 
 // 定义标题类型
 interface Heading {
@@ -22,20 +22,20 @@ function generateArticleSummary(article: ArticleEntry): string {
   if (article.data.summary) {
     return article.data.summary;
   }
-  
+
   // 如果没有summary，从文章内容中提取
   const rawContent = article.body;
   // 移除Markdown语法和空白字符
   const plainText = rawContent
-    .replace(/\s+/g, ' ')  // 将多个空白字符替换为单个空格
-    .replace(/[#*`~>]/g, '') // 移除Markdown标记
-    .replace(/\[.*?\]\(.*?\)/g, '') // 移除Markdown链接
-    .replace(/!\[.*?\]\(.*?\)/g, '') // 移除Markdown图片
-    .replace(/```[\s\S]*?```/g, '') // 移除代码块
+    .replace(/\s+/g, " ") // 将多个空白字符替换为单个空格
+    .replace(/[#*`~>]/g, "") // 移除Markdown标记
+    .replace(/\[.*?\]\(.*?\)/g, "") // 移除Markdown链接
+    .replace(/!\[.*?\]\(.*?\)/g, "") // 移除Markdown图片
+    .replace(/```[\s\S]*?```/g, "") // 移除代码块
     .trim();
-  
-  return plainText.length > 150 
-    ? plainText.substring(0, 150) + '...'
+
+  return plainText.length > 150
+    ? plainText.substring(0, 150) + "..."
     : plainText;
 }
 
@@ -184,7 +184,9 @@ function getArticleUrl(articleId: string) {
   // 获取特殊路径
   const path = getSpecialPath(articleId);
   // 添加搜索参数（如果有）
-  const searchSuffix = searchParams.toString() ? `?${searchParams.toString()}` : "";
+  const searchSuffix = searchParams.toString()
+    ? `?${searchParams.toString()}`
+    : "";
   return `/articles/${path}${searchSuffix}`;
 }
 
@@ -196,14 +198,14 @@ function generateTableOfContents(headings: Heading[]) {
 
   // 查找最低级别的标题（数值最小）
   const minDepth = Math.min(...headings.map((h) => h.depth));
-  
+
   // 按照标题层级构建嵌套结构
   const tocTree: any[] = [];
   const levelMap: Record<number, any[]> = {};
-  
+
   headings.forEach((heading) => {
     const relativeDepth = heading.depth - minDepth;
-    
+
     // 构建标题项
     const headingItem = {
       slug: heading.slug,
@@ -211,7 +213,7 @@ function generateTableOfContents(headings: Heading[]) {
       depth: relativeDepth,
       children: [],
     };
-    
+
     // 更精确地处理嵌套关系
     if (relativeDepth === 0) {
       // 顶级标题直接加入到树中
@@ -224,13 +226,17 @@ function generateTableOfContents(headings: Heading[]) {
       while (parentDepth >= 0 && !levelMap[parentDepth]) {
         parentDepth--;
       }
-      
-      if (parentDepth >= 0 && levelMap[parentDepth] && levelMap[parentDepth].length > 0) {
+
+      if (
+        parentDepth >= 0 &&
+        levelMap[parentDepth] &&
+        levelMap[parentDepth].length > 0
+      ) {
         // 找到父层级，将此标题添加到最近的父标题的子标题数组中
         const parentItems = levelMap[parentDepth];
         const parent = parentItems[parentItems.length - 1];
         parent.children.push(headingItem);
-        
+
         // 更新当前深度的映射
         if (!levelMap[relativeDepth]) {
           levelMap[relativeDepth] = [];
@@ -246,15 +252,15 @@ function generateTableOfContents(headings: Heading[]) {
 
   // 递归生成HTML
   function generateTocHTML(items: any[], level = 0) {
-    if (items.length === 0) return '';
-    
+    if (items.length === 0) return "";
+
     const isTopLevel = level === 0;
-    let html = `<ul class="toc-list space-y-2 ${isTopLevel ? '' : 'toc-sublist hidden'}" ${level > 0 ? 'aria-expanded="false"' : ''}>`;
-    
-    items.forEach(item => {
+    let html = `<ul class="toc-list space-y-2 ${isTopLevel ? "" : "toc-sublist hidden"}" ${level > 0 ? 'aria-expanded="false"' : ""}>`;
+
+    items.forEach((item) => {
       const hasChildren = item.children && item.children.length > 0;
       const isHigherLevel = item.depth <= 1; // 只有最高级和次高级标题使用较重的样式
-      
+
       html += `<li class="toc-item" data-depth="${item.depth}">
         <div class="toc-item-container">
           <a href="#${item.slug}" 
@@ -266,17 +272,21 @@ function generateTableOfContents(headings: Heading[]) {
              style="padding-left: ${item.depth * 0.75}rem;">
             ${item.text}
           </a>
-          ${hasChildren ? `<button class="toc-toggle text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 ml-1 p-1" aria-expanded="false">
+          ${
+            hasChildren
+              ? `<button class="toc-toggle text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 ml-1 p-1" aria-expanded="false">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
-          </button>` : ''}
+          </button>`
+              : ""
+          }
         </div>
         ${generateTocHTML(item.children, level + 1)}
       </li>`;
     });
-    
-    html += '</ul>';
+
+    html += "</ul>";
     return html;
   }
 
@@ -474,11 +484,14 @@ const tableOfContents = generateTableOfContents(headings);
                           datetime={relatedArticle.data.date.toISOString()}
                           class="article-card-date"
                         >
-                          {relatedArticle.data.date.toLocaleDateString("zh-CN", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
+                          {relatedArticle.data.date.toLocaleDateString(
+                            "zh-CN",
+                            {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            },
+                          )}
                         </time>
                         <span class="article-card-read-more">阅读全文</span>
                       </div>
@@ -518,11 +531,28 @@ const tableOfContents = generateTableOfContents(headings);
       class="hidden 2xl:block fixed right-[calc(50%-44rem)] top-20 w-64 z-30 transition-transform duration-300"
       id="toc-panel"
     >
-      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl flex flex-col backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 shadow-lg transition-opacity duration-300">
-        <div class="border-b border-gray-200 dark:border-gray-700 p-4 pb-3 sticky top-0 z-10 rounded-t-xl bg-white dark:bg-gray-800 bg-opacity-95 backdrop-blur-sm">
-          <h3 class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+      <div
+        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl flex flex-col backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 shadow-lg transition-opacity duration-300"
+      >
+        <div
+          class="border-b border-gray-200 dark:border-gray-700 p-4 pb-3 sticky top-0 z-10 rounded-t-xl bg-white dark:bg-gray-800 bg-opacity-95 backdrop-blur-sm"
+        >
+          <h3
+            class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h7"
+              ></path>
             </svg>
             文章目录
           </h3>
@@ -531,8 +561,7 @@ const tableOfContents = generateTableOfContents(headings);
           id="toc-content"
           class="text-sm p-4 pt-2 overflow-y-auto max-h-[calc(100vh-8rem-42px)] bg-white dark:bg-gray-800 scroll-smooth scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
           set:html={tableOfContents}
-        >
-        </div>
+        />
       </div>
     </section>
   </div>
@@ -602,25 +631,37 @@ const tableOfContents = generateTableOfContents(headings);
         const cleanup = () => {
           selfDestruct();
         };
-        
+
         // 定义需要监听的所有清理事件
         const cleanupEventTypes = [
-          { element: document, eventType: "astro:before-swap", options: { once: true } },
-          { element: window, eventType: "beforeunload", options: { once: true } },
-          { element: document, eventType: "page-transition", options: { once: true } }
+          {
+            element: document,
+            eventType: "astro:before-swap",
+            options: { once: true },
+          },
+          {
+            element: window,
+            eventType: "beforeunload",
+            options: { once: true },
+          },
+          {
+            element: document,
+            eventType: "page-transition",
+            options: { once: true },
+          },
         ];
-        
+
         // 注册所有清理事件
         cleanupEventTypes.forEach(({ element, eventType, options }) => {
           // 添加事件监听
           element.addEventListener(eventType, cleanup, options);
-          
+
           // 保存事件引用到清理列表
           cleanupListeners.push({
             element,
             eventType,
             handler: cleanup,
-            options
+            options,
           });
         });
       }
@@ -643,36 +684,45 @@ const tableOfContents = generateTableOfContents(headings);
                 const code = atob(encodedCode);
                 await navigator.clipboard.writeText(code);
 
-                const originalHTML = button.innerHTML;
+                // 保存原始SVG
+                const originalSVG = button.innerHTML;
+
+                // 添加已复制状态类，伪元素会自动显示"已复制"文本
                 button.classList.add("copied");
+
+                // 更改SVG为对勾图标
                 button.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                   <path d="M20 6L9 17l-5-5"></path>
                 </svg>
-                已复制
               `;
 
                 setTimeout(() => {
+                  // 恢复原始状态
                   button.classList.remove("copied");
-                  button.innerHTML = originalHTML;
+                  button.innerHTML = originalSVG;
                 }, 2000);
               } catch (err) {
                 console.error("复制失败:", err);
+                // 更改SVG为错误图标，伪元素文本不变
                 button.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="12" y1="8" x2="12" y2="12"></line>
                   <line x1="12" y1="16" x2="12.01" y2="16"></line>
                 </svg>
-                失败
               `;
+                // 添加特殊类以显示"失败"文本
+                button.classList.add("copy-failed");
+
                 setTimeout(() => {
+                  // 恢复原始状态
+                  button.classList.remove("copy-failed");
                   button.innerHTML = `
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                   </svg>
-                  复制
                 `;
                 }, 2000);
               }
@@ -764,15 +814,15 @@ const tableOfContents = generateTableOfContents(headings);
 
           // 处理目录折叠/展开功能
           const tocToggles = tocContent.querySelectorAll(".toc-toggle");
-          
+
           tocToggles.forEach((toggle) => {
             addListener(toggle, "click", (e) => {
               e.preventDefault();
               e.stopPropagation();
-              
+
               const expanded = toggle.getAttribute("aria-expanded") === "true";
               toggle.setAttribute("aria-expanded", expanded ? "false" : "true");
-              
+
               // 切换子菜单显示状态
               const listItem = toggle.closest(".toc-item");
               if (listItem) {
@@ -824,7 +874,7 @@ const tableOfContents = generateTableOfContents(headings);
                 setTimeout(() => {
                   targetElement.classList.remove(
                     "bg-primary-50",
-                    "dark:bg-primary-900/20"
+                    "dark:bg-primary-900/20",
                   );
                 }, 2000);
               }
@@ -843,7 +893,9 @@ const tableOfContents = generateTableOfContents(headings);
             const headings = Array.from(
               article.querySelectorAll("h1, h2, h3, h4, h5, h6"),
             );
-            const tocLinks = Array.from(tocContent.querySelectorAll(".toc-link"));
+            const tocLinks = Array.from(
+              tocContent.querySelectorAll(".toc-link"),
+            );
 
             // 清除所有活动状态
             tocLinks.forEach((link) => {
@@ -852,7 +904,7 @@ const tableOfContents = generateTableOfContents(headings);
                 "toc-link-active",
                 "text-primary-600",
                 "dark:text-primary-400",
-                "font-medium"
+                "font-medium",
               );
             });
 
@@ -886,7 +938,7 @@ const tableOfContents = generateTableOfContents(headings);
                     "toc-link-active",
                     "text-primary-600",
                     "dark:text-primary-400",
-                    "font-medium"
+                    "font-medium",
                   );
 
                   // 展开当前激活项的所有父菜单并收集到活动项集合中
@@ -894,21 +946,26 @@ const tableOfContents = generateTableOfContents(headings);
                   while (parent) {
                     // 添加到活动项目集合
                     activeItems.add(parent);
-                    
+
                     const parentSublist = parent.querySelector(".toc-sublist");
                     const parentToggle = parent.querySelector(".toc-toggle");
-                    
-                    if (parentSublist && parentSublist.classList.contains("hidden")) {
+
+                    if (
+                      parentSublist &&
+                      parentSublist.classList.contains("hidden")
+                    ) {
                       // 使用平滑动画展开
                       parentSublist.classList.remove("hidden");
                       parentSublist.setAttribute("aria-expanded", "true");
-                      
+
                       if (parentToggle) {
                         parentToggle.setAttribute("aria-expanded", "true");
-                        parentToggle.querySelector("svg")?.classList.add("rotate-180");
+                        parentToggle
+                          .querySelector("svg")
+                          ?.classList.add("rotate-180");
                       }
                     }
-                    
+
                     // 向上查找父级
                     parent = parent.parentElement?.closest(".toc-item");
                   }
@@ -920,24 +977,24 @@ const tableOfContents = generateTableOfContents(headings);
                       // 重新计算activeLink的位置，因为父菜单可能已展开
                       const linkRect = activeLink.getBoundingClientRect();
                       const containerRect = tocContent.getBoundingClientRect();
-                      
+
                       // 检查当前项是否在目录容器的可视区域内
-                      const isInView = (
+                      const isInView =
                         linkRect.top >= containerRect.top &&
-                        linkRect.bottom <= containerRect.bottom
-                      );
-                      
+                        linkRect.bottom <= containerRect.bottom;
+
                       // 如果当前激活项不在视口内，滚动目录
                       if (!isInView) {
                         // 计算滚动位置，使激活项在容器中居中
-                        const scrollTop = tocContent.scrollTop + 
-                                         (linkRect.top - containerRect.top) - 
-                                         (containerRect.height / 2) + 
-                                         (linkRect.height / 2);
-                                            
+                        const scrollTop =
+                          tocContent.scrollTop +
+                          (linkRect.top - containerRect.top) -
+                          containerRect.height / 2 +
+                          linkRect.height / 2;
+
                         tocContent.scrollTo({
                           top: scrollTop,
-                          behavior: "smooth"
+                          behavior: "smooth",
                         });
                       }
                     }
@@ -947,19 +1004,21 @@ const tableOfContents = generateTableOfContents(headings);
             }
 
             // 关闭不在当前活动路径上的所有子菜单 - 使用平滑动画
-            const allItems = Array.from(tocContent.querySelectorAll(".toc-item"));
-            allItems.forEach(item => {
+            const allItems = Array.from(
+              tocContent.querySelectorAll(".toc-item"),
+            );
+            allItems.forEach((item) => {
               // 如果不在活动路径上且有子菜单
               if (!activeItems.has(item)) {
-                const sublist = item.querySelector('.toc-sublist');
-                const toggle = item.querySelector('.toc-toggle');
-                
-                if (sublist && !sublist.classList.contains('hidden')) {
-                  sublist.classList.add('hidden');
-                  sublist.setAttribute('aria-expanded', 'false');
-                  
+                const sublist = item.querySelector(".toc-sublist");
+                const toggle = item.querySelector(".toc-toggle");
+
+                if (sublist && !sublist.classList.contains("hidden")) {
+                  sublist.classList.add("hidden");
+                  sublist.setAttribute("aria-expanded", "false");
+
                   if (toggle) {
-                    toggle.setAttribute('aria-expanded', 'false');
+                    toggle.setAttribute("aria-expanded", "false");
                     toggle.querySelector("svg")?.classList.remove("rotate-180");
                   }
                 }
@@ -978,10 +1037,14 @@ const tableOfContents = generateTableOfContents(headings);
           });
 
           // 初始化时收起所有子菜单
-          const topLevelToggles = tocContent.querySelectorAll(".toc-list > .toc-item > .toc-item-container > .toc-toggle");
-          topLevelToggles.forEach(toggle => {
+          const topLevelToggles = tocContent.querySelectorAll(
+            ".toc-list > .toc-item > .toc-item-container > .toc-toggle",
+          );
+          topLevelToggles.forEach((toggle) => {
             toggle.setAttribute("aria-expanded", "false");
-            const sublist = toggle.closest(".toc-item").querySelector(".toc-sublist");
+            const sublist = toggle
+              .closest(".toc-item")
+              .querySelector(".toc-sublist");
             if (sublist) {
               sublist.classList.add("hidden");
               sublist.setAttribute("aria-expanded", "false");

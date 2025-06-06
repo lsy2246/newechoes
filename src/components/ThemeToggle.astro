@@ -25,21 +25,21 @@ import "../styles/theme-toggle.css";
 
 <button
   id="theme-toggle-button"
-  class={`inline-flex items-center justify-center h-8 w-8 cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 ${className} overflow-hidden relative`}
+  class={`inline-flex items-center justify-center h-8 w-8 cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 ${className}`}
   aria-label="切换主题"
   role="button"
   tabindex="0"
   data-transition-mode={transitionMode}
   data-transition-duration={transitionDuration}
   data-theme-transitioning="false"
+  style={`--theme-toggle-icon-width: ${width}px; --theme-toggle-icon-height: ${height}px;`}
 >
   <!-- 月亮图标 (暗色模式) -->
   <svg
     id="dark-icon"
-    style={`height: ${height}px; width: ${width}px;`}
     fill={fill}
     viewBox="0 0 16 16"
-    class="hover:scale-110 hidden dark:block relative z-10"
+    class="theme-toggle-icon hidden dark:block relative z-10"
     aria-hidden="true"
   >
     <path
@@ -50,659 +50,768 @@ import "../styles/theme-toggle.css";
   <!-- 太阳图标 (亮色模式) -->
   <svg
     id="light-icon"
-    style={`height: ${height}px; width: ${width}px;`}
     fill={fill}
     viewBox="0 0 16 16"
-    class="hover:scale-110 block dark:hidden relative z-10"
+    class="theme-toggle-icon block dark:hidden relative z-10"
     aria-hidden="true"
   >
     <path
       d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"
     ></path>
   </svg>
-  
+
   <!-- 波纹效果容器 -->
-  <span id="ripple-container" class="absolute inset-0 pointer-events-none z-0"></span>
+  <span
+    id="ripple-container"
+    class="absolute inset-0 pointer-events-none z-0"
+  ></span>
 </button>
 
 <script is:inline>
-// 主题切换逻辑 - 使用模块模式重构
-(function() {
-  // ThemeToggler模块 - 所有功能封装在一个对象中
-  const ThemeToggler = (function() {
-    // 私有常量
-    const TRANSITION_MODES = {
-      EXPAND: 'expand',     // 扩散模式
-      SHRINK: 'shrink',     // 收缩模式
-      AUTO: 'auto',         // 自动模式
-      REVERSE_AUTO: 'reverse-auto'  // 反向自动模式
-    };
-    
-    // 私有状态 - 使用闭包替代全局变量
-    const state = {
-      currentTransition: null,
-      timers: new Map(),  // 使用Map管理所有定时器
-      lastToggleTime: 0,
-      listeners: []
-    };
-    
-    // 动画配置
-    const config = {
-      duration: 700,     // 默认动画时间
-      buffer: 100,       // 缓冲时间
-      get totalTime() { return this.duration + this.buffer; },
-      get cooldownTime() { return this.totalTime + 200; }
-    };
-    
-    // 初始化配置
-    const initConfig = () => {
-      const button = document.querySelector('#theme-toggle-button');
-      if (button?.dataset?.transitionDuration) {
-        const customDuration = parseInt(button.dataset.transitionDuration);
-        if (!isNaN(customDuration)) {
-          config.duration = customDuration;
-        }
-      }
-    };
-    
-    // 定时器管理
-    const timer = {
-      set: (name, callback, delay) => {
-        // 先清除同名定时器
-        timer.clear(name);
-        // 设置新定时器并保存ID
-        const id = setTimeout(callback, delay);
-        state.timers.set(name, id);
-        return id;
-      },
-      clear: (name) => {
-        if (state.timers.has(name)) {
-          clearTimeout(state.timers.get(name));
-          state.timers.delete(name);
-        }
-      },
-      clearAll: () => {
-        state.timers.forEach(id => clearTimeout(id));
-        state.timers.clear();
-      }
-    };
-    
-    // 事件监听器管理
-    const events = {
-      add: (element, eventType, handler, options) => {
-        if (!element) return null;
-        
-        element.addEventListener(eventType, handler, options);
-        state.listeners.push({ element, eventType, handler, options });
-        return handler;
-      },
-      removeAll: () => {
-        state.listeners.forEach(({ element, eventType, handler, options }) => {
-          try {
-            element.removeEventListener(eventType, handler, options);
-          } catch (err) {
-            console.error(`移除事件监听器出错:`, err);
-          }
-        });
-        state.listeners.length = 0;
-      }
-    };
-    
-    // 按钮状态管理
-    const buttonState = {
-      setTransitioning: (button, isTransitioning) => {
-        if (button) button.dataset.themeTransitioning = isTransitioning.toString();
-      },
-      isTransitioning: (button) => {
-        return button && button.dataset.themeTransitioning === 'true';
-      }
-    };
-    
-    // 主题管理
-    const theme = {
-      getCurrent: () => document.documentElement.dataset.theme || 'light',
-      getSystem: () => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
-      getNext: () => theme.getCurrent() === "light" ? "dark" : "light",
-      set: (newTheme) => {
-        document.documentElement.dataset.theme = newTheme;
-        
-        // 更新本地存储
-        const systemTheme = theme.getSystem();
-        if (newTheme === systemTheme) {
-          localStorage.removeItem("theme");
-        } else {
-          localStorage.setItem("theme", newTheme);
-        }
-      },
-      initialize: () => {
-        const storedTheme = localStorage.getItem("theme");
-        const systemTheme = theme.getSystem();
-        
-        if (storedTheme) {
-          document.documentElement.dataset.theme = storedTheme;
-        } else if (systemTheme) {
-          document.documentElement.dataset.theme = systemTheme;
-        } else {
-          document.documentElement.dataset.theme = "light";
-        }
-      }
-    };
-    
-    // 时间控制逻辑
-    const timing = {
-      canToggle: () => {
-        return Date.now() - state.lastToggleTime >= config.cooldownTime;
-      },
-      recordToggle: () => {
-        state.lastToggleTime = Date.now();
-      }
-    };
-    
-    // 创建波纹动画
-    const createRippleEffect = (x, y, element) => {
-      const container = element.querySelector("#ripple-container") || element;
-      
-      // 清理旧的波纹
-      container.querySelectorAll(".theme-ripple").forEach(ripple => ripple.remove());
-      
-      // 创建新波纹
-      const ripple = document.createElement("span");
-      ripple.classList.add("theme-ripple");
-      
-      // 设置波纹位置
-      const rect = element.getBoundingClientRect();
-      ripple.style.left = `${x - rect.left}px`;
-      ripple.style.top = `${y - rect.top}px`;
-      
-      // 添加到容器
-      container.appendChild(ripple);
-      
-      // 自动清理
-      timer.set('ripple', () => {
-        if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
-      }, 1000);
-      
-      return ripple;
-    };
-    
-    // 确定动画类型
-    const determineAnimationType = (transitionMode, fromTheme, toTheme) => {
-      // 固定模式直接返回
-      if ([TRANSITION_MODES.EXPAND, TRANSITION_MODES.SHRINK].includes(transitionMode)) {
-        return transitionMode;
-      }
-      
-      // 自动模式
-      if (transitionMode === TRANSITION_MODES.AUTO) {
-        return (fromTheme === 'light' && toTheme === 'dark') 
-          ? TRANSITION_MODES.EXPAND 
-          : TRANSITION_MODES.SHRINK;
-      }
-      
-      // 反向自动模式
-      if (transitionMode === TRANSITION_MODES.REVERSE_AUTO) {
-        return (fromTheme === 'light' && toTheme === 'dark') 
-          ? TRANSITION_MODES.SHRINK 
-          : TRANSITION_MODES.EXPAND;
-      }
-      
-      // 默认扩散
-      return TRANSITION_MODES.EXPAND;
-    };
-    
-    // 创建视图过渡
-    const createViewTransition = (callback, x, y, fromTheme, toTheme, transitionMode) => {
-      // 取消先前的过渡
-      if (state.currentTransition) {
-        try {
-          if (typeof state.currentTransition.skipTransition === 'function') {
-            state.currentTransition.skipTransition();
-          }
-        } catch (e) {
-          // 忽略错误
-        } finally {
-          state.currentTransition = null;
-        }
-      }
-      
-      // 如果不支持View Transitions API，直接执行回调
-      if (!document.startViewTransition) {
-        callback();
-        return Promise.resolve();
-      }
-      
-      try {
-        // 清除状态标记
-        document.documentElement.classList.remove('theme-transition-active');
-        
-        // 清除可能存在的临时样式
-        const oldStyle = document.getElementById('theme-transition-temp-style');
-        if (oldStyle) oldStyle.remove();
-        
-        // 计算从点击位置到页面四个角的最大距离
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        const maxDistance = Math.max(
-          Math.hypot(x, y),                  // 左上角
-          Math.hypot(w - x, y),              // 右上角
-          Math.hypot(x, h - y),              // 左下角
-          Math.hypot(w - x, h - y)           // 右下角
-        );
-        
-        // 设置波纹颜色CSS变量
-        document.documentElement.style.setProperty(
-          '--theme-ripple-color',
-          toTheme === 'dark' ? '230, 230, 230' : '20, 20, 20'
-        );
-        
-        // 添加过渡标记类
-        document.documentElement.classList.add('theme-transition-active');
-        
-        // 确定动画类型
-        const animationType = determineAnimationType(transitionMode, fromTheme, toTheme);
-        
-        // 简化的回调函数
-        const safeCallback = () => {
-          try {
-            // 执行用户回调
-            callback();
-          } catch (err) {
-            console.error(`主题切换回调执行出错:`, err);
-          }
-        };
-        
-        // 启动视图过渡
-        const transition = document.startViewTransition(safeCallback);
-        state.currentTransition = transition;
-        
-        // 生成动画需要的SVG资源
-        const gradientOffset = 0.75;
-        const maskSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><defs><radialGradient id="toggle-theme-gradient"><stop offset="${gradientOffset}"/><stop offset="1" stop-opacity="0"/></radialGradient></defs><circle cx="4" cy="4" r="4" fill="url(#toggle-theme-gradient)"/></svg>`;
-        const maskUrl = `data:image/svg+xml;base64,${btoa(maskSvg)}`;
-        
-        // 计算动画需要多大才能覆盖整个屏幕
-        const maxRadius = Math.ceil(maxDistance / gradientOffset);
-        
-        // 异步应用自定义动画
-        (async function applyAnimation() {
-          try {
-            // 等待过渡准备完成
-            await transition.ready;
-            
-            // 创建样式元素
-            const style = document.createElement('style');
-            style.id = 'theme-transition-temp-style';
-            
-            if (animationType === TRANSITION_MODES.EXPAND) {
-              // 扩散效果 - 新主题从点击位置向外扩散
-              style.textContent = `
-                ::view-transition-new(root) {
-                  animation: none !important;
-                  -webkit-mask-image: url('${maskUrl}') !important;
-                  mask-image: url('${maskUrl}') !important;
-                  -webkit-mask-repeat: no-repeat !important;
-                  mask-repeat: no-repeat !important;
-                  -webkit-mask-position: ${x}px ${y}px !important;
-                  mask-position: ${x}px ${y}px !important;
-                  -webkit-mask-size: 0 !important;
-                  mask-size: 0 !important;
-                  z-index: 1000 !important;
-                }
-              `;
-              
-              document.head.appendChild(style);
-              
-              // 强制重新计算样式
-              window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
-              
-              // 使用requestAnimationFrame确保样式先被应用
-              requestAnimationFrame(() => {
-                if (style.parentNode) {
-                  style.textContent = `
-                    ::view-transition-new(root) {
-                      animation: none !important;
-                      -webkit-mask-image: url('${maskUrl}') !important;
-                      mask-image: url('${maskUrl}') !important;
-                      -webkit-mask-repeat: no-repeat !important;
-                      mask-repeat: no-repeat !important;
-                      -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
-                      mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
-                      -webkit-mask-size: ${maxRadius * 2}px !important;
-                      mask-size: ${maxRadius * 2}px !important;
-                      z-index: 1000 !important;
-                      transition: -webkit-mask-position ${config.duration/1000}s ease-out, -webkit-mask-size ${config.duration/1000}s ease-out,
-                                mask-position ${config.duration/1000}s ease-out, mask-size ${config.duration/1000}s ease-out !important;
-                    }
-                  `;
-                }
-              });
-              
-            } else {
-              // 收缩效果 - 旧主题从全屏收缩到点击位置
-              style.textContent = `
-                ::view-transition-old(root) {
-                  animation: none !important;
-                  -webkit-mask-image: url('${maskUrl}') !important;
-                  mask-image: url('${maskUrl}') !important;
-                  -webkit-mask-repeat: no-repeat !important;
-                  mask-repeat: no-repeat !important;
-                  -webkit-mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
-                  mask-position: ${x - maxRadius}px ${y - maxRadius}px !important;
-                  -webkit-mask-size: ${maxRadius * 2}px !important;
-                  mask-size: ${maxRadius * 2}px !important;
-                  z-index: 999 !important;
-                }
-                ::view-transition-new(root) {
-                  z-index: 998 !important;
-                }
-              `;
-              
-              document.head.appendChild(style);
-              
-              // 强制重新计算样式
-              window.getComputedStyle(document.documentElement).getPropertyValue('--force-reflow');
-              
-              // 使用requestAnimationFrame确保样式先被应用
-              requestAnimationFrame(() => {
-                if (style.parentNode) {
-                  style.textContent = `
-                    ::view-transition-old(root) {
-                      animation: none !important;
-                      -webkit-mask-image: url('${maskUrl}') !important;
-                      mask-image: url('${maskUrl}') !important;
-                      -webkit-mask-repeat: no-repeat !important;
-                      mask-repeat: no-repeat !important;
-                      -webkit-mask-position: ${x}px ${y}px !important;
-                      mask-position: ${x}px ${y}px !important;
-                      -webkit-mask-size: 0 !important;
-                      mask-size: 0 !important;
-                      z-index: 999 !important;
-                      transition: -webkit-mask-position ${config.duration/1000}s ease-in, -webkit-mask-size ${config.duration/1000}s ease-in,
-                                mask-position ${config.duration/1000}s ease-in, mask-size ${config.duration/1000}s ease-in !important;
-                    }
-                    ::view-transition-new(root) {
-                      z-index: 998 !important;
-                    }
-                  `;
-                }
-              });
-            }
-            
-            // 清理临时样式
-            timer.set('cleanupStyle', () => {
-              if (document.getElementById('theme-transition-temp-style')) {
-                document.getElementById('theme-transition-temp-style').remove();
-              }
-            }, config.totalTime);
-            
-          } catch (error) {
-            // 处理错误 - 如果View Transitions API失败，至少确保主题被切换
-            if (error.name !== 'AbortError') {
-              console.error(`应用主题过渡动画出错:`, error);
-              // 确保主题被切换
-              safeCallback();
-            }
-          }
-        })();
-        
-        // 返回过渡完成的Promise
-        return transition.finished
-          .then(() => {
-            // 移除主题过渡标记类
-            document.documentElement.classList.remove('theme-transition-active');
-            state.currentTransition = null;
-          })
-          .catch(error => {
-            if (error.name !== 'AbortError') {
-              console.error(`主题切换过渡动画错误:`, error);
-            }
-            // 确保标记类被移除
-            document.documentElement.classList.remove('theme-transition-active');
-            state.currentTransition = null;
-          });
-          
-      } catch (error) {
-        console.error(`主题切换错误:`, error);
-        // 出错时也执行回调确保主题切换
-        callback();
-        document.documentElement.classList.remove('theme-transition-active');
-        return Promise.resolve();
-      }
-    };
-    
-    // 清理资源
-    const cleanupResources = () => {
-      // 取消正在进行的transition
-      if (state.currentTransition && typeof state.currentTransition.skipTransition === 'function') {
-        try {
-          state.currentTransition.skipTransition();
-        } catch (err) {
-          // 忽略AbortError
-        } finally {
-          state.currentTransition = null;
-        }
-      }
-      
-      // 清理所有计时器
-      timer.clearAll();
-      
-      // 清理临时样式
-      const tempStyle = document.getElementById('theme-transition-temp-style');
-      if (tempStyle) tempStyle.remove();
-      
-      // 移除过渡动画标记
-      document.documentElement.classList.remove('theme-transition-active');
-      
-      // 移除波纹元素
-      document.querySelectorAll(".theme-ripple").forEach(ripple => {
-        if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
-      });
-      
-      // 重置切换按钮状态
-      document.querySelectorAll("#theme-toggle-button").forEach(btn => {
-        buttonState.setTransitioning(btn, false);
-      });
-      
-      // 移除所有事件监听器
-      events.removeAll();
-    };
-    
-    // 重置主题切换状态
-    const resetThemeToggleState = () => {
-      timer.clearAll();
-      
-      // 重置全局状态
-      state.lastToggleTime = 0;
-      
-      // 重置所有按钮状态
-      document.querySelectorAll("#theme-toggle-button").forEach(button => {
-        buttonState.setTransitioning(button, false);
-      });
-      
-      // 移除波纹效果
-      document.querySelectorAll(".theme-ripple").forEach(ripple => {
-        if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
-      });
-    };
-    
-    // 统一的主题切换处理函数
-    const handleThemeToggle = (e, targetButton) => {
-      // 防止事件默认行为和冒泡
-      if (e && typeof e.preventDefault === 'function') {
-        e.preventDefault();
-      }
-      if (e && typeof e.stopPropagation === 'function') {
-        e.stopPropagation();
-      }
-      
-      // 确保有按钮可操作
-      if (!targetButton && e) {
-        targetButton = e.target.closest('#theme-toggle-button');
-      }
-      
-      if (!targetButton) return;
-      
-      // 冷却期和过渡状态检查
-      if (!timing.canToggle() || buttonState.isTransitioning(targetButton) || state.currentTransition) {
-        return;
-      }
-      
-      // 记录切换时间并设置状态
-      timing.recordToggle();
-      buttonState.setTransitioning(targetButton, true);
-      
-      try {
-        // 计算点击坐标
-        let clickX, clickY;
-        
-        if (e instanceof Event && typeof e.clientX === 'number' && typeof e.clientY === 'number') {
-          clickX = e.clientX;
-          clickY = e.clientY;
-        } else if (e && typeof e.clientX === 'number' && typeof e.clientY === 'number') {
-          clickX = e.clientX;
-          clickY = e.clientY;
-        } else {
-          const rect = targetButton.getBoundingClientRect();
-          clickX = rect.left + rect.width / 2;
-          clickY = rect.top + rect.height / 2;
-        }
-        
-        // 确保坐标有效
-        clickX = isFinite(clickX) ? clickX : window.innerWidth / 2;
-        clickY = isFinite(clickY) ? clickY : window.innerHeight / 2;
-        
-        // 创建波纹效果
-        createRippleEffect(clickX, clickY, targetButton);
-        
-        // 获取当前主题和新主题
-        const currentTheme = theme.getCurrent();
-        const newTheme = theme.getNext();
-        
-        // 获取过渡模式
-        let transitionMode = TRANSITION_MODES.AUTO;
-        
-        if (targetButton.dataset.transitionMode) {
-          transitionMode = targetButton.dataset.transitionMode;
-        }
-        
-        // 清理之前的过渡计时器
-        timer.clear('transition');
-        
-        // 创建主题切换回调
-        const safeThemeChangeCallback = () => {
-          try {
-            theme.set(newTheme);
-          } catch (err) {
-            console.error(`主题切换回调出错:`, err);
-          }
-        };
-        
-        // 调用视图过渡
-        createViewTransition(
-          safeThemeChangeCallback,
-          clickX,
-          clickY,
-          currentTheme,
-          newTheme,
-          transitionMode
-        ).then(() => {
-          timer.set('buttonReset', () => {
-            buttonState.setTransitioning(targetButton, false);
-          }, config.buffer);
-        }).catch(error => {
-          if (error.name !== 'AbortError') {
-            console.error(`主题切换过渡动画错误:`, error);
-            safeThemeChangeCallback();
-          }
-          
-          timer.set('buttonReset', () => {
-            buttonState.setTransitioning(targetButton, false);
-          }, config.buffer);
-        });
-        
-        // 设置防抖保底
-        timer.set('safetyReset', () => {
-          buttonState.setTransitioning(targetButton, false);
-        }, config.totalTime + 200);
-      } catch (err) {
-        console.error(`主题切换处理过程出错:`, err);
-        
-        // 尝试直接切换主题
-        try {
-          theme.set(theme.getNext());
-        } catch (fallbackErr) {
-          console.error(`主题切换降级处理失败:`, fallbackErr);
-        }
-        
-        // 确保状态被重置
-        buttonState.setTransitioning(targetButton, false);
-      }
-    };
-    
-    // 初始化函数
-    const init = () => {
+  // 主题切换逻辑 - 使用模块模式重构
+  (function () {
+    // ThemeToggler模块 - 所有功能封装在一个对象中
+    const ThemeToggler = (function () {
+      // 私有常量
+      const TRANSITION_MODES = {
+        EXPAND: "expand", // 扩散模式
+        SHRINK: "shrink", // 收缩模式
+        AUTO: "auto", // 自动模式
+        REVERSE_AUTO: "reverse-auto", // 反向自动模式
+      };
+
+      // 私有状态 - 使用闭包替代全局变量
+      const state = {
+        currentTransition: null,
+        timers: new Map(), // 使用Map管理所有定时器
+        lastToggleTime: 0,
+        listeners: [],
+      };
+
+      // 动画配置
+      const config = {
+        duration: 700, // 默认动画时间
+        buffer: 100, // 缓冲时间
+        get totalTime() {
+          return this.duration + this.buffer;
+        },
+        get cooldownTime() {
+          return this.totalTime + 200;
+        },
+      };
+
       // 初始化配置
-      initConfig();
-      
-      const themeToggleButtons = document.querySelectorAll("#theme-toggle-button");
-      
-      if (!themeToggleButtons.length) {
-        console.error(`未找到主题切换按钮`);
-        return;
-      }
-      
-      // 监听Astro页面切换事件 - 使用事件代理
-      events.add(document, 'astro:before-swap', resetThemeToggleState);
-      events.add(document, 'astro:after-swap', resetThemeToggleState);
-      
-      // 监听系统主题变化
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const handleMediaChange = (e) => {
-        if (!localStorage.getItem("theme")) {
-          document.documentElement.dataset.theme = e.matches ? "dark" : "light";
+      const initConfig = () => {
+        const button = document.querySelector("#theme-toggle-button");
+        if (button?.dataset?.transitionDuration) {
+          const customDuration = parseInt(button.dataset.transitionDuration);
+          if (!isNaN(customDuration)) {
+            config.duration = customDuration;
+          }
         }
       };
-      
-      // 添加系统主题变化监听
-      events.add(mediaQuery, "change", handleMediaChange);
-      
-      // 为所有按钮添加事件 - 事件代理
-      themeToggleButtons.forEach(button => {
-        // 确保初始状态
-        buttonState.setTransitioning(button, false);
-        
-        // 点击事件
-        events.add(button, "click", (e) => handleThemeToggle(e, button), { capture: true });
-        
-        // 键盘事件
-        const keydownHandler = (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleThemeToggle(e, button);
+
+      // 定时器管理
+      const timer = {
+        set: (name, callback, delay) => {
+          // 先清除同名定时器
+          timer.clear(name);
+          // 设置新定时器并保存ID
+          const id = setTimeout(callback, delay);
+          state.timers.set(name, id);
+          return id;
+        },
+        clear: (name) => {
+          if (state.timers.has(name)) {
+            clearTimeout(state.timers.get(name));
+            state.timers.delete(name);
+          }
+        },
+        clearAll: () => {
+          state.timers.forEach((id) => clearTimeout(id));
+          state.timers.clear();
+        },
+      };
+
+      // 事件监听器管理
+      const events = {
+        add: (element, eventType, handler, options) => {
+          if (!element) return null;
+
+          element.addEventListener(eventType, handler, options);
+          state.listeners.push({ element, eventType, handler, options });
+          return handler;
+        },
+        removeAll: () => {
+          state.listeners.forEach(
+            ({ element, eventType, handler, options }) => {
+              try {
+                element.removeEventListener(eventType, handler, options);
+              } catch (err) {
+                console.error(`移除事件监听器出错:`, err);
+              }
+            },
+          );
+          state.listeners.length = 0;
+        },
+      };
+
+      // 按钮状态管理
+      const buttonState = {
+        setTransitioning: (button, isTransitioning) => {
+          if (button)
+            button.dataset.themeTransitioning = isTransitioning.toString();
+        },
+        isTransitioning: (button) => {
+          return button && button.dataset.themeTransitioning === "true";
+        },
+      };
+
+      // 主题管理
+      const theme = {
+        getCurrent: () => document.documentElement.dataset.theme || "light",
+        getSystem: () =>
+          window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light",
+        getNext: () => (theme.getCurrent() === "light" ? "dark" : "light"),
+        set: (newTheme) => {
+          document.documentElement.dataset.theme = newTheme;
+
+          // 更新本地存储
+          const systemTheme = theme.getSystem();
+          if (newTheme === systemTheme) {
+            localStorage.removeItem("theme");
+          } else {
+            localStorage.setItem("theme", newTheme);
+          }
+        },
+        initialize: () => {
+          const storedTheme = localStorage.getItem("theme");
+          const systemTheme = theme.getSystem();
+
+          if (storedTheme) {
+            document.documentElement.dataset.theme = storedTheme;
+          } else if (systemTheme) {
+            document.documentElement.dataset.theme = systemTheme;
+          } else {
+            document.documentElement.dataset.theme = "light";
+          }
+        },
+      };
+
+      // 时间控制逻辑
+      const timing = {
+        canToggle: () => {
+          return Date.now() - state.lastToggleTime >= config.cooldownTime;
+        },
+        recordToggle: () => {
+          state.lastToggleTime = Date.now();
+        },
+      };
+
+      // 创建波纹动画
+      const createRippleEffect = (x, y, element) => {
+        const container = element.querySelector("#ripple-container") || element;
+
+        // 清理旧的波纹
+        container
+          .querySelectorAll(".theme-ripple")
+          .forEach((ripple) => ripple.remove());
+
+        // 创建新波纹
+        const ripple = document.createElement("span");
+        ripple.classList.add("theme-ripple");
+
+        // 设置波纹位置
+        const rect = element.getBoundingClientRect();
+        ripple.style.left = `${x - rect.left}px`;
+        ripple.style.top = `${y - rect.top}px`;
+
+        // 添加到容器
+        container.appendChild(ripple);
+
+        // 自动清理
+        timer.set(
+          "ripple",
+          () => {
+            if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
+          },
+          1000,
+        );
+
+        return ripple;
+      };
+
+      // 确定动画类型
+      const determineAnimationType = (transitionMode, fromTheme, toTheme) => {
+        // 固定模式直接返回
+        if (
+          [TRANSITION_MODES.EXPAND, TRANSITION_MODES.SHRINK].includes(
+            transitionMode,
+          )
+        ) {
+          return transitionMode;
+        }
+
+        // 自动模式
+        if (transitionMode === TRANSITION_MODES.AUTO) {
+          return fromTheme === "light" && toTheme === "dark"
+            ? TRANSITION_MODES.EXPAND
+            : TRANSITION_MODES.SHRINK;
+        }
+
+        // 反向自动模式
+        if (transitionMode === TRANSITION_MODES.REVERSE_AUTO) {
+          return fromTheme === "light" && toTheme === "dark"
+            ? TRANSITION_MODES.SHRINK
+            : TRANSITION_MODES.EXPAND;
+        }
+
+        // 默认扩散
+        return TRANSITION_MODES.EXPAND;
+      };
+
+      // 创建视图过渡
+      const createViewTransition = (
+        callback,
+        x,
+        y,
+        fromTheme,
+        toTheme,
+        transitionMode,
+      ) => {
+        // 取消先前的过渡
+        if (state.currentTransition) {
+          try {
+            if (typeof state.currentTransition.skipTransition === "function") {
+              state.currentTransition.skipTransition();
+            }
+          } catch (e) {
+            // 忽略错误
+          } finally {
+            state.currentTransition = null;
+          }
+        }
+
+        // 如果不支持View Transitions API，直接执行回调
+        if (!document.startViewTransition) {
+          callback();
+          return Promise.resolve();
+        }
+
+        try {
+          // 清除状态标记
+          document.documentElement.classList.remove("theme-transition-active");
+
+          // 清除可能存在的临时样式
+          const oldStyle = document.getElementById(
+            "theme-transition-temp-style",
+          );
+          if (oldStyle) oldStyle.remove();
+
+          // 计算从点击位置到页面四个角的最大距离
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          const maxDistance = Math.max(
+            Math.hypot(x, y), // 左上角
+            Math.hypot(w - x, y), // 右上角
+            Math.hypot(x, h - y), // 左下角
+            Math.hypot(w - x, h - y), // 右下角
+          );
+
+          // 设置波纹颜色CSS变量
+          document.documentElement.style.setProperty(
+            "--theme-ripple-color",
+            toTheme === "dark" ? "230, 230, 230" : "20, 20, 20",
+          );
+
+          // 添加过渡标记类
+          document.documentElement.classList.add("theme-transition-active");
+
+          // 确定动画类型
+          const animationType = determineAnimationType(
+            transitionMode,
+            fromTheme,
+            toTheme,
+          );
+
+          // 简化的回调函数
+          const safeCallback = () => {
+            try {
+              // 执行用户回调
+              callback();
+            } catch (err) {
+              console.error(`主题切换回调执行出错:`, err);
+            }
+          };
+
+          // 启动视图过渡
+          const transition = document.startViewTransition(safeCallback);
+          state.currentTransition = transition;
+
+          // 生成动画需要的SVG资源
+          const gradientOffset = 0.75;
+          const maskSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><defs><radialGradient id="toggle-theme-gradient"><stop offset="${gradientOffset}"/><stop offset="1" stop-opacity="0"/></radialGradient></defs><circle cx="4" cy="4" r="4" fill="url(#toggle-theme-gradient)"/></svg>`;
+          const maskUrl = `data:image/svg+xml;base64,${btoa(maskSvg)}`;
+
+          // 计算动画需要多大才能覆盖整个屏幕
+          const maxRadius = Math.ceil(maxDistance / gradientOffset);
+
+          // 创建过渡样式生成函数
+          const createTransitionStyles = (options) => {
+            const { target, x, y, maxRadius, duration, isExpand, zIndex } =
+              options;
+
+            const baseStyles = `
+              animation: none !important;
+              -webkit-mask-image: url('${maskUrl}') !important;
+              mask-image: url('${maskUrl}') !important;
+              -webkit-mask-repeat: no-repeat !important;
+              mask-repeat: no-repeat !important;
+              z-index: ${zIndex} !important;
+            `;
+
+            // 初始状态
+            const initialPosition = isExpand
+              ? `${x}px ${y}px`
+              : `${x - maxRadius}px ${y - maxRadius}px`;
+
+            const initialSize = isExpand ? "0" : `${maxRadius * 2}px`;
+
+            // 最终状态
+            const finalPosition = isExpand
+              ? `${x - maxRadius}px ${y - maxRadius}px`
+              : `${x}px ${y}px`;
+
+            const finalSize = isExpand ? `${maxRadius * 2}px` : "0";
+
+            // 动画类型
+            const timingFunction = isExpand ? "ease-out" : "ease-in";
+
+            // 初始样式
+            const initialStyle = `
+              ${baseStyles}
+              -webkit-mask-position: ${initialPosition} !important;
+              mask-position: ${initialPosition} !important;
+              -webkit-mask-size: ${initialSize} !important;
+              mask-size: ${initialSize} !important;
+            `;
+
+            // 最终样式（添加过渡）
+            const finalStyle = `
+              ${baseStyles}
+              -webkit-mask-position: ${finalPosition} !important;
+              mask-position: ${finalPosition} !important;
+              -webkit-mask-size: ${finalSize} !important;
+              mask-size: ${finalSize} !important;
+              transition: -webkit-mask-position ${duration / 1000}s ${timingFunction}, 
+                          -webkit-mask-size ${duration / 1000}s ${timingFunction},
+                          mask-position ${duration / 1000}s ${timingFunction}, 
+                          mask-size ${duration / 1000}s ${timingFunction} !important;
+            `;
+
+            return { initialStyle, finalStyle };
+          };
+
+          // 异步应用自定义动画
+          (async function applyAnimation() {
+            try {
+              // 等待过渡准备完成
+              await transition.ready;
+
+              // 创建样式元素
+              const style = document.createElement("style");
+              style.id = "theme-transition-temp-style";
+
+              if (animationType === TRANSITION_MODES.EXPAND) {
+                // 扩散效果 - 新主题从点击位置向外扩散
+                const styles = createTransitionStyles({
+                  target: "::view-transition-new(root)",
+                  x,
+                  y,
+                  maxRadius,
+                  duration: config.duration,
+                  isExpand: true,
+                  zIndex: 1000,
+                });
+
+                // 应用初始样式
+                style.textContent = `::view-transition-new(root) { ${styles.initialStyle} }`;
+                document.head.appendChild(style);
+
+                // 强制重新计算样式
+                window
+                  .getComputedStyle(document.documentElement)
+                  .getPropertyValue("--force-reflow");
+
+                // 应用最终样式
+                requestAnimationFrame(() => {
+                  if (style.parentNode) {
+                    style.textContent = `::view-transition-new(root) { ${styles.finalStyle} }`;
+                  }
+                });
+              } else {
+                // 收缩效果 - 旧主题从全屏收缩到点击位置
+                const styles = createTransitionStyles({
+                  target: "::view-transition-old(root)",
+                  x,
+                  y,
+                  maxRadius,
+                  duration: config.duration,
+                  isExpand: false,
+                  zIndex: 999,
+                });
+
+                // 应用初始样式
+                style.textContent = `
+                  ::view-transition-old(root) { ${styles.initialStyle} }
+                  ::view-transition-new(root) { z-index: 998 !important; }
+                `;
+                document.head.appendChild(style);
+
+                // 强制重新计算样式
+                window
+                  .getComputedStyle(document.documentElement)
+                  .getPropertyValue("--force-reflow");
+
+                // 应用最终样式
+                requestAnimationFrame(() => {
+                  if (style.parentNode) {
+                    style.textContent = `
+                      ::view-transition-old(root) { ${styles.finalStyle} }
+                      ::view-transition-new(root) { z-index: 998 !important; }
+                    `;
+                  }
+                });
+              }
+
+              // 清理临时样式
+              timer.set(
+                "cleanupStyle",
+                () => {
+                  if (document.getElementById("theme-transition-temp-style")) {
+                    document
+                      .getElementById("theme-transition-temp-style")
+                      .remove();
+                  }
+                },
+                config.totalTime,
+              );
+            } catch (error) {
+              // 处理错误 - 如果View Transitions API失败，至少确保主题被切换
+              if (error.name !== "AbortError") {
+                console.error(`应用主题过渡动画出错:`, error);
+                // 确保主题被切换
+                safeCallback();
+              }
+            }
+          })();
+
+          // 返回过渡完成的Promise
+          return transition.finished
+            .then(() => {
+              // 移除主题过渡标记类
+              document.documentElement.classList.remove(
+                "theme-transition-active",
+              );
+              state.currentTransition = null;
+            })
+            .catch((error) => {
+              if (error.name !== "AbortError") {
+                console.error(`主题切换过渡动画错误:`, error);
+              }
+              // 确保标记类被移除
+              document.documentElement.classList.remove(
+                "theme-transition-active",
+              );
+              state.currentTransition = null;
+            });
+        } catch (error) {
+          console.error(`主题切换错误:`, error);
+          // 出错时也执行回调确保主题切换
+          callback();
+          document.documentElement.classList.remove("theme-transition-active");
+          return Promise.resolve();
+        }
+      };
+
+      // 清理资源
+      const cleanupResources = () => {
+        // 取消正在进行的transition
+        if (
+          state.currentTransition &&
+          typeof state.currentTransition.skipTransition === "function"
+        ) {
+          try {
+            state.currentTransition.skipTransition();
+          } catch (err) {
+            // 忽略AbortError
+          } finally {
+            state.currentTransition = null;
+          }
+        }
+
+        // 清理所有计时器
+        timer.clearAll();
+
+        // 清理临时样式
+        const tempStyle = document.getElementById(
+          "theme-transition-temp-style",
+        );
+        if (tempStyle) tempStyle.remove();
+
+        // 移除过渡动画标记
+        document.documentElement.classList.remove("theme-transition-active");
+
+        // 移除波纹元素
+        document.querySelectorAll(".theme-ripple").forEach((ripple) => {
+          if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
+        });
+
+        // 重置切换按钮状态
+        document.querySelectorAll("#theme-toggle-button").forEach((btn) => {
+          buttonState.setTransitioning(btn, false);
+        });
+
+        // 移除所有事件监听器
+        events.removeAll();
+      };
+
+      // 重置主题切换状态
+      const resetThemeToggleState = () => {
+        timer.clearAll();
+
+        // 重置全局状态
+        state.lastToggleTime = 0;
+
+        // 重置所有按钮状态
+        document.querySelectorAll("#theme-toggle-button").forEach((button) => {
+          buttonState.setTransitioning(button, false);
+        });
+
+        // 移除波纹效果
+        document.querySelectorAll(".theme-ripple").forEach((ripple) => {
+          if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
+        });
+      };
+
+      // 统一的主题切换处理函数
+      const handleThemeToggle = (e, targetButton) => {
+        // 防止事件默认行为和冒泡
+        if (e && typeof e.preventDefault === "function") {
+          e.preventDefault();
+        }
+        if (e && typeof e.stopPropagation === "function") {
+          e.stopPropagation();
+        }
+
+        // 确保有按钮可操作
+        if (!targetButton && e) {
+          targetButton = e.target.closest("#theme-toggle-button");
+        }
+
+        if (!targetButton) return;
+
+        // 冷却期和过渡状态检查
+        if (
+          !timing.canToggle() ||
+          buttonState.isTransitioning(targetButton) ||
+          state.currentTransition
+        ) {
+          return;
+        }
+
+        // 记录切换时间并设置状态
+        timing.recordToggle();
+        buttonState.setTransitioning(targetButton, true);
+
+        try {
+          // 计算点击坐标
+          let clickX, clickY;
+
+          if (
+            e instanceof Event &&
+            typeof e.clientX === "number" &&
+            typeof e.clientY === "number"
+          ) {
+            clickX = e.clientX;
+            clickY = e.clientY;
+          } else if (
+            e &&
+            typeof e.clientX === "number" &&
+            typeof e.clientY === "number"
+          ) {
+            clickX = e.clientX;
+            clickY = e.clientY;
+          } else {
+            const rect = targetButton.getBoundingClientRect();
+            clickX = rect.left + rect.width / 2;
+            clickY = rect.top + rect.height / 2;
+          }
+
+          // 确保坐标有效
+          clickX = isFinite(clickX) ? clickX : window.innerWidth / 2;
+          clickY = isFinite(clickY) ? clickY : window.innerHeight / 2;
+
+          // 创建波纹效果
+          createRippleEffect(clickX, clickY, targetButton);
+
+          // 获取当前主题和新主题
+          const currentTheme = theme.getCurrent();
+          const newTheme = theme.getNext();
+
+          // 获取过渡模式
+          let transitionMode = TRANSITION_MODES.AUTO;
+
+          if (targetButton.dataset.transitionMode) {
+            transitionMode = targetButton.dataset.transitionMode;
+          }
+
+          // 清理之前的过渡计时器
+          timer.clear("transition");
+
+          // 创建主题切换回调
+          const safeThemeChangeCallback = () => {
+            try {
+              theme.set(newTheme);
+            } catch (err) {
+              console.error(`主题切换回调出错:`, err);
+            }
+          };
+
+          // 调用视图过渡
+          createViewTransition(
+            safeThemeChangeCallback,
+            clickX,
+            clickY,
+            currentTheme,
+            newTheme,
+            transitionMode,
+          )
+            .then(() => {
+              timer.set(
+                "buttonReset",
+                () => {
+                  buttonState.setTransitioning(targetButton, false);
+                },
+                config.buffer,
+              );
+            })
+            .catch((error) => {
+              if (error.name !== "AbortError") {
+                console.error(`主题切换过渡动画错误:`, error);
+                safeThemeChangeCallback();
+              }
+
+              timer.set(
+                "buttonReset",
+                () => {
+                  buttonState.setTransitioning(targetButton, false);
+                },
+                config.buffer,
+              );
+            });
+
+          // 设置防抖保底
+          timer.set(
+            "safetyReset",
+            () => {
+              buttonState.setTransitioning(targetButton, false);
+            },
+            config.totalTime + 200,
+          );
+        } catch (err) {
+          console.error(`主题切换处理过程出错:`, err);
+
+          // 尝试直接切换主题
+          try {
+            theme.set(theme.getNext());
+          } catch (fallbackErr) {
+            console.error(`主题切换降级处理失败:`, fallbackErr);
+          }
+
+          // 确保状态被重置
+          buttonState.setTransitioning(targetButton, false);
+        }
+      };
+
+      // 初始化函数
+      const init = () => {
+        // 初始化配置
+        initConfig();
+
+        const themeToggleButtons = document.querySelectorAll(
+          "#theme-toggle-button",
+        );
+
+        if (!themeToggleButtons.length) {
+          console.error(`未找到主题切换按钮`);
+          return;
+        }
+
+        // 监听Astro页面切换事件 - 使用事件代理
+        events.add(document, "astro:before-swap", resetThemeToggleState);
+        events.add(document, "astro:after-swap", resetThemeToggleState);
+
+        // 监听系统主题变化
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        const handleMediaChange = (e) => {
+          if (!localStorage.getItem("theme")) {
+            document.documentElement.dataset.theme = e.matches
+              ? "dark"
+              : "light";
           }
         };
-        events.add(button, "keydown", keydownHandler);
+
+        // 添加系统主题变化监听
+        events.add(mediaQuery, "change", handleMediaChange);
+
+        // 为所有按钮添加事件 - 事件代理
+        themeToggleButtons.forEach((button) => {
+          // 确保初始状态
+          buttonState.setTransitioning(button, false);
+
+          // 点击事件
+          events.add(button, "click", (e) => handleThemeToggle(e, button), {
+            capture: true,
+          });
+
+          // 键盘事件
+          const keydownHandler = (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleThemeToggle(e, button);
+            }
+          };
+          events.add(button, "keydown", keydownHandler);
+        });
+
+        // 初始化主题
+        theme.initialize();
+
+        // 添加清理监听
+        document.addEventListener("astro:before-swap", cleanupResources, {
+          once: true,
+        });
+        window.addEventListener("beforeunload", cleanupResources, {
+          once: true,
+        });
+      };
+
+      // 返回公共API
+      return {
+        init, // 只暴露初始化方法
+      };
+    })();
+
+    // 初始化
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", ThemeToggler.init, {
+        once: true,
       });
-      
-      // 初始化主题
-      theme.initialize();
-      
-      // 添加清理监听
-      document.addEventListener("astro:before-swap", cleanupResources, { once: true });
-      window.addEventListener("beforeunload", cleanupResources, { once: true });
-    };
-    
-    // 返回公共API
-    return {
-      init  // 只暴露初始化方法
-    };
+    } else {
+      ThemeToggler.init();
+    }
   })();
-  
-  // 初始化
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", ThemeToggler.init, { once: true });
-  } else {
-    ThemeToggler.init();
-  }
-})();
 </script>

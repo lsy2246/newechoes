@@ -61,7 +61,11 @@
   left: 0;
   width: 100px;
   height: 3px;
-  background: linear-gradient(to right, var(--color-primary-600), var(--color-primary-400));
+  background: linear-gradient(
+    to right,
+    var(--color-primary-600),
+    var(--color-primary-400)
+  );
   border-radius: 3px;
 }
 
@@ -83,7 +87,11 @@
   left: 0;
   width: 75px;
   height: 2px;
-  background: linear-gradient(to right, var(--color-primary-500), var(--color-primary-300));
+  background: linear-gradient(
+    to right,
+    var(--color-primary-500),
+    var(--color-primary-300)
+  );
   border-radius: 2px;
 }
 
@@ -104,7 +112,11 @@
   top: 0.25em;
   height: 1em;
   width: 4px;
-  background: linear-gradient(to bottom, var(--color-primary-500), var(--color-primary-300));
+  background: linear-gradient(
+    to bottom,
+    var(--color-primary-500),
+    var(--color-primary-300)
+  );
   border-radius: 2px;
 }
 
@@ -274,7 +286,11 @@
   align-items: center;
   gap: 0.75em;
   transition: background 0.2s ease;
-  background: linear-gradient(to right, var(--color-primary-50), var(--color-gray-50));
+  background: linear-gradient(
+    to right,
+    var(--color-primary-50),
+    var(--color-gray-50)
+  );
   border-left: 4px solid var(--color-primary-100);
 }
 
@@ -295,7 +311,11 @@
 
 .prose details[open] summary {
   border-left: 4px solid var(--color-primary-500);
-  background: linear-gradient(to right, var(--color-primary-100), var(--color-gray-50));
+  background: linear-gradient(
+    to right,
+    var(--color-primary-100),
+    var(--color-gray-50)
+  );
   border-bottom: 1px solid var(--color-secondary-200);
 }
 
@@ -304,7 +324,11 @@
 }
 
 .prose details summary:hover {
-  background: linear-gradient(to right, var(--color-primary-100), var(--color-gray-100));
+  background: linear-gradient(
+    to right,
+    var(--color-primary-100),
+    var(--color-gray-100)
+  );
   color: var(--color-primary-700);
 }
 
@@ -313,7 +337,11 @@
   padding: 1.5em;
   border-radius: 0;
   border-left: 4px solid var(--color-primary-500);
-  background: linear-gradient(to right, var(--color-primary-50/50), var(--color-gray-50));
+  background: linear-gradient(
+    to right,
+    var(--color-primary-50/50),
+    var(--color-gray-50)
+  );
 }
 
 .prose details > blockquote p:first-child {
@@ -332,7 +360,11 @@
 
 [data-theme="dark"] .prose details summary {
   color: var(--color-secondary-100);
-  background: linear-gradient(to right, var(--color-dark-surface), var(--color-dark-card));
+  background: linear-gradient(
+    to right,
+    var(--color-dark-surface),
+    var(--color-dark-card)
+  );
   border-left-color: var(--color-primary-800);
 }
 
@@ -345,17 +377,29 @@
 }
 
 [data-theme="dark"] .prose details[open] summary {
-  background: linear-gradient(to right, var(--color-dark-card), var(--color-dark-surface));
+  background: linear-gradient(
+    to right,
+    var(--color-dark-card),
+    var(--color-dark-surface)
+  );
   border-left-color: var(--color-primary-400);
 }
 
 [data-theme="dark"] .prose details summary:hover {
-  background: linear-gradient(to right, var(--color-primary-900/30), var(--color-dark-card));
+  background: linear-gradient(
+    to right,
+    var(--color-primary-900/30),
+    var(--color-dark-card)
+  );
   color: var(--color-primary-400);
 }
 
 [data-theme="dark"] .prose details > blockquote {
-  background: linear-gradient(to right, var(--color-primary-900/10), var(--color-dark-surface));
+  background: linear-gradient(
+    to right,
+    var(--color-primary-900/10),
+    var(--color-dark-surface)
+  );
   border-left-color: var(--color-primary-400);
 }
 
@@ -384,20 +428,28 @@
 
 /* 目录链接高亮指示器 */
 .toc-link-active::before {
-  content: '';
+  content: "";
   position: absolute;
   left: -0.75rem;
   top: 50%;
   transform: translateY(-50%);
   width: 4px;
   height: 1rem;
-  background: linear-gradient(to bottom, var(--color-primary-600), var(--color-primary-400));
+  background: linear-gradient(
+    to bottom,
+    var(--color-primary-600),
+    var(--color-primary-400)
+  );
   border-radius: 0 2px 2px 0;
   opacity: 1;
 }
 
 [data-theme="dark"] .toc-link-active::before {
-  background: linear-gradient(to bottom, var(--color-primary-400), var(--color-primary-600));
+  background: linear-gradient(
+    to bottom,
+    var(--color-primary-400),
+    var(--color-primary-600)
+  );
 }
 
 /* 目录链接悬停样式 */

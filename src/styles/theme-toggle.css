@@ -1,32 +1,52 @@
-/* 波纹效果相关样式 */
+/* 主题切换组件的全局变量 */
+:root {
+  --theme-toggle-ripple-size: 10px;
+  --theme-toggle-ripple-duration: 800ms;
+  --theme-toggle-light-ripple-color: 100, 100, 100;
+  --theme-toggle-dark-ripple-color: 200, 200, 200;
+  --theme-toggle-ripple-opacity: 0.15;
+  --theme-toggle-z-index-old: 999;
+  --theme-toggle-z-index-new: 1000;
+  --theme-toggle-ripple-scale: 10;
+}
+
+/* 波纹效果动画 */
 @keyframes ripple-effect {
   from {
     transform: scale(0);
     opacity: 0.8;
   }
   to {
-    transform: scale(10);
+    transform: scale(var(--theme-toggle-ripple-scale));
     opacity: 0;
   }
 }
 
+/* 波纹效果基础样式 */
 .theme-ripple {
   position: absolute;
   border-radius: 50%;
-  background-color: rgba(var(--theme-ripple-color, 100, 100, 100), 0.15);
-  width: 10px;
-  height: 10px;
+  width: var(--theme-toggle-ripple-size);
+  height: var(--theme-toggle-ripple-size);
   pointer-events: none;
   transform-origin: center;
-  animation: ripple-effect 800ms ease-out forwards;
+  animation: ripple-effect var(--theme-toggle-ripple-duration) ease-out forwards;
+  background-color: rgba(
+    var(--theme-ripple-color, var(--theme-toggle-light-ripple-color)),
+    var(--theme-toggle-ripple-opacity)
+  );
 }
 
-/* 暗色模式下使用不同颜色变量 */
+/* 自动设置波纹颜色 */
+[data-theme="light"] .theme-ripple {
+  --theme-ripple-color: var(--theme-toggle-light-ripple-color);
+}
+
 [data-theme="dark"] .theme-ripple {
-  background-color: rgba(var(--theme-ripple-color, 200, 200, 200), 0.15);
+  --theme-ripple-color: var(--theme-toggle-dark-ripple-color);
 }
 
-/* View Transitions 样式控制 */
+/* View Transitions 样式 */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none !important;
@@ -34,21 +54,38 @@
   isolation: auto !important;
 }
 
-/* 新增特殊模式样式 */
+/* 过渡动画控制 */
 html.theme-transition-active {
   transition: none !important;
 }
 
 ::view-transition-old(root) {
-  z-index: 999 !important;
+  z-index: var(--theme-toggle-z-index-old) !important;
 }
 
 ::view-transition-new(root) {
-  z-index: 1000 !important;
+  z-index: var(--theme-toggle-z-index-new) !important;
+}
+
+/* 主题切换按钮样式 */
+#theme-toggle-button {
+  position: relative;
+  overflow: hidden;
+}
+
+/* 图标样式 */
+.theme-toggle-icon {
+  width: var(--theme-toggle-icon-width, 16px);
+  height: var(--theme-toggle-icon-height, 16px);
+  transition: transform 0.2s ease;
+}
+
+.theme-toggle-icon:hover {
+  transform: scale(1.1);
 }
 
 /* 设置主题容器在移动设备上的样式 */
 #theme-toggle-container {
   position: relative;
   overflow: hidden;
-} 
+}

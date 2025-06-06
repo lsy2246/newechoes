@@ -166,8 +166,8 @@ export function rehypeCodeBlocks() {
                 properties: { points: '8 6 2 12 8 18' }
               }
             ]
-          },
-          { type: 'text', value: ' ' + language }
+          }
+          // 移除文本节点，将通过CSS伪元素生成
         ];
         
         // 创建复制按钮内容
@@ -197,8 +197,8 @@ export function rehypeCodeBlocks() {
                 properties: { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }
               }
             ]
-          },
-          { type: 'text', value: ' 复制' }
+          }
+          // 移除文本节点，将通过CSS伪元素生成
         ];
         
         // 计算代码行数，用于生成行号
@@ -211,7 +211,7 @@ export function rehypeCodeBlocks() {
             type: 'element',
             tagName: 'div',
             properties: { className: ['line-number'] },
-            children: [{ type: 'text', value: String(i) }]
+            children: [] // 移除文本节点，行号将通过CSS伪元素生成
           });
         }
         
@@ -235,7 +235,10 @@ export function rehypeCodeBlocks() {
                 {
                   type: 'element',
                   tagName: 'div',
-                  properties: { className: ['code-block-lang'] },
+                  properties: { 
+                    className: ['code-block-lang'],
+                    'data-language': language // 添加data属性存储语言名称
+                  },
                   children: langDivChildren
                 },
                 // 复制按钮 - 使用 data-code 属性存储编码后的代码内容
@@ -244,7 +247,8 @@ export function rehypeCodeBlocks() {
                   tagName: 'button',
                   properties: { 
                     className: ['code-block-copy'],
-                    'data-code': Buffer.from(originalCode).toString('base64')
+                    'data-code': Buffer.from(originalCode).toString('base64'),
+                    'data-copy-text': '复制' // 添加data属性存储复制文本
                   },
                   children: copyButtonChildren
                 }

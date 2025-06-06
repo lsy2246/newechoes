@@ -16,7 +16,8 @@
   padding: 0.3rem 0.6rem;
   background-color: #f1f5f9;
   border-bottom: 1px solid #e2e8f0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   font-size: 0.8rem;
 }
 
@@ -27,6 +28,12 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* 使用伪元素显示语言名称 */
+.code-block-lang::after {
+  content: " " attr(data-language);
+  display: inline-block;
 }
 
 .code-block-lang svg {
@@ -49,12 +56,31 @@
   transition: all 0.2s ease;
 }
 
+/* 使用伪元素显示复制文本 */
+.code-block-copy::after {
+  content: " " attr(data-copy-text);
+  display: inline-block;
+}
+
 .code-block-copy:hover {
   background-color: #e2e8f0;
 }
 
 .code-block-copy.copied {
   color: #10b981;
+}
+
+.code-block-copy.copied::after {
+  content: " 已复制";
+}
+
+/* 复制失败状态 */
+.code-block-copy.copy-failed {
+  color: #ef4444;
+}
+
+.code-block-copy.copy-failed::after {
+  content: " 失败";
 }
 
 /* 代码内容容器 - 修改为 flex 布局 */
@@ -76,7 +102,9 @@
   flex-direction: column;
   align-items: center;
   padding: 0.15rem 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  counter-reset: line; /* 重置行号计数器 */
 }
 
 /* 行号元素样式 */
@@ -89,6 +117,14 @@
   color: #94a3b8;
   font-size: 0.85rem;
   user-select: none;
+  counter-increment: line; /* 每个行号元素递增计数器 */
+}
+
+/* 使用伪元素显示行号 */
+.line-number::before {
+  content: counter(line);
+  display: block;
+  text-align: center;
 }
 
 /* 代码内容容器 - 允许水平滚动 */
@@ -105,7 +141,8 @@ pre {
 }
 
 pre code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   font-size: 0.9rem;
   line-height: 1.4rem;
   padding: 0;
@@ -129,52 +166,82 @@ pre code {
 }
 
 /* 暗色模式 */
-[data-theme='dark'] .code-block-container {
+[data-theme="dark"] .code-block-container {
   border-color: #334155;
   background-color: transparent;
 }
 
-[data-theme='dark'] .code-block-header {
+[data-theme="dark"] .code-block-header {
   background-color: #1e293b;
   border-bottom-color: #334155;
 }
 
-[data-theme='dark'] .code-block-lang {
+[data-theme="dark"] .code-block-lang {
   color: #e2e8f0;
 }
 
-[data-theme='dark'] .code-block-copy {
+[data-theme="dark"] .code-block-lang::after {
   color: #e2e8f0;
 }
 
-[data-theme='dark'] .code-block-copy:hover {
+[data-theme="dark"] .code-block-copy {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .code-block-copy::after {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .code-block-copy.copied::after {
+  content: " 已复制";
+  color: #10b981;
+}
+
+[data-theme="dark"] .code-block-copy.copy-failed {
+  color: #f87171;
+}
+
+[data-theme="dark"] .code-block-copy.copy-failed::after {
+  content: " 失败";
+  color: #f87171;
+}
+
+[data-theme="dark"] .code-block-copy:hover {
   background-color: #334155;
 }
 
 /* 移除代码内容区域的黑暗模式背景 */
-[data-theme='dark'] .code-block-content {
+[data-theme="dark"] .code-block-content {
   background-color: transparent;
 }
 
 /* 暗色模式行号容器样式 */
-[data-theme='dark'] .line-numbers-container {
+[data-theme="dark"] .line-numbers-container {
   background-color: #1e293b;
   border-right-color: #334155;
 }
 
 /* 暗色模式行号样式 */
-[data-theme='dark'] .line-number {
+[data-theme="dark"] .line-number {
+  color: #64748b;
+}
+
+[data-theme="dark"] .line-number::before {
   color: #64748b;
 }
 
 /* 确保所有代码元素没有背景 */
-code, pre, .code-block-content,
+code,
+pre,
+.code-block-content,
 .code-block-content pre.shiki,
 .code-block-content pre.astro-code,
 .code-block-content pre code,
 .code-block-content pre code span,
-pre.shiki, pre.astro-code,
-.line, .line span {
+pre.shiki,
+pre.astro-code,
+.line,
+.line span {
   background-color: transparent !important;
 }
 
@@ -183,24 +250,25 @@ pre.shiki, pre.astro-code,
   border-left: 2px solid #eab308;
 }
 
-[data-theme='dark'] .line.highlighted {
+[data-theme="dark"] .line.highlighted {
   border-left: 2px solid #fbbf24;
   background-color: transparent !important;
 }
 
 /* 暗黑主题样式 */
-[data-theme='dark'] .astro-code {
+[data-theme="dark"] .astro-code {
   color: var(--shiki-dark) !important;
   background-color: var(--shiki-dark-bg) !important;
 }
 
-[data-theme='dark'] .astro-code span {
+[data-theme="dark"] .astro-code span {
   color: var(--shiki-dark) !important;
 }
 
 /* 行内代码块样式 */
 :not(pre) > code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   font-size: 0.875rem;
   color: var(--color-primary-700);
   margin: 0 0.2rem;
@@ -216,19 +284,19 @@ pre.shiki, pre.astro-code,
 }
 
 /* 行内代码块黑暗模式样式 */
-[data-theme='dark'] :not(pre) > code {
+[data-theme="dark"] :not(pre) > code {
   color: var(--color-primary-300);
 }
 
 /* 长路径的行内代码块样式特殊处理 */
-:not(pre) > code:has(path), 
+:not(pre) > code:has(path),
 :not(pre) > code.file-path {
-  white-space: pre-wrap;       /* 保留空格但允许换行 */
-  overflow-wrap: break-word;   /* 允许在任何地方断行 */
-  word-break: break-all;       /* 允许在任何字符间断行 */
+  white-space: pre-wrap; /* 保留空格但允许换行 */
+  overflow-wrap: break-word; /* 允许在任何地方断行 */
+  word-break: break-all; /* 允许在任何字符间断行 */
   max-width: 100%;
   display: inline-block;
-  font-size: 0.85rem;          /* 略微减小字体尺寸 */
+  font-size: 0.85rem; /* 略微减小字体尺寸 */
   padding: 0.2rem 0.4rem;
   line-height: 1.4;
 }
@@ -239,7 +307,6 @@ pre.shiki, pre.astro-code,
 }
 
 /* 针对文件路径的特殊样式 - 黑暗模式 */
-[data-theme='dark'] :not(pre) > code.file-path {
+[data-theme="dark"] :not(pre) > code.file-path {
   color: var(--color-gray-300);
 }
-
