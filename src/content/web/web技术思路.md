@@ -6,28 +6,26 @@ tags: []
 
 ## 前端
 
-## tailwind
+### [pnpm](https://pnpm.io/zh/)
 
-> 快速构建 css 样式器
+- 安装速度快
+- 避免非法依赖
 
-### 可响应式布局
+### [tailwind CSS](https://tailwindcss.com/)
 
-利用媒体查询器
+快速构建 css 样式器,可响应式布局
 
-### 黑暗模式
+### [swup](https://swup.js.org/)
 
-```javascript
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  mode: "all",
-  content: ["./src/**/*.{rs,html,css}", "./dist/**/*.html"],
-  theme: {}, //自定义配置
-  plugins: [],
-  darkMode: ['data-theme="dark"'], //以自定义数据theme的方式生成对应的css文件
-};
-```
+视图切换
 
-‍
+### [WebAssembly](https://developer.mozilla.org/zh-CN/docs/WebAssembly)
+
+具体紧凑二进制格式可以在 web 接近原生性能运行
+
+### 前端案例网站
+
+- [codepen](https://codepen.io/trending)
 
 ## 后端
 
