@@ -1,15 +1,7 @@
 ---
-interface Props {
-  icp?: string;
-  psbIcp?: string;
-  psbIcpUrl?: string;
-}
+interface Props {}
 
-const {
-  icp = "",
-  psbIcp = "",
-  psbIcpUrl = "http://www.beian.gov.cn/portal/registerSystemInfo",
-} = Astro.props;
+const {} = Astro.props;
 
 const currentYear = new Date().getFullYear();
 ---
@@ -20,46 +12,6 @@ const currentYear = new Date().getFullYear();
   <div
     class="max-w-7xl mx-auto flex flex-col items-center justify-center space-y-4"
   >
-    <div
-      class="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400"
-    >
-      {
-        icp && (
-          <a
-            href="https://beian.miit.gov.cn/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="hover:text-primary-600 dark:hover:text-primary-400"
-            aria-label="工信部备案信息"
-          >
-            {icp}
-          </a>
-        )
-      }
-
-      {
-        psbIcp && (
-          <a
-            href={psbIcpUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="flex items-center hover:text-primary-600 dark:hover:text-primary-400"
-            aria-label="公安部备案信息"
-          >
-            <img
-              src="/images/national.png"
-              alt="公安备案"
-              class="h-4 mr-1"
-              width="14"
-              height="16"
-              loading="lazy"
-            />
-            {psbIcp}
-          </a>
-        )
-      }
-    </div>
-
     <div
       class="text-sm text-gray-500 dark:text-gray-500 font-light flex flex-wrap items-center justify-center gap-2"
     >

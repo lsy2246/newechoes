@@ -34,10 +34,6 @@ export const NAV_STRUCTURE = [
     }
 ];
 
-export const ICP = '渝ICP备2022009272号';
-export const PSB_ICP = '渝公网安备50011902000520号';
-export const PSB_ICP_URL = 'http://www.beian.gov.cn/portal/registerSystemInfo';
-
 export const ARTICLE_EXPIRY_CONFIG = {
     enabled: true, // 是否启用文章过期提醒
     expiryDays: 365, // 文章过期天数
