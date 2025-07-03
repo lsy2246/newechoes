@@ -1,7 +1,7 @@
 ---
 title: "使用宝塔面板受到CC攻击后自动开启 Cloudflare 经典的 5 秒盾"
 date: 2023-07-09T19:21:00+00:00
-tags: [cloudflare]
+tags: ["cloudflare"]
 ---
 
 项目地址：[https://github.com/csh733/autouam_control](https://github.com/csh733/autouam_control)

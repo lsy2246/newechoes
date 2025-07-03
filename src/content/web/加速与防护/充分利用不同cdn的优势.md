@@ -1,7 +1,7 @@
 ---
 title: "充分利用不同cdn的优势"
 date: 2025-07-04T01:23:53+08:00
-tags: []
+tags: ["cloudflare"]
 ---
 
 以 vercel 和 edgeone 和 dnspod 国际版为例
