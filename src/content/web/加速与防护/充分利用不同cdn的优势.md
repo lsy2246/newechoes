@@ -1,5 +1,5 @@
 ---
-title: "分区域解析dns"
+title: "充分利用不同cdn的优势"
 date: 2025-07-04T01:23:53+08:00
 tags: []
 ---
@@ -42,8 +42,9 @@ tags: []
 
 ```mermaid
 graph LR;
-    A[国外请求] --> D[vercel];
-    B[国内请求] --> C[edgeone];
+    A[用户请求] --> B[dnspod];
+    B --> |国外请求| D[vercel];
+    B --> |国内请求| C[edgeone];
     C --> D;
 ```
 
@@ -51,13 +52,14 @@ graph LR;
 
 ```mermaid
 graph LR;
-    A[国外请求] --> B[国外cdn];
-    C[国内请求] --> D[国内cdn];
-    B --> E[源站ip];
+    A[用户请求] --> B[dns解析处理];
+    B --> |国外请求| C[国外cdn];
+    B --> |国内请求| D[国内cdn];
+    C --> E[源站];
     D --> E;
 ```
 
-如果源站 ip 使用 cf 的小黄云，主机限制 cf 的 ip 段 访问，可以减少源站 ip 的泄漏和减缓攻击的影响
+如果源站使用 cf 的小黄云，主机限制 cf 的 ip 段 访问，可以减少源站 ip 的泄漏和减缓攻击的影响
 
 在 cdn 处利用优选 ip，可以进一步提升速度
 
