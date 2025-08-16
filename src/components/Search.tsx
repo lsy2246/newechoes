@@ -78,6 +78,7 @@ const Search: React.FC<SearchProps> = ({
 }) => {
   // 状态
   const [query, setQuery] = useState<string>("");
+  const [lastSearchQuery, setLastSearchQuery] = useState<string>(""); // 跟踪最后一次搜索的查询
 
   // 加载状态合并为一个对象
   const [loadingState, setLoadingState] = useState<{
@@ -158,9 +159,8 @@ const Search: React.FC<SearchProps> = ({
         console.error("加载搜索WASM模块失败:", err);
         setLoadingState({
           status: "error",
-          error: `无法加载搜索模块: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
+          error: `无法加载搜索模块: ${err instanceof Error ? err.message : String(err)
+            }`,
         });
       }
     };
@@ -189,7 +189,16 @@ const Search: React.FC<SearchProps> = ({
       try {
         setLoadingState((prev) => ({ ...prev, status: "loading_index" }));
 
-        const response = await fetch("/index/search_index.bin", {
+        // 确定索引文件路径
+        let indexPath = "/index/search_index.bin";
+
+        // 在开发模式下，直接使用构建目录的路径
+        if (import.meta.env.DEV) {
+          indexPath = "/dist/client/index/search_index.bin";
+          console.log("开发模式：使用构建目录的索引文件路径");
+        }
+
+        const response = await fetch(indexPath, {
           signal: abortControllerRef.current.signal,
         });
 
@@ -197,7 +206,7 @@ const Search: React.FC<SearchProps> = ({
         if (!isMountedRef.current) return;
 
         if (!response.ok) {
-          throw new Error(`获取搜索索引失败: ${response.statusText}`);
+          throw new Error(`获取搜索索引失败: ${response.statusText} (${response.status})`);
         }
 
         const indexBuffer = await response.arrayBuffer();
@@ -208,6 +217,7 @@ const Search: React.FC<SearchProps> = ({
 
         setIndexData(data);
         setLoadingState((prev) => ({ ...prev, status: "success" }));
+        console.log("搜索索引加载成功");
       } catch (err) {
         // 检查组件是否仍然挂载
         if (!isMountedRef.current) return;
@@ -223,9 +233,8 @@ const Search: React.FC<SearchProps> = ({
         console.error("搜索索引加载失败:", err);
         setLoadingState({
           status: "error",
-          error: `无法加载搜索索引: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
+          error: `无法加载搜索索引: ${err instanceof Error ? err.message : String(err)
+            }`,
         });
       }
     };
@@ -696,14 +705,17 @@ const Search: React.FC<SearchProps> = ({
       setInlineSuggestion((prev) => ({ ...prev, visible: false }));
       setSelectedSuggestionIndex(0); // 重置选中索引
       setShowResults(false);
+      setLastSearchQuery(""); // 重置最后搜索查询
       return;
     }
 
     // 立即获取内联建议
     fetchSuggestions(value);
 
-    // 立即执行搜索，不再使用定时器延迟
-    performSearch(value, false);
+    // 添加防抖机制，避免频繁搜索导致重复结果
+    debounceTimerRef.current = setTimeout(() => {
+      performSearch(value, false);
+    }, 150); // 150ms 防抖延迟
   };
 
   // 监控输入框选择状态变化
@@ -733,6 +745,12 @@ const Search: React.FC<SearchProps> = ({
       return;
     }
 
+    // 如果不是加载更多，且查询与上次相同，避免重复搜索
+    if (!isLoadMore && searchQuery === lastSearchQuery && allItems.length > 0) {
+      console.log("跳过重复搜索:", searchQuery);
+      return;
+    }
+
     // 取消之前的请求（虽然这是WASM调用，不是真正的网络请求，但保持一致性）
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -742,7 +760,7 @@ const Search: React.FC<SearchProps> = ({
     abortControllerRef.current = new AbortController();
 
     try {
-      const page = isLoadMore ? currentPage : 1;
+      const page = isLoadMore ? currentPage + 1 : 1;
 
       if (isLoadMore) {
         setLoadingState((prev) => ({ ...prev, status: "loading_more" }));
@@ -750,6 +768,7 @@ const Search: React.FC<SearchProps> = ({
         setLoadingState((prev) => ({ ...prev, status: "loading_search" }));
         setAllItems([]); // 清空之前的所有结果
         setCurrentPage(1); // 重置页码
+        setLastSearchQuery(searchQuery); // 记录当前搜索查询
       }
 
       const req = {
@@ -789,26 +808,31 @@ const Search: React.FC<SearchProps> = ({
       }
 
       // 更新搜索结果状态
+      let updatedItems;
       if (isLoadMore) {
-        setAllItems((prevItems) => [...prevItems, ...result.items]);
+        // 合并新结果，并去除重复项（基于ID）
+        const existingIds = new Set(allItems.map(item => item.id));
+        const newItems = result.items.filter(item => !existingIds.has(item.id));
+        updatedItems = [...allItems, ...newItems];
+        setAllItems(updatedItems);
       } else {
-        setAllItems(result.items);
+        updatedItems = result.items;
+        setAllItems(updatedItems);
       }
 
       setSearchResults(result);
       setShowResults(true);
 
       // 检查是否还有更多页
-      // 修复：同时检查页码和已加载的结果数量，防止无限加载超过实际结果数
+      // 修复：使用更新后的items长度来判断，而不是状态中的allItems.length
       const hasMore =
-        page < result.total_pages && allItems.length < result.total;
+        page < result.total_pages && updatedItems.length < result.total;
 
       setHasMoreResults(hasMore);
 
       // 如果是加载更多，则更新页码
-      if (isLoadMore && hasMore) {
-        const nextPage = page + 1;
-        setCurrentPage(nextPage);
+      if (isLoadMore) {
+        setCurrentPage(page);
       }
 
       // 更新加载状态
@@ -828,9 +852,8 @@ const Search: React.FC<SearchProps> = ({
       console.error("搜索执行失败:", err);
       setLoadingState({
         status: "error",
-        error: `搜索执行时出错: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
+        error: `搜索执行时出错: ${err instanceof Error ? err.message : String(err)
+          }`,
       });
     }
   };
@@ -1253,20 +1276,20 @@ const Search: React.FC<SearchProps> = ({
     // 过滤子节点 - 在这里直接内联过滤逻辑，不使用单独的函数
     const filteredChildren = hasChildren
       ? node.children.filter((child) => {
-          // 如果子节点有内容，保留
-          if (child.content) return true;
+        // 如果子节点有内容，保留
+        if (child.content) return true;
 
-          // 递归检查子节点的子节点
-          const checkChildContent = (n: HeadingNode): boolean => {
-            if (n.content) return true;
-            return n.children.some((c) => checkChildContent(c));
-          };
+        // 递归检查子节点的子节点
+        const checkChildContent = (n: HeadingNode): boolean => {
+          if (n.content) return true;
+          return n.children.some((c) => checkChildContent(c));
+        };
 
-          // 如果子节点的子树有内容，保留
-          return child.children.some((grandchild) =>
-            checkChildContent(grandchild),
-          );
-        })
+        // 如果子节点的子树有内容，保留
+        return child.children.some((grandchild) =>
+          checkChildContent(grandchild),
+        );
+      })
       : [];
 
     return (
@@ -1277,9 +1300,8 @@ const Search: React.FC<SearchProps> = ({
         {/* 只渲染非根节点的标题 */}
         {node.level > 0 && (
           <div
-            className={`text-xs font-medium text-primary-600 dark:text-primary-400 mb-1 ${
-              depth > 0 ? "mt-2" : ""
-            } break-words [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800`}
+            className={`text-xs font-medium text-primary-600 dark:text-primary-400 mb-1 ${depth > 0 ? "mt-2" : ""
+              } break-words [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800`}
           >
             <span dangerouslySetInnerHTML={{ __html: node.text }} />
           </div>
@@ -1529,7 +1551,7 @@ const Search: React.FC<SearchProps> = ({
                         inlineSuggestion.type === "correction"
                           ? "max-w-[calc(100%-1.25rem)]" // 纠正建议给予更多空间，但仍然保留一些边距
                           : "max-w-[80%]" // 补全建议使用固定比例
-                      }`}
+                        }`}
                     >
                       <span
                         className={`whitespace-pre text-base md:text-sm lg:text-base ${
@@ -1537,7 +1559,7 @@ const Search: React.FC<SearchProps> = ({
                           inlineSuggestion.type === "correction"
                             ? "text-amber-500/80 dark:text-amber-400/80 ml-1 block truncate"
                             : "text-gray-400/70 dark:text-gray-500/70"
-                        }`}
+                          }`}
                         style={{
                           fontWeight:
                             inlineSuggestion.type === "correction"
@@ -1634,11 +1656,10 @@ const Search: React.FC<SearchProps> = ({
                 </button>
                 {inlineSuggestion.visible && inlineSuggestion.text && (
                   <div
-                    className={`text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center cursor-pointer p-1 ml-1 tab-completion-button ${
-                      inlineSuggestion.type === "correction"
+                    className={`text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center cursor-pointer p-1 ml-1 tab-completion-button ${inlineSuggestion.type === "correction"
                         ? "animate-pulse"
                         : ""
-                    }`}
+                      }`}
                     title={
                       inlineSuggestion.type === "correction"
                         ? "按Tab键接受纠正"
@@ -1678,11 +1699,10 @@ const Search: React.FC<SearchProps> = ({
                     style={{ touchAction: "none" }}
                   >
                     <div
-                      className={`border ${
-                        inlineSuggestion.type === "correction"
+                      className={`border ${inlineSuggestion.type === "correction"
                           ? "border-amber-500/80 text-amber-500/90 dark:border-amber-400/80 dark:text-amber-400/90"
                           : "border-current"
-                      } rounded px-1 py-px text-[10px] md:text-[8px] lg:text-[8px] leading-none font-semibold flex items-center justify-center`}
+                        } rounded px-1 py-px text-[10px] md:text-[8px] lg:text-[8px] leading-none font-semibold flex items-center justify-center`}
                     >
                       TAB
                     </div>
