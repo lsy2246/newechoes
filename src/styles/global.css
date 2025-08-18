@@ -38,7 +38,7 @@
   --color-dark-border: #475569;
   --color-dark-text: #e2e8f0;
   --color-dark-text-secondary: #94a3b8;
-  
+
   /* 滚动条颜色变量 */
   --scrollbar-track: #f1f5f9;
   --scrollbar-thumb: #94a3b8;
@@ -49,13 +49,13 @@
 }
 
 /* 深色模式样式 */
-[data-theme='dark'] {
+[data-theme="dark"] {
   --bg-primary: var(--color-dark-bg);
   --bg-secondary: var(--color-dark-surface);
   --text-primary: var(--color-dark-text);
   --text-secondary: var(--color-dark-text-secondary);
   --border-color: var(--color-dark-border);
-  
+
   background-color: var(--bg-primary);
   color: var(--text-primary);
 }
@@ -92,20 +92,20 @@
 }
 
 /* 深色模式滚动条样式 */
-[data-theme='dark'] ::-webkit-scrollbar-track {
+[data-theme="dark"] ::-webkit-scrollbar-track {
   background: var(--scrollbar-dark-track);
 }
 
-[data-theme='dark'] ::-webkit-scrollbar-thumb {
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-dark-thumb);
   border: 2px solid var(--scrollbar-dark-track);
 }
 
-[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-dark-thumb-hover);
 }
 
-[data-theme='dark'] ::-webkit-scrollbar-corner {
+[data-theme="dark"] ::-webkit-scrollbar-corner {
   background: var(--scrollbar-dark-track);
 }
 
@@ -115,8 +115,43 @@
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-[data-theme='dark'] * {
+[data-theme="dark"] * {
   scrollbar-color: var(--scrollbar-dark-thumb) var(--scrollbar-dark-track);
+}
+
+/* 搜索组件滚动条优化 */
+.search-results-container {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch; /* iOS 滚动优化 */
+}
+
+.search-results-container::-webkit-scrollbar {
+  width: 8px; /* 稍微减小滚动条宽度 */
+}
+
+.search-results-container::-webkit-scrollbar-track {
+  background: transparent; /* 透明轨道 */
+}
+
+.search-results-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+  border: none; /* 移除边框 */
+  transition: background-color 0.15s ease; /* 减少过渡时间 */
+}
+
+.search-results-container::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* 深色模式搜索组件滚动条 */
+[data-theme="dark"] .search-results-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-dark-thumb);
+}
+
+[data-theme="dark"] .search-results-container::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-dark-thumb-hover);
 }
 
 /* 统一的文章卡片样式 - 纯CSS实现 */
@@ -128,17 +163,19 @@
   border: 1px solid var(--color-gray-200);
   border-radius: 0.75rem;
   background-color: white;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
 }
 
 .article-card:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
   transform: translateY(-0.25rem);
 }
 
 /* 黑暗模式卡片样式 */
-[data-theme='dark'] .article-card {
+[data-theme="dark"] .article-card {
   background-color: var(--color-gray-800);
   border-color: var(--color-gray-700);
 }
@@ -165,7 +202,7 @@
   color: var(--color-primary-600);
 }
 
-[data-theme='dark'] .article-card-icon {
+[data-theme="dark"] .article-card-icon {
   background-color: rgba(75, 107, 255, 0.2);
   color: var(--color-primary-400);
 }
@@ -174,7 +211,7 @@
   background-color: var(--color-primary-200);
 }
 
-[data-theme='dark'] .article-card:hover .article-card-icon {
+[data-theme="dark"] .article-card:hover .article-card-icon {
   background-color: rgba(75, 107, 255, 0.3);
 }
 
@@ -194,7 +231,7 @@
   overflow: hidden;
 }
 
-[data-theme='dark'] .article-card-title {
+[data-theme="dark"] .article-card-title {
   color: var(--color-gray-100);
 }
 
@@ -202,7 +239,7 @@
   color: var(--color-primary-700);
 }
 
-[data-theme='dark'] .article-card:hover .article-card-title {
+[data-theme="dark"] .article-card:hover .article-card-title {
   color: var(--color-primary-300);
 }
 
@@ -217,7 +254,7 @@
   word-break: break-word;
 }
 
-[data-theme='dark'] .article-card-summary {
+[data-theme="dark"] .article-card-summary {
   color: var(--color-gray-400);
 }
 
@@ -234,7 +271,7 @@
   color: var(--color-gray-500);
 }
 
-[data-theme='dark'] .article-card-date {
+[data-theme="dark"] .article-card-date {
   color: var(--color-gray-400);
 }
 
@@ -247,6 +284,6 @@
   margin-left: 0.5rem;
 }
 
-[data-theme='dark'] .article-card-read-more {
+[data-theme="dark"] .article-card-read-more {
   color: var(--color-primary-400);
 }

@@ -790,7 +790,16 @@ const Search: React.FC<SearchProps> = ({
 
       // 更新搜索结果状态
       if (isLoadMore) {
-        setAllItems((prevItems) => [...prevItems, ...result.items]);
+        setAllItems((prevItems) => {
+          // 使用函数式更新，避免依赖外部状态
+          const newItems = [...prevItems, ...result.items];
+          // 去重，避免重复项
+          const uniqueItems = newItems.filter(
+            (item, index, self) =>
+              index === self.findIndex((t) => t.id === item.id),
+          );
+          return uniqueItems;
+        });
       } else {
         setAllItems(result.items);
       }
@@ -918,11 +927,18 @@ const Search: React.FC<SearchProps> = ({
   };
 
   // 加载更多结果
-  const loadMoreResults = () => {
+  const loadMoreResults = useCallback(() => {
     if (!isLoadingMore && hasMoreResults && query.trim()) {
-      performSearch(query, true);
+      // 添加防抖机制，避免频繁触发
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        performSearch(query, true);
+      }, 100); // 100ms 防抖延迟
     }
-  };
+  }, [isLoadingMore, hasMoreResults, query, performSearch]);
 
   // 设置Intersection Observer来检测何时需要加载更多结果
   useEffect(() => {
@@ -945,10 +961,16 @@ const Search: React.FC<SearchProps> = ({
           !currentIsLoadingMore &&
           currentHasMoreResults
         ) {
-          loadMoreResults();
+          // 使用 requestAnimationFrame 来避免在滚动过程中触发
+          requestAnimationFrame(() => {
+            loadMoreResults();
+          });
         }
       },
-      { rootMargin: "100px" }, // 提前100px触发
+      {
+        rootMargin: "200px", // 增加触发距离，减少频繁触发
+        threshold: 0.1, // 降低阈值，减少敏感度
+      },
     );
 
     observer.observe(loadMoreRef.current);
@@ -966,6 +988,7 @@ const Search: React.FC<SearchProps> = ({
     query,
     currentPage,
     loadingState.status,
+    loadMoreResults, // 添加 loadMoreResults 作为依赖
   ]);
 
   // 输入框获焦时处理
@@ -1325,7 +1348,11 @@ const Search: React.FC<SearchProps> = ({
     return (
       <div
         ref={searchResultsRef}
-        className="absolute z-40 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-96 overflow-y-auto"
+        className="absolute z-40 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-96 overflow-y-auto scroll-smooth search-results-container"
+        style={{
+          scrollbarGutter: "stable", // 防止滚动条出现时布局跳动
+          overscrollBehavior: "contain", // 防止滚动条回弹
+        }}
       >
         <div className="p-4">
           <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
