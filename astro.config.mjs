@@ -14,6 +14,8 @@ import { rehypeTables } from "./src/plugins/rehype-tables.js";
 import { customSitemapIntegration } from "./src/plugins/sitemap-integration.js";
 import { rssIntegration } from "./src/plugins/rss-integration.js";
 import { robotsIntegration } from "./src/plugins/robots-integration.js";
+import mermaid from 'astro-mermaid';
+
 
 // https://astro.build/config
 export default defineConfig({
@@ -33,6 +35,11 @@ export default defineConfig({
     // 使用Astro官方的MDX支持
     mdx(),
     react(),
+    // mermaid插件
+    mermaid({
+      theme: 'neutral',
+      autoTheme: true
+    }),
     // 使用文章索引生成器
     articleIndexerIntegration(),
     // 站点地图和robots.txt生成
@@ -49,8 +56,6 @@ export default defineConfig({
     syntaxHighlight: {
       // 使用shiki作为高亮器
       type: 'shiki',
-      // 排除mermaid语言，不进行高亮处理
-      excludeLangs: ['mermaid']
     },
     // Shiki主题配置
     shikiConfig: {

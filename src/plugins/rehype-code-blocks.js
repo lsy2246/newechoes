@@ -28,11 +28,6 @@ export function rehypeCodeBlocks() {
           ? languageClass.split('-')[1].toUpperCase()
           : (shikiLanguage ? shikiLanguage.toUpperCase() : 'TEXT');
           
-        // 跳过处理 mermaid 图表
-        if (language === 'MERMAID') {
-          return;
-        }
-        
         // 提取原始代码 - 改进提取逻辑，处理Shiki高亮的代码
         let codeContent = '';
         
