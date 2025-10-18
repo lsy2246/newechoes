@@ -1,17 +1,17 @@
 ---
-import Layout from '@/components/Layout.astro';
-import GitProjectCollection from '@/components/GitProjectCollection';
-import { GitPlatform } from '@/components/GitProjectCollection';
+import Layout from "@/components/Layout.astro";
+import GitProjectCollection from "@/components/GitProjectCollection";
+import { GitPlatform } from "@/components/GitProjectCollection";
 ---
 
-<Layout 
+<Layout
   title="项目"
   description="我的开源项目展示"
   skipSrTitle={false}
 >
   <main class="container mx-auto px-4 py-8">
     <div class="space-y-12">
-      <GitProjectCollection 
+      <GitProjectCollection
         platform={GitPlatform.GITHUB}
         username="lsy2246"
         title="个人项目"

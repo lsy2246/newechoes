@@ -1,17 +1,16 @@
 ---
-import Layout from '@/components/Layout.astro';
-import { SITE_TITLE } from '@/consts';
+import Layout from "@/components/Layout.astro";
+import { SITE_TITLE } from "@/consts";
 ---
 
 <Layout title={SITE_TITLE}>
   <div class="min-h-[calc(100vh-4rem)] flex items-center justify-center">
     <div class="text-center px-4">
-      <h1 class="text-6xl md:text-8xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 dark:from-primary-400 dark:to-primary-200 text-transparent bg-clip-text mb-6">
+      <h1
+        class="text-6xl md:text-8xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 dark:from-primary-400 dark:to-primary-200 text-transparent bg-clip-text mb-6"
+      >
         {SITE_TITLE}
       </h1>
-      <p class="text-xl md:text-2xl text-secondary-600 dark:text-secondary-400 max-w-2xl mx-auto leading-relaxed">
-        探索技术与思维的边界
-      </p>
     </div>
   </div>
 </Layout>
