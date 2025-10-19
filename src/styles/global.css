@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "./swup-transitions.css";
 
+:root {
+  /* 中英文自动空白 */
+  text-autospace: normal;
+}
+
 /* 定义深色模式选择器 */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
