@@ -23,7 +23,7 @@ const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
 
     try {
       const response = await fetch(`/api/weread?listId=${listId}`);
-      
+
       if (!response.ok) {
         // 解析响应内容，获取详细错误信息
         let errorMessage = `获取微信读书数据失败`;
@@ -59,7 +59,10 @@ const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
         setBooks([]);
       }
     } catch (error) {
-      setError("获取微信读书数据失败: " + (error instanceof Error ? error.message : "未知错误"));
+      setError(
+        "获取微信读书数据失败: " +
+          (error instanceof Error ? error.message : "未知错误"),
+      );
       setBooks([]);
     } finally {
       setIsLoading(false);
@@ -129,7 +132,7 @@ const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
                     className="absolute top-0 left-0 w-full h-full object-cover"
                     loading="lazy"
                   />
-                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-linear-to-t from-black/80 to-transparent">
                     <h3 className="font-bold text-white text-sm line-clamp-2">
                       <a
                         href={book.link}
@@ -147,9 +150,7 @@ const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
               </div>
             ))
           ) : (
-            <div className="col-span-full text-center">
-              暂无图书数据
-            </div>
+            <div className="col-span-full text-center">暂无图书数据</div>
           )}
         </div>
       )}
@@ -157,4 +158,4 @@ const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
   );
 };
 
-export default WereadBookList; 
+export default WereadBookList;

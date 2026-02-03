@@ -437,7 +437,7 @@ const DateRangePicker: React.FC<{
             {getDisplayText()}
           </span>
           <svg
-            className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0"
+            className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -467,7 +467,7 @@ const DateRangePicker: React.FC<{
               <button
                 type="button"
                 onClick={prevMonth}
-                className="p-1.5 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0"
+                className="p-1.5 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
                 aria-label="上个月"
               >
                 <svg
@@ -485,7 +485,7 @@ const DateRangePicker: React.FC<{
                 </svg>
               </button>
 
-              <div className="flex items-center space-x-2 flex-grow justify-center">
+              <div className="flex items-center space-x-2 grow justify-center">
                 <h3
                   id={`${id}-calendar-heading`}
                   className="sr-only"
@@ -539,7 +539,7 @@ const DateRangePicker: React.FC<{
               <button
                 type="button"
                 onClick={nextMonth}
-                className="p-1.5 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0"
+                className="p-1.5 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
                 aria-label="下个月"
               >
                 <svg
@@ -1715,7 +1715,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                       {activeFilters.sort === "title_desc" && "标题 Z-A"}
                     </span>
                     <svg
-                      className="w-4 h-4 ml-2 flex-shrink-0"
+                      className="w-4 h-4 ml-2 shrink-0"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -1798,7 +1798,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                     {getTagSelectorText()}
                   </span>
                   <svg
-                    className="w-4 h-4 flex-shrink-0"
+                    className="w-4 h-4 shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1877,7 +1877,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                       </div>
                     </div>
 
-                    <div className="p-2 overflow-y-auto flex-grow">
+                    <div className="p-2 overflow-y-auto grow">
                       {getFilteredTags().length > 0 ? (
                         <div className="grid grid-cols-1 gap-1.5">
                           {getFilteredTags().map((tag) => (
@@ -1910,7 +1910,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                               </div>
                               {activeFilters.tags.includes(tag) && (
                                 <span
-                                  className="ml-auto text-primary-500 dark:text-primary-400 flex-shrink-0"
+                                  className="ml-auto text-primary-500 dark:text-primary-400 shrink-0"
                                   aria-hidden="true"
                                 >
                                   <svg

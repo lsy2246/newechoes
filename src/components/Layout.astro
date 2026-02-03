@@ -324,9 +324,7 @@ const {
     class="m-0 w-full h-full bg-gray-50 dark:bg-dark-bg flex flex-col min-h-screen"
   >
     <Header />
-    <main
-      class="pt-16 flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full"
-    >
+    <main class="pt-16 grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
       {!skipSrTitle && <h1 class="sr-only">{title}</h1>}
       <slot />
     </main>

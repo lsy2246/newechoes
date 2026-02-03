@@ -61,7 +61,39 @@ export const GET: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
   const type = url.searchParams.get('type') || 'movie';
   const start = parseInt(url.searchParams.get('start') || '0');
-  const doubanId = url.searchParams.get('doubanId');  // 从查询参数获取 doubanId
+  const doubanId = url.searchParams.get('doubanId');
+  const imageUrl = url.searchParams.get('imageUrl'); // 图片代理参数
+
+  // 如果是图片代理请求
+  if (imageUrl) {
+    try {
+      const response = await fetch(imageUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+          'Referer': 'https://movie.douban.com/',
+          'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('[图片代理] 请求失败:', response.status);
+        return new Response('Failed to fetch image', { status: response.status });
+      }
+
+      const imageBuffer = await response.arrayBuffer();
+      const contentType = response.headers.get('content-type') || 'image/webp';
+
+      return new Response(imageBuffer, {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000',
+        },
+      });
+    } catch (error) {
+      console.error('[图片代理] 错误:', error);
+      return new Response('Error fetching image', { status: 500 });
+    }
+  }
 
   if (!doubanId) {
     return new Response(JSON.stringify({ error: '缺少豆瓣ID' }), {
@@ -96,7 +128,8 @@ export const GET: APIRoute = async ({ request }) => {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Cookie': `bid=doubanAPIClient`
+            'Cookie': `bid=doubanAPIClient`,
+            'Referer': 'https://movie.douban.com'
           }
         }, REQUEST_TIMEOUT);
 
@@ -180,9 +213,6 @@ export const GET: APIRoute = async ({ request }) => {
         if (itemCount === 0) {
           // 如果两个选择器都没有找到内容，可能是页面结构变化或被封锁
           console.error('未找到内容，页面结构可能已变化');
-
-          // 记录HTML以便调试
-          console.debug('HTML片段:', html.substring(0, 500) + '...');
 
           if (retries < MAX_RETRIES) {
             retries++;

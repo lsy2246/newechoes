@@ -12,7 +12,11 @@ interface DoubanItem {
   link: string;
 }
 
-const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, className = '' }) => {
+const DoubanCollection: React.FC<DoubanCollectionProps> = ({
+  type,
+  doubanId,
+  className = "",
+}) => {
   const [items, setItems] = useState<DoubanItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMoreContent, setHasMoreContent] = useState(true);
@@ -36,149 +40,154 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
   });
 
   // 封装fetch函数使用useCallback避免重新创建
-  const fetchDoubanData = useCallback(async (page = 1, append = false) => {
-    // 使用ref中的最新状态
-    if (
-      stateRef.current.isLoading ||
-      (!append && !stateRef.current.hasMoreContent) ||
-      (append && !stateRef.current.hasMoreContent)
-    ) {
-      return;
-    }
-
-    // 取消之前的请求
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    
-    // 创建新的AbortController
-    abortControllerRef.current = new AbortController();
-
-    // 更新状态和ref
-    setIsLoading(true);
-    stateRef.current.isLoading = true;
-
-    // 只在首次加载时清除错误
-    if (!append) {
-      setError(null);
-      stateRef.current.error = null;
-    }
-
-    const start = (page - 1) * itemsPerPage;
-    try {
-      const response = await fetch(
-        `/api/douban?type=${type}&start=${start}&doubanId=${doubanId}`,
-        { signal: abortControllerRef.current.signal }
-      );
-      
-      // 检查组件是否已卸载，如果卸载则不继续处理
-      if (!isMountedRef.current) {
+  const fetchDoubanData = useCallback(
+    async (page = 1, append = false) => {
+      // 使用ref中的最新状态
+      if (
+        stateRef.current.isLoading ||
+        (!append && !stateRef.current.hasMoreContent) ||
+        (append && !stateRef.current.hasMoreContent)
+      ) {
         return;
       }
-      
-      if (!response.ok) {
-        // 解析响应内容，获取详细错误信息
-        let errorMessage = `获取${type === "movie" ? "电影" : "图书"}数据失败`;
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.error) {
-            errorMessage = errorData.error;
-            if (errorData.message) {
-              errorMessage += `: ${errorData.message}`;
+
+      // 取消之前的请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // 创建新的AbortController
+      abortControllerRef.current = new AbortController();
+
+      // 更新状态和ref
+      setIsLoading(true);
+      stateRef.current.isLoading = true;
+
+      // 只在首次加载时清除错误
+      if (!append) {
+        setError(null);
+        stateRef.current.error = null;
+      }
+
+      const start = (page - 1) * itemsPerPage;
+      try {
+        const response = await fetch(
+          `/api/douban?type=${type}&start=${start}&doubanId=${doubanId}`,
+          { signal: abortControllerRef.current.signal },
+        );
+
+        // 检查组件是否已卸载，如果卸载则不继续处理
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        if (!response.ok) {
+          // 解析响应内容，获取详细错误信息
+          let errorMessage = `获取${
+            type === "movie" ? "电影" : "图书"
+          }数据失败`;
+          try {
+            const errorData = await response.json();
+            if (errorData && errorData.error) {
+              errorMessage = errorData.error;
+              if (errorData.message) {
+                errorMessage += `: ${errorData.message}`;
+              }
+            }
+          } catch (e) {
+            // 无法解析JSON，使用默认错误信息
+          }
+
+          // 针对不同错误提供更友好的提示
+          if (response.status === 403) {
+            errorMessage = "豆瓣接口访问受限，可能是请求过于频繁，请稍后再试";
+          } else if (response.status === 404) {
+            // 对于404错误，如果是追加模式，说明已经到了最后一页，设置hasMoreContent为false
+            if (append) {
+              setHasMoreContent(false);
+              stateRef.current.hasMoreContent = false;
+              setIsLoading(false);
+              stateRef.current.isLoading = false;
+              return; // 直接返回，不设置错误，不清空已有数据
+            } else {
+              errorMessage = "未找到相关内容，请检查豆瓣ID是否正确";
             }
           }
-        } catch (e) {
-          // 无法解析JSON，使用默认错误信息
-        }
 
-        // 针对不同错误提供更友好的提示
-        if (response.status === 403) {
-          errorMessage = "豆瓣接口访问受限，可能是请求过于频繁，请稍后再试";
-        } else if (response.status === 404) {
-          // 对于404错误，如果是追加模式，说明已经到了最后一页，设置hasMoreContent为false
-          if (append) {
-            setHasMoreContent(false);
-            stateRef.current.hasMoreContent = false;
-            setIsLoading(false);
-            stateRef.current.isLoading = false;
-            return; // 直接返回，不设置错误，不清空已有数据
-          } else {
-            errorMessage = "未找到相关内容，请检查豆瓣ID是否正确";
+          // 设置错误状态和ref
+          setError(errorMessage);
+          stateRef.current.error = errorMessage;
+
+          // 只有非追加模式才清空数据
+          if (!append) {
+            setItems([]);
           }
+
+          throw new Error(errorMessage);
         }
 
-        // 设置错误状态和ref
-        setError(errorMessage);
-        stateRef.current.error = errorMessage;
+        const data = await response.json();
 
-        // 只有非追加模式才清空数据
-        if (!append) {
-          setItems([]);
+        // 再次检查组件是否已卸载
+        if (!isMountedRef.current) {
+          return;
         }
 
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-
-      // 再次检查组件是否已卸载
-      if (!isMountedRef.current) {
-        return;
-      }
-
-      if (data.items.length === 0) {
-        // 如果返回的项目为空，则认为已经没有更多内容
-        setHasMoreContent(false);
-        stateRef.current.hasMoreContent = false;
-        if (!append) {
-          setItems([]);
-        }
-      } else {
-        if (append) {
-          setItems((prev) => {
-            const newItems = [...prev, ...data.items];
-            return newItems;
-          });
+        if (data.items.length === 0) {
+          // 如果返回的项目为空，则认为已经没有更多内容
+          setHasMoreContent(false);
+          stateRef.current.hasMoreContent = false;
+          if (!append) {
+            setItems([]);
+          }
         } else {
-          setItems(data.items);
-        }
-        // 更新页码状态和ref
-        setCurrentPage(data.pagination.current);
-        stateRef.current.currentPage = data.pagination.current;
+          if (append) {
+            setItems((prev) => {
+              const newItems = [...prev, ...data.items];
+              return newItems;
+            });
+          } else {
+            setItems(data.items);
+          }
+          // 更新页码状态和ref
+          setCurrentPage(data.pagination.current);
+          stateRef.current.currentPage = data.pagination.current;
 
-        // 更新是否有更多内容的状态和ref
-        const newHasMoreContent = data.pagination.hasNext;
-        setHasMoreContent(newHasMoreContent);
-        stateRef.current.hasMoreContent = newHasMoreContent;
+          // 更新是否有更多内容的状态和ref
+          const newHasMoreContent = data.pagination.hasNext;
+          setHasMoreContent(newHasMoreContent);
+          stateRef.current.hasMoreContent = newHasMoreContent;
+        }
+      } catch (error) {
+        // 检查组件是否已卸载
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        // 如果是取消的请求，不显示错误
+        if (error instanceof Error && error.name === "AbortError") {
+          console.log("请求被取消", error.message);
+          // 如果是取消请求，重置加载状态但不显示错误
+          setIsLoading(false);
+          stateRef.current.isLoading = false;
+          return;
+        }
+
+        // 只有在非追加模式下才清空已加载的内容
+        if (!append) {
+          setItems([]);
+        }
+      } finally {
+        // 检查组件是否已卸载
+        if (isMountedRef.current) {
+          // 重置加载状态
+          setIsLoading(false);
+          stateRef.current.isLoading = false;
+        }
       }
-    } catch (error) {
-      // 检查组件是否已卸载
-      if (!isMountedRef.current) {
-        return;
-      }
-      
-      // 如果是取消的请求，不显示错误
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('请求被取消', error.message);
-        // 如果是取消请求，重置加载状态但不显示错误
-        setIsLoading(false);
-        stateRef.current.isLoading = false;
-        return;
-      }
-      
-      // 只有在非追加模式下才清空已加载的内容
-      if (!append) {
-        setItems([]);
-      }
-    } finally {
-      // 检查组件是否已卸载
-      if (isMountedRef.current) {
-        // 重置加载状态
-        setIsLoading(false);
-        stateRef.current.isLoading = false;
-      }
-    }
-  }, [type, doubanId]);
+    },
+    [type, doubanId],
+  );
 
   // 处理滚动事件
   const handleScroll = useCallback(() => {
@@ -235,7 +244,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
       observerRef.current.disconnect();
       observerRef.current = null;
     }
-    
+
     // 清理旧的检测元素
     if (scrollDetectorRef.current) {
       scrollDetectorRef.current.remove();
@@ -284,7 +293,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
   useEffect(() => {
     // 设置组件挂载状态
     isMountedRef.current = true;
-    
+
     // 重置状态
     setCurrentPage(1);
     stateRef.current.currentPage = 1;
@@ -311,7 +320,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
 
     // 设置滚动事件监听器
     window.addEventListener("scroll", handleScroll, { passive: true });
-    
+
     // 设置IntersectionObserver
     setupIntersectionObserver();
 
@@ -326,28 +335,34 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
     return () => {
       // 标记组件已卸载
       isMountedRef.current = false;
-      
+
       clearTimeout(timeoutId);
       window.removeEventListener("scroll", handleScroll);
-      
+
       // 清理IntersectionObserver
       if (observerRef.current) {
         observerRef.current.disconnect();
         observerRef.current = null;
       }
-      
+
       // 清理scroll detector元素
       if (scrollDetectorRef.current) {
         scrollDetectorRef.current.remove();
         scrollDetectorRef.current = null;
       }
-      
+
       // 取消正在进行的请求
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [type, doubanId, handleScroll, fetchDoubanData, setupIntersectionObserver]);
+  }, [
+    type,
+    doubanId,
+    handleScroll,
+    fetchDoubanData,
+    setupIntersectionObserver,
+  ]);
 
   // 错误提示组件
   const ErrorMessage = () => {
@@ -421,12 +436,12 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({ type, doubanId, cla
             >
               <div className="relative pb-[150%] overflow-hidden">
                 <img
-                  src={item.imageUrl}
+                  src={`/api/douban?imageUrl=${encodeURIComponent(item.imageUrl)}`}
                   alt={item.title}
                   className="absolute top-0 left-0 w-full h-full object-cover hover:scale-105"
                   loading="lazy"
                 />
-                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-linear-to-t from-black/80 to-transparent">
                   <h3 className="font-bold text-white text-sm line-clamp-2">
                     <a
                       href={item.link}

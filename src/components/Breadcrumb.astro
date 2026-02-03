@@ -32,7 +32,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
 <div class="breadcrumb flex items-center justify-between w-full flex-wrap sm:flex-nowrap" data-page-type={pageType}>
   <div class="breadcrumb-path flex items-center text-sm overflow-hidden">
     <!-- 文章列表链接 - 根据当前页面类型决定链接 -->
-    <a href={'/articles/'} class="breadcrumb-home text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center flex-shrink-0">
+    <a href={'/articles/'} class="breadcrumb-home text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center shrink-0">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
       </svg>
@@ -42,7 +42,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     <!-- 网格视图或文章详情中的目录路径 -->
     {(pageType === 'grid' || (pageType === 'article' && breadcrumbs.length > 0)) && (
       <div class="breadcrumb-segments flex items-center overflow-hidden" data-segments-count={breadcrumbs.length}>
-        <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+        <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">/</span>
         
         <!-- 移动端使用智能截断 -->
         <div class="breadcrumb-mobile flex md:hidden items-center">
@@ -51,20 +51,20 @@ const breadcrumbs: Breadcrumb[] = pathSegments
               <!-- 第一个路径段 -->
               <a 
                 href={`/articles/${breadcrumbs[0].path}/`} 
-                class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[100px] flex-shrink-0"
+                class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-20 sm:max-w-[100px] shrink-0"
                 data-segment-index="0"
               >
                 {breadcrumbs[0].name}
               </a>
               
               <!-- 省略号 -->
-              <span class="breadcrumb-ellipsis mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">...</span>
+              <span class="breadcrumb-ellipsis mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">...</span>
               
               <!-- 最后一个路径段 -->
               {breadcrumbs.length > 1 && (
                 <a 
                   href={`/articles/${breadcrumbs[breadcrumbs.length - 1].path}/`} 
-                  class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[120px] flex-shrink-0"
+                  class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-20 sm:max-w-[120px] shrink-0"
                   data-segment-index={breadcrumbs.length - 1}
                 >
                   {breadcrumbs[breadcrumbs.length - 1].name}
@@ -75,7 +75,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
             breadcrumbs.map((crumb: Breadcrumb, index: number) => {
               const crumbPath = breadcrumbs.slice(0, index + 1).map((b: Breadcrumb) => b.name).join('/');
               return (
-                <span class="breadcrumb-item flex items-center flex-shrink-0">
+                <span class="breadcrumb-item flex items-center shrink-0">
                   {index > 0 && <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
                   <a 
                     href={`/articles/${crumbPath}/`} 
@@ -95,7 +95,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
           {breadcrumbs.map((crumb: Breadcrumb, index: number) => {
             const crumbPath = breadcrumbs.slice(0, index + 1).map((b: Breadcrumb) => b.name).join('/');
             return (
-              <span class="breadcrumb-item flex items-center flex-shrink-0">
+              <span class="breadcrumb-item flex items-center shrink-0">
                 {index > 0 && <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
                 <a 
                   href={`/articles/${crumbPath}/`} 
@@ -114,7 +114,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     <!-- 筛选视图中的搜索参数展示 -->
     {pageType === 'filter' && searchParams.toString() && (
       <div class="breadcrumb-filter flex items-center overflow-hidden">
-        <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+        <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">/</span>
         <span class="breadcrumb-filter-label text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
           筛选
           {searchParams.toString() && <span class="breadcrumb-search-result ml-1">- 搜索结果</span>}
@@ -125,7 +125,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     <!-- 文章标题 - 仅在文章详情页显示 -->
     {pageType === 'article' && articleTitle && (
       <>
-        <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+        <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">/</span>
         <span class="breadcrumb-article-title text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">{articleTitle}</span>
       </>
     )}
@@ -133,7 +133,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
 
   <!-- 视图切换按钮 - 仅在文章列表页面显示 -->
   {(pageType === 'filter' || pageType === 'grid') && (
-    <div class="breadcrumb-view-switcher flex items-center gap-px flex-shrink-0 ml-auto">
+    <div class="breadcrumb-view-switcher flex items-center gap-px shrink-0 ml-auto">
       <a href={`/filtered${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
          class="breadcrumb-filter-btn px-3 py-1.5 flex items-center gap-1 ${
            pageType === 'filter' 
@@ -334,7 +334,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       
       // 生成路径面包屑HTML
       let breadcrumbsHtml = `
-        <a href="/articles/" class="breadcrumb-home text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center flex-shrink-0">
+        <a href="/articles/" class="breadcrumb-home text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
           </svg>
@@ -345,7 +345,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       // 网格视图或文章详情中的目录路径
       if (pageType === 'grid' || (pageType === 'article' && pathSegments.length > 0)) {
         breadcrumbsHtml += `<div class="breadcrumb-segments flex items-center overflow-hidden" data-segments-count="${pathSegments.length}">
-          <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>`;
+          <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">/</span>`;
         
         // 移动端使用智能截断
         breadcrumbsHtml += `<div class="breadcrumb-mobile flex md:hidden items-center">`;
@@ -358,13 +358,13 @@ const breadcrumbs: Breadcrumb[] = pathSegments
           breadcrumbsHtml += `
             <a 
               href="/articles/${firstPath}/" 
-              class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[100px] flex-shrink-0"
+              class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[100px] shrink-0"
               data-segment-index="0"
             >
               ${firstSegment}
             </a>
             
-            <span class="breadcrumb-ellipsis mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">...</span>
+            <span class="breadcrumb-ellipsis mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">...</span>
           `;
           
           // 最后一个路径段
@@ -375,7 +375,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
             breadcrumbsHtml += `
               <a 
                 href="/articles/${lastPath}/" 
-                class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[120px] flex-shrink-0"
+                class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[80px] sm:max-w-[120px] shrink-0"
                 data-segment-index="${pathSegments.length - 1}"
               >
                 ${lastSegment}
@@ -387,7 +387,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
           breadcrumbsHtml += pathSegments.map((segment, index) => {
             const segmentPath = pathSegments.slice(0, index + 1).map(encodeURIComponent).join('/');
             return `
-              <span class="breadcrumb-item flex items-center flex-shrink-0">
+              <span class="breadcrumb-item flex items-center shrink-0">
                 ${index > 0 ? '<span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>' : ''}
                 <a 
                   href="/articles/${segmentPath}/" 
@@ -409,7 +409,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
         breadcrumbsHtml += pathSegments.map((segment, index) => {
           const segmentPath = pathSegments.slice(0, index + 1).map(encodeURIComponent).join('/');
           return `
-            <span class="breadcrumb-item flex items-center flex-shrink-0">
+            <span class="breadcrumb-item flex items-center shrink-0">
               ${index > 0 ? '<span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>' : ''}
               <a 
                 href="/articles/${segmentPath}/" 
@@ -429,7 +429,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       if (pageType === 'filter' && searchParams.toString()) {
         breadcrumbsHtml += `
           <div class="breadcrumb-filter flex items-center overflow-hidden">
-            <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+            <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">/</span>
             <span class="breadcrumb-filter-label text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
               筛选
               ${searchParams.toString() ? '<span class="breadcrumb-search-result ml-1">- 搜索结果</span>' : ''}
@@ -441,7 +441,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       // 文章标题 - 仅在文章详情页显示
       if (pageType === 'article' && articleTitle) {
         breadcrumbsHtml += `
-          <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 flex-shrink-0">/</span>
+          <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">/</span>
           <span class="breadcrumb-article-title text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">${articleTitle}</span>
         `;
       }

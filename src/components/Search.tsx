@@ -1302,7 +1302,7 @@ const Search: React.FC<SearchProps> = ({
           <div
             className={`text-xs font-medium text-primary-600 dark:text-primary-400 mb-1 ${
               depth > 0 ? "mt-2" : ""
-            } break-words [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800`}
+            } wrap-break-word [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800`}
           >
             <span dangerouslySetInnerHTML={{ __html: node.text }} />
           </div>
@@ -1311,7 +1311,7 @@ const Search: React.FC<SearchProps> = ({
         {/* 渲染当前节点的匹配内容 */}
         {shouldShowContent && (
           <div className="border-l-2 border-primary-500 pl-2 py-1 mb-2">
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1 [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800 break-words">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1 [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800 wrap-break-word">
               <div
                 dangerouslySetInnerHTML={{
                   __html: node.content || "",
@@ -1381,8 +1381,8 @@ const Search: React.FC<SearchProps> = ({
                     }}
                   >
                     <div className="flex items-start">
-                      <div className="flex-grow min-w-0">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200 break-words [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800">
+                      <div className="grow min-w-0">
+                        <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200 wrap-break-word [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800">
                           <span
                             dangerouslySetInnerHTML={{ __html: item.title }}
                           />
@@ -1393,7 +1393,7 @@ const Search: React.FC<SearchProps> = ({
                           {item.heading_tree ? (
                             renderHeadingTree(item.heading_tree, index)
                           ) : (
-                            <div className="text-sm text-gray-600 dark:text-gray-400 break-words">
+                            <div className="text-sm text-gray-600 dark:text-gray-400 wrap-break-word">
                               {item.summary}
                             </div>
                           )}
@@ -1544,14 +1544,14 @@ const Search: React.FC<SearchProps> = ({
                   {/* 纠正建议和补全建议都显示在已输入内容的右侧 */}
                   <>
                     {/* 创建与输入文本宽度完全相等的不可见占位 */}
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       <span className="invisible whitespace-pre text-base md:text-sm lg:text-base">
                         {query}
                       </span>
                     </div>
                     {/* 显示建议的剩余部分 */}
                     <div
-                      className={`flex-shrink-0 ${
+                      className={`shrink-0 ${
                         // 根据建议类型调整最大宽度
                         inlineSuggestion.type === "correction"
                           ? "max-w-[calc(100%-1.25rem)]" // 纠正建议给予更多空间，但仍然保留一些边距

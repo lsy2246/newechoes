@@ -10,7 +10,7 @@ export enum GitPlatform {
 
 // 平台默认配置
 export const DEFAULT_GIT_CONFIG = {
-  perPage: 10,
+  perPage: 9,
 };
 
 // 内部使用的平台配置
@@ -420,7 +420,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
                   className="block p-5"
                 >
                   <div className="flex items-start">
-                    <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 group-hover:bg-primary-200 dark:group-hover:bg-primary-800/50">
+                    <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 group-hover:bg-primary-200 dark:group-hover:bg-primary-800/50">
                       {getPlatformIcon(project.platform as GitPlatform)}
                     </div>
                     <div className="ml-3 flex-1">
@@ -461,7 +461,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
                         {/* 第一行：语言、star、fork */}
                         <div className="flex items-center gap-4 flex-wrap">
                           {project.language && (
-                            <div className="flex items-center flex-shrink-0">
+                            <div className="flex items-center shrink-0">
                               <span
                                 style={{
                                   backgroundColor: getLanguageColor(
@@ -479,7 +479,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
                             </div>
                           )}
 
-                          <div className="flex items-center flex-shrink-0">
+                          <div className="flex items-center shrink-0">
                             <svg
                               className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400"
                               fill="none"
@@ -499,7 +499,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
                             </span>
                           </div>
 
-                          <div className="flex items-center flex-shrink-0">
+                          <div className="flex items-center shrink-0">
                             <svg
                               className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400"
                               fill="none"
