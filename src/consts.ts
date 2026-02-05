@@ -4,9 +4,12 @@ export const SITE_DESCRIPTION = "记录生活，分享所思";
 // 新的导航结构 - 支持分层导航
 export const NAV_STRUCTURE = [
     {
-        id: 'home',
-        text: '首页',
-        href: '/'
+        id: 'articles',
+        text: '文章',
+        items: [
+            { id: 'path', text: '网格', href: '/articles' },
+            { id: 'filter', text: '筛选', href: '/filtered' }
+        ]
     },
     {
         id: 'art',
@@ -14,14 +17,6 @@ export const NAV_STRUCTURE = [
         items: [
             { id: 'movies', text: '观影', href: '/movies' },
             { id: 'books', text: '读书', href: '/books' }
-        ]
-    },
-    {
-        id: 'articles',
-        text: '文章',
-        items: [
-            { id: 'filter', text: '筛选', href: '/filtered' },
-            { id: 'path', text: '网格', href: '/articles' }
         ]
     },
     {
