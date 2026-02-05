@@ -30,11 +30,12 @@ pnpm run dev  # 访问 http://localhost:4321
 **创建文章（推荐方式）：**
 
 ```bash
-chmod +x create_post.sh  # 首次使用
-./create_post.sh "文章标题" "目录/文章路径"
+pnpm new-post "文章标题"
 ```
 
-**手动创建：** 在 `src/content/articles` 目录下创建 `.md` 文件
+> `create_post.sh` 已废弃，请使用 `pnpm new-post`。
+
+**手动创建：** 在 `src/content` 目录下创建 `.md` 文件
 
 ```markdown
 ---
