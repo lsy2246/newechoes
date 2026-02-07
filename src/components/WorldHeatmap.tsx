@@ -1,23 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  Scene,
-  PerspectiveCamera,
-  WebGLRenderer,
-  SphereGeometry,
-  MeshBasicMaterial,
+import type {
+  Group,
+  Line,
   Mesh,
-  AmbientLight,
-  DirectionalLight,
+  PerspectiveCamera,
+  Raycaster,
+  Scene,
+  Side,
   Vector2,
   Vector3,
-  Raycaster,
-  Group,
-  BufferGeometry,
-  LineBasicMaterial,
-  Line,
-  FrontSide,
+  WebGLRenderer,
 } from "three";
-import type { Side } from "three";
 
 // 需要懒加载的模块
 const loadControlsAndRenderers = () =>
@@ -96,8 +89,8 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     lastMouseX: number | null;
     lastMouseY: number | null;
     lastHoverTime: number | null;
-    lineToCountryMap: Map<Line, string>;
-    allLineObjects: Line[];
+    countryToLines: Map<string, Line[]>;
+    lastHighlightedCountry: string | null;
   } | null>(null);
 
   // 监听主题变化
@@ -364,6 +357,26 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     // 动态加载Three.js控制器和渲染器
     const initThreeScene = async () => {
       try {
+        const three = await import("three");
+        const {
+          Scene: ThreeScene,
+          PerspectiveCamera: ThreePerspectiveCamera,
+          WebGLRenderer: ThreeWebGLRenderer,
+          SphereGeometry: ThreeSphereGeometry,
+          MeshBasicMaterial: ThreeMeshBasicMaterial,
+          Mesh: ThreeMesh,
+          AmbientLight: ThreeAmbientLight,
+          DirectionalLight: ThreeDirectionalLight,
+          Vector2: ThreeVector2,
+          Vector3: ThreeVector3,
+          Raycaster: ThreeRaycaster,
+          Group: ThreeGroup,
+          BufferGeometry: ThreeBufferGeometry,
+          LineBasicMaterial: ThreeLineBasicMaterial,
+          Line: ThreeLine,
+          FrontSide: ThreeFrontSide,
+        } = three;
+
         // 加载OrbitControls和CSS2DRenderer
         const [{ OrbitControls }, { CSS2DRenderer }] =
           await loadControlsAndRenderers();
@@ -392,16 +405,16 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         const colors = getColors();
 
         // 创建场景
-        const scene = new Scene();
+        const scene = new ThreeScene();
         scene.background = null;
 
         // 创建材质的辅助函数
         const createMaterial = (
           color: string,
-          side: Side = FrontSide,
+          side: Side = ThreeFrontSide,
           opacity: number = 1.0,
         ) => {
-          return new MeshBasicMaterial({
+          return new ThreeMeshBasicMaterial({
             color: color,
             side: side,
             transparent: true,
@@ -410,24 +423,24 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         };
 
         // 创建地球几何体
-        const earthGeometry = new SphereGeometry(2.0, 64, 64);
+        const earthGeometry = new ThreeSphereGeometry(2.0, 64, 64);
         const earthMaterial = createMaterial(
           colors.earthBase,
-          FrontSide,
+          ThreeFrontSide,
           isDarkMode ? 0.9 : 0.9,
         );
-        const earth = new Mesh(earthGeometry, earthMaterial);
+        const earth = new ThreeMesh(earthGeometry, earthMaterial);
         earth.renderOrder = 1;
         scene.add(earth);
 
         // 添加光源
-        const ambientLight = new AmbientLight(
+        const ambientLight = new ThreeAmbientLight(
           0xffffff,
           isDarkMode ? 0.7 : 0.85,
         );
         scene.add(ambientLight);
 
-        const directionalLight = new DirectionalLight(
+        const directionalLight = new ThreeDirectionalLight(
           isDarkMode ? 0xeeeeff : 0xffffff,
           isDarkMode ? 0.6 : 0.65,
         );
@@ -435,7 +448,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         scene.add(directionalLight);
 
         // 创建相机
-        const camera = new PerspectiveCamera(
+        const camera = new ThreePerspectiveCamera(
           45,
           containerRef.current.clientWidth / containerRef.current.clientHeight,
           0.1,
@@ -444,7 +457,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         camera.position.z = 8;
 
         // 创建渲染器
-        const renderer = new WebGLRenderer({
+        const renderer = new ThreeWebGLRenderer({
           antialias: true,
           alpha: true,
           logarithmicDepthBuffer: true,
@@ -491,12 +504,11 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           }
         });
 
-        // 保存所有线条对象的引用，用于快速检测
-        const allLineObjects: Line[] = [];
-        const lineToCountryMap = new Map<Line, string>();
+        const countryToLines = new Map<string, Line[]>();
+        let lastHighlightedCountry: string | null = null;
 
         // 创建国家边界组
-        const countryGroup = new Group();
+        const countryGroup = new ThreeGroup();
         earth.add(countryGroup);
 
         // 创建国家边界
@@ -512,7 +524,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
             const { points, region_name, is_visited } = boundaryLine;
 
             // 创建区域组
-            const regionObject = new Group();
+            const regionObject = new ThreeGroup();
             regionObject.userData = {
               name: region_name,
               isVisited: is_visited,
@@ -521,12 +533,12 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
             // 转换点数组为Vector3数组
             const threePoints = points.map(
               (p: { x: number; y: number; z: number }) =>
-                new Vector3(p.x, p.y, p.z),
+                new ThreeVector3(p.x, p.y, p.z),
             );
 
             // 创建边界线
             if (threePoints.length > 1) {
-              const lineGeometry = new BufferGeometry().setFromPoints(
+              const lineGeometry = new ThreeBufferGeometry().setFromPoints(
                 threePoints,
               );
 
@@ -546,14 +558,14 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
                 borderColor = colors.border;
               }
 
-              const lineMaterial = new LineBasicMaterial({
+              const lineMaterial = new ThreeLineBasicMaterial({
                 color: borderColor,
                 linewidth: is_visited ? 1.8 : 1.2,
                 transparent: true,
                 opacity: is_visited ? 0.95 : 0.85,
               });
 
-              const line = new Line(lineGeometry, lineMaterial);
+              const line = new ThreeLine(lineGeometry, lineMaterial);
               line.userData = {
                 name: region_name,
                 isVisited: is_visited,
@@ -565,9 +577,12 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
               line.renderOrder = is_visited ? 3 : 2;
               regionObject.add(line);
 
-              // 保存线条对象引用和对应的区域名称
-              allLineObjects.push(line);
-              lineToCountryMap.set(line, region_name);
+              const lines = countryToLines.get(region_name);
+              if (lines) {
+                lines.push(line);
+              } else {
+                countryToLines.set(region_name, [line]);
+              }
             }
 
             // 添加区域对象到国家组
@@ -586,10 +601,10 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           let fixedPosition;
           if (isSmallScreen) {
             // 小屏幕显示距离更远，以便看到更多地球
-            fixedPosition = new Vector3(-2.1, 3.41, -8.0);
+            fixedPosition = new ThreeVector3(-2.1, 3.41, -8.0);
           } else {
             // 大屏幕使用原来的位置
-            fixedPosition = new Vector3(-2.1, 3.41, -6.5);
+            fixedPosition = new ThreeVector3(-2.1, 3.41, -6.5);
           }
 
           // 应用位置
@@ -609,8 +624,10 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         positionCameraToFaceChina();
 
         // 创建射线投射器用于鼠标交互
-        const raycaster = new Raycaster();
-        const mouse = new Vector2();
+        const raycaster = new ThreeRaycaster();
+        const mouse = new ThreeVector2();
+        const fallbackSphereGeometry = new ThreeSphereGeometry(2.01, 32, 32);
+        const fallbackSphereMesh = new ThreeMesh(fallbackSphereGeometry);
 
         // 添加节流函数，限制鼠标移动事件的触发频率
         const throttle = (func: Function, limit: number) => {
@@ -645,6 +662,35 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           };
         };
 
+        const resetCountryHighlight = (countryName: string | null) => {
+          if (!countryName) return;
+          const lines = countryToLines.get(countryName);
+          if (!lines) return;
+          for (const line of lines) {
+            if (line.material instanceof ThreeLineBasicMaterial) {
+              line.material.color.set(line.userData.originalColor);
+            }
+          }
+        };
+
+        const applyCountryHighlight = (countryName: string | null) => {
+          if (!countryName) return;
+          const lines = countryToLines.get(countryName);
+          if (!lines) return;
+          for (const line of lines) {
+            if (line.material instanceof ThreeLineBasicMaterial) {
+              line.material.color.set(line.userData.highlightColor);
+            }
+          }
+        };
+
+        const updateHighlight = (countryName: string | null) => {
+          if (countryName === lastHighlightedCountry) return;
+          resetCountryHighlight(lastHighlightedCountry);
+          applyCountryHighlight(countryName);
+          lastHighlightedCountry = countryName;
+        };
+
         // 简化的鼠标移动事件处理函数
         const onMouseMove = throttle((event: MouseEvent) => {
           if (!containerRef.current || !sceneRef.current || !geoProcessor) {
@@ -659,24 +705,9 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
             2.01,
           );
 
-          // 重置所有线条颜色
-          allLineObjects.forEach((line) => {
-            if (line.material instanceof LineBasicMaterial) {
-              line.material.color.set(line.userData.originalColor);
-            }
-          });
-
           // 如果找到点和对应的国家/地区
           if (result && result.countryName) {
-            // 高亮显示该国家/地区的线条
-            allLineObjects.forEach((line) => {
-              if (
-                lineToCountryMap.get(line) === result.countryName &&
-                line.material instanceof LineBasicMaterial
-              ) {
-                line.material.color.set(line.userData.highlightColor);
-              }
-            });
+            updateHighlight(result.countryName);
 
             // 更新悬停国家
             if (result.countryName !== hoveredCountry) {
@@ -686,6 +717,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
             // 不禁用自动旋转，保持地球旋转
           } else {
             // 如果没有找到国家/地区，清除悬停状态
+            updateHighlight(null);
             if (hoveredCountry) {
               setHoveredCountry(null);
             }
@@ -700,12 +732,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
 
         // 清除选择的函数
         const clearSelection = () => {
-          // 恢复所有线条的原始颜色
-          allLineObjects.forEach((line) => {
-            if (line.material instanceof LineBasicMaterial) {
-              line.material.color.set(line.userData.originalColor);
-            }
-          });
+          updateHighlight(null);
 
           setHoveredCountry(null);
           if (sceneRef.current) {
@@ -732,22 +759,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
 
           // 如果找到点和对应的国家/地区
           if (result && result.countryName) {
-            // 重置所有线条颜色
-            allLineObjects.forEach((line) => {
-              if (line.material instanceof LineBasicMaterial) {
-                line.material.color.set(line.userData.originalColor);
-              }
-            });
-
-            // 高亮显示该国家/地区的线条
-            allLineObjects.forEach((line) => {
-              if (
-                lineToCountryMap.get(line) === result.countryName &&
-                line.material instanceof LineBasicMaterial
-              ) {
-                line.material.color.set(line.userData.highlightColor);
-              }
-            });
+            updateHighlight(result.countryName);
 
             // 更新选中国家
             setHoveredCountry(result.countryName);
@@ -803,12 +815,11 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           const x = ((mouseX - rect.left) / rect.width) * 2 - 1;
           const y = -((mouseY - rect.top) / rect.height) * 2 + 1;
 
-          // 创建射线
-          const ray = new Raycaster();
-          ray.setFromCamera(new Vector2(x, y), camera);
+          mouse.set(x, y);
+          raycaster.setFromCamera(mouse, camera);
 
           // 检测射线与实际地球模型的相交
-          const earthIntersects = ray.intersectObject(earth, false);
+          const earthIntersects = raycaster.intersectObject(earth, false);
           if (earthIntersects.length > 0) {
             const point = earthIntersects[0].point;
 
@@ -823,11 +834,15 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
             return { point, countryName };
           }
 
-          // 如果没有直接相交，使用球体辅助检测
-          const sphereGeom = new SphereGeometry(radius, 32, 32);
-          const sphereMesh = new Mesh(sphereGeom);
+          const scale = radius / 2.01;
+          if (scale !== 1) {
+            fallbackSphereMesh.scale.set(scale, scale, scale);
+          }
 
-          const intersects = ray.intersectObject(sphereMesh);
+          const intersects = raycaster.intersectObject(
+            fallbackSphereMesh,
+            false,
+          );
           if (intersects.length > 0) {
             const point = intersects[0].point;
 
@@ -940,8 +955,8 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           lastMouseX: null,
           lastMouseY: null,
           lastHoverTime: null,
-          lineToCountryMap,
-          allLineObjects,
+          countryToLines,
+          lastHighlightedCountry,
         };
 
         // 开始动画

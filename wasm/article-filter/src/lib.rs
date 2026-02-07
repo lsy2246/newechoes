@@ -9,6 +9,15 @@ use serde_json;
 use web_sys::console;
 use utils_common::compression as utils;
 
+#[cfg(feature = "wee_alloc")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+fn set_panic_hook() {
+    #[cfg(debug_assertions)]
+    console_error_panic_hook::set_once();
+}
+
 // 导出模块
 pub mod models;
 pub mod builder;
@@ -19,7 +28,7 @@ static INDEX: OnceCell<Mutex<Option<ArticleIndex>>> = OnceCell::new();
 /// 初始化函数 - 设置错误处理
 #[wasm_bindgen(start)]
 pub fn start() {
-    console_error_panic_hook::set_once();
+    set_panic_hook();
 }
 
 /// 版本信息
@@ -336,8 +345,8 @@ impl ArticleFilterJS {
     /// 初始化过滤器并加载索引
     #[wasm_bindgen]
     pub fn init(index_data: &[u8]) -> Result<(), JsValue> {
-        console_error_panic_hook::set_once();
-        
+        set_panic_hook();
+
         let result = ArticleFilter::load_index(index_data)
             .map_err(|e| {
                 console::log_1(&JsValue::from_str(&format!("初始化过滤器失败: {}", e)));

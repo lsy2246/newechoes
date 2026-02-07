@@ -1,16 +1,25 @@
 use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
 use geojson::{Feature, GeoJson, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::f64::consts::PI;
 use kdtree::KdTree;
 use kdtree::distance::squared_euclidean;
 use serde_wasm_bindgen;
 
+#[cfg(feature = "wee_alloc")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+fn set_panic_hook() {
+    #[cfg(debug_assertions)]
+    console_error_panic_hook::set_once();
+}
+
 // 初始化错误处理
 #[wasm_bindgen(start)]
 pub fn start() {
-    console_error_panic_hook::set_once();
+    set_panic_hook();
 }
 
 // 表示3D向量的结构
@@ -145,8 +154,9 @@ impl GeoProcessor {
     #[wasm_bindgen]
     pub fn process_geojson(&mut self, world_json: &str, china_json: &str, visited_places_json: &str, scale: f64) -> Result<(), JsValue> {
         // 解析访问过的地点
-        let visited_places: Vec<String> = serde_json::from_str(visited_places_json)
+        let visited_places_vec: Vec<String> = serde_json::from_str(visited_places_json)
             .map_err(|e| JsValue::from_str(&format!("Error parsing visited places: {}", e)))?;
+        let visited_places: HashSet<String> = visited_places_vec.into_iter().collect();
         
         // 解析世界数据
         let world_geojson: GeoJson = world_json.parse()
@@ -198,7 +208,7 @@ impl GeoProcessor {
     fn process_feature(
         &self,
         feature: &Feature,
-        visited_places: &[String],
+        visited_places: &HashSet<String>,
         parent_name: Option<&str>,
         scale: f64,
         region_tree: &mut KdTree<f64, String, [f64; 3]>,

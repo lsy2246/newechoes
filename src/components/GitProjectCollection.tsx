@@ -165,20 +165,17 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
           },
         );
       } catch (err) {
-        console.log("fetchData 错误", err);
         // 如果是取消的请求,不显示错误
         if (
           err instanceof Error &&
           (err.name === "AbortError" || err.message.includes("aborted"))
         ) {
-          console.log("请求被取消:", err.message);
           return;
         }
 
         // 如果组件已卸载,不继续更新状态
         if (!isMountedRef.current) return;
 
-        console.error("请求错误:", err);
         setError(err instanceof Error ? err.message : "未知错误");
       } finally {
         // 如果组件已挂载,确保状态被重置
@@ -408,9 +405,9 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
             className="flex -ml-4 w-auto"
             columnClassName="pl-4 bg-clip-padding"
           >
-            {projects.map((project, index) => (
+            {projects.map((project) => (
               <div
-                key={`${project.platform}-${project.owner}-${project.name}-${index}`}
+                key={project.url}
                 className="mb-4 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 shadow-lg"
               >
                 <a

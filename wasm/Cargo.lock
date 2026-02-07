@@ -789,12 +789,12 @@ dependencies = [
  "console_error_panic_hook",
  "flate2",
  "js-sys",
+ "once_cell",
  "regex",
  "serde",
  "serde_json",
  "utils-common",
  "wasm-bindgen",
- "web-sys",
  "wee_alloc",
 ]
 

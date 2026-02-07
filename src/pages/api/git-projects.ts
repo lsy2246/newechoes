@@ -192,7 +192,6 @@ async function fetchWithRetry(url: string, options: any, retries = 3, timeout = 
           
           if (isTimeout && attempt < retries - 1) {
             // 如果是超时且还有重试次数，继续重试
-            console.log(`请求超时，正在重试 (${attempt + 1}/${retries})...`);
             lastError = error;
             // 等待一段时间后重试
             await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
@@ -208,7 +207,6 @@ async function fetchWithRetry(url: string, options: any, retries = 3, timeout = 
         
         // 增加重试间隔
         if (attempt < retries - 1) {
-          console.log(`请求失败，正在重试 (${attempt + 1}/${retries})...`);
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
           continue;
         }
@@ -234,6 +232,51 @@ async function fetchWithRetry(url: string, options: any, retries = 3, timeout = 
   throw lastError || new Error('所有重试请求都失败了');
 }
 
+/**
+ * 解析 GitHub Link header，计算分页状态。
+ *
+ * Args:
+ *   linkHeader: GitHub API 返回的 Link header。
+ *   currentPage: 当前请求页码。
+ *
+ * Returns:
+ *   包含 hasNext 与 totalPages 的分页信息。
+ */
+function parseGithubPagination(linkHeader: string | undefined, currentPage: number) {
+  if (!linkHeader) {
+    return { hasNext: false, totalPages: currentPage };
+  }
+
+  let hasNext = false;
+  let lastPage = currentPage;
+  const links = linkHeader.split(',').map(part => part.trim());
+
+  for (const link of links) {
+    const match = link.match(/<([^>]+)>\s*;\s*rel="([^"]+)"/);
+    if (!match) continue;
+
+    const url = match[1];
+    const rel = match[2];
+
+    if (rel === 'next') {
+      hasNext = true;
+    } else if (rel === 'last') {
+      try {
+        const pageParam = new URL(url).searchParams.get('page');
+        const parsed = pageParam ? parseInt(pageParam, 10) : NaN;
+        if (!Number.isNaN(parsed)) {
+          lastPage = parsed;
+        }
+      } catch (error) {
+        // 忽略无法解析的 URL，保持默认页数
+      }
+    }
+  }
+
+  const totalPages = Math.max(lastPage, currentPage + (hasNext ? 1 : 0));
+  return { hasNext, totalPages };
+}
+
 async function fetchGithubProjects(username: string, organization: string, page: number, config: any) {
   const maxRetries = 3;
   let retryCount = 0;
@@ -249,9 +292,10 @@ async function fetchGithubProjects(username: string, organization: string, page:
       
       const perPage = config.perPage || 10;
       let repos;
+      let linkHeader: string | undefined;
       
       if (organization) {
-        const { data } = await octokit.request('GET /orgs/{org}/repos', {
+        const { data, headers } = await octokit.request('GET /orgs/{org}/repos', {
           org: organization,
           per_page: perPage,
           page: page,
@@ -259,8 +303,9 @@ async function fetchGithubProjects(username: string, organization: string, page:
           direction: 'desc'
         });
         repos = data;
+        linkHeader = headers.link;
       } else if (username) {
-        const { data } = await octokit.request('GET /users/{username}/repos', {
+        const { data, headers } = await octokit.request('GET /users/{username}/repos', {
           username: username,
           per_page: perPage,
           page: page,
@@ -268,8 +313,9 @@ async function fetchGithubProjects(username: string, organization: string, page:
           direction: 'desc'
         });
         repos = data;
+        linkHeader = headers.link;
       } else {
-        const { data } = await octokit.request('GET /users/{username}/repos', {
+        const { data, headers } = await octokit.request('GET /users/{username}/repos', {
           username: config.username,
           per_page: perPage,
           page: page,
@@ -277,21 +323,11 @@ async function fetchGithubProjects(username: string, organization: string, page:
           direction: 'desc'
         });
         repos = data;
+        linkHeader = headers.link;
       }
       
-      let hasNext = false;
-      let hasPrev = page > 1;
-      let totalPages = 1;
-      
-      if (repos.length === perPage) {
-        hasNext = true;
-        totalPages = page + 1;
-      }
-      
-      if (repos.length > 0 && repos[0].owner) {
-        hasNext = repos.length === perPage;
-        totalPages = hasNext ? page + 1 : page;
-      }
+      const hasPrev = page > 1;
+      const { hasNext, totalPages } = parseGithubPagination(linkHeader, page);
       
       const projects = repos.map((repo: any) => ({
         name: repo.name,

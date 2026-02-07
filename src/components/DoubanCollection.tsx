@@ -24,12 +24,12 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
   const [error, setError] = useState<string | null>(null);
   const itemsPerPage = 15;
   const contentListRef = useRef<HTMLDivElement>(null);
-  const lastScrollTime = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const scrollDetectorRef = useRef<HTMLDivElement | null>(null);
   // 添加一个 ref 来标记组件是否已挂载
   const isMountedRef = useRef<boolean>(true);
+  const autoLoadPageRef = useRef<number>(0);
 
   // 使用ref来跟踪关键状态，避免闭包问题
   const stateRef = useRef({
@@ -117,7 +117,6 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
           // 设置错误状态和ref
           setError(errorMessage);
           stateRef.current.error = errorMessage;
-
           // 只有非追加模式才清空数据
           if (!append) {
             setItems([]);
@@ -127,7 +126,6 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
         }
 
         const data = await response.json();
-
         // 再次检查组件是否已卸载
         if (!isMountedRef.current) {
           return;
@@ -166,7 +164,6 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
 
         // 如果是取消的请求，不显示错误
         if (error instanceof Error && error.name === "AbortError") {
-          console.log("请求被取消", error.message);
           // 如果是取消请求，重置加载状态但不显示错误
           setIsLoading(false);
           stateRef.current.isLoading = false;
@@ -188,37 +185,6 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
     },
     [type, doubanId],
   );
-
-  // 处理滚动事件
-  const handleScroll = useCallback(() => {
-    // 获取关键滚动值
-    const scrollY = window.scrollY;
-    const windowHeight = window.innerHeight;
-    const documentHeight = document.documentElement.scrollHeight;
-    const scrollPosition = scrollY + windowHeight;
-    const threshold = documentHeight - 300;
-
-    // 限制滚动日志频率，每秒最多输出一次
-    const now = Date.now();
-    if (now - lastScrollTime.current < 1000) {
-      return;
-    }
-    lastScrollTime.current = now;
-
-    // 使用ref中的最新状态来检查
-    if (
-      stateRef.current.isLoading ||
-      !stateRef.current.hasMoreContent ||
-      stateRef.current.error
-    ) {
-      return;
-    }
-
-    // 当滚动到距离底部300px时加载更多
-    if (scrollPosition >= threshold) {
-      fetchDoubanData(stateRef.current.currentPage + 1, true);
-    }
-  }, [fetchDoubanData]);
 
   // 更新ref值以跟踪状态变化
   useEffect(() => {
@@ -245,10 +211,8 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
       observerRef.current = null;
     }
 
-    // 清理旧的检测元素
-    if (scrollDetectorRef.current) {
-      scrollDetectorRef.current.remove();
-      scrollDetectorRef.current = null;
+    if (!scrollDetectorRef.current) {
+      return;
     }
 
     // 创建新的IntersectionObserver
@@ -271,23 +235,30 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
       }
     }, observerOptions);
 
-    // 创建并添加检测底部的元素
-    const footer = document.createElement("div");
-    footer.id = "scroll-detector";
-    footer.style.width = "100%";
-    footer.style.height = "10px";
-    scrollDetectorRef.current = footer;
-
-    // 确保contentListRef有父元素
-    if (contentListRef.current && contentListRef.current.parentElement) {
-      // 插入到grid后面而不是内部
-      contentListRef.current.parentElement.insertBefore(
-        footer,
-        contentListRef.current.nextSibling,
-      );
-      observerRef.current.observe(footer);
-    }
+    observerRef.current.observe(scrollDetectorRef.current);
   }, [fetchDoubanData]);
+
+  const maybeAutoLoadMore = useCallback(
+    () => {
+      if (!scrollDetectorRef.current) return;
+      if (
+        stateRef.current.isLoading ||
+        !stateRef.current.hasMoreContent ||
+        stateRef.current.error
+      ) {
+        return;
+      }
+
+      const rect = scrollDetectorRef.current.getBoundingClientRect();
+      const inView = rect.top <= window.innerHeight + 300;
+
+      if (inView && autoLoadPageRef.current !== stateRef.current.currentPage) {
+        autoLoadPageRef.current = stateRef.current.currentPage;
+        fetchDoubanData(stateRef.current.currentPage + 1, true);
+      }
+    },
+    [fetchDoubanData],
+  );
 
   // 组件初始化和依赖变化时重置
   useEffect(() => {
@@ -297,6 +268,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
     // 重置状态
     setCurrentPage(1);
     stateRef.current.currentPage = 1;
+    autoLoadPageRef.current = 0;
 
     setHasMoreContent(true);
     stateRef.current.hasMoreContent = true;
@@ -318,26 +290,13 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
     // 加载第一页数据
     fetchDoubanData(1, false);
 
-    // 设置滚动事件监听器
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
     // 设置IntersectionObserver
     setupIntersectionObserver();
-
-    // 初始检查一次，以防内容不足一屏
-    const timeoutId = setTimeout(() => {
-      if (stateRef.current.hasMoreContent && !stateRef.current.isLoading) {
-        handleScroll();
-      }
-    }, 500);
 
     // 清理函数
     return () => {
       // 标记组件已卸载
       isMountedRef.current = false;
-
-      clearTimeout(timeoutId);
-      window.removeEventListener("scroll", handleScroll);
 
       // 清理IntersectionObserver
       if (observerRef.current) {
@@ -345,24 +304,22 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
         observerRef.current = null;
       }
 
-      // 清理scroll detector元素
-      if (scrollDetectorRef.current) {
-        scrollDetectorRef.current.remove();
-        scrollDetectorRef.current = null;
-      }
-
       // 取消正在进行的请求
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [
-    type,
-    doubanId,
-    handleScroll,
-    fetchDoubanData,
-    setupIntersectionObserver,
-  ]);
+  }, [type, doubanId, fetchDoubanData, setupIntersectionObserver]);
+
+  useEffect(() => {
+    if (isLoading || error || !hasMoreContent) return;
+    const rafId = requestAnimationFrame(() => {
+      maybeAutoLoadMore();
+    });
+    return () => {
+      cancelAnimationFrame(rafId);
+    };
+  }, [items.length, isLoading, hasMoreContent, error, maybeAutoLoadMore]);
 
   // 错误提示组件
   const ErrorMessage = () => {
@@ -429,9 +386,9 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
         {error && items.length === 0 ? (
           <ErrorMessage />
         ) : items.length > 0 ? (
-          items.map((item, index) => (
+          items.map((item) => (
             <div
-              key={`${item.title}-${index}`}
+              key={item.link}
               className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl"
             >
               <div className="relative pb-[150%] overflow-hidden">
@@ -462,6 +419,12 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
           </div>
         ) : null}
       </div>
+
+      <div
+        ref={scrollDetectorRef}
+        className="h-2 w-full"
+        aria-hidden="true"
+      />
 
       {error && items.length > 0 && (
         <div className="mt-4">

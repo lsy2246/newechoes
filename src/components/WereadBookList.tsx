@@ -120,9 +120,9 @@ const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {books.length > 0 ? (
-            books.map((book, index) => (
+            books.map((book) => (
               <div
-                key={`${book.title}-${index}`}
+                key={book.link}
                 className="bg-white rounded-lg overflow-hidden shadow-md"
               >
                 <div className="relative pb-[150%] overflow-hidden">

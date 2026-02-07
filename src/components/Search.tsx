@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  initSearchIndex,
+  search as workerSearch,
+  suggest as workerSuggest,
+} from "@/lib/wasmWorkerClient";
 
 // 类型定义
 interface SearchResult {
@@ -42,11 +47,6 @@ interface HeadingNode {
   children: HeadingNode[];
 }
 
-interface SearchWasm {
-  search_articles: (indexData: Uint8Array, requestJson: string) => string;
-  default?: () => Promise<any>;
-}
-
 interface SearchProps {
   placeholder?: string;
   maxResults?: number;
@@ -88,8 +88,7 @@ const Search: React.FC<SearchProps> = ({
     error: null,
   });
 
-  const [wasmModule, setWasmModule] = useState<SearchWasm | null>(null);
-  const [indexData, setIndexData] = useState<Uint8Array | null>(null);
+  const [isSearchReady, setIsSearchReady] = useState<boolean>(false);
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [showResults, setShowResults] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -116,6 +115,9 @@ const Search: React.FC<SearchProps> = ({
     useState<number>(0);
 
   // refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const clearButtonRef = useRef<HTMLButtonElement>(null);
+  const tabButtonRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -123,8 +125,8 @@ const Search: React.FC<SearchProps> = ({
   const inlineSuggestionRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  // 添加 AbortController 引用以取消请求
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const suggestRequestIdRef = useRef(0);
+  const searchRequestIdRef = useRef(0);
   // 添加组件挂载状态引用
   const isMountedRef = useRef<boolean>(true);
 
@@ -133,92 +135,24 @@ const Search: React.FC<SearchProps> = ({
   const isLoadingIndex = loadingState.status === "loading_index";
   const isLoadingMore = loadingState.status === "loading_more";
   const error = loadingState.error;
-  const isIndexLoaded = indexData !== null;
+  const isIndexLoaded = isSearchReady;
 
-  // 加载 WASM 模块
+  // 初始化 Worker 并加载搜索索引
   useEffect(() => {
-    const loadWasmModule = async () => {
-      try {
-        setLoadingState((prev) => ({ ...prev, status: "loading_index" }));
-
-        const wasm = await import("@/assets/wasm/search/search_wasm.js");
-
-        if (typeof wasm.default === "function") {
-          await wasm.default();
-        }
-
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        setWasmModule(wasm as unknown as SearchWasm);
-      } catch (err) {
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        console.error("加载搜索WASM模块失败:", err);
-        setLoadingState({
-          status: "error",
-          error: `无法加载搜索模块: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        });
-      }
-    };
-
-    loadWasmModule();
-
-    // 组件卸载时清理
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  // 加载搜索索引
-  useEffect(() => {
-    if (!wasmModule) return;
-
+    let cancelled = false;
     const loadSearchIndex = async () => {
-      // 取消之前的请求
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      // 创建新的 AbortController
-      abortControllerRef.current = new AbortController();
-
       try {
         setLoadingState((prev) => ({ ...prev, status: "loading_index" }));
 
-        const response = await fetch("/index/search_index.bin", {
-          signal: abortControllerRef.current.signal,
-        });
+        await initSearchIndex("/index/search_index.bin");
 
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || cancelled) return;
 
-        if (!response.ok) {
-          throw new Error(`获取搜索索引失败: ${response.statusText}`);
-        }
-
-        const indexBuffer = await response.arrayBuffer();
-        const data = new Uint8Array(indexBuffer);
-
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        setIndexData(data);
+        setIsSearchReady(true);
         setLoadingState((prev) => ({ ...prev, status: "success" }));
       } catch (err) {
         // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        // 如果是取消的请求，不显示错误
-        if (
-          err instanceof Error &&
-          (err.name === "AbortError" || err.message.includes("aborted"))
-        ) {
-          return;
-        }
+        if (!isMountedRef.current || cancelled) return;
 
         console.error("搜索索引加载失败:", err);
         setLoadingState({
@@ -234,11 +168,9 @@ const Search: React.FC<SearchProps> = ({
 
     // 组件卸载时清理
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      cancelled = true;
     };
-  }, [wasmModule]);
+  }, []);
 
   // 监听窗口大小变化，确保内联建议位置正确
   useEffect(() => {
@@ -262,35 +194,21 @@ const Search: React.FC<SearchProps> = ({
   // 处理点击外部关闭搜索结果和建议
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // 获取事件目标元素
       const target = event.target as Node;
+      const isInsideContainer =
+        containerRef.current && containerRef.current.contains(target);
+      const isInsideClearButton =
+        clearButtonRef.current && clearButtonRef.current.contains(target);
+      const isInsideTabButton =
+        tabButtonRef.current && tabButtonRef.current.contains(target);
 
-      // 检查是否点击了清除按钮、Tab按钮或其子元素
-      const clearButtonEl = document.querySelector(".clear-search-button");
-      const tabButtonEl = document.querySelector(".tab-completion-button");
-
-      const isClickOnClearButton =
-        clearButtonEl &&
-        (clearButtonEl === target || clearButtonEl.contains(target));
-      const isClickOnTabButton =
-        tabButtonEl && (tabButtonEl === target || tabButtonEl.contains(target));
-
-      // 如果点击了清除按钮或Tab按钮，不做任何操作
-      if (isClickOnClearButton || isClickOnTabButton) {
+      if (isInsideContainer || isInsideClearButton || isInsideTabButton) {
         return;
       }
 
-      // 原有的逻辑：点击搜索框和结果区域之外时关闭
-      if (
-        searchResultsRef.current &&
-        !searchResultsRef.current.contains(target) &&
-        searchInputRef.current &&
-        !searchInputRef.current.contains(target)
-      ) {
-        // 当点击搜索框和结果区域之外时，才隐藏结果
-        setShowResults(false);
-        setInlineSuggestion((prev) => ({ ...prev, visible: false })); // 也隐藏内联建议
-      }
+      // 点击组件区域外，隐藏结果与内联建议
+      setShowResults(false);
+      setInlineSuggestion((prev) => ({ ...prev, visible: false }));
     };
 
     document.addEventListener("mousedown", handleClickOutside, {
@@ -335,17 +253,16 @@ const Search: React.FC<SearchProps> = ({
   // 内联建议函数 - 整合获取和管理内联建议的逻辑
   const fetchSuggestions = useCallback(
     async (searchQuery: string) => {
-      // 如果查询为空或WASM模块未加载，不获取建议
-      if (!searchQuery.trim() || !wasmModule || !isIndexLoaded || !indexData) {
+      if (!searchQuery.trim() || !isIndexLoaded) {
         setSuggestions([]);
         setInlineSuggestion((prev) => ({ ...prev, visible: false }));
-        setSelectedSuggestionIndex(0); // 重置选中索引
-        console.log("[建议] 没有符合条件的查询或模块未加载");
+        setSelectedSuggestionIndex(0);
         return;
       }
 
+      const requestId = ++suggestRequestIdRef.current;
+
       try {
-        // 获取内联建议请求
         const req = {
           query: searchQuery,
           search_type: "autocomplete",
@@ -353,27 +270,11 @@ const Search: React.FC<SearchProps> = ({
           page: 1,
         };
 
-        const result = wasmModule.search_articles(
-          indexData,
-          JSON.stringify(req),
-        );
+        const searchResult = (await workerSuggest(req)) as SearchResult;
 
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        if (!result || result.trim() === "") {
-          setSuggestions([]);
-          setInlineSuggestion((prev) => ({ ...prev, visible: false }));
-          setSelectedSuggestionIndex(0); // 重置选中索引
+        if (!isMountedRef.current || requestId !== suggestRequestIdRef.current)
           return;
-        }
 
-        const searchResult = JSON.parse(result) as SearchResult;
-
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        // 确保有suggestions字段且是数组
         if (
           !searchResult?.suggestions ||
           !Array.isArray(searchResult.suggestions) ||
@@ -381,20 +282,16 @@ const Search: React.FC<SearchProps> = ({
         ) {
           setSuggestions([]);
           setInlineSuggestion((prev) => ({ ...prev, visible: false }));
-          setSelectedSuggestionIndex(0); // 重置选中索引
+          setSelectedSuggestionIndex(0);
           return;
         }
 
-        // 将新的建议格式转换为前端显示所需格式
         const simplifiedSuggestions = searchResult.suggestions.map(
           (sug) => sug.text,
         );
         setSuggestions(simplifiedSuggestions);
-
-        // 重置选中索引
         setSelectedSuggestionIndex(0);
 
-        // 只有当查询不为空并且有建议时才设置内联建议
         const firstSuggestion = searchResult.suggestions[0];
 
         if (firstSuggestion) {
@@ -407,19 +304,18 @@ const Search: React.FC<SearchProps> = ({
             suggestionText: firstSuggestion.suggestion_text,
           }));
         } else {
-          // 没有任何建议
           setInlineSuggestion((prev) => ({ ...prev, visible: false }));
         }
       } catch (err) {
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || requestId !== suggestRequestIdRef.current)
+          return;
 
         console.error("[建议错误]", err);
         setInlineSuggestion((prev) => ({ ...prev, visible: false }));
-        setSelectedSuggestionIndex(0); // 重置选中索引
+        setSelectedSuggestionIndex(0);
       }
     },
-    [wasmModule, isIndexLoaded, indexData],
+    [isIndexLoaded],
   );
 
   // 更新输入框光标位置
@@ -699,11 +595,14 @@ const Search: React.FC<SearchProps> = ({
       return;
     }
 
-    // 立即获取内联建议
-    fetchSuggestions(value);
+    // 轻量防抖，减少主线程与 Worker 压力
+    debounceTimerRef.current = setTimeout(() => {
+      fetchSuggestions(value);
+    }, 80);
 
-    // 立即执行搜索，不再使用定时器延迟
-    performSearch(value, false);
+    searchTimerRef.current = setTimeout(() => {
+      performSearch(value, false);
+    }, 120);
   };
 
   // 监控输入框选择状态变化
@@ -729,17 +628,10 @@ const Search: React.FC<SearchProps> = ({
     isLoadMore: boolean = false,
     shouldNavigateToFirstResult: boolean = false,
   ) => {
-    if (!wasmModule || !isIndexLoaded || !indexData || !searchQuery.trim()) {
+    if (!isIndexLoaded || !searchQuery.trim()) {
       return;
     }
-
-    // 取消之前的请求（虽然这是WASM调用，不是真正的网络请求，但保持一致性）
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // 创建新的 AbortController
-    abortControllerRef.current = new AbortController();
+    const requestId = ++searchRequestIdRef.current;
 
     try {
       const page = isLoadMore ? currentPage : 1;
@@ -758,16 +650,12 @@ const Search: React.FC<SearchProps> = ({
         page: page,
         search_type: "normal",
       };
+      const result = (await workerSearch(req)) as SearchResult;
 
-      const resultJson = wasmModule.search_articles(
-        indexData,
-        JSON.stringify(req),
-      );
+      if (!isMountedRef.current || requestId !== searchRequestIdRef.current)
+        return;
 
-      // 检查组件是否仍然挂载
-      if (!isMountedRef.current) return;
-
-      if (!resultJson || resultJson.trim() === "") {
+      if (!result || typeof result !== "object") {
         console.error("返回的搜索结果为空");
         setLoadingState({
           status: "error",
@@ -775,11 +663,6 @@ const Search: React.FC<SearchProps> = ({
         });
         return;
       }
-
-      const result = JSON.parse(resultJson) as SearchResult;
-
-      // 检查组件是否仍然挂载
-      if (!isMountedRef.current) return;
 
       // 预处理搜索结果
       for (const item of result.items) {
@@ -789,20 +672,15 @@ const Search: React.FC<SearchProps> = ({
       }
 
       // 更新搜索结果状态
+      let nextItems = result.items;
       if (isLoadMore) {
-        setAllItems((prevItems) => {
-          // 使用函数式更新，避免依赖外部状态
-          const newItems = [...prevItems, ...result.items];
-          // 去重，避免重复项
-          const uniqueItems = newItems.filter(
-            (item, index, self) =>
-              index === self.findIndex((t) => t.id === item.id),
-          );
-          return uniqueItems;
-        });
-      } else {
-        setAllItems(result.items);
+        const mergedItems = [...allItems, ...result.items];
+        nextItems = mergedItems.filter(
+          (item, index, self) =>
+            index === self.findIndex((t) => t.id === item.id),
+        );
       }
+      setAllItems(nextItems);
 
       setSearchResults(result);
       setShowResults(true);
@@ -810,7 +688,7 @@ const Search: React.FC<SearchProps> = ({
       // 检查是否还有更多页
       // 修复：同时检查页码和已加载的结果数量，防止无限加载超过实际结果数
       const hasMore =
-        page < result.total_pages && allItems.length < result.total;
+        page < result.total_pages && nextItems.length < result.total;
 
       setHasMoreResults(hasMore);
 
@@ -1363,9 +1241,9 @@ const Search: React.FC<SearchProps> = ({
 
           {allItems.length > 0 ? (
             <ul className="space-y-4">
-              {allItems.map((item, index) => (
+              {allItems.map((item) => (
                 <li
-                  key={`${item.id}-${index}`}
+                  key={item.id}
                   className="border-b border-gray-200/70 dark:border-gray-700/40 pb-4 last:border-0 last:pb-0"
                 >
                   <a
@@ -1468,11 +1346,6 @@ const Search: React.FC<SearchProps> = ({
         clearTimeout(searchTimerRef.current);
       }
 
-      // 取消所有进行中的请求
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
       // 清理观察器
       if (observerRef.current) {
         observerRef.current.disconnect();
@@ -1501,7 +1374,10 @@ const Search: React.FC<SearchProps> = ({
 
   // 渲染结束
   const returnBlock = (
-    <div className="relative [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800">
+    <div
+      ref={containerRef}
+      className="relative [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800"
+    >
       <form
         onSubmit={handleSubmit}
         className="relative"
@@ -1622,6 +1498,7 @@ const Search: React.FC<SearchProps> = ({
             ) : query ? (
               <>
                 <button
+                  ref={clearButtonRef}
                   type="button"
                   className="text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center p-2 -m-1 clear-search-button"
                   title="清除搜索"
@@ -1661,6 +1538,7 @@ const Search: React.FC<SearchProps> = ({
                 </button>
                 {inlineSuggestion.visible && inlineSuggestion.text && (
                   <div
+                    ref={tabButtonRef}
                     className={`text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center cursor-pointer p-1 ml-1 tab-completion-button ${
                       inlineSuggestion.type === "correction"
                         ? "animate-pulse"

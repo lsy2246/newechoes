@@ -19,7 +19,7 @@ js-sys.workspace = true
 bincode.workspace = true
 flate2.workspace = true
 console_error_panic_hook.workspace = true
-web-sys = { workspace = true, features = ["console", "Window", "Performance"] }
 regex.workspace = true
 utils-common = { path = "../utils-common" }
 wee_alloc = { workspace = true, optional = true }
+once_cell.workspace = true

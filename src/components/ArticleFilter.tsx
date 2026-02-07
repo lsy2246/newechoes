@@ -1,4 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import {
+  initFilterIndex,
+  filterArticles as workerFilterArticles,
+  getAllTags as workerGetAllTags,
+} from "@/lib/wasmWorkerClient";
 
 // 类型定义
 interface FilterState {
@@ -23,16 +28,6 @@ interface FilterResult {
   page: number;
   limit: number;
   total_pages: number;
-}
-
-// WASM模块接口
-interface ArticleFilterWasm {
-  ArticleFilterJS: {
-    init: (indexData: Uint8Array) => void;
-    get_all_tags: () => string[];
-    filter_articles: (paramsJson: string) => FilterResult;
-  };
-  default?: () => Promise<any>;
 }
 
 interface ArticleFilterProps {
@@ -722,8 +717,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   // 添加客户端标记变量，确保只在客户端渲染某些组件
   const [isClient, setIsClient] = useState(false);
 
-  // 添加 AbortController 引用和组件挂载状态引用
-  const abortControllerRef = useRef<AbortController | null>(null);
+  // 组件挂载状态引用
   const isMountedRef = useRef<boolean>(true);
 
   // 组件挂载时设置客户端标记
@@ -734,10 +728,6 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     return () => {
       isMountedRef.current = false;
 
-      // 取消进行中的请求
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
     };
   }, []);
 
@@ -906,7 +896,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false); // 添加排序下拉框状态
   const [tagSearchInput, setTagSearchInput] = useState("");
-  const [wasmModule, setWasmModule] = useState<ArticleFilterWasm | null>(null);
+  const [isFilterReady, setIsFilterReady] = useState(false);
   const [isArticlesLoaded, setIsArticlesLoaded] = useState(false);
 
   // refs
@@ -964,7 +954,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       window.history.pushState({ path: newUrl }, "", newUrl);
 
       // 如果WASM模块已加载，立即执行筛选逻辑
-      if (wasmModule && isArticlesLoaded) {
+      if (isFilterReady && isArticlesLoaded) {
         applyFilteringLogic(updatedFilters);
       }
     }
@@ -972,8 +962,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
   // 添加文章筛选逻辑函数
   const applyFilteringLogic = async (filters: FilterState) => {
-    if (!wasmModule || !wasmModule.ArticleFilterJS) {
-      console.error("WASM模块未初始化");
+    if (!isFilterReady) {
+      console.error("筛选模块未初始化");
       return;
     }
 
@@ -989,10 +979,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         limit: filters.pageSize,
       };
 
-      // 调用WASM筛选方法
-      const filterParamsJson = JSON.stringify(filterParams);
-      const result =
-        await wasmModule.ArticleFilterJS.filter_articles(filterParamsJson);
+      // 调用 Worker 筛选方法
+      const result = (await workerFilterArticles(
+        filterParams,
+      )) as FilterResult;
 
       // 检查组件是否仍然挂载
       if (!isMountedRef.current) return;
@@ -1055,115 +1045,31 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     }
   };
 
-  // 加载WASM模块
+  // 初始化 Worker 并加载索引数据
   useEffect(() => {
-    const loadWasmModule = async () => {
-      try {
-        const wasm =
-          await import("@/assets/wasm/article-filter/article_filter.js");
-
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        if (typeof wasm.default === "function") {
-          await wasm.default();
-        }
-
-        // 再次检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        setWasmModule(wasm as unknown as ArticleFilterWasm);
-      } catch (err) {
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        console.error("加载WASM模块失败:", err);
-        setError("加载筛选模块失败，请刷新页面重试");
-      }
-    };
-
-    loadWasmModule();
-  }, []);
-
-  // 加载索引数据
-  useEffect(() => {
-    if (!wasmModule) return;
-
     const loadIndexData = async () => {
-      // 取消之前的请求
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      // 创建新的 AbortController
-      abortControllerRef.current = new AbortController();
-
       try {
         setIsLoading(true);
-        const response = await fetch("/index/filter_index.bin", {
-          signal: abortControllerRef.current.signal,
-        });
+        await initFilterIndex("/index/filter_index.bin");
 
-        // 检查组件是否仍然挂载
         if (!isMountedRef.current) return;
+        setIsFilterReady(true);
 
-        if (!response.ok) {
-          throw new Error(`获取筛选索引失败: ${response.statusText}`);
-        }
-
-        const indexData = await response.arrayBuffer();
-
-        // 检查组件是否仍然挂载
+        const tags = (await workerGetAllTags()) as string[];
         if (!isMountedRef.current) return;
+        setAllAvailableTags(Array.isArray(tags) ? tags : []);
 
-        // 初始化WASM模块
-        try {
-          await wasmModule.ArticleFilterJS.init(new Uint8Array(indexData));
+        // 初始加载时不依赖applyFilters函数，而是直接执行筛选逻辑
+        await initialLoadArticles();
 
-          // 检查组件是否仍然挂载
-          if (!isMountedRef.current) return;
-
-          // 获取所有标签
-          const tags = (await wasmModule.ArticleFilterJS.get_all_tags()) || [];
-
-          // 检查组件是否仍然挂载
-          if (!isMountedRef.current) return;
-
-          setAllAvailableTags(tags);
-
-          // 初始加载时不依赖applyFilters函数，而是直接执行筛选逻辑
-          // 这避免了循环依赖问题
-          await initialLoadArticles();
-
-          // 检查组件是否仍然挂载
-          if (!isMountedRef.current) return;
-
-          setIsArticlesLoaded(true);
-        } catch (parseError) {
-          // 检查组件是否仍然挂载
-          if (!isMountedRef.current) return;
-
-          console.error("解析筛选索引数据失败:", parseError);
-          setError("索引文件存在但格式不正确，需要重新构建索引");
-        }
+        if (!isMountedRef.current) return;
+        setIsArticlesLoaded(true);
       } catch (fetchError) {
-        // 检查组件是否仍然挂载
         if (!isMountedRef.current) return;
-
-        // 如果是取消的请求，不显示错误
-        if (
-          fetchError instanceof Error &&
-          (fetchError.name === "AbortError" ||
-            fetchError.message.includes("aborted"))
-        ) {
-          console.log("索引加载请求被取消:", fetchError.message);
-          return;
-        }
 
         console.error("获取索引数据失败:", fetchError);
         setError("索引文件缺失或无法读取，请重新构建索引");
       } finally {
-        // 检查组件是否仍然挂载
         if (isMountedRef.current) {
           setIsLoading(false);
         }
@@ -1185,21 +1091,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
           limit: currentFilters.pageSize,
         };
 
-        // 调用WASM筛选方法
-        const filterParamsJson = JSON.stringify(filterParams);
-
-        // 检查WASM方法是否存在
-        if (
-          !wasmModule.ArticleFilterJS ||
-          typeof wasmModule.ArticleFilterJS.filter_articles !== "function"
-        ) {
-          console.error("WASM筛选方法不存在或不是函数");
-          throw new Error("WASM筛选方法不可用");
-        }
-
         try {
-          const result =
-            await wasmModule.ArticleFilterJS.filter_articles(filterParamsJson);
+          const result = (await workerFilterArticles(
+            filterParams,
+          )) as FilterResult;
 
           // 检查组件是否仍然挂载
           if (!isMountedRef.current) return;
@@ -1295,8 +1190,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
           // 检查组件是否仍然挂载
           if (!isMountedRef.current) return;
 
-          console.error("WASM执行失败", wasmError);
-          throw new Error(`WASM执行失败: ${wasmError}`);
+          console.error("Worker执行失败", wasmError);
+          throw new Error(`Worker执行失败: ${wasmError}`);
         }
       } catch (error) {
         // 检查组件是否仍然挂载
@@ -1321,25 +1216,20 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
     loadIndexData();
 
-    // 组件卸载时清理
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [wasmModule]);
+    return () => {};
+  }, []);
 
   // 检查activeFilters变化
   useEffect(() => {
-    // 只有当WASM模块和文章已经加载完成后，才根据筛选条件更新
-    if (wasmModule && isArticlesLoaded) {
+    // 只有当筛选模块和文章已经加载完成后，才根据筛选条件更新
+    if (isFilterReady && isArticlesLoaded) {
       applyFilteringLogic(activeFilters);
     }
-  }, [wasmModule, isArticlesLoaded, activeFilters]);
+  }, [isFilterReady, isArticlesLoaded, activeFilters]);
 
   // 当文章加载状态改变为true时，确保应用当前的筛选条件
   useEffect(() => {
-    if (isArticlesLoaded && wasmModule) {
+    if (isArticlesLoaded && isFilterReady) {
       // 检查URL中是否有筛选参数
       const hasFilterParams = window.location.search.length > 0;
 
@@ -1347,7 +1237,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         applyFilteringLogic(activeFilters);
       }
     }
-  }, [isArticlesLoaded, wasmModule, activeFilters]);
+  }, [isArticlesLoaded, isFilterReady, activeFilters]);
 
   // 点击外部关闭标签下拉菜单
   useEffect(() => {
@@ -1422,11 +1312,11 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       window.history.pushState({}, "", window.location.pathname);
     }
 
-    // 如果WASM模块已加载，直接调用筛选逻辑以确保实际应用
-    if (wasmModule && isArticlesLoaded) {
+    // 如果筛选模块已加载，直接调用筛选逻辑以确保实际应用
+    if (isFilterReady && isArticlesLoaded) {
       applyFilteringLogic(defaultFilters);
     }
-  }, [wasmModule, isArticlesLoaded]);
+  }, [isFilterReady, isArticlesLoaded]);
 
   // 渲染错误信息
   const renderError = () => (
@@ -2224,9 +2114,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredArticles.map((article, index) => (
+        {filteredArticles.map((article) => (
           <div
-            key={`${article.url}-${index}`}
+            key={article.url}
             className="article-card"
           >
             <a
@@ -2353,6 +2243,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       });
     };
 
+    const pageNumbers = getPageNumbers();
+
     return (
       <div className="flex justify-center mt-8">
         <div className="flex rounded-lg shadow-sm">
@@ -2383,13 +2275,13 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
           </button>
 
           {/* 页码按钮 */}
-          {getPageNumbers().map((page, i) =>
+          {pageNumbers.map((page, i) =>
             typeof page === "number" ? (
               <button
-                key={i}
+                key={`page-${page}`}
                 onClick={() => handlePageChange(page)}
                 className={`px-4 py-2 ${
-                  i === getPageNumbers().length - 1
+                  i === pageNumbers.length - 1
                     ? "border-r border-gray-200 dark:border-gray-700"
                     : ""
                 } ${
@@ -2402,7 +2294,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               </button>
             ) : (
               <span
-                key={i}
+                key={`ellipsis-${i}`}
                 className="px-4 py-2 border-l-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400"
               >
                 {page}
@@ -2439,32 +2331,6 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       </div>
     );
   };
-
-  // 检查WASM模块初始化状态
-  useEffect(() => {
-    if (wasmModule && wasmModule.ArticleFilterJS) {
-      // 检查WASM模块是否有必要的方法
-      const methods = ["init", "get_all_tags", "filter_articles"];
-      const missingMethods = methods.filter((method) => {
-        // 使用类型安全的方式检查方法
-        if (method === "init") {
-          return typeof wasmModule.ArticleFilterJS.init !== "function";
-        } else if (method === "get_all_tags") {
-          return typeof wasmModule.ArticleFilterJS.get_all_tags !== "function";
-        } else if (method === "filter_articles") {
-          return (
-            typeof wasmModule.ArticleFilterJS.filter_articles !== "function"
-          );
-        }
-        return true;
-      });
-
-      if (missingMethods.length > 0) {
-        console.error("WASM模块缺少方法:", missingMethods);
-        setError(`WASM模块缺少必要方法: ${missingMethods.join(", ")}`);
-      }
-    }
-  }, [wasmModule]);
 
   // 增加一个监听器来检查文章数据更新后的状态
   useEffect(() => {

@@ -13,6 +13,8 @@
 | styles | 样式与主题 | ✅ | [styles.md](./styles.md) |
 | plugins | 构建/内容处理插件 | ✅ | [plugins.md](./plugins.md) |
 | assets | 静态资源 | ✅ | [assets.md](./assets.md) |
+| lib | 前端共享工具模块 | ✅ | [lib.md](./lib.md) |
+| workers | Web Worker 计算与WASM桥接 | ✅ | [workers.md](./workers.md) |
 | wasm | WebAssembly 资源 | 📝 | [wasm.md](./wasm.md) |
 
 ## 模块依赖关系
