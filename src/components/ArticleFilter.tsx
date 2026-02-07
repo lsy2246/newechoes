@@ -991,9 +991,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
       // 调用WASM筛选方法
       const filterParamsJson = JSON.stringify(filterParams);
-      const result = await wasmModule.ArticleFilterJS.filter_articles(
-        filterParamsJson,
-      );
+      const result =
+        await wasmModule.ArticleFilterJS.filter_articles(filterParamsJson);
 
       // 检查组件是否仍然挂载
       if (!isMountedRef.current) return;
@@ -1060,9 +1059,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   useEffect(() => {
     const loadWasmModule = async () => {
       try {
-        const wasm = await import(
-          "@/assets/wasm/article-filter/article_filter.js"
-        );
+        const wasm =
+          await import("@/assets/wasm/article-filter/article_filter.js");
 
         // 检查组件是否仍然挂载
         if (!isMountedRef.current) return;
@@ -1200,9 +1198,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         }
 
         try {
-          const result = await wasmModule.ArticleFilterJS.filter_articles(
-            filterParamsJson,
-          );
+          const result =
+            await wasmModule.ArticleFilterJS.filter_articles(filterParamsJson);
 
           // 检查组件是否仍然挂载
           if (!isMountedRef.current) return;
@@ -1904,7 +1901,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                                   checked={activeFilters.tags.includes(tag)}
                                   onChange={() => handleTagSelection(tag)}
                                 />
-                                <span className="ml-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 truncate max-w-[180px]">
+                                <span className="ml-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 truncate max-w-45">
                                   {tag}
                                 </span>
                               </div>
@@ -2014,9 +2011,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                       d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
                     />
                   </svg>
-                  <span className="truncate max-w-[150px] font-medium">
-                    {tag}
-                  </span>
+                  <span className="truncate max-w-37.5 font-medium">{tag}</span>
                   <button
                     className="ml-1.5 text-primary-400 group-hover:text-primary-700 dark:text-primary-400 dark:group-hover:text-primary-300 focus:outline-none p-0.5 rounded-full hover:bg-primary-200/50 dark:hover:bg-primary-800/50 opacity-70 group-hover:opacity-100"
                     onClick={() => removeTag(tag)}

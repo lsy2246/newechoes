@@ -3,6 +3,21 @@ import { SITE_TITLE, NAV_STRUCTURE } from "@/consts.ts";
 import ThemeToggle from "@/components/ThemeToggle.astro";
 import Search from "@/components/Search.tsx";
 import "@/styles/header.css";
+
+type NavSubItem = {
+  id: string;
+  text: string;
+  href: string;
+};
+
+type NavItem = {
+  id: string;
+  text: string;
+  href?: string;
+  items?: NavSubItem[];
+};
+
+const navItems = NAV_STRUCTURE as NavItem[];
 // 获取当前路径
 const currentPath = Astro.url.pathname;
 
@@ -16,12 +31,12 @@ const normalizedPath =
 
 
 // 在服务器端预先查找激活项
-let activeItem = null;
-let activeSubItem = null;
-let activeGroupId = null;
+let activeItem: NavItem | null = null;
+let activeSubItem: NavSubItem | null = null;
+let activeGroupId: string | null = null;
 
 // 首先检查子菜单项匹配
-for (const item of NAV_STRUCTURE) {
+for (const item of navItems) {
   if (item.items) {
     for (const subItem of item.items) {
       if (subItem.href === normalizedPath || 
@@ -37,7 +52,7 @@ for (const item of NAV_STRUCTURE) {
 
 // 如果没有找到子菜单项匹配，检查主菜单项
 if (!activeSubItem) {
-  for (const item of NAV_STRUCTURE) {
+  for (const item of navItems) {
     if (item.href && (
       item.href === normalizedPath || 
       (normalizedPath.startsWith(item.href) && item.href !== '/')
@@ -94,7 +109,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             
             <!-- 导航菜单项 -->
             <div class="flex items-center relative z-20 space-x-8">
-              {NAV_STRUCTURE.map((item) => (
+              {navItems.map((item) => (
                 <>
                   {!item.items ? (
                     <!-- 单项导航 -->
@@ -228,7 +243,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div class="grid gap-1 mt-2">
             {
-              NAV_STRUCTURE.map((item) => (
+              navItems.map((item) => (
                 !item.items ? (
                   // 普通导航项
                   <a
@@ -1749,3 +1764,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
 })();
 </script>
 
+
+})();
+</script>

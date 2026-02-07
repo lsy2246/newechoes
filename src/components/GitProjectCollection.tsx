@@ -473,7 +473,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
                                   marginRight: "0.375rem",
                                 }}
                               ></span>
-                              <span className="text-gray-600 dark:text-gray-400 truncate max-w-[120px]">
+                              <span className="text-gray-600 dark:text-gray-400 truncate max-w-30">
                                 {project.language}
                               </span>
                             </div>

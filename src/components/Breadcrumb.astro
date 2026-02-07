@@ -51,7 +51,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
               <!-- 第一个路径段 -->
               <a 
                 href={`/articles/${breadcrumbs[0].path}/`} 
-                class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-20 sm:max-w-[100px] shrink-0"
+                class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-20 sm:max-w-25 shrink-0"
                 data-segment-index="0"
               >
                 {breadcrumbs[0].name}
@@ -64,7 +64,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
               {breadcrumbs.length > 1 && (
                 <a 
                   href={`/articles/${breadcrumbs[breadcrumbs.length - 1].path}/`} 
-                  class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-20 sm:max-w-[120px] shrink-0"
+                  class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-20 sm:max-w-30 shrink-0"
                   data-segment-index={breadcrumbs.length - 1}
                 >
                   {breadcrumbs[breadcrumbs.length - 1].name}
@@ -79,7 +79,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
                   {index > 0 && <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
                   <a 
                     href={`/articles/${crumbPath}/`} 
-                    class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[100px] sm:max-w-[150px]"
+                    class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-25 sm:max-w-37.5"
                     data-segment-index={index}
                   >
                     {crumb.name}
@@ -99,7 +99,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
                 {index > 0 && <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600">/</span>}
                 <a 
                   href={`/articles/${crumbPath}/`} 
-                  class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-[200px] lg:max-w-[250px] xl:max-w-[300px]"
+                  class="breadcrumb-segment text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 truncate max-w-50 lg:max-w-62.5 xl:max-w-75"
                   data-segment-index={index}
                 >
                   {crumb.name}
@@ -115,7 +115,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     {pageType === 'filter' && searchParams.toString() && (
       <div class="breadcrumb-filter flex items-center overflow-hidden">
         <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">/</span>
-        <span class="breadcrumb-filter-label text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">
+        <span class="breadcrumb-filter-label text-secondary-600 dark:text-secondary-400 truncate max-w-30 sm:max-w-45 md:max-w-62.5">
           筛选
           {searchParams.toString() && <span class="breadcrumb-search-result ml-1">- 搜索结果</span>}
         </span>
@@ -126,7 +126,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
     {pageType === 'article' && articleTitle && (
       <>
         <span class="breadcrumb-separator mx-2 text-secondary-300 dark:text-secondary-600 shrink-0">/</span>
-        <span class="breadcrumb-article-title text-secondary-600 dark:text-secondary-400 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[250px]">{articleTitle}</span>
+        <span class="breadcrumb-article-title text-secondary-600 dark:text-secondary-400 truncate max-w-30 sm:max-w-45 md:max-w-62.5">{articleTitle}</span>
       </>
     )}
   </div>
@@ -134,20 +134,6 @@ const breadcrumbs: Breadcrumb[] = pathSegments
   <!-- 视图切换按钮 - 仅在文章列表页面显示 -->
   {(pageType === 'filter' || pageType === 'grid') && (
     <div class="breadcrumb-view-switcher flex items-center gap-px shrink-0 ml-auto">
-      <a href={`/filtered${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
-         class="breadcrumb-filter-btn px-3 py-1.5 flex items-center gap-1 ${
-           pageType === 'filter' 
-             ? 'text-primary-600 dark:text-primary-400 font-medium' 
-             : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
-         }"
-         data-view-type="filter"
-         data-active={pageType === 'filter' ? 'true' : 'false'}
-         data-astro-prefetch="hover">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-        </svg>
-        <span class="hidden sm:inline text-xs">筛选</span>
-      </a>
       <a href={path ? `/articles/${path}/` : `/articles/`}
          class="breadcrumb-grid-btn px-3 py-1.5 flex items-center gap-1 ${
            pageType === 'grid' 
@@ -161,6 +147,20 @@ const breadcrumbs: Breadcrumb[] = pathSegments
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
         </svg>
         <span class="hidden sm:inline text-xs">网格</span>
+      </a>
+      <a href={`/filtered${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+         class="breadcrumb-filter-btn px-3 py-1.5 flex items-center gap-1 ${
+           pageType === 'filter' 
+             ? 'text-primary-600 dark:text-primary-400 font-medium' 
+             : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
+         }"
+         data-view-type="filter"
+         data-active={pageType === 'filter' ? 'true' : 'false'}
+         data-astro-prefetch="hover">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+        <span class="hidden sm:inline text-xs">筛选</span>
       </a>
     </div>
   )}
@@ -471,20 +471,6 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       
       // 生成视图切换按钮HTML
       const switchButtonsHtml = `
-        <a href="/filtered${searchParamsStr}"
-           class="breadcrumb-filter-btn px-3 py-1.5 flex items-center gap-1 ${
-             pageType === 'filter' 
-               ? 'text-primary-600 dark:text-primary-400 font-medium' 
-               : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
-           }"
-           data-view-type="filter"
-           data-active="${pageType === 'filter' ? 'true' : 'false'}"
-           data-astro-prefetch="hover">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          <span class="hidden sm:inline text-xs">筛选</span>
-        </a>
         <a href="${pathStr ? `/articles/${pathStr}/` : `/articles/`}"
            class="breadcrumb-grid-btn px-3 py-1.5 flex items-center gap-1 ${
              pageType === 'grid' 
@@ -498,6 +484,20 @@ const breadcrumbs: Breadcrumb[] = pathSegments
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
           </svg>
           <span class="hidden sm:inline text-xs">网格</span>
+        </a>
+        <a href="/filtered${searchParamsStr}"
+           class="breadcrumb-filter-btn px-3 py-1.5 flex items-center gap-1 ${
+             pageType === 'filter' 
+               ? 'text-primary-600 dark:text-primary-400 font-medium' 
+               : 'text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400'
+           }"
+           data-view-type="filter"
+           data-active="${pageType === 'filter' ? 'true' : 'false'}"
+           data-astro-prefetch="hover">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <span class="hidden sm:inline text-xs">筛选</span>
         </a>
       `;
       
