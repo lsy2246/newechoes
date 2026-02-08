@@ -6,6 +6,12 @@
   text-autospace: normal;
 }
 
+/* 预留滚动条空间，避免页面加载后左右抖动 */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
 /* 定义深色模式选择器 */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 

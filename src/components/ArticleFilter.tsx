@@ -34,6 +34,16 @@ interface ArticleFilterProps {
   searchParams?: Record<string, string> | URLSearchParams;
 }
 
+type FilterLoadingMode = "immediate" | "delayed";
+
+const DEFAULT_FILTERS: FilterState = {
+  tags: [],
+  sort: "newest",
+  pageSize: 12,
+  currentPage: 1,
+  date: "all",
+};
+
 // 自定义日期选择器组件
 const DateRangePicker: React.FC<{
   startDate: string | null;
@@ -719,6 +729,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
   // 组件挂载状态引用
   const isMountedRef = useRef<boolean>(true);
+  const filterLoadingTimerRef = useRef<number | null>(null);
 
   // 组件挂载时设置客户端标记
   useEffect(() => {
@@ -727,6 +738,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     // 组件卸载时的清理
     return () => {
       isMountedRef.current = false;
+      if (filterLoadingTimerRef.current !== null) {
+        window.clearTimeout(filterLoadingTimerRef.current);
+        filterLoadingTimerRef.current = null;
+      }
 
     };
   }, []);
@@ -768,12 +783,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
   // 状态管理 - 使用延迟初始化确保服务端和客户端状态一致
   const [activeFilters, setActiveFilters] = useState<FilterState>(() => ({
-    tags: [],
-    sort: "newest",
-    pageSize: 12,
-    currentPage: 1,
-    date: "all",
+    ...DEFAULT_FILTERS,
   }));
+  const activeFiltersRef = useRef<FilterState>({ ...DEFAULT_FILTERS });
 
   // 添加一个专门处理return_filter的函数
   const processReturnFilter = useCallback(() => {
@@ -891,7 +903,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [totalArticles, setTotalArticles] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
+  const [showFilterLoading, setShowFilterLoading] = useState(true);
+  const [isTagLoading, setIsTagLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false); // 添加排序下拉框状态
@@ -899,16 +912,60 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   const [isFilterReady, setIsFilterReady] = useState(false);
   const [isArticlesLoaded, setIsArticlesLoaded] = useState(false);
 
+  const filterLoadingDelayMs = 160;
+
+  useEffect(() => {
+    activeFiltersRef.current = activeFilters;
+  }, [activeFilters]);
+
   // refs
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const tagSelectorButtonRef = useRef<HTMLButtonElement>(null);
   const sortDropdownRef = useRef<HTMLDivElement>(null); // 添加排序下拉框引用
   const sortSelectorButtonRef = useRef<HTMLButtonElement>(null); // 添加排序按钮引用
 
+  const startFilterLoading = useCallback(
+    (mode: FilterLoadingMode = "immediate") => {
+      if (filterLoadingTimerRef.current !== null) {
+        window.clearTimeout(filterLoadingTimerRef.current);
+        filterLoadingTimerRef.current = null;
+      }
+
+      if (mode === "immediate") {
+        setShowFilterLoading(true);
+        return;
+      }
+
+      setShowFilterLoading(false);
+      filterLoadingTimerRef.current = window.setTimeout(() => {
+        if (isMountedRef.current) {
+          setShowFilterLoading(true);
+        }
+      }, filterLoadingDelayMs);
+    },
+    [filterLoadingDelayMs],
+  );
+
+  const stopFilterLoading = useCallback(() => {
+    if (filterLoadingTimerRef.current !== null) {
+      window.clearTimeout(filterLoadingTimerRef.current);
+      filterLoadingTimerRef.current = null;
+    }
+    if (isMountedRef.current) {
+      setShowFilterLoading(false);
+    }
+  }, []);
+
   // 将过滤器应用到文章列表，并更新URL
-  const applyFilters = (newFilters: Partial<FilterState> = {}) => {
+  const applyFilters = (
+    newFilters: Partial<FilterState> = {},
+    options: { loadingMode?: FilterLoadingMode } = {},
+  ) => {
+    const loadingMode = options.loadingMode ?? "immediate";
+
     // 合并当前过滤器和新过滤器
-    const updatedFilters = { ...activeFilters, ...newFilters };
+    const currentFilters = activeFiltersRef.current;
+    const updatedFilters = { ...currentFilters, ...newFilters };
 
     // 如果修改了过滤条件（而不是仅仅翻页），重置到第一页
     if (
@@ -921,6 +978,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     }
 
     // 应用过滤器
+    activeFiltersRef.current = updatedFilters;
     setActiveFilters(updatedFilters);
 
     // 构建URL参数 - 只在客户端执行
@@ -955,101 +1013,108 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
       // 如果WASM模块已加载，立即执行筛选逻辑
       if (isFilterReady && isArticlesLoaded) {
-        applyFilteringLogic(updatedFilters);
+        applyFilteringLogic(updatedFilters, loadingMode);
       }
     }
   };
 
   // 添加文章筛选逻辑函数
-  const applyFilteringLogic = async (filters: FilterState) => {
-    if (!isFilterReady) {
-      console.error("筛选模块未初始化");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // 构建筛选参数
-      const filterParams: Record<string, any> = {
-        tags: filters.tags,
-        sort: filters.sort,
-        date: filters.date,
-        page: filters.currentPage,
-        limit: filters.pageSize,
-      };
-
-      // 调用 Worker 筛选方法
-      const result = (await workerFilterArticles(
-        filterParams,
-      )) as FilterResult;
-
-      // 检查组件是否仍然挂载
-      if (!isMountedRef.current) return;
-
-      // 处理结果
-      if (!result || typeof result !== "object") {
-        console.error("WASM返回结果格式错误");
-        throw new Error("筛选结果格式错误");
+  const applyFilteringLogic = useCallback(
+    async (
+      filters: FilterState,
+      loadingMode: FilterLoadingMode = "immediate",
+    ) => {
+      if (!isFilterReady) {
+        console.error("筛选模块未初始化");
+        return;
       }
 
-      // 确保有一个文章数组
-      let articles: Article[] = [];
+      startFilterLoading(loadingMode);
 
-      if (result.articles) {
-        if (Array.isArray(result.articles)) {
-          articles = result.articles;
-        } else {
-          console.error("返回的articles不是数组");
-          // 尝试修复格式问题
-          try {
-            if (typeof result.articles === "string") {
-              // 如果是JSON字符串，尝试解析
-              const parsed = JSON.parse(result.articles);
-              if (Array.isArray(parsed)) {
-                articles = parsed;
+      try {
+        // 构建筛选参数
+        const filterParams: Record<string, any> = {
+          tags: filters.tags,
+          sort: filters.sort,
+          date: filters.date,
+          page: filters.currentPage,
+          limit: filters.pageSize,
+        };
+
+        // 调用 Worker 筛选方法
+        const result = (await workerFilterArticles(
+          filterParams,
+        )) as FilterResult;
+
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+
+        // 处理结果
+        if (!result || typeof result !== "object") {
+          console.error("WASM返回结果格式错误");
+          throw new Error("筛选结果格式错误");
+        }
+
+        // 确保有一个文章数组
+        let articles: Article[] = [];
+
+        if (result.articles) {
+          if (Array.isArray(result.articles)) {
+            articles = result.articles;
+          } else {
+            console.error("返回的articles不是数组");
+            // 尝试修复格式问题
+            try {
+              if (typeof result.articles === "string") {
+                // 如果是JSON字符串，尝试解析
+                const parsed = JSON.parse(result.articles);
+                if (Array.isArray(parsed)) {
+                  articles = parsed;
+                }
               }
+            } catch (e) {
+              console.error("尝试修复articles格式失败");
             }
-          } catch (e) {
-            console.error("尝试修复articles格式失败");
           }
         }
+
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+
+        // 检查并修复总数
+        const total =
+          typeof result.total === "number" ? result.total : articles.length;
+        const totalPages =
+          typeof result.total_pages === "number"
+            ? result.total_pages
+            : Math.ceil(total / filters.pageSize);
+
+        // 更新状态时提供明确的默认值
+        setFilteredArticles(articles);
+        setTotalArticles(total);
+        setTotalPages(totalPages || 1);
+      } catch (error) {
+        // 检查组件是否仍然挂载
+        if (!isMountedRef.current) return;
+
+        console.error("应用筛选逻辑出错:", error);
+        setError("筛选文章时出错，请刷新页面重试");
+      } finally {
+        // 检查组件是否仍然挂载
+        if (isMountedRef.current) {
+          stopFilterLoading();
+        }
       }
-
-      // 检查组件是否仍然挂载
-      if (!isMountedRef.current) return;
-
-      // 检查并修复总数
-      const total =
-        typeof result.total === "number" ? result.total : articles.length;
-      const totalPages =
-        typeof result.total_pages === "number"
-          ? result.total_pages
-          : Math.ceil(total / filters.pageSize);
-
-      // 更新状态时提供明确的默认值
-      setFilteredArticles(articles);
-      setTotalArticles(total);
-      setTotalPages(totalPages || 1);
-    } catch (error) {
-      // 检查组件是否仍然挂载
-      if (!isMountedRef.current) return;
-
-      console.error("应用筛选逻辑出错:", error);
-      setError("筛选文章时出错，请刷新页面重试");
-    } finally {
-      // 检查组件是否仍然挂载
-      if (isMountedRef.current) {
-        setIsLoading(false);
-      }
-    }
-  };
+    },
+    [isFilterReady, startFilterLoading, stopFilterLoading],
+  );
 
   // 初始化 Worker 并加载索引数据
   useEffect(() => {
     const loadIndexData = async () => {
       try {
-        setIsLoading(true);
+        setIsTagLoading(true);
+        startFilterLoading("immediate");
         await initFilterIndex("/index/filter_index.bin");
 
         if (!isMountedRef.current) return;
@@ -1058,6 +1123,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         const tags = (await workerGetAllTags()) as string[];
         if (!isMountedRef.current) return;
         setAllAvailableTags(Array.isArray(tags) ? tags : []);
+        setIsTagLoading(false);
 
         // 初始加载时不依赖applyFilters函数，而是直接执行筛选逻辑
         await initialLoadArticles();
@@ -1071,7 +1137,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         setError("索引文件缺失或无法读取，请重新构建索引");
       } finally {
         if (isMountedRef.current) {
-          setIsLoading(false);
+          setIsTagLoading(false);
+          stopFilterLoading();
         }
       }
     };
@@ -1080,7 +1147,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     const initialLoadArticles = async (skipUrlUpdate: boolean = true) => {
       try {
         // 获取当前的筛选状态
-        const currentFilters = { ...activeFilters };
+        const currentFilters = { ...activeFiltersRef.current };
 
         // 构建筛选参数
         const filterParams: Record<string, any> = {
@@ -1209,7 +1276,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       } finally {
         // 检查组件是否仍然挂载
         if (isMountedRef.current) {
-          setIsLoading(false);
+          stopFilterLoading();
         }
       }
     };
@@ -1219,25 +1286,20 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     return () => {};
   }, []);
 
-  // 检查activeFilters变化
+  // 当文章加载完成后，按URL参数应用一次筛选
+  const hasAppliedUrlFiltersRef = useRef(false);
   useEffect(() => {
-    // 只有当筛选模块和文章已经加载完成后，才根据筛选条件更新
-    if (isFilterReady && isArticlesLoaded) {
-      applyFilteringLogic(activeFilters);
-    }
-  }, [isFilterReady, isArticlesLoaded, activeFilters]);
+    if (hasAppliedUrlFiltersRef.current) return;
+    if (!isArticlesLoaded || !isFilterReady) return;
 
-  // 当文章加载状态改变为true时，确保应用当前的筛选条件
-  useEffect(() => {
-    if (isArticlesLoaded && isFilterReady) {
-      // 检查URL中是否有筛选参数
-      const hasFilterParams = window.location.search.length > 0;
-
-      if (hasFilterParams) {
-        applyFilteringLogic(activeFilters);
-      }
+    // 检查URL中是否有筛选参数
+    const hasFilterParams = window.location.search.length > 0;
+    if (hasFilterParams) {
+      applyFilteringLogic(activeFiltersRef.current, "immediate");
     }
-  }, [isArticlesLoaded, isFilterReady, activeFilters]);
+
+    hasAppliedUrlFiltersRef.current = true;
+  }, [isArticlesLoaded, isFilterReady]);
 
   // 点击外部关闭标签下拉菜单
   useEffect(() => {
@@ -1296,15 +1358,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
   // 清除所有筛选条件
   const resetAllFilters = useCallback(() => {
-    const defaultFilters = {
-      tags: [],
-      sort: "newest",
-      pageSize: 12,
-      currentPage: 1,
-      date: "all",
-    };
+    const defaultFilters = { ...DEFAULT_FILTERS };
 
     // 先更新UI状态
+    activeFiltersRef.current = defaultFilters;
     setActiveFilters(defaultFilters);
 
     // 清除URL参数
@@ -1314,9 +1371,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
     // 如果筛选模块已加载，直接调用筛选逻辑以确保实际应用
     if (isFilterReady && isArticlesLoaded) {
-      applyFilteringLogic(defaultFilters);
+      applyFilteringLogic(defaultFilters, "immediate");
     }
-  }, [isFilterReady, isArticlesLoaded]);
+  }, [applyFilteringLogic, isFilterReady, isArticlesLoaded]);
 
   // 渲染错误信息
   const renderError = () => (
@@ -1403,47 +1460,27 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
     // 处理标签选择变更
     const handleTagSelection = (tag: string) => {
-      const isRemove = activeFilters.tags.includes(tag);
+      const currentTags = activeFiltersRef.current.tags;
+      const isRemove = currentTags.includes(tag);
       let newTags: string[];
 
       if (isRemove) {
         // 如果标签已选中，则移除
-        newTags = activeFilters.tags.filter((t) => t !== tag);
+        newTags = currentTags.filter((t) => t !== tag);
       } else {
         // 如果标签未选中，则添加
-        newTags = [...activeFilters.tags, tag];
+        newTags = [...currentTags, tag];
       }
 
-      // 先更新UI状态
-      setActiveFilters((prev) => ({
-        ...prev,
-        tags: newTags,
-        currentPage: 1, // 重置为第一页
-      }));
-
-      // 直接传递新的标签状态给筛选函数，并更新URL
-      applyFilters({
-        tags: newTags,
-        currentPage: 1,
-      });
+      applyFilters({ tags: newTags, currentPage: 1 }, { loadingMode: "immediate" });
     };
 
     // 删除单个标签
     const removeTag = (tag: string) => {
-      const newTags = activeFilters.tags.filter((t) => t !== tag);
+      const currentTags = activeFiltersRef.current.tags;
+      const newTags = currentTags.filter((t) => t !== tag);
 
-      // 先更新UI状态
-      setActiveFilters((prev) => ({
-        ...prev,
-        tags: newTags,
-        currentPage: 1, // 重置为第一页
-      }));
-
-      // 直接传递新的标签状态给筛选函数，并更新URL
-      applyFilters({
-        tags: newTags,
-        currentPage: 1,
-      });
+      applyFilters({ tags: newTags, currentPage: 1 }, { loadingMode: "immediate" });
     };
 
     // 切换标签下拉菜单
@@ -1455,23 +1492,16 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
     // 清除所有标签
     const clearAllTags = () => {
-      // 先更新UI状态
-      setActiveFilters((prev) => ({
-        ...prev,
-        tags: [],
-        currentPage: 1, // 重置为第一页
-      }));
+      if (activeFiltersRef.current.tags.length === 0) {
+        return;
+      }
 
-      // 直接传递清除标签后的状态给筛选函数，并更新URL
-      applyFilters({
-        tags: [],
-        currentPage: 1,
-      });
+      applyFilters({ tags: [], currentPage: 1 }, { loadingMode: "immediate" });
     };
 
     // 根据加载状态获取标签搜索框的占位文本
     const getTagSearchPlaceholder = () => {
-      if (isLoading) {
+      if (isTagLoading) {
         return "正在加载标签...";
       } else if (error) {
         return "加载标签失败";
@@ -1743,7 +1773,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                         </svg>
 
                         {/* 加载状态指示器 */}
-                        {isLoading && (
+                        {isTagLoading && (
                           <div
                             className="absolute right-2.5 top-1/2 transform -translate-y-1/2"
                             aria-label="正在加载标签"
@@ -2388,7 +2418,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       {renderFilterControls()}
 
       {/* 文章列表区域 - 修改加载显示方式 */}
-      {isLoading ? (
+      {showFilterLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>

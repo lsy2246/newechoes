@@ -7,6 +7,7 @@
 
 | 时间戳 | 名称 | 类型 | 涉及模块 | 决策 | 结果 |
 |--------|------|------|---------|------|------|
+| 202602081013 | theme-toggle-perf | - | - | - | ✅完成 |
 | 202602072011 | components-optimizations | - | - | - | ✅完成 |
 | 202602071646 | perf-wasm-refactor | implementation | wasm, components, workers | D001/D002 | ⚠️ 部分完成 |
 

@@ -1,5 +1,25 @@
 # 变更日志
 
+## [0.0.16] - 2026-02-08
+
+### 修复
+
+- **[components/ArticleFilter]**: 拆分标签加载与筛选加载状态，稳定标签提示，避免无标签清除触发刷新
+  - 方案: [202602081301_article-filter-flicker](archive/2026-02/202602081301_article-filter-flicker/)
+
+## [0.0.15] - 2026-02-08
+
+### 变更
+
+- **[components/ThemeToggle]**: 主题切换过渡资源缓存与波纹复用，避免重复初始化带来的抖动
+  - 方案: [202602081013_theme-toggle-perf](archive/2026-02/202602081013_theme-toggle-perf/)
+
+### 修复
+
+- **[styles/global]**: 为根滚动容器预留滚动条空间，避免页面加载后左右抖动
+  - 类型: 微调（无方案包）
+  - 文件: src/styles/global.css
+
 ## [0.0.14] - 2026-02-07
 
 ### 修复
