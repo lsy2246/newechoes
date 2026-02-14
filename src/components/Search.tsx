@@ -93,6 +93,9 @@ const Search: React.FC<SearchProps> = ({
   const [showResults, setShowResults] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionDetails, setSuggestionDetails] = useState<
+    SearchSuggestion[]
+  >([]);
 
   // 无限滚动状态
   const [allItems, setAllItems] = useState<SearchResultItem[]>([]);
@@ -255,6 +258,7 @@ const Search: React.FC<SearchProps> = ({
     async (searchQuery: string) => {
       if (!searchQuery.trim() || !isIndexLoaded) {
         setSuggestions([]);
+        setSuggestionDetails([]);
         setInlineSuggestion((prev) => ({ ...prev, visible: false }));
         setSelectedSuggestionIndex(0);
         return;
@@ -281,6 +285,7 @@ const Search: React.FC<SearchProps> = ({
           searchResult.suggestions.length === 0
         ) {
           setSuggestions([]);
+          setSuggestionDetails([]);
           setInlineSuggestion((prev) => ({ ...prev, visible: false }));
           setSelectedSuggestionIndex(0);
           return;
@@ -290,6 +295,7 @@ const Search: React.FC<SearchProps> = ({
           (sug) => sug.text,
         );
         setSuggestions(simplifiedSuggestions);
+        setSuggestionDetails(searchResult.suggestions);
         setSelectedSuggestionIndex(0);
 
         const firstSuggestion = searchResult.suggestions[0];
@@ -312,6 +318,7 @@ const Search: React.FC<SearchProps> = ({
 
         console.error("[建议错误]", err);
         setInlineSuggestion((prev) => ({ ...prev, visible: false }));
+        setSuggestionDetails([]);
         setSelectedSuggestionIndex(0);
       }
     },
@@ -351,8 +358,8 @@ const Search: React.FC<SearchProps> = ({
       let suggestionText = "";
 
       // 尝试获取完整的建议对象
-      if (searchResults?.suggestions && searchResults.suggestions.length > 0) {
-        const fullSuggestion = searchResults.suggestions.find(
+      if (suggestionDetails.length > 0) {
+        const fullSuggestion = suggestionDetails.find(
           (s) => s.text === selectedSuggestion,
         );
         if (fullSuggestion) {
@@ -589,6 +596,7 @@ const Search: React.FC<SearchProps> = ({
       setSearchResults(null);
       setAllItems([]);
       setSuggestions([]);
+      setSuggestionDetails([]);
       setInlineSuggestion((prev) => ({ ...prev, visible: false }));
       setSelectedSuggestionIndex(0); // 重置选中索引
       setShowResults(false);
@@ -931,63 +939,61 @@ const Search: React.FC<SearchProps> = ({
         suggestionEl.style.letterSpacing = inputStyle.letterSpacing;
         suggestionEl.style.lineHeight = inputStyle.lineHeight;
 
-        // 计算并调整可用空间
-        if (inlineSuggestion.type === "correction") {
-          // 获取输入框宽度
-          const inputWidth = searchInputRef.current!.offsetWidth;
-          // 估算查询文本宽度 (使用更精确的字体宽度估算方法)
-          // 创建一个临时元素用于测量实际宽度
-          const tempMeasureEl = document.createElement("span");
-          tempMeasureEl.style.visibility = "hidden";
-          tempMeasureEl.style.position = "absolute";
-          tempMeasureEl.style.whiteSpace = "pre";
-          tempMeasureEl.style.fontSize = inputStyle.fontSize;
-          tempMeasureEl.style.fontFamily = inputStyle.fontFamily;
-          tempMeasureEl.style.fontWeight = inputStyle.fontWeight;
-          tempMeasureEl.style.letterSpacing = inputStyle.letterSpacing;
-          tempMeasureEl.innerText = query;
-          document.body.appendChild(tempMeasureEl);
-          const queryTextWidth = tempMeasureEl.offsetWidth;
-          document.body.removeChild(tempMeasureEl);
+        // 计算并调整可用空间（补全与纠正都需要预留右侧按钮区域）
+        // 获取输入框宽度
+        const inputWidth = searchInputRef.current!.offsetWidth;
+        // 估算查询文本宽度 (使用更精确的字体宽度估算方法)
+        // 创建一个临时元素用于测量实际宽度
+        const tempMeasureEl = document.createElement("span");
+        tempMeasureEl.style.visibility = "hidden";
+        tempMeasureEl.style.position = "absolute";
+        tempMeasureEl.style.whiteSpace = "pre";
+        tempMeasureEl.style.fontSize = inputStyle.fontSize;
+        tempMeasureEl.style.fontFamily = inputStyle.fontFamily;
+        tempMeasureEl.style.fontWeight = inputStyle.fontWeight;
+        tempMeasureEl.style.letterSpacing = inputStyle.letterSpacing;
+        tempMeasureEl.innerText = query;
+        document.body.appendChild(tempMeasureEl);
+        const queryTextWidth = tempMeasureEl.offsetWidth;
+        document.body.removeChild(tempMeasureEl);
 
-          // 计算右侧边距 (确保TAB按钮和清除按钮有足够空间)
-          // 根据屏幕尺寸调整右侧边距
-          let rightMargin = 90; // 默认桌面环境
+        // 计算右侧边距 (确保TAB按钮和清除按钮有足够空间)
+        // 根据屏幕尺寸调整右侧边距
+        let rightMargin = 90; // 默认桌面环境
 
-          // 根据窗口宽度调整边距（响应式设计）
-          if (window.innerWidth < 640) {
-            // 小屏幕设备
-            rightMargin = 100; // 移动设备上按钮占据更多相对空间
-          } else if (window.innerWidth < 768) {
-            // 中等屏幕设备
-            rightMargin = 95;
-          }
+        // 根据窗口宽度调整边距（响应式设计）
+        if (window.innerWidth < 640) {
+          // 小屏幕设备
+          rightMargin = 100; // 移动设备上按钮占据更多相对空间
+        } else if (window.innerWidth < 768) {
+          // 中等屏幕设备
+          rightMargin = 95;
+        }
 
-          // 计算建议可用最大宽度
-          // 根据屏幕尺寸调整最大宽度百分比
-          let maxWidthPercentage = 0.8; // 默认最大宽度百分比
+        // 计算建议可用最大宽度
+        // 根据屏幕尺寸调整最大宽度百分比
+        let maxWidthPercentage = 0.8; // 默认最大宽度百分比
 
-          if (window.innerWidth < 640) {
-            maxWidthPercentage = 0.7; // 在小屏幕上减少最大宽度百分比
-          }
+        if (window.innerWidth < 640) {
+          maxWidthPercentage = 0.7; // 在小屏幕上减少最大宽度百分比
+        }
 
-          const maxAllowedWidth = Math.floor(inputWidth * maxWidthPercentage);
+        const maxAllowedWidth = Math.floor(inputWidth * maxWidthPercentage);
 
-          // 计算最终的可用宽度
-          const availableWidth = Math.min(
-            maxAllowedWidth,
-            Math.max(inputWidth - queryTextWidth - rightMargin, 80), // 最小宽度降低到80px以适应更小的设备
-          );
+        // 计算最终的可用宽度
+        const availableWidth = Math.min(
+          maxAllowedWidth,
+          Math.max(inputWidth - queryTextWidth - rightMargin, 80), // 最小宽度降低到80px以适应更小的设备
+        );
 
-          // 设置最大宽度
-          const suggestionTextContainer = suggestionEl.querySelector(
-            "div > div:nth-child(2) > span",
-          );
-          if (suggestionTextContainer) {
-            (
-              suggestionTextContainer as HTMLElement
-            ).style.maxWidth = `${availableWidth}px`;
-          }
+        // 设置最大宽度
+        const suggestionTextContainer = suggestionEl.querySelector(
+          "div > div:nth-child(2) > span",
+        );
+        if (suggestionTextContainer) {
+          const suggestionElRef = suggestionTextContainer as HTMLElement;
+          suggestionElRef.style.maxWidth = `${availableWidth}px`;
+          suggestionElRef.style.display = "inline-block";
         }
       };
 
@@ -1041,6 +1047,7 @@ const Search: React.FC<SearchProps> = ({
     setSearchResults(null);
     setAllItems([]);
     setSuggestions([]);
+    setSuggestionDetails([]);
 
     // 清除内联建议
     setInlineSuggestion({
@@ -1241,7 +1248,7 @@ const Search: React.FC<SearchProps> = ({
 
           {allItems.length > 0 ? (
             <ul className="space-y-4">
-              {allItems.map((item) => (
+              {allItems.map((item, index) => (
                 <li
                   key={item.id}
                   className="border-b border-gray-200/70 dark:border-gray-700/40 pb-4 last:border-0 last:pb-0"
@@ -1407,14 +1414,14 @@ const Search: React.FC<SearchProps> = ({
             query.length > 0 && (
               <div
                 ref={inlineSuggestionRef}
-                className="absolute left-0 top-0 w-full h-full pointer-events-none flex items-center overflow-hidden"
+                className="absolute left-0 top-0 w-full h-full pointer-events-none flex items-start overflow-hidden"
                 style={{
                   ...getInlineSuggestionStyle(),
                   zIndex: 5, // 确保在输入框下面但在其他元素上面
                 }}
               >
                 {/* 修改显示方式，确保与输入文本对齐，同时支持响应式布局 */}
-                <div className="flex w-full px-10 md:px-8 lg:px-10 overflow-hidden">
+                <div className="flex w-full px-10 md:px-8 lg:px-10 py-2.5 md:py-1.5 lg:py-2.5 overflow-hidden translate-y-px">
                   {" "}
                   {/* 使用与输入框相同的水平内边距，添加溢出隐藏 */}
                   {/* 纠正建议和补全建议都显示在已输入内容的右侧 */}
