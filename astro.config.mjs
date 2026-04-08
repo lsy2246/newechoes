@@ -29,6 +29,14 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
+    optimizeDeps: {
+      include: [
+        "d3-force-3d",
+        "three",
+        "three/examples/jsm/controls/OrbitControls.js",
+        "three/examples/jsm/renderers/CSS2DRenderer.js",
+      ],
+    },
     worker: {
       format: "es",
     },

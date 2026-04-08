@@ -1,0 +1,367 @@
+---
+import { getCollection } from "astro:content";
+import { contentStructure, getSpecialPath, type SectionStructure } from "@/content.config";
+
+interface Props {
+  currentPath?: string;
+}
+
+type ArticleRecord = Awaited<ReturnType<typeof getCollection<"articles">>>[number];
+
+type GraphNode = {
+  id: string;
+  label: string;
+  type: "root" | "section" | "article";
+  route: string;
+  sectionPath?: string;
+  topSectionPath?: string;
+};
+
+type GraphLink = {
+  source: string;
+  target: string;
+  kind: "structure" | "reference";
+};
+
+const { currentPath = "/" } = Astro.props;
+const articles = await getCollection("articles");
+
+function normalizeRoute(path: string) {
+  if (!path) return "/";
+  return path === "/" ? "/" : path.replace(/\/$/, "");
+}
+
+function articleUrl(articleId: string) {
+  return `/articles/${encodeURI(getSpecialPath(articleId))}`;
+}
+
+function sectionUrl(sectionPath: string) {
+  return `/articles/${encodeURI(sectionPath)}`;
+}
+
+function getArticleRouteVariants(articleId: string) {
+  const specialPath = getSpecialPath(articleId);
+  return [
+    normalizeRoute(`/articles/${articleId}`),
+    normalizeRoute(`/articles/${specialPath}`),
+    normalizeRoute(`/articles/${encodeURI(articleId)}`),
+    normalizeRoute(`/articles/${encodeURI(specialPath)}`),
+  ];
+}
+
+function hasBacklinkReference(rawContent: string, articleId: string) {
+  const variants = getArticleRouteVariants(articleId);
+  return variants.some(
+    (variant) =>
+      rawContent.includes(`](${variant})`) ||
+      rawContent.includes(`](${variant}/)`) ||
+      rawContent.includes(`href="${variant}`) ||
+      rawContent.includes(`href='${variant}`),
+  );
+}
+
+const normalizedCurrentPath = normalizeRoute(currentPath);
+
+const articleTitleMap = new Map(
+  articles.map((article) => [article.id, article.data.title]),
+);
+
+const currentArticle =
+  articles.find((article) =>
+    getArticleRouteVariants(article.id).includes(normalizedCurrentPath),
+  ) ?? null;
+
+const currentSectionPath = currentArticle
+  ? currentArticle.id.includes("/")
+    ? currentArticle.id.slice(0, currentArticle.id.lastIndexOf("/"))
+    : ""
+  : normalizedCurrentPath.startsWith("/articles/")
+    ? decodeURI(normalizedCurrentPath.replace(/^\/articles\//, ""))
+    : "";
+
+function isSectionActive(sectionPath: string) {
+  if (!sectionPath) return false;
+  return (
+    currentSectionPath === sectionPath ||
+    currentSectionPath.startsWith(`${sectionPath}/`) ||
+    (currentArticle ? currentArticle.id.startsWith(`${sectionPath}/`) : false)
+  );
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderArticleItem(articleId: string, level: number) {
+  const title = articleTitleMap.get(articleId) ?? articleId.split("/").at(-1) ?? articleId;
+  const href = articleUrl(articleId);
+  const isCurrent = currentArticle?.id === articleId;
+  return `<li class="graph-tree-item graph-tree-item-article" data-article-id="${escapeHtml(articleId)}" style="--tree-level:${level};">
+    <a href="${href}" class="graph-tree-link graph-tree-link-article${isCurrent ? " is-current" : ""}" data-route-target="${href}" data-node-target="article:${escapeHtml(articleId)}" data-astro-prefetch="hover">
+      <span class="graph-tree-item-marker" aria-hidden="true">
+        <span class="graph-tree-dot"></span>
+      </span>
+      <span class="graph-tree-label">${escapeHtml(title)}</span>
+    </a>
+  </li>`;
+}
+
+function renderSection(section: SectionStructure, level = 0): string {
+  const active = isSectionActive(section.path);
+  const open = active || level === 0;
+  const href = sectionUrl(section.path);
+  const childCount = section.articles.length + section.sections.length;
+  const children = [
+    ...section.sections.map((child) => renderSection(child, level + 1)),
+    ...section.articles.map((articleId) => renderArticleItem(articleId, level + 1)),
+  ].join("");
+
+  return `<li class="graph-tree-item graph-tree-item-section${active ? " is-active" : ""}" data-section-path="${escapeHtml(section.path)}" style="--tree-level:${level};">
+    <details class="graph-tree-group" data-section-path="${escapeHtml(section.path)}" ${open ? "open" : ""}>
+      <summary class="graph-tree-summary">
+        <span class="graph-tree-disclosure" aria-hidden="true">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m4 2 4 4-4 4"></path>
+          </svg>
+        </span>
+        <a href="${href}" class="graph-tree-link graph-tree-link-section${active ? " is-current" : ""}" data-route-target="${href}" data-section-path="${escapeHtml(section.path)}" data-node-target="section:${escapeHtml(section.path)}" data-astro-prefetch="hover">
+          <span class="graph-tree-item-marker graph-tree-item-marker-section" aria-hidden="true"></span>
+          <span class="graph-tree-label">${escapeHtml(section.name)}</span>
+        </a>
+        <span class="graph-tree-count">${childCount}</span>
+      </summary>
+      ${
+        children
+          ? `<ul class="graph-tree-children">${children}</ul>`
+          : `<div class="graph-tree-empty">这个目录下暂时没有更多分支</div>`
+      }
+    </details>
+  </li>`;
+}
+
+const treeHtml = [
+  contentStructure.articles.length > 0
+    ? `<li class="graph-tree-item graph-tree-item-top">
+        <div class="graph-tree-top-label">根目录文章</div>
+        <ul class="graph-tree-children">
+          ${contentStructure.articles.map((articleId) => renderArticleItem(articleId, 0)).join("")}
+        </ul>
+      </li>`
+    : "",
+  ...contentStructure.sections.map((section) => renderSection(section)),
+].join("");
+
+const graphNodes: GraphNode[] = [
+  {
+    id: "root",
+    label: "全部文章",
+    type: "root",
+    route: "/articles",
+  },
+];
+const graphLinks: GraphLink[] = [];
+
+function collectSections(sections: SectionStructure[], parentPath = "") {
+  sections.forEach((section) => {
+    const topSectionPath = parentPath ? parentPath.split("/")[0] : section.path.split("/")[0] ?? "";
+    const node: GraphNode = {
+      id: `section:${section.path}`,
+      label: section.name,
+      type: "section",
+      route: sectionUrl(section.path),
+      sectionPath: section.path,
+      topSectionPath,
+    };
+    graphNodes.push(node);
+
+    graphLinks.push({
+      source: parentPath ? `section:${parentPath}` : "root",
+      target: node.id,
+      kind: "structure",
+    });
+
+    collectSections(section.sections, section.path);
+  });
+}
+
+collectSections(contentStructure.sections);
+
+articles.forEach((article) => {
+  const sectionPath = article.id.includes("/")
+    ? article.id.slice(0, article.id.lastIndexOf("/"))
+    : "";
+  const topSectionPath = article.id.includes("/") ? article.id.split("/")[0] : "";
+
+  graphNodes.push({
+    id: `article:${article.id}`,
+    label: article.data.title,
+    type: "article",
+    route: articleUrl(article.id),
+    sectionPath,
+    topSectionPath,
+  });
+
+  graphLinks.push({
+    source: sectionPath ? `section:${sectionPath}` : "root",
+    target: `article:${article.id}`,
+    kind: "structure",
+  });
+});
+
+for (const sourceArticle of articles) {
+  for (const targetArticle of articles) {
+    if (sourceArticle.id === targetArticle.id) continue;
+    if (hasBacklinkReference(sourceArticle.body, targetArticle.id)) {
+      graphLinks.push({
+        source: `article:${sourceArticle.id}`,
+        target: `article:${targetArticle.id}`,
+        kind: "reference",
+      });
+    }
+  }
+}
+
+const graphPayload = JSON.stringify({
+  nodes: graphNodes,
+  links: graphLinks,
+});
+
+const locationLabel = currentArticle
+  ? currentArticle.data.title
+  : currentSectionPath
+    ? currentSectionPath
+    : "首页或非文章页面";
+const locationRoute = currentArticle
+  ? articleUrl(currentArticle.id)
+  : currentSectionPath
+    ? sectionUrl(currentSectionPath)
+    : "/articles";
+---
+
+<div
+  id="global-graph-modal"
+  class="global-graph-modal hidden"
+  aria-hidden="true"
+>
+  <script
+    type="application/json"
+    data-global-graph-json
+    set:html={graphPayload}
+  ></script>
+
+  <div
+    class="global-graph-backdrop"
+    data-close-global-graph
+  ></div>
+
+  <section
+    class="global-graph-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="global-graph-title"
+  >
+    <header class="global-graph-header">
+      <div>
+        <p class="global-graph-eyebrow">Network Atlas</p>
+        <h2 id="global-graph-title">全局图谱</h2>
+        <p class="global-graph-subtitle">
+          左边负责精确定位，右边负责看结构、簇和连接。这里更像一张站点关系地图，不是普通导航页。
+        </p>
+      </div>
+      <button
+        type="button"
+        class="global-graph-close"
+        data-close-global-graph
+        aria-label="关闭全局图谱"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M18 6 6 18"></path>
+          <path d="m6 6 12 12"></path>
+        </svg>
+      </button>
+    </header>
+
+    <div class="global-graph-body global-graph-body-split">
+      <aside class="global-graph-tree-panel">
+        <div class="global-graph-panel-header">
+          <div>
+            <h3>全站目录树</h3>
+            <p>
+              当前位置:
+              <a
+                href={locationRoute}
+                class="global-graph-current-link"
+                data-current-location
+              >
+                {locationLabel}
+              </a>
+            </p>
+          </div>
+        </div>
+
+        <div class="global-graph-tree-shell">
+          <ul
+            class="global-graph-tree"
+            set:html={treeHtml}
+          ></ul>
+        </div>
+      </aside>
+
+      <section class="global-graph-stage">
+        <div class="global-graph-panel-header">
+          <div>
+            <h3>节点图谱</h3>
+            <p>节点会按链接关系自然聚成簇。旋转看层次，缩放看局部，选中后看它周围的知识邻域。</p>
+          </div>
+          <span class="global-graph-drag-hint">Rotate and zoom</span>
+        </div>
+
+        <div
+          class="global-graph-stage-canvas"
+          data-graph-stage
+        >
+          <div
+            class="global-graph-canvas"
+            data-graph-canvas
+          ></div>
+          <div
+            class="global-graph-status"
+            data-graph-status
+          >
+            正在准备 3D 关系图谱...
+          </div>
+          <div
+            class="global-graph-tooltip"
+            data-graph-tooltip
+            hidden
+          ></div>
+        </div>
+
+        <div class="global-graph-legend">
+          <span><i class="legend-dot legend-dot-root"></i> 入口枢纽</span>
+          <span><i class="legend-dot legend-dot-section"></i> 目录锚点</span>
+          <span><i class="legend-dot legend-dot-article"></i> 文章节点</span>
+        </div>
+      </section>
+    </div>
+  </section>
+</div>
+
+<script>
+  import { initGlobalGraphModal } from "@/lib/global-graph-modal";
+
+  initGlobalGraphModal();
+</script>
