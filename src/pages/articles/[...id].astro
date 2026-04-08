@@ -39,6 +39,26 @@ function generateArticleSummary(article: ArticleEntry): string {
     : plainText;
 }
 
+function getArticleRouteVariants(articleId: string): string[] {
+  const variants = new Set<string>();
+  for (const path of [articleId, getSpecialPath(articleId)]) {
+    variants.add(`/articles/${path}`);
+    variants.add(`/articles/${encodeURI(path)}`);
+  }
+  return [...variants];
+}
+
+function hasBacklinkReference(rawContent: string, articleId: string): boolean {
+  const variants = getArticleRouteVariants(articleId);
+  return variants.some(
+    (variant) =>
+      rawContent.includes(`](${variant})`) ||
+      rawContent.includes(`](${variant}/)`) ||
+      rawContent.includes(`href="${variant}`) ||
+      rawContent.includes(`href='${variant}`),
+  );
+}
+
 export async function getStaticPaths() {
   const articles = await getCollection("articles");
 
@@ -97,6 +117,17 @@ const pathSegments = section ? section.split("/") : [];
 
 // 获取相关文章
 const allArticles = await getCollection("articles");
+const backlinkArticles = allArticles
+  .filter(
+    (candidate: ArticleEntry) =>
+      candidate.id !== article.id && hasBacklinkReference(candidate.body, article.id),
+  )
+  .sort(
+    (a: ArticleEntry, b: ArticleEntry) =>
+      b.data.date.getTime() - a.data.date.getTime(),
+  );
+const visibleBacklinkArticles = backlinkArticles.slice(0, 6);
+const hiddenBacklinkCount = Math.max(backlinkArticles.length - visibleBacklinkArticles.length, 0);
 
 // 1. 尝试通过标签匹配相关文章
 let relatedArticles = allArticles
@@ -528,14 +559,12 @@ const tableOfContents = generateTableOfContents(headings);
 
     <!-- 目录 -->
     <section
-      class="hidden 2xl:block fixed right-[calc(50%-44rem)] top-20 w-64 z-30 transition-transform duration-300"
+      class="hidden xl:flex fixed right-4 2xl:right-[calc(50%-44rem)] w-64 z-30 transition-transform duration-300 flex-col gap-4"
       id="toc-panel"
     >
-      <div
-        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl flex flex-col backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 shadow-lg transition-opacity duration-300"
-      >
+      <div class="article-sidecard">
         <div
-          class="border-b border-gray-200 dark:border-gray-700 p-4 pb-3 sticky top-0 z-10 rounded-t-xl bg-white dark:bg-gray-800 bg-opacity-95 backdrop-blur-sm"
+          class="article-sidecard-header"
         >
           <h3
             class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2"
@@ -559,9 +588,76 @@ const tableOfContents = generateTableOfContents(headings);
         </div>
         <div
           id="toc-content"
-          class="text-sm p-4 pt-2 overflow-y-auto max-h-[calc(100vh-8rem-42px)] bg-white dark:bg-gray-800 scroll-smooth scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
+          class="text-sm p-4 pt-2 overflow-y-auto max-h-[min(24rem,calc(100vh-22rem))] bg-white dark:bg-gray-800 scroll-smooth scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
           set:html={tableOfContents}
         />
+      </div>
+
+      <div class="article-sidecard article-backlinks-card">
+        <div class="article-sidecard-header article-sidecard-header-compact">
+          <div class="article-sidecard-title-group">
+            <h3 class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13.828 10.172a4 4 0 0 0-5.656 0l-2 2a4 4 0 1 0 5.656 5.656l1-1"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10.172 13.828a4 4 0 0 0 5.656 0l2-2a4 4 0 1 0-5.656-5.656l-1 1"
+                ></path>
+              </svg>
+              反向链接
+            </h3>
+            <span class="article-sidecard-badge">{backlinkArticles.length}</span>
+          </div>
+        </div>
+
+        {
+          visibleBacklinkArticles.length > 0 ? (
+            <div class="article-backlinks-content">
+              <ul class="article-backlinks-list">
+                {visibleBacklinkArticles.map((backlinkArticle: ArticleEntry) => (
+                  <li>
+                    <a
+                      href={getArticleUrl(backlinkArticle.id)}
+                      class="article-backlink-link"
+                      data-astro-prefetch="hover"
+                    >
+                      <span class="article-backlink-title">
+                        {backlinkArticle.data.title}
+                      </span>
+                      <time datetime={backlinkArticle.data.date.toISOString()}>
+                        {backlinkArticle.data.date.toLocaleDateString("zh-CN")}
+                      </time>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              {
+                hiddenBacklinkCount > 0 && (
+                  <p class="article-backlinks-more">
+                    还有 {hiddenBacklinkCount} 篇引用暂未展开
+                  </p>
+                )
+              }
+            </div>
+          ) : (
+            <p class="article-backlinks-empty">
+              暂时还没有文章链接到这里，后续接入正式图谱后这里会更完整。
+            </p>
+          )
+        }
       </div>
     </section>
   </div>
@@ -802,18 +898,6 @@ const tableOfContents = generateTableOfContents(headings);
           if (!tocPanel || !tocContent) {
             return;
           }
-
-          // 检查窗口大小调整目录面板显示
-          function checkTocVisibility() {
-            if (window.innerWidth < 1536) {
-              tocPanel.classList.add("hidden");
-            } else {
-              tocPanel.classList.remove("hidden");
-            }
-          }
-
-          addListener(window, "resize", checkTocVisibility);
-          checkTocVisibility();
 
           // 处理目录折叠/展开功能
           const tocToggles = tocContent.querySelectorAll(".toc-toggle");
