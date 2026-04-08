@@ -1,6 +1,12 @@
 ---
 import { getCollection } from "astro:content";
 import { contentStructure, getSpecialPath, type SectionStructure } from "@/content.config";
+import {
+  createArticleReferenceResolver,
+  extractArticleReferences,
+  getArticleRouteVariants,
+  getCanonicalArticleUrl,
+} from "@/lib/article-links";
 
 interface Props {
   currentPath?: string;
@@ -32,33 +38,16 @@ function normalizeRoute(path: string) {
 }
 
 function articleUrl(articleId: string) {
-  return `/articles/${encodeURI(getSpecialPath(articleId))}`;
+  return getCanonicalArticleUrl(articleId);
 }
 
 function sectionUrl(sectionPath: string) {
   return `/articles/${encodeURI(sectionPath)}`;
 }
 
-function getArticleRouteVariants(articleId: string) {
-  const specialPath = getSpecialPath(articleId);
-  return [
-    normalizeRoute(`/articles/${articleId}`),
-    normalizeRoute(`/articles/${specialPath}`),
-    normalizeRoute(`/articles/${encodeURI(articleId)}`),
-    normalizeRoute(`/articles/${encodeURI(specialPath)}`),
-  ];
-}
-
-function hasBacklinkReference(rawContent: string, articleId: string) {
-  const variants = getArticleRouteVariants(articleId);
-  return variants.some(
-    (variant) =>
-      rawContent.includes(`](${variant})`) ||
-      rawContent.includes(`](${variant}/)`) ||
-      rawContent.includes(`href="${variant}`) ||
-      rawContent.includes(`href='${variant}`),
-  );
-}
+const resolveArticleReference = createArticleReferenceResolver(
+  articles.map((article) => article.id),
+);
 
 const normalizedCurrentPath = normalizeRoute(currentPath);
 
@@ -216,7 +205,11 @@ articles.forEach((article) => {
 for (const sourceArticle of articles) {
   for (const targetArticle of articles) {
     if (sourceArticle.id === targetArticle.id) continue;
-    if (hasBacklinkReference(sourceArticle.body, targetArticle.id)) {
+    if (
+      extractArticleReferences(sourceArticle.body, resolveArticleReference).has(
+        targetArticle.id,
+      )
+    ) {
       graphLinks.push({
         source: `article:${sourceArticle.id}`,
         target: `article:${targetArticle.id}`,

@@ -14,6 +14,7 @@ interface Props {
   skipSrTitle?: boolean; // 控制是否跳过屏幕阅读器标题
   pageType?: "page" | "article" | "directory"; // 更有语义的页面类型
   rssLink?: string; // 文章的RSS链接
+  previewMode?: "default" | "card";
 }
 
 // 获取完整的 URL
@@ -28,13 +29,21 @@ const {
   skipSrTitle = true,
   pageType = "page", // 默认为普通页面
   rssLink,
+  previewMode = "default",
 } = Astro.props;
+
+const isCardPreview = previewMode === "card";
 ---
 
 <!doctype html>
 <html
   lang="zh-CN"
-  class="m-0 w-full h-full"
+  class:list={[
+    "m-0 w-full h-full",
+    {
+      "article-card-preview-root": isCardPreview,
+    },
+  ]}
 >
   <head>
     <meta charset="UTF-8" />
@@ -321,13 +330,25 @@ const {
     </script>
   </head>
   <body
-    class="m-0 w-full h-full bg-gray-50 dark:bg-dark-bg flex flex-col min-h-screen"
+    class:list={[
+      "m-0 w-full h-full bg-gray-50 dark:bg-dark-bg flex flex-col min-h-screen",
+      {
+        "article-card-preview-body": isCardPreview,
+      },
+    ]}
   >
-    <Header />
-    <main class="pt-16 grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+    {!isCardPreview && <Header />}
+    <main
+      class:list={[
+        "grow w-full",
+        isCardPreview
+          ? "max-w-none px-0 py-0 article-card-preview-main"
+          : "pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6",
+      ]}
+    >
       {!skipSrTitle && <h1 class="sr-only">{title}</h1>}
       <slot />
     </main>
-    <Footer />
+    {!isCardPreview && <Footer />}
   </body>
 </html>
