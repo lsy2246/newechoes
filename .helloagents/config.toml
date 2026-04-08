@@ -1,0 +1,17 @@
+version = 1
+
+[commands]
+# mode:
+# - "allowlist": 只允许 allow 里的命令
+# - "denylist": 允许除 deny 以外的命令
+mode = "denylist"
+
+# 默认策略：允许全部命令（deny 为空）
+allow = [
+  "~auto", "~plan", "~exec",
+  "~init", "~upgrade", "~clean",
+  "~commit", "~test", "~review",
+  "~validate", "~rollback", "~help"
+]
+
+deny = []
