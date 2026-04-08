@@ -46,6 +46,10 @@ graph LR
 
 把各种 API 站点的信息统一记录，并把可用渠道同步到聚合层。
 
+### 可以部署到cloudflare的聚合api和网站
+
+[api-worker](https://github.com/lsy2246/api-worker)
+
 ### 工具
 
 - [all-api-hub](https://github.com/qixing-jk/all-api-hub)：维护站点信息 + 身份信息，并产出可同步的渠道
