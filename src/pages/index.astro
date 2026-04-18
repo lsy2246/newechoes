@@ -1,7 +1,7 @@
 ---
 import Layout from "@/components/Layout.astro";
+import HomeDiorama from "@/components/home/HomeDiorama.astro";
 import { SITE_TITLE, SITE_DESCRIPTION } from "@/consts";
-import "@/styles/home-cinema.css";
 ---
 
 <Layout
@@ -11,47 +11,5 @@ import "@/styles/home-cinema.css";
   hideFooter={true}
   headerMode="overlay"
 >
-  <div class="home-cinema" data-home-shell tabindex="0" aria-label="interactive homepage scene">
-    <section class="home-stage" data-home-stage aria-label="lsy homepage cinematic stage">
-      <div class="home-stage__layer stage-fog" aria-hidden="true"></div>
-      <div class="home-stage__layer stage-ground" aria-hidden="true"></div>
-      <div class="home-stage__layer stage-tunnel-frame" aria-hidden="true"><span></span><i></i><strong></strong><em></em></div>
-      <div class="home-stage__layer stage-tunnel-walls" aria-hidden="true"></div>
-      <div class="home-stage__layer stage-gate" aria-hidden="true"><span></span></div>
-      <div class="home-stage__layer stage-hall-frame" aria-hidden="true"><span></span></div>
-      <div class="home-stage__layer stage-installation" aria-hidden="true"><span></span><i></i><strong></strong></div>
-
-      <div class="home-stage__layer stage-identity">
-        <div class="stage-identity__plate">
-          <span class="stage-identity__meta">digital hall / mixed language / working notes</span>
-          <h1>lsy</h1>
-          <p>full-stack engineer</p>
-          <div class="stage-identity__tags" aria-label="identity keywords">
-            <span>build</span>
-            <span>systems</span>
-            <span>notes</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="stage-exits">
-        <div class="stage-exits__wrap">
-          <span class="stage-exits__kicker">pick a path</span>
-          <nav class="stage-exits__links" aria-label="primary destinations">
-            <a href="/articles" data-astro-prefetch="hover">notes</a>
-            <a href="/projects" data-astro-prefetch="hover">projects</a>
-            <a href="/about" data-astro-prefetch="hover">about</a>
-          </nav>
-        </div>
-      </div>
-    </section>
-
-    <div class="home-spacer" aria-hidden="true"></div>
-  </div>
-
-  <script>
-    import { initCinema } from "@/scripts/homeCinema";
-
-    initCinema();
-  </script>
+  <HomeDiorama />
 </Layout>

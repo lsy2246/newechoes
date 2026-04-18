@@ -1,0 +1,65 @@
+---
+import { getCollection } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import "./diorama.css";
+
+const articles = await getCollection("articles", ({ data }: CollectionEntry<"articles">) => !data.draft);
+const postCount = articles.length;
+const years = (() => {
+  const dates = articles
+    .map((a: CollectionEntry<"articles">) => a.data.date)
+    .filter(Boolean)
+    .map((d: Date | string) => new Date(d));
+  if (!dates.length) return 1;
+  const minYear = Math.min(...dates.map((d: Date) => d.getFullYear()));
+  return Math.max(1, new Date().getFullYear() - minYear + 1);
+})();
+const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
+---
+
+<div class="home-diorama" aria-label="interactive 3D diorama homepage">
+  <canvas class="home-diorama__canvas" data-diorama-canvas aria-hidden="true"></canvas>
+
+  <div class="home-diorama__hud">
+    <div class="diorama-hint" data-diorama-hint aria-hidden="true">
+      <span>drag to orbit · scroll for seasons · click objects</span>
+    </div>
+  </div>
+
+  <div class="diorama-sr-nav" aria-label="quick navigation">
+    <a href="/articles" data-astro-prefetch="hover">文章</a>
+    <a href="/projects" data-astro-prefetch="hover">项目</a>
+    <a href="/about" data-astro-prefetch="hover">关于</a>
+    <a href="/books" data-astro-prefetch="hover">读书</a>
+    <a href="/movies" data-astro-prefetch="hover">观影</a>
+  </div>
+
+  <div class="diorama-tooltip" data-diorama-tooltip aria-hidden="true"></div>
+</div>
+
+<script is:inline define:vars={{ autoPostsLabel }}>
+  window.__HOME_POSTS_LABEL = autoPostsLabel;
+</script>
+
+<script>
+  import { initDiorama } from "./diorama";
+
+  const isHome = () => {
+    const p = window.location.pathname;
+    return p === "/" || p === "";
+  };
+
+  const maybeInit = () => {
+    if (isHome()) initDiorama();
+  };
+
+  // Initial page load
+  maybeInit();
+
+  // Astro view transitions (fallback)
+  document.addEventListener("astro:page-load", maybeInit);
+
+  // Swup navigations — content has been replaced, diorama DOM is fresh
+  document.addEventListener("swup:contentReplaced", maybeInit);
+  document.addEventListener("swup:page:view", maybeInit);
+</script>

@@ -1,0 +1,146 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=JetBrains+Mono:wght@300;400;500&family=Noto+Serif+SC:wght@400;500;700&display=swap");
+
+.home-diorama {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
+  background: #f4efe3;
+  transition: background 0.6s ease;
+}
+
+[data-theme="dark"] .home-diorama {
+  background: #0d1829;
+}
+
+.home-diorama__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.home-diorama__hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  color: #1c1814;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  transition: color 0.6s ease;
+}
+
+[data-theme="dark"] .home-diorama__hud {
+  color: #ede8df;
+}
+
+.diorama-hint {
+  position: absolute;
+  bottom: 1.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  display: flex;
+  gap: 1.4rem;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.diorama-hint::before,
+.diorama-hint::after {
+  content: "";
+  width: 2rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+.diorama-hint.is-hidden {
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
+}
+
+.diorama-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-family: "JetBrains Mono", monospace;
+  background: rgba(28, 24, 20, 0.88);
+  color: #ede8df;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 0.2rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 60;
+  white-space: nowrap;
+  transform: translate(0, 0);
+}
+
+[data-theme="dark"] .diorama-tooltip {
+  background: rgba(237, 232, 223, 0.92);
+  color: #0d1829;
+}
+
+.diorama-tooltip.is-visible {
+  opacity: 1;
+}
+
+.diorama-sr-nav {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.diorama-sr-nav a:focus {
+  position: fixed;
+  top: 5rem;
+  left: 1rem;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 0.8rem;
+  background: #1c1814;
+  color: #ede8df;
+  z-index: 100;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-diorama,
+  .home-diorama__canvas,
+  .home-diorama__hud,
+  .diorama-hint,
+  .diorama-tooltip {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .diorama-hint {
+    bottom: 1rem;
+    font-size: 0.52rem;
+    letter-spacing: 0.22em;
+  }
+  .diorama-hint::before,
+  .diorama-hint::after {
+    width: 1rem;
+  }
+}

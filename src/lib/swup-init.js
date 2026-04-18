@@ -110,6 +110,15 @@ function hideLoadingSpinner(spinner) {
   }, 300);
 }
 
+// 根据当前路径同步首页专属的 body class
+// (home page 走 overlay header + full-bleed；其他页面不能带这些 class)
+function syncHomeBodyClasses() {
+  const path = window.location.pathname;
+  const isHome = path === '/' || path === '';
+  document.body.classList.toggle('layout-overlay-header', isHome);
+  document.body.classList.toggle('layout-full-bleed', isHome);
+}
+
 // 检查是否是文章相关页面
 function isArticlePage() {
   const path = window.location.pathname;
@@ -420,9 +429,13 @@ document.addEventListener('DOMContentLoaded', () => {
     isLoading = false;
     contentReady = false;
     animationInProgress = false;
-    
+
     // 最终确保隐藏加载动画
     hideLoadingSpinner(spinner);
+
+    // 同步首页专属的 body class —— swup 不会自动替换 body 属性
+    // 所以每次切页后按路径重新打/卸这些 class
+    syncHomeBodyClasses();
   });
   
   // 加载失败处理
