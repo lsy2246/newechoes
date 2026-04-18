@@ -73,6 +73,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
 <header
   class="fixed w-full top-0 z-50"
   id="main-header"
+  data-home-header
 >
   <div
     class="absolute inset-0 bg-gray-50/95 dark:bg-dark-bg/95"
@@ -93,7 +94,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         </div>
 
         <!-- 搜索框 - 桌面显示 -->
-        <div class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-xs ml-auto mr-4">
+        <div
+          class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-xs ml-auto mr-4"
+          data-home-header-search
+        >
           <Search client:load placeholder="搜索文章..." maxResults={5} />
         </div>
 

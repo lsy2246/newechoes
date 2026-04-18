@@ -6,6 +6,41 @@
   text-autospace: normal;
 }
 
+.layout-overlay-header #main-header {
+  background: transparent;
+}
+
+.layout-overlay-header #main-header[data-home-header] {
+  opacity: var(--home-header-opacity, 1);
+  transform: translateY(calc((1 - var(--home-header-opacity, 1)) * -1rem));
+  transition: opacity 0.42s ease, transform 0.42s ease;
+}
+
+.layout-overlay-header #main-header[data-home-header].is-home-hidden {
+  pointer-events: none;
+}
+
+.layout-overlay-header #header-bg {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.72), rgba(248, 250, 252, 0));
+}
+
+.layout-overlay-header #main-header[data-home-header] #header-bg {
+  opacity: calc(var(--home-header-opacity, 1) * 0.9);
+  transition: opacity 0.42s ease, background 0.42s ease, backdrop-filter 0.42s ease;
+}
+
+.layout-overlay-header #main-header[data-home-header] [data-home-header-search] {
+  display: none;
+}
+
+[data-theme="dark"] .layout-overlay-header #header-bg {
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.56), rgba(2, 6, 23, 0));
+}
+
+.layout-full-bleed {
+  position: relative;
+}
+
 /* 预留滚动条空间，避免页面加载后左右抖动 */
 html {
   scrollbar-gutter: stable;
