@@ -236,7 +236,7 @@ export function initDiorama() {
     ],
     tvBody: new THREE.MeshToonMaterial({ color: 0x2a2a30 }),
     pot: new THREE.MeshToonMaterial({ color: 0x9a6b4a }),
-    leaf: new THREE.MeshToonMaterial({ color: 0x9fc970 }),
+    leaf: new THREE.MeshToonMaterial({ color: 0x9fc970, side: THREE.DoubleSide }),
     personSkin: new THREE.MeshToonMaterial({ color: 0xeec8a8 }),
     personHair: new THREE.MeshToonMaterial({ color: 0x241811 }),
     personCloth: new THREE.MeshToonMaterial({ color: 0x4a6a8a }),
@@ -808,11 +808,7 @@ export function initDiorama() {
   notebook.rotation.y = -0.25;
   scene.add(notebook);
 
-  // ===== Plant (with seasonal growth on branches) =====
-  //  spring (0–0.25): leaves emerge on branch tips
-  //  summer (0.25–0.5): full bloom
-  //  autumn (0.5–0.75): leaves stay but color shifts to orange via SEASON_PALETTE.plant
-  //  winter (0.75–1): leaves drop one by one, only stem+branches remain
+  // ===== Bonsai Tree (with 8 seasonal states) =====
   const plant = new THREE.Group();
 
   const pot = new THREE.Mesh(
@@ -831,77 +827,238 @@ export function initDiorama() {
   soil.position.y = 0.185;
   plant.add(soil);
 
-  // Main stem
-  const stemLen = 0.36;
-  const stem = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.022, 0.03, stemLen, 8),
-    mats.deskLeg,
-  );
-  stem.position.y = 0.2 + stemLen / 2;
-  stem.castShadow = true;
-  plant.add(stem);
+  // Procedural Trunk and Branches (L-System style)
+  const trunkGroup = new THREE.Group();
+  trunkGroup.position.y = 0.2;
+  plant.add(trunkGroup);
 
-  // Branches off stem — compute tip positions for leaf placement
   const branches = new THREE.Group();
-  const branchLen = 0.22;
+  trunkGroup.add(branches);
+
   const branchTips: THREE.Vector3[] = [];
-  for (let i = 0; i < 4; i++) {
-    const branch = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.009, 0.014, branchLen, 6),
-      mats.deskLeg,
-    );
-    const a = (i / 4) * Math.PI * 2 + 0.3;
-    const baseY = 0.44 + (i % 2) * 0.06;
-    const basePos = new THREE.Vector3(Math.cos(a) * 0.04, baseY, Math.sin(a) * 0.04);
-    const rotZ = Math.cos(a) * 0.9;
-    const rotX = -Math.sin(a) * 0.9;
-    branch.position.copy(basePos);
-    branch.rotation.x = rotX;
-    branch.rotation.z = rotZ;
-    // Compute world-space tip (+Y end after rotation)
-    const up = new THREE.Vector3(0, 1, 0);
-    up.applyEuler(new THREE.Euler(rotX, 0, rotZ, "XYZ"));
-    up.multiplyScalar(branchLen / 2 + 0.02);
-    const tip = basePos.clone().add(up);
-    branchTips.push(tip);
+  const maxDepth = 4;
+
+  const buildBranch = (
+    startPos: THREE.Vector3,
+    dir: THREE.Vector3,
+    length: number,
+    radius: number,
+    depth: number,
+    upVector: THREE.Vector3
+  ) => {
+    // 1. Create the mesh
+    const branchGeo = new THREE.CylinderGeometry(radius * 0.6, radius, length, 6);
+    // Translate geometry so origin is at the base
+    branchGeo.translate(0, length / 2, 0);
+    const branch = new THREE.Mesh(branchGeo, mats.deskLeg);
+
+    // 2. Position at the base
+    branch.position.copy(startPos);
+
+    // 3. Orient the branch
+    const quaternion = new THREE.Quaternion();
+    // Cylinder by default points along Y axis (0, 1, 0)
+    quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    branch.quaternion.copy(quaternion);
+
+    branch.castShadow = true;
     branches.add(branch);
-  }
-  plant.add(branches);
 
-  // Leaves clustered AT branch tips (so they hang on branches, not float in air)
-  type LeafState = { mesh: THREE.Mesh; emerge: number; drop: number };
-  const leafStates: LeafState[] = [];
-  const leaves = new THREE.Group();
-  const leavesPerBranch = 4;
-  for (let t = 0; t < branchTips.length; t++) {
-    for (let j = 0; j < leavesPerBranch; j++) {
-      const leaf = new THREE.Mesh(
-        new THREE.SphereGeometry(0.075, 8, 6),
-        mats.leaf,
-      );
-      const tip = branchTips[t];
-      // Cluster at tip with small randomized offset
-      const jitter = 0.07;
-      leaf.position.set(
-        tip.x + (Math.random() - 0.5) * jitter,
-        tip.y + (Math.random() - 0.3) * jitter,
-        tip.z + (Math.random() - 0.5) * jitter,
-      );
-      leaf.scale.set(1, 1.35, 1);
-      leaf.castShadow = true;
-      // Stagger emerge during spring, stagger drop during winter
-      const leafIdx = t * leavesPerBranch + j;
-      const totalLeaves = branchTips.length * leavesPerBranch;
-      const emerge = (leafIdx / totalLeaves) * 0.2;
-      // leaves drop between 0.72 and 0.85 (early/mid winter); all gone by ~0.93
-      const drop = 0.72 + ((leafIdx * 5) % totalLeaves) / totalLeaves * 0.13;
-      leafStates.push({ mesh: leaf, emerge, drop });
-      leaves.add(leaf);
+    // 4. Calculate the tip position for the next branches or foliage
+    const endPos = startPos.clone().add(dir.clone().normalize().multiplyScalar(length));
+
+    // 5. Recursion or collect tip
+    if (depth >= maxDepth) {
+      branchTips.push(endPos);
+      return;
     }
-  }
-  plant.add(leaves);
 
-  // Move plant toward desk center so it doesn't hang off edge
+    // Add foliage not just at max depth
+    if (depth >= maxDepth - 1 || (depth === maxDepth - 2 && Math.random() > 0.5)) {
+       // Interpolate along the branch to make foliage denser
+       const midPos = startPos.clone().lerp(endPos, 0.5 + Math.random() * 0.4);
+       branchTips.push(midPos);
+    }
+
+    // Parameters for next branches
+    const lengthDecay = 0.65 + Math.random() * 0.15;
+    const radiusDecay = 0.6 + Math.random() * 0.1;
+    const branchCount = depth === 1 ? 2 : (Math.random() > 0.3 ? 2 : 3); // More branches at lower depths
+
+    // Create a base local rotation frame perpendicular to current direction
+    let localRight = new THREE.Vector3().crossVectors(upVector, dir).normalize();
+    if (localRight.lengthSq() < 0.001) {
+       localRight = new THREE.Vector3(1, 0, 0);
+    }
+    const localForward = new THREE.Vector3().crossVectors(localRight, dir).normalize();
+
+    // Determine how much to spread out from the main axis
+    let baseSpreadAngle = (0.6 + Math.random() * 0.3) / depth;
+    // Phototropism: bend slightly towards global up
+    const globalUpWeight = 0.15 * depth;
+
+    // Roll angle distributes branches around the stem
+    let currentRoll = Math.random() * Math.PI * 2;
+    const rollStep = (Math.random() > 0.5 ? 1 : -1) * (Math.PI * 2 / branchCount + (Math.random() - 0.5) * 0.5);
+
+    for (let i = 0; i < branchCount; i++) {
+        // Calculate new direction
+        const spreadAngle = baseSpreadAngle * (0.8 + Math.random() * 0.4);
+
+        // Vector spreading outward
+        const spreadVec = localRight.clone().multiplyScalar(Math.cos(currentRoll)).add(
+             localForward.clone().multiplyScalar(Math.sin(currentRoll))
+        );
+
+        // Combine forward direction with spread
+        let newDir = dir.clone().normalize().multiplyScalar(Math.cos(spreadAngle)).add(
+            spreadVec.multiplyScalar(Math.sin(spreadAngle))
+        );
+
+        // Apply phototropism (blend with global up)
+        newDir.lerp(new THREE.Vector3(0, 1, 0), globalUpWeight).normalize();
+
+        buildBranch(endPos, newDir, length * lengthDecay, radius * radiusDecay, depth + 1, dir);
+
+        currentRoll += rollStep;
+    }
+  };
+
+  // Start the recursive tree build
+  const startPos = new THREE.Vector3(0, 0, 0);
+  // Initial slightly twisted direction
+  const startDir = new THREE.Vector3((Math.random()-0.5)*0.2, 1, (Math.random()-0.5)*0.2).normalize();
+  const startLength = 0.2 + Math.random() * 0.05;
+  const startRadius = 0.025;
+  buildBranch(startPos, startDir, startLength, startRadius, 1, new THREE.Vector3(0,0,-1));
+
+  // Foliage elements (Leaves, Flowers, Buds)
+  const foliageGroup = new THREE.Group();
+  trunkGroup.add(foliageGroup);
+
+  type FoliageItem = {
+    mesh: THREE.Mesh;
+    type: "leaf" | "flower" | "bud";
+    baseScale: THREE.Vector3;
+    tipIdx: number;
+    localPos: THREE.Vector3;
+  };
+  const foliageItems: FoliageItem[] = [];
+
+  const addFoliageCluster = (tip: THREE.Vector3, tipIdx: number) => {
+    // 1. Leaves (flat planes, starburst/fan pattern, crossed for volume)
+    const numLeaves = 7;
+    for (let i = 0; i < numLeaves; i++) {
+      const offsetX = (Math.random() - 0.5) * 0.12;
+      const offsetY = (Math.random() - 0.2) * 0.08;
+      const offsetZ = (Math.random() - 0.5) * 0.12;
+      const baseScale = new THREE.Vector3(0.6 + Math.random() * 0.3, 0.6 + Math.random() * 0.3, 0.6 + Math.random() * 0.3);
+      const angle = (i / numLeaves) * Math.PI * 2 + Math.random() * 0.5;
+      const tilt = Math.random() * 0.8 + 0.2;
+
+      // Base leaf material with jitter
+      const leafMat = mats.leaf.clone();
+      leafMat.side = THREE.DoubleSide;
+      const hsl = { h: 0, s: 0, l: 0 };
+      leafMat.color.getHSL(hsl);
+      leafMat.color.setHSL(
+        hsl.h + (Math.random() - 0.5) * 0.05,
+        hsl.s + (Math.random() - 0.5) * 0.1,
+        hsl.l + (Math.random() - 0.5) * 0.1
+      );
+
+      // Create two meshes for volume (crossed planes)
+      for (let j = 0; j < 2; j++) {
+        const leafGeo = makeMapleGeo();
+        const leaf = new THREE.Mesh(leafGeo, leafMat);
+
+        leaf.position.set(tip.x + offsetX, tip.y + offsetY, tip.z + offsetZ);
+        leaf.scale.copy(baseScale);
+
+        const offsetAngle = angle + (j * Math.PI / 2); // 90-degree offset for the second plane
+        leaf.rotation.set(tilt * Math.cos(offsetAngle), offsetAngle, tilt * Math.sin(offsetAngle));
+
+        leaf.castShadow = true;
+        foliageGroup.add(leaf);
+        foliageItems.push({ mesh: leaf, type: "leaf", baseScale, tipIdx, localPos: leaf.position.clone() });
+      }
+    }
+
+    // 2. Flowers (Pink blossoms for spring, flat planes, crossed for volume, tighter cluster)
+    const numFlowers = 5;
+    for (let i = 0; i < numFlowers; i++) {
+      // Tighter cluster offsets
+      const offsetX = (Math.random() - 0.5) * 0.05;
+      const offsetY = (Math.random() - 0.5) * 0.05;
+      const offsetZ = (Math.random() - 0.5) * 0.05;
+      const baseScale = new THREE.Vector3(0.5, 0.5, 0.5);
+      const angle = (i / numFlowers) * Math.PI * 2 + Math.random() * 0.5;
+      const tilt = Math.random() * 0.8 + 0.2;
+
+      // Flower material with jitter
+      const flowerMat = new THREE.MeshToonMaterial({ color: 0xffb6c1, side: THREE.DoubleSide });
+      const hsl = { h: 0, s: 0, l: 0 };
+      flowerMat.color.getHSL(hsl);
+      flowerMat.color.setHSL(
+        hsl.h + (Math.random() - 0.5) * 0.05,
+        hsl.s + (Math.random() - 0.5) * 0.1,
+        hsl.l + (Math.random() - 0.5) * 0.1
+      );
+
+      // Create two meshes for volume (crossed planes)
+      for (let j = 0; j < 2; j++) {
+        const flowerGeo = makePetalGeo();
+        const flower = new THREE.Mesh(flowerGeo, flowerMat);
+
+        flower.position.set(tip.x + offsetX, tip.y + offsetY, tip.z + offsetZ);
+        flower.scale.copy(baseScale);
+
+        const offsetAngle = angle + (j * Math.PI / 2); // 90-degree offset for the second plane
+        flower.rotation.set(tilt * Math.cos(offsetAngle), offsetAngle, tilt * Math.sin(offsetAngle));
+
+        flower.castShadow = true;
+        foliageGroup.add(flower);
+        foliageItems.push({ mesh: flower, type: "flower", baseScale, tipIdx, localPos: flower.position.clone() });
+      }
+    }
+
+    // 3. Buds (True buds for early spring, using DodecahedronGeometry for volume)
+    const numBuds = 3;
+    for (let i = 0; i < numBuds; i++) {
+      const offsetX = (Math.random() - 0.5) * 0.08;
+      const offsetY = (Math.random() - 0.5) * 0.08;
+      const offsetZ = (Math.random() - 0.5) * 0.08;
+      const baseScale = new THREE.Vector3(1, 1, 1);
+      const angle = (i / numBuds) * Math.PI * 2 + Math.random() * 0.5;
+      const tilt = Math.random() * 0.8 + 0.2;
+
+      // Bud material with jitter
+      const budMat = new THREE.MeshToonMaterial({ color: 0x8fbc8f }); // Dark sea green
+      const hsl = { h: 0, s: 0, l: 0 };
+      budMat.color.getHSL(hsl);
+      budMat.color.setHSL(
+        hsl.h + (Math.random() - 0.5) * 0.05,
+        hsl.s + (Math.random() - 0.5) * 0.1,
+        hsl.l + (Math.random() - 0.5) * 0.1
+      );
+
+      // Volume bud
+      const budGeo = new THREE.DodecahedronGeometry(0.015, 0);
+      const bud = new THREE.Mesh(budGeo, budMat);
+
+      bud.position.set(tip.x + offsetX, tip.y + offsetY, tip.z + offsetZ);
+      bud.scale.copy(baseScale);
+      bud.rotation.set(tilt * Math.cos(angle), angle, tilt * Math.sin(angle));
+
+      bud.castShadow = true;
+      foliageGroup.add(bud);
+      foliageItems.push({ mesh: bud, type: "bud", baseScale, tipIdx, localPos: bud.position.clone() });
+    }
+  };
+
+  branchTips.forEach((tip, i) => addFoliageCluster(tip, i));
+
+  // Move plant toward desk center
   plant.position.set(1.5, deskTopWorldY, -0.2);
   scene.add(plant);
 
@@ -1263,7 +1420,7 @@ export function initDiorama() {
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   // ===== Season state =====
-  let seasonOfYear = 0.04;
+  let seasonOfYear = 0.3;
   let targetSeason = seasonOfYear;
   let currentTermIndex = -1;
   let needScreenRedraw = true;
@@ -1540,8 +1697,22 @@ export function initDiorama() {
   });
   canvasEl.style.cursor = "grab";
 
-  const clickHandler = (e: MouseEvent) => {
+  let startX = 0;
+  let startY = 0;
+
+  const pointerDownHandler = (e: PointerEvent) => {
+    startX = e.clientX;
+    startY = e.clientY;
+  };
+  canvasEl.addEventListener("pointerdown", pointerDownHandler);
+
+  const pointerUpHandler = (e: PointerEvent) => {
     if (tweening) return;
+
+    // Ignore if this was a drag/rotation
+    const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+    if (dist > 5) return;
+
     updatePointer(e.clientX, e.clientY);
     const hit = hitTest();
     if (!hit) return;
@@ -1568,7 +1739,7 @@ export function initDiorama() {
     };
     requestAnimationFrame(step);
   };
-  canvasEl.addEventListener("click", clickHandler);
+  canvasEl.addEventListener("pointerup", pointerUpHandler);
 
   // ===== Animation loop =====
   let rafId = 0;
@@ -1615,8 +1786,8 @@ export function initDiorama() {
     const baseRotZ = -0.06 * side;
     // SIGN FIX: for right arm (side=1), a key to the RIGHT of shoulder (deltaX > 0)
     // needs POSITIVE rotation.z to swing arm outward (previous code had wrong sign).
-    const raw = baseRotZ + side * deltaX * 3.0;
-    const targetRotZ = clamp(raw, -0.5, 0.5);
+    const raw = baseRotZ + side * deltaX * 1.2;
+    const targetRotZ = clamp(raw, -0.3, 0.3);
     ai.startRotZ = ai.currentRotZ;
     ai.targetRotZ = targetRotZ;
     ai.targetKeyIdx = pick.i;
@@ -1747,22 +1918,56 @@ export function initDiorama() {
     }
 
     // Plant sway + seasonal growth
-    leaves.rotation.y = Math.sin(now * 0.0005) * 0.05;
-    leaves.rotation.x = Math.sin(now * 0.0008) * 0.02;
-    branches.rotation.y = leaves.rotation.y * 0.5;
-    for (const l of leafStates) {
-      const sy = seasonOfYear;
-      let s = 0;
-      const emergeDur = 0.12;
-      const dropDur = 0.12;
-      if (sy < l.emerge) s = 0;
-      else if (sy < l.emerge + emergeDur) s = (sy - l.emerge) / emergeDur;
-      else if (sy < l.drop) s = 1;
-      else if (sy < l.drop + dropDur) s = 1 - (sy - l.drop) / dropDur;
-      else s = 0;
-      const scaleVal = Math.max(0.001, s);
-      l.mesh.scale.set(scaleVal, scaleVal * 1.4, scaleVal);
-      l.mesh.visible = s > 0.02;
+    foliageGroup.rotation.y = Math.sin(now * 0.0005) * 0.05;
+    foliageGroup.rotation.x = Math.sin(now * 0.0008) * 0.02;
+    branches.rotation.y = foliageGroup.rotation.y * 0.5;
+
+    const s = (seasonOfYear * 4) % 4; // 0.0 to 4.0 continuum for seasons
+
+    const smooth = (val: number) => easeInOutCubic(clamp(val, 0, 1));
+
+    for (const item of foliageItems) {
+      let scale = 0;
+
+      if (item.type === "bud") {
+        if (s > 3.5) scale = lerp(0.0, 1.0, smooth((s - 3.5) / 0.5));
+        else if (s <= 0.4) scale = lerp(1.0, 0.0, smooth(s / 0.4));
+        else scale = 0;
+      } else if (item.type === "flower") {
+        if (s <= 0.4) scale = lerp(0.0, 1.0, smooth(s / 0.4));
+        else if (s <= 0.8) scale = lerp(1.0, 0.0, smooth((s - 0.4) / 0.4));
+        else scale = 0;
+      } else if (item.type === "leaf") {
+        if (s <= 0.4) scale = 0;
+        else if (s <= 0.8) scale = lerp(0.0, 1.0, smooth((s - 0.4) / 0.4));
+        else if (s <= 2.5) scale = 1.0;
+        else if (s <= 3.0) {
+          const dropOffset = Math.abs(item.localPos.x * 10) % 0.3;
+          const t = s - dropOffset;
+          if (t < 2.5) scale = 1.0;
+          else if (t < 3.0) scale = lerp(1.0, 0.0, smooth((t - 2.5) / 0.5));
+          else scale = 0;
+        } else scale = 0;
+
+        if (scale > 0) {
+          const c = item.mesh.material as THREE.MeshToonMaterial;
+          if (s < 1.5) {
+            c.color.copy(plantColor); // Global green plant color
+          } else if (s < 2.5) {
+            // Gradual color change from green -> yellow -> orange -> red (1.5 to 2.0)
+            const tColor = clamp((s - 1.5) / 0.5, 0, 1);
+            if (tColor < 0.33) c.color.copy(plantColor).lerp(new THREE.Color(0xd4b84a), tColor / 0.33);
+            else if (tColor < 0.66) c.color.setHex(0xd4b84a).lerp(new THREE.Color(0xd4884a), (tColor - 0.33) / 0.33);
+            else c.color.setHex(0xd4884a).lerp(new THREE.Color(0xb04444), (tColor - 0.66) / 0.34);
+          } else {
+            c.color.setHex(0xb04444); // Stay red while falling
+          }
+        }
+      }
+
+      item.mesh.visible = scale > 0.01;
+      const v = Math.max(0.001, scale);
+      item.mesh.scale.set(item.baseScale.x * v, item.baseScale.y * v, item.baseScale.z * v);
     }
 
     // Person head/torso idle motion
@@ -1924,7 +2129,8 @@ export function initDiorama() {
     canvasEl.removeEventListener("touchmove", touchMove);
     canvasEl.removeEventListener("touchend", touchEnd);
     canvasEl.removeEventListener("pointermove", pointerMove);
-    canvasEl.removeEventListener("click", clickHandler);
+    canvasEl.removeEventListener("pointerdown", pointerDownHandler);
+    canvasEl.removeEventListener("pointerup", pointerUpHandler);
     themeObserver.disconnect();
     resizeObs.disconnect();
     controls.dispose();
