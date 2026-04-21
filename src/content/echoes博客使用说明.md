@@ -90,6 +90,7 @@ export const NAV_STRUCTURE = [
       { id: "path", text: "网格", href: "/articles" },
     ],
   },
+  { id: "albums", text: "相册", href: "/albums" },
 ];
 ```
 
@@ -131,6 +132,36 @@ export const ARTICLE_EXPIRY_CONFIG = {
 <DoubanCollection type="book" title="读过的书" doubanId="your-id" />
 ```
 
+### 相册瀑布流
+
+相册页使用 Google Photos 分享链接作为数据源，并通过 `@/components/PhotoAlbumMasonry` 实现类似豆瓣页面的无限瀑布流加载。
+
+在 `src/consts.ts` 中配置分享链接：
+
+```typescript
+export const PHOTO_ALBUM_CONFIG = {
+  shareUrl: "https://photos.app.goo.gl/your-share-id",
+  title: "我的相册",
+};
+```
+
+页面示例：
+
+```astro
+---
+import PhotoAlbumMasonry from "@/components/PhotoAlbumMasonry";
+import { PHOTO_ALBUM_CONFIG } from "@/consts";
+---
+
+<PhotoAlbumMasonry
+  shareUrl={PHOTO_ALBUM_CONFIG.shareUrl}
+  title={PHOTO_ALBUM_CONFIG.title}
+  client:load
+/>
+```
+
+> 相册数据来自 Google Photos 分享页内部接口，并非官方稳定 API。如果 Google 调整页面结构，可能需要同步适配。
+
 ### 微信读书书单
 
 使用 `@/components/WereadBookList` 展示书单：
@@ -158,5 +189,6 @@ export const ARTICLE_EXPIRY_CONFIG = {
 | ---------------- | -------------------------- |
 | 图片显示问题     | 确保图片放在 `public` 目录 |
 | 豆瓣数据无法加载 | 检查用户 ID，确认记录公开  |
+| 相册无法加载     | 检查 Google Photos 分享链接是否公开 |
 | Git 项目无法显示 | 验证用户名和 API 访问权限  |
 | WebAssembly 报错 | 检查浏览器支持和 CSP 设置  |

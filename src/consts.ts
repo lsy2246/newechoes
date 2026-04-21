@@ -20,6 +20,7 @@ export const NAV_STRUCTURE = [
             { id: 'books', text: '读书', href: '/books' }
         ]
     },
+    { id: 'albums', text: '相册', href: '/albums' },
     {
         id: 'other',
         text: '其他',
@@ -34,6 +35,11 @@ export const ARTICLE_EXPIRY_CONFIG = {
     enabled: true, // 是否启用文章过期提醒
     expiryDays: 365, // 文章过期天数
     warningMessage: '这篇文章已经发布超过一年了，内容可能已经过时，请谨慎参考。' // 提醒消息
+};
+
+export const PHOTO_ALBUM_CONFIG = {
+    shareUrl: 'https://photos.app.goo.gl/M62Uxp4Uz2CUwie9A',
+    title: '足迹'
 };
 
 // 主页 diorama —— 笔记本屏幕上显示的个人信息

@@ -1,0 +1,16 @@
+---
+import Layout from "@/components/Layout.astro";
+import PhotoAlbumMasonry from "@/components/PhotoAlbumMasonry";
+import { PHOTO_ALBUM_CONFIG } from "@/consts";
+---
+
+<Layout
+  title="相册"
+  description="旅行和生活照片合集"
+>
+  <PhotoAlbumMasonry
+    shareUrl={PHOTO_ALBUM_CONFIG.shareUrl}
+    title={PHOTO_ALBUM_CONFIG.title}
+    client:load
+  />
+</Layout>
