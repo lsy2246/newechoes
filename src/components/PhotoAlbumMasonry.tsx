@@ -32,6 +32,17 @@ interface AlbumResponse {
   nextCursor: string | null;
 }
 
+interface ScrollLockState {
+  scrollY: number;
+  overflow: string;
+  position: string;
+  top: string;
+  left: string;
+  right: string;
+  width: string;
+  paddingRight: string;
+}
+
 const REVEAL_BATCH_SIZE = 15;
 const CLIENT_TIMEOUT_MS = 12000;
 
@@ -53,6 +64,31 @@ const formatDuration = (durationMs: number | null) => {
 
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 };
+
+const getTakenAtValue = (takenAt: string | null) => {
+  if (!takenAt) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const parsed = Date.parse(takenAt);
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+};
+
+const sortPhotosForDisplay = (items: PhotoItem[]) =>
+  [...items].sort((left, right) => {
+    const leftTakenAt = getTakenAtValue(left.takenAt);
+    const rightTakenAt = getTakenAtValue(right.takenAt);
+
+    if (leftTakenAt !== rightTakenAt) {
+      return rightTakenAt - leftTakenAt;
+    }
+
+    if (left.index !== right.index) {
+      return left.index - right.index;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
 
 const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   shareUrl,
@@ -78,6 +114,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
   const imageFailureIdsRef = useRef(new Set<string>());
+  const scrollLockStateRef = useRef<ScrollLockState | null>(null);
 
   const stateRef = useRef({
     isLoading: false,
@@ -87,12 +124,15 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     nextCursor: null as string | null,
   });
 
+  const orderedPhotos = useMemo(() => sortPhotosForDisplay(photos), [photos]);
   const visiblePhotos = useMemo(
-    () => photos.slice(0, visibleCount),
-    [photos, visibleCount],
+    () => orderedPhotos.slice(0, visibleCount),
+    [orderedPhotos, visibleCount],
   );
 
-  const selectedPhoto = selectedIndex !== null ? photos[selectedIndex] : null;
+  const selectedPhoto = selectedIndex !== null ? orderedPhotos[selectedIndex] : null;
+  const selectedPhotoOrder = selectedIndex !== null ? selectedIndex + 1 : null;
+  const isPreviewOpen = selectedIndex !== null;
   const networkHint =
     imageFailureCount >= 3
       ? "检测到多张图片加载失败，当前网络可能无法访问 Google Photos 资源。"
@@ -227,12 +267,12 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
 
   const showNext = useCallback(() => {
     setSelectedIndex((current) => {
-      if (current === null || current >= photos.length - 1) {
+      if (current === null || current >= orderedPhotos.length - 1) {
         return current;
       }
       return current + 1;
     });
-  }, [photos.length]);
+  }, [orderedPhotos.length]);
 
   useEffect(() => {
     stateRef.current.visibleCount = visibleCount;
@@ -330,12 +370,35 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   }, [photos.length, visibleCount, isLoading, error, loadMore]);
 
   useEffect(() => {
-    if (selectedIndex === null) {
-      document.body.style.overflow = "";
+    if (!isPreviewOpen) {
       return;
     }
 
-    document.body.style.overflow = "hidden";
+    const bodyStyle = document.body.style;
+    const scrollY = window.scrollY;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    scrollLockStateRef.current = {
+      scrollY,
+      overflow: bodyStyle.overflow,
+      position: bodyStyle.position,
+      top: bodyStyle.top,
+      left: bodyStyle.left,
+      right: bodyStyle.right,
+      width: bodyStyle.width,
+      paddingRight: bodyStyle.paddingRight,
+    };
+
+    bodyStyle.overflow = "hidden";
+    bodyStyle.position = "fixed";
+    bodyStyle.top = `-${scrollY}px`;
+    bodyStyle.left = "0";
+    bodyStyle.right = "0";
+    bodyStyle.width = "100%";
+
+    if (scrollbarWidth > 0) {
+      bodyStyle.paddingRight = `${scrollbarWidth}px`;
+    }
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -350,10 +413,23 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.body.style.overflow = "";
+      const lockState = scrollLockStateRef.current;
+
+      if (lockState) {
+        bodyStyle.overflow = lockState.overflow;
+        bodyStyle.position = lockState.position;
+        bodyStyle.top = lockState.top;
+        bodyStyle.left = lockState.left;
+        bodyStyle.right = lockState.right;
+        bodyStyle.width = lockState.width;
+        bodyStyle.paddingRight = lockState.paddingRight;
+        window.scrollTo(0, lockState.scrollY);
+        scrollLockStateRef.current = null;
+      }
+
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [selectedIndex, closePreview, showNext, showPrev]);
+  }, [isPreviewOpen, closePreview, showNext, showPrev]);
 
   useEffect(() => {
     if (!selectedPhoto) {
@@ -514,11 +590,14 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
         className="-ml-4 flex w-auto"
         columnClassName="pl-4 bg-clip-padding"
       >
-        {visiblePhotos.map((photo) => (
+        {visiblePhotos.map((photo, photoOffset) => {
+          const photoOrder = photoOffset + 1;
+
+          return (
           <button
             key={photo.id}
             type="button"
-            onClick={() => openPreview(photo.index - 1)}
+            onClick={() => openPreview(photoOffset)}
             className="group mb-4 block w-full overflow-hidden rounded-xl bg-white text-left shadow-md transition hover:-translate-y-1 hover:shadow-xl dark:bg-gray-800"
           >
             <div
@@ -534,7 +613,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
 
               <img
                 src={photo.thumbUrl}
-                alt={album?.title ? `${album.title} ${photo.index}` : `相册照片 ${photo.index}`}
+                alt={album?.title ? `${album.title} ${photoOrder}` : `相册照片 ${photoOrder}`}
                 width={photo.width || undefined}
                 height={photo.height || undefined}
                 loading="lazy"
@@ -570,7 +649,8 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
               ) : null}
             </div>
           </button>
-        ))}
+          );
+        })}
       </Masonry>
 
       <div ref={scrollDetectorRef} className="h-4 w-full" aria-hidden="true" />
@@ -623,7 +703,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
             </button>
           ) : null}
 
-          {selectedIndex !== null && selectedIndex < photos.length - 1 ? (
+          {selectedIndex !== null && selectedIndex < orderedPhotos.length - 1 ? (
             <button
               type="button"
               onClick={(event) => {
@@ -662,7 +742,11 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
 
                   <img
                     src={selectedPhoto.previewUrl || selectedPhoto.displayUrl}
-                    alt={album?.title ? `${album.title} ${selectedPhoto.index}` : `相册缩略图 ${selectedPhoto.index}`}
+                    alt={
+                      album?.title && selectedPhotoOrder !== null
+                        ? `${album.title} ${selectedPhotoOrder}`
+                        : `相册缩略图 ${selectedPhotoOrder ?? ""}`.trim()
+                    }
                     className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
                       !previewVideoReady ? "opacity-100" : "opacity-0"
                     }`}
@@ -705,7 +789,11 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                   {previewImageUrl ? (
                     <img
                       src={previewImageUrl}
-                      alt={album?.title ? `${album.title} ${selectedPhoto.index}` : `相册缩略图 ${selectedPhoto.index}`}
+                      alt={
+                        album?.title && selectedPhotoOrder !== null
+                          ? `${album.title} ${selectedPhotoOrder}`
+                          : `相册缩略图 ${selectedPhotoOrder ?? ""}`.trim()
+                      }
                       className="absolute inset-0 h-full w-full object-contain"
                     />
                   ) : null}
@@ -713,7 +801,11 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                   {previewFullImageUrl ? (
                     <img
                       src={previewFullImageUrl}
-                      alt={album?.title ? `${album.title} ${selectedPhoto.index}` : `相册照片 ${selectedPhoto.index}`}
+                      alt={
+                        album?.title && selectedPhotoOrder !== null
+                          ? `${album.title} ${selectedPhotoOrder}`
+                          : `相册照片 ${selectedPhotoOrder ?? ""}`.trim()
+                      }
                       className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
                         previewFullLoaded ? "opacity-100" : "opacity-0"
                       }`}
@@ -726,7 +818,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
             <div className="flex w-full max-w-4xl items-center justify-between gap-4 rounded-2xl bg-black/60 px-4 py-3 text-white">
               <div>
                 <p className="text-sm font-medium">
-                  {selectedPhoto.mediaType === "video" ? "视频" : "图片"} #{selectedPhoto.index}
+                  {selectedPhoto.mediaType === "video" ? "视频" : "图片"} #{selectedPhotoOrder}
                 </p>
                 <p className="text-xs text-white/70">
                   {selectedPhoto.takenAt
