@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import ReactMasonryCss from "react-masonry-css";
 
 // Git 平台类型枚举
@@ -61,6 +61,25 @@ interface GitProjectCollectionProps {
   url?: string;
   className?: string; // 添加自定义类名
 }
+
+const compareProjectsByStars = (left: GitProject, right: GitProject) => {
+  if (left.stars !== right.stars) {
+    return right.stars - left.stars;
+  }
+
+  if (left.forks !== right.forks) {
+    return right.forks - left.forks;
+  }
+
+  const leftUpdatedAt = Date.parse(left.updatedAt);
+  const rightUpdatedAt = Date.parse(right.updatedAt);
+
+  if (!Number.isNaN(leftUpdatedAt) && !Number.isNaN(rightUpdatedAt) && leftUpdatedAt !== rightUpdatedAt) {
+    return rightUpdatedAt - leftUpdatedAt;
+  }
+
+  return left.name.localeCompare(right.name);
+};
 
 const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
   platform,
@@ -313,6 +332,11 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
     700: 1,
   };
 
+  const sortedProjects = useMemo(
+    () => [...projects].sort(compareProjectsByStars),
+    [projects],
+  );
+
   const getPlatformName = (platform: GitPlatform) => {
     return GIT_PLATFORM_CONFIG.platformNames[platform];
   };
@@ -405,7 +429,7 @@ const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
             className="flex -ml-4 w-auto"
             columnClassName="pl-4 bg-clip-padding"
           >
-            {projects.map((project) => (
+            {sortedProjects.map((project) => (
               <div
                 key={project.url}
                 className="mb-4 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 shadow-lg"
