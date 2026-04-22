@@ -39,7 +39,7 @@ export const ARTICLE_EXPIRY_CONFIG = {
 
 export const PHOTO_ALBUM_CONFIG = {
     shareUrl: 'https://photos.app.goo.gl/M62Uxp4Uz2CUwie9A',
-    title: '足迹'
+    title: '生活碎片'
 };
 
 // 主页 diorama —— 笔记本屏幕上显示的个人信息
