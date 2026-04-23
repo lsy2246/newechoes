@@ -73,3 +73,5 @@ upload_max_filesize
 上传邮件模板文件至 Chevereto `/app/themes/Peafowl/mails` 文件目录下即可，或者直接替换掉 `mails` 目录亦可。
 
 文件: [https://lsy22.lanzouf.com/i9crn0u8anhe](https://lsy22.lanzouf.com/i9crn0u8anhe)
+
+相关：[搭建本地图床 API 可搭配 Chevereto 使用](/articles/notes/web/搭建本地图床api可搭配chevereto使用)

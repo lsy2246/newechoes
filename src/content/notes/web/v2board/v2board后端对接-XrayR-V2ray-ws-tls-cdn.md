@@ -4,7 +4,9 @@ date: 2023-04-06T19:23:00Z
 tags: ["v2board"]
 ---
 
-确保 v2board 版本在 1.2.5 及以上
+确保 v2board 版本在 1.2.5 及以上。
+
+前端安装可先看 [搭建v2board前端](/articles/notes/web/v2board/搭建v2board前端)。
 
 ## 一、安装与更新
 
@@ -126,3 +128,9 @@ xrayr start
 ```bash
 XrayR
 ```
+
+## 七、相关方案
+
+- [v2board后端对接 soga](/articles/notes/web/v2board/v2board后端对接-soga)
+- [v2board后端对接 套cloudfront解决被墙和提升速度](/articles/notes/web/v2board/v2board后端对接-套cloudfront解决被墙和提升速度)
+- [v2board后端对接v2ray-warp使用Cloudflare-WARP解锁chatgpt-流媒体](/articles/notes/web/v2board/v2board后端对接v2ray-warp使用Cloudflare-WARP解锁chatgpt-流媒体)

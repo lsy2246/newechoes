@@ -6,7 +6,7 @@ tags: ["v2board"]
 
 ## 一、准备工作
 
-参照文章`v2board后端对接-XrayR`创建一个可用的节点。
+先按 [v2board后端对接-XrayR-V2ray-ws-tls-cdn](/articles/notes/web/v2board/v2board后端对接-XrayR-V2ray-ws-tls-cdn) 创建一个可用节点。
 
 ## 二、配置 AWS CloudFront
 

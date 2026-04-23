@@ -4,6 +4,8 @@ date: 2021-07-31T00:06:00+08:00
 tags: ["v2board"]
 ---
 
+后端对接：[XrayR](/articles/notes/web/v2board/v2board后端对接-XrayR-V2ray-ws-tls-cdn)、[soga](/articles/notes/web/v2board/v2board后端对接-soga)。
+
 ## 一、配置宝塔
 
 你需要在宝塔选择你的系统获得安装方式。这里以 CentOS 7+ 作为系统环境进行安装。

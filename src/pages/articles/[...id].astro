@@ -1018,7 +1018,7 @@ const tableOfContents = generateTableOfContents(headings);
             variants.forEach((variant) => {
               const normalized = normalizeArticleReference(variant);
               if (normalized) {
-                previewMap.set(normalized, entry);
+                previewMap.set(normalized.toLowerCase(), entry);
               }
             });
           });
@@ -1028,7 +1028,7 @@ const tableOfContents = generateTableOfContents(headings);
 
           function resolvePreview(href) {
             const normalized = normalizeArticleReference(href);
-            return normalized ? previewMap.get(normalized) || null : null;
+            return normalized ? previewMap.get(normalized.toLowerCase()) || null : null;
           }
 
           function clearHideTimer() {

@@ -83,7 +83,7 @@ export function createArticleReferenceResolver(articleIds: Iterable<string>) {
     for (const variant of getArticleRouteVariants(articleId)) {
       const normalized = normalizeArticleReferenceTarget(variant);
       if (normalized) {
-        routeMap.set(normalized, articleId);
+        routeMap.set(normalized.toLowerCase(), articleId);
       }
     }
   }
@@ -91,7 +91,7 @@ export function createArticleReferenceResolver(articleIds: Iterable<string>) {
   return (href: string) => {
     const normalized = normalizeArticleReferenceTarget(href);
     if (!normalized) return null;
-    return routeMap.get(normalized) ?? null;
+    return routeMap.get(normalized.toLowerCase()) ?? null;
   };
 }
 
