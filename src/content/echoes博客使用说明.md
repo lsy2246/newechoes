@@ -30,12 +30,40 @@ pnpm run dev  # 访问 http://localhost:4321
 **创建文章（推荐方式）：**
 
 ```bash
-pnpm new-post "文章标题"
+pnpm new-post
+```
+
+运行后会进入交互模式：
+
+- 动态扫描 `src/content` 下现有目录
+- 先选择目标目录，默认使用当前目录
+- 再输入文章标题
+
+**也支持直接指定目录：**
+
+```bash
+pnpm new-post "notes/web/文章标题"
 ```
 
 > `create_post.sh` 已废弃，请使用 `pnpm new-post`。
+> 也支持直接创建到根目录，例如 `pnpm new-post "文章标题"`。
 
-**手动创建：** 在 `src/content` 目录下创建 `.md` 文件
+**内容目录结构：**
+
+```text
+src/content/
+  echoes博客使用说明.md
+  常用软件.md
+  notes/
+    system/
+    web/
+    dev/
+  creator/
+  life/
+    travel/
+```
+
+**手动创建：** 在合适的内容目录下创建 `.md` 文件
 
 ```markdown
 ---
