@@ -125,6 +125,7 @@ const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeInOutCubic = (t: number) =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
 
 type Interactive = {
   object: THREE.Object3D;
@@ -142,17 +143,27 @@ export function initDiorama() {
   const canvasEl = document.querySelector<HTMLCanvasElement>("[data-diorama-canvas]");
   if (!canvasEl) return () => {};
 
+  const shellEl = document.querySelector<HTMLElement>("[data-home-shell]");
+  const sceneEl = document.querySelector<HTMLElement>("[data-home-scene]");
   const hintEl = document.querySelector<HTMLElement>("[data-diorama-hint]");
+  const cueEl = document.querySelector<HTMLElement>("[data-home-scroll-cue]");
   const tooltip = document.querySelector<HTMLElement>("[data-diorama-tooltip]");
+  const docEl = document.documentElement;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0xd8ecff, 7, 16);
 
-  // ===== Camera (inside-the-room view, wide framing) =====
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 60);
-  camera.position.set(1.15, 1.95, 1.55);
+  // ===== Camera (starts from the screen's internal view, then eases back into the room) =====
+  const roomCameraPos = new THREE.Vector3();
+  const roomCameraTarget = new THREE.Vector3();
+  const screenCameraPos = new THREE.Vector3();
+  const screenCameraTarget = new THREE.Vector3();
+  const screenFov = 20;
+  const roomFov = 50;
+
+  const camera = new THREE.PerspectiveCamera(screenFov, 1, 0.1, 60);
 
   const renderer = new THREE.WebGLRenderer({
     canvas: canvasEl,
@@ -172,11 +183,13 @@ export function initDiorama() {
   controls.dampingFactor = 0.09;
   controls.enablePan = false;
   controls.enableZoom = false;
-  controls.target.set(0, 0.5, -0.6);
+  controls.target.copy(roomCameraTarget);
   controls.minPolarAngle = Math.PI * 0.22;
   controls.maxPolarAngle = Math.PI * 0.5;
   // No azimuth limits — user can orbit freely around the diorama
   controls.rotateSpeed = 0.75;
+  controls.enabled = false;
+  controls.disconnect();
 
   // ===== Lights =====
   const sunLight = new THREE.DirectionalLight(0xffffff, 1.8);
@@ -205,7 +218,7 @@ export function initDiorama() {
   lampLight.position.set(-1.1, 0.85, -0.6);
   scene.add(lampLight);
 
-  const screenLight = new THREE.PointLight(0xede8df, 0.3, 1.2, 1.5);
+  const screenLight = new THREE.PointLight(0xede8df, 0, 1.2, 1.5);
   screenLight.position.set(0.1, 0.6, -0.25);
   scene.add(screenLight);
 
@@ -215,9 +228,9 @@ export function initDiorama() {
 
   // ===== Materials =====
   const mats = {
-    floor: new THREE.MeshStandardMaterial({ color: 0xb89068, roughness: 0.92 }),
-    wall: new THREE.MeshStandardMaterial({ color: 0xe8dfc8, roughness: 0.96 }),
-    ceiling: new THREE.MeshStandardMaterial({ color: 0xf2ebd8, roughness: 0.98 }),
+    floor: new THREE.MeshStandardMaterial({ color: 0xb89068, roughness: 0.92, transparent: true }),
+    wall: new THREE.MeshStandardMaterial({ color: 0xe8dfc8, roughness: 0.96, transparent: true }),
+    ceiling: new THREE.MeshStandardMaterial({ color: 0xf2ebd8, roughness: 0.98, transparent: true }),
     deskTop: new THREE.MeshToonMaterial({ color: 0xb58863 }),
     deskLeg: new THREE.MeshToonMaterial({ color: 0x6b4a32 }),
     lampBody: new THREE.MeshToonMaterial({ color: 0x2a2420 }),
@@ -226,9 +239,9 @@ export function initDiorama() {
     laptopBody: new THREE.MeshToonMaterial({ color: 0x8a8d94 }),
     laptopFrame: new THREE.MeshToonMaterial({ color: 0x3a3e48 }),
     screen: null as unknown as THREE.MeshBasicMaterial,
-    windowFrame: new THREE.MeshToonMaterial({ color: 0x6b4a32 }),
-    windowSill: new THREE.MeshToonMaterial({ color: 0xa27c54 }),
-    sky: new THREE.MeshBasicMaterial({ color: 0xd8ecff }),
+    windowFrame: new THREE.MeshToonMaterial({ color: 0x6b4a32, transparent: true }),
+    windowSill: new THREE.MeshToonMaterial({ color: 0xa27c54, transparent: true }),
+    sky: new THREE.MeshBasicMaterial({ color: 0xd8ecff, transparent: true }),
     books: [
       new THREE.MeshToonMaterial({ color: 0xb04444 }),
       new THREE.MeshToonMaterial({ color: 0x3e7d6a }),
@@ -246,6 +259,33 @@ export function initDiorama() {
     mapleLeaf: new THREE.MeshBasicMaterial({ color: 0xd46830, transparent: true, opacity: 0, side: THREE.DoubleSide }),
     snow: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }),
   };
+  const revealMaterials: THREE.Material[] = [
+    mats.floor,
+    mats.wall,
+    mats.ceiling,
+    mats.deskTop,
+    mats.deskLeg,
+    mats.lampBody,
+    mats.lampShade,
+    mats.bulb,
+    mats.laptopBody,
+    mats.laptopFrame,
+    ...mats.books,
+    mats.tvBody,
+    mats.pot,
+    mats.leaf,
+    mats.personSkin,
+    mats.personHair,
+    mats.personCloth,
+    mats.key,
+    mats.windowFrame,
+    mats.windowSill,
+    mats.sky,
+  ];
+  for (const mat of revealMaterials) {
+    mat.transparent = true;
+    mat.opacity = 0;
+  }
 
   // ===== Room =====
   const roomX = 3.2;
@@ -667,8 +707,8 @@ export function initDiorama() {
 
   // Screen canvas texture (1024×640 logical — fast to regen, crisp enough with high aniso)
   const screenCanvas = document.createElement("canvas");
-  screenCanvas.width = 1024;
-  screenCanvas.height = 640;
+  screenCanvas.width = 2048;
+  screenCanvas.height = 1280;
   const screenCtx = screenCanvas.getContext("2d")!;
   const screenTexture = new THREE.CanvasTexture(screenCanvas);
   screenTexture.colorSpace = THREE.SRGBColorSpace;
@@ -874,9 +914,13 @@ export function initDiorama() {
     }
 
     // Add foliage not just at max depth
-    if (depth >= maxDepth - 1 || (depth === maxDepth - 2 && Math.random() > 0.5)) {
-       // Interpolate along the branch to make foliage denser
-       const midPos = startPos.clone().lerp(endPos, 0.5 + Math.random() * 0.4);
+    if (depth >= maxDepth - 1) {
+       // Collect a couple of near-terminal positions so the canopy feels fuller.
+       const midPosA = startPos.clone().lerp(endPos, 0.38 + Math.random() * 0.22);
+       const midPosB = startPos.clone().lerp(endPos, 0.62 + Math.random() * 0.2);
+       branchTips.push(midPosA, midPosB);
+    } else if (depth === maxDepth - 2 && Math.random() > 0.25) {
+       const midPos = startPos.clone().lerp(endPos, 0.48 + Math.random() * 0.3);
        branchTips.push(midPos);
     }
 
@@ -935,6 +979,7 @@ export function initDiorama() {
   // Foliage elements (Leaves, Flowers, Buds)
   const foliageGroup = new THREE.Group();
   trunkGroup.add(foliageGroup);
+  const foliageMaterials: THREE.MeshToonMaterial[] = [];
 
   type FoliageItem = {
     mesh: THREE.Mesh;
@@ -947,18 +992,21 @@ export function initDiorama() {
 
   const addFoliageCluster = (tip: THREE.Vector3, tipIdx: number) => {
     // 1. Leaves (flat planes, starburst/fan pattern, crossed for volume)
-    const numLeaves = 7;
+    const numLeaves = 11;
     for (let i = 0; i < numLeaves; i++) {
-      const offsetX = (Math.random() - 0.5) * 0.12;
-      const offsetY = (Math.random() - 0.2) * 0.08;
-      const offsetZ = (Math.random() - 0.5) * 0.12;
-      const baseScale = new THREE.Vector3(0.6 + Math.random() * 0.3, 0.6 + Math.random() * 0.3, 0.6 + Math.random() * 0.3);
       const angle = (i / numLeaves) * Math.PI * 2 + Math.random() * 0.5;
+      const radius = 0.016 + Math.random() * 0.045;
+      const offsetX = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.018;
+      const offsetY = (Math.random() - 0.08) * 0.06;
+      const offsetZ = Math.sin(angle) * radius + (Math.random() - 0.5) * 0.018;
+      const baseScale = new THREE.Vector3(0.56 + Math.random() * 0.34, 0.56 + Math.random() * 0.34, 0.56 + Math.random() * 0.34);
       const tilt = Math.random() * 0.8 + 0.2;
 
       // Base leaf material with jitter
       const leafMat = mats.leaf.clone();
       leafMat.side = THREE.DoubleSide;
+      leafMat.transparent = true;
+      leafMat.opacity = 0;
       const hsl = { h: 0, s: 0, l: 0 };
       leafMat.color.getHSL(hsl);
       leafMat.color.setHSL(
@@ -966,6 +1014,7 @@ export function initDiorama() {
         hsl.s + (Math.random() - 0.5) * 0.1,
         hsl.l + (Math.random() - 0.5) * 0.1
       );
+      foliageMaterials.push(leafMat);
 
       // Create two meshes for volume (crossed planes)
       for (let j = 0; j < 2; j++) {
@@ -985,18 +1034,23 @@ export function initDiorama() {
     }
 
     // 2. Flowers (Pink blossoms for spring, flat planes, crossed for volume, tighter cluster)
-    const numFlowers = 5;
+    const numFlowers = 7;
     for (let i = 0; i < numFlowers; i++) {
-      // Tighter cluster offsets
-      const offsetX = (Math.random() - 0.5) * 0.05;
-      const offsetY = (Math.random() - 0.5) * 0.05;
-      const offsetZ = (Math.random() - 0.5) * 0.05;
-      const baseScale = new THREE.Vector3(0.5, 0.5, 0.5);
       const angle = (i / numFlowers) * Math.PI * 2 + Math.random() * 0.5;
+      const radius = 0.01 + Math.random() * 0.03;
+      const offsetX = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.012;
+      const offsetY = (Math.random() - 0.3) * 0.04;
+      const offsetZ = Math.sin(angle) * radius + (Math.random() - 0.5) * 0.012;
+      const baseScale = new THREE.Vector3(0.48 + Math.random() * 0.08, 0.48 + Math.random() * 0.08, 0.48 + Math.random() * 0.08);
       const tilt = Math.random() * 0.8 + 0.2;
 
       // Flower material with jitter
-      const flowerMat = new THREE.MeshToonMaterial({ color: 0xffb6c1, side: THREE.DoubleSide });
+      const flowerMat = new THREE.MeshToonMaterial({
+        color: 0xffb6c1,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0,
+      });
       const hsl = { h: 0, s: 0, l: 0 };
       flowerMat.color.getHSL(hsl);
       flowerMat.color.setHSL(
@@ -1004,6 +1058,7 @@ export function initDiorama() {
         hsl.s + (Math.random() - 0.5) * 0.1,
         hsl.l + (Math.random() - 0.5) * 0.1
       );
+      foliageMaterials.push(flowerMat);
 
       // Create two meshes for volume (crossed planes)
       for (let j = 0; j < 2; j++) {
@@ -1023,17 +1078,22 @@ export function initDiorama() {
     }
 
     // 3. Buds (True buds for early spring, using DodecahedronGeometry for volume)
-    const numBuds = 3;
+    const numBuds = 4;
     for (let i = 0; i < numBuds; i++) {
-      const offsetX = (Math.random() - 0.5) * 0.08;
-      const offsetY = (Math.random() - 0.5) * 0.08;
-      const offsetZ = (Math.random() - 0.5) * 0.08;
-      const baseScale = new THREE.Vector3(1, 1, 1);
       const angle = (i / numBuds) * Math.PI * 2 + Math.random() * 0.5;
+      const radius = 0.012 + Math.random() * 0.038;
+      const offsetX = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.016;
+      const offsetY = (Math.random() - 0.3) * 0.05;
+      const offsetZ = Math.sin(angle) * radius + (Math.random() - 0.5) * 0.016;
+      const baseScale = new THREE.Vector3(0.9 + Math.random() * 0.18, 0.9 + Math.random() * 0.18, 0.9 + Math.random() * 0.18);
       const tilt = Math.random() * 0.8 + 0.2;
 
       // Bud material with jitter
-      const budMat = new THREE.MeshToonMaterial({ color: 0x8fbc8f }); // Dark sea green
+      const budMat = new THREE.MeshToonMaterial({
+        color: 0x8fbc8f,
+        transparent: true,
+        opacity: 0,
+      }); // Dark sea green
       const hsl = { h: 0, s: 0, l: 0 };
       budMat.color.getHSL(hsl);
       budMat.color.setHSL(
@@ -1041,6 +1101,7 @@ export function initDiorama() {
         hsl.s + (Math.random() - 0.5) * 0.1,
         hsl.l + (Math.random() - 0.5) * 0.1
       );
+      foliageMaterials.push(budMat);
 
       // Volume bud
       const budGeo = new THREE.DodecahedronGeometry(0.015, 0);
@@ -1087,6 +1148,8 @@ export function initDiorama() {
   const tvScreenMat = new THREE.MeshBasicMaterial({
     map: tvScreenTexture,
     toneMapped: false,
+    transparent: true,
+    opacity: 0,
   });
   const tvScreenMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(tvW - 0.08, tvH - 0.08),
@@ -1376,6 +1439,47 @@ export function initDiorama() {
     { object: tv, label: "电视 · 观影", route: "/movies", basePos: tv.position.clone() },
   ];
 
+  const screenWorldNormal = new THREE.Vector3();
+  const screenWorldUp = new THREE.Vector3();
+  const screenWorldRight = new THREE.Vector3();
+  const screenCenterWorld = new THREE.Vector3();
+  const screenHalfW = (lpScreenW - 0.06) / 2;
+  const screenHalfH = (lpScreenH - 0.06) / 2;
+  const syncScreenIntroCamera = () => {
+    scene.updateMatrixWorld(true);
+    const screenQuat = screenFace.getWorldQuaternion(new THREE.Quaternion());
+    screenCenterWorld.copy(screenFace.localToWorld(new THREE.Vector3(0, 0, 0.002)));
+    screenWorldNormal.set(0, 0, 1).applyQuaternion(screenQuat).normalize();
+    screenWorldUp.set(0, 1, 0).applyQuaternion(screenQuat).normalize();
+    screenWorldRight.set(1, 0, 0).applyQuaternion(screenQuat).normalize();
+
+    const tanHalfFov = Math.tan(THREE.MathUtils.degToRad(screenFov) / 2);
+    const fitByHeight = screenHalfH / Math.max(0.0001, tanHalfFov);
+    const fitByWidth = screenHalfW / Math.max(0.0001, tanHalfFov * camera.aspect);
+    const introDistance = Math.min(fitByHeight, fitByWidth) * 0.965;
+
+    screenCameraTarget
+      .copy(screenCenterWorld)
+      .addScaledVector(screenWorldUp, -0.015);
+    screenCameraPos
+      .copy(screenCenterWorld)
+      .addScaledVector(screenWorldNormal, introDistance)
+      .addScaledVector(screenWorldUp, -0.015);
+
+    roomCameraTarget
+      .copy(screenCenterWorld)
+      .addScaledVector(screenWorldUp, -0.18)
+      .addScaledVector(screenWorldRight, -0.04);
+    roomCameraPos
+      .copy(screenCenterWorld)
+      .addScaledVector(screenWorldNormal, 4.1)
+      .addScaledVector(screenWorldUp, 1.45)
+      .addScaledVector(screenWorldRight, 0.62);
+  };
+  syncScreenIntroCamera();
+  camera.position.copy(screenCameraPos);
+  controls.target.copy(screenCameraTarget);
+
   // ===== Theme =====
   const getTheme = (): ThemeName => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
   let theme: ThemeName = getTheme();
@@ -1419,10 +1523,33 @@ export function initDiorama() {
   });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
+  // ===== Scroll-driven homepage state =====
+  let homeProgress = 0;
+  let scrollTargetProgress = 0;
+
+  const getScrollProgress = () => {
+    if (!shellEl) return 1;
+    const rect = shellEl.getBoundingClientRect();
+    const total = Math.max(1, rect.height - window.innerHeight);
+    return clamp(-rect.top / total);
+  };
+  const syncScrollProgress = () => {
+    scrollTargetProgress = getScrollProgress();
+  };
+  syncScrollProgress();
+  window.addEventListener("scroll", syncScrollProgress, { passive: true });
+  window.addEventListener("resize", syncScrollProgress);
+
+  const applyHomeState = (progress: number) => {
+    const value = progress.toFixed(4);
+    docEl.style.setProperty("--home-progress", value);
+    sceneEl?.style.setProperty("--home-progress", value);
+    sceneEl?.setAttribute("data-home-phase", progress > 0.86 ? "room" : "page");
+    cueEl?.setAttribute("data-home-visible", progress < 0.75 ? "true" : "false");
+  };
+
   // ===== Season state =====
-  let seasonOfYear = 0.3;
-  let targetSeason = seasonOfYear;
-  let currentTermIndex = -1;
+  const seasonOfYear = 0.3;
   let needScreenRedraw = true;
   let cursorOn = true;
   let cursorLastToggle = performance.now();
@@ -1505,101 +1632,136 @@ export function initDiorama() {
     const W = screenCanvas.width;
     const H = screenCanvas.height;
     const p = THEMES[theme];
+    const drawChip = (x: number, y: number, text: string, accent = false) => {
+      ctx.font = "500 16px 'JetBrains Mono', monospace";
+      const width = ctx.measureText(text).width + 28;
+      ctx.fillStyle = accent ? "rgba(228, 185, 90, 0.16)" : "rgba(255, 255, 255, 0.05)";
+      ctx.strokeStyle = accent ? "rgba(228, 185, 90, 0.35)" : "rgba(255, 255, 255, 0.09)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, 28, 14);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = accent ? p.screenAccent : p.screenMuted;
+      ctx.fillText(text, x + 14, y + 19);
+    };
+    const drawNote = (x: number, y: number, w: number, h: number, title: string, value: string, accent = false) => {
+      const fill = accent ? "rgba(255, 255, 255, 0.075)" : "rgba(255, 255, 255, 0.045)";
+      const stroke = accent ? "rgba(228, 185, 90, 0.28)" : "rgba(255, 255, 255, 0.08)";
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 22);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = p.screenMuted;
+      ctx.font = "500 16px 'JetBrains Mono', monospace";
+      ctx.fillText(title, x + 22, y + 28);
+      ctx.fillStyle = accent ? p.screenAccent : p.screenText;
+      ctx.font = `600 ${accent ? 28 : 24}px 'JetBrains Mono', monospace`;
+      ctx.fillText(value, x + 22, y + 62);
+    };
 
-    // bg + vignette
     ctx.fillStyle = p.screenBg;
     ctx.fillRect(0, 0, W, H);
-    const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.9);
-    g.addColorStop(0, "rgba(255,255,255,0)");
-    g.addColorStop(1, "rgba(0,0,0,0.35)");
-    ctx.fillStyle = g;
+
+    const wash = ctx.createRadialGradient(W * 0.24, H * 0.2, 30, W * 0.24, H * 0.2, W * 0.7);
+    wash.addColorStop(0, "rgba(228, 185, 90, 0.14)");
+    wash.addColorStop(0.5, "rgba(80, 136, 226, 0.06)");
+    wash.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = wash;
     ctx.fillRect(0, 0, W, H);
 
-    // title bar (mac-style)
-    ctx.fillStyle = "rgba(255,255,255,0.05)";
-    ctx.fillRect(0, 0, W, 50);
-    ctx.beginPath(); ctx.fillStyle = "#ff5f57"; ctx.arc(26, 25, 7, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.fillStyle = "#febc2e"; ctx.arc(48, 25, 7, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.fillStyle = "#28c840"; ctx.arc(70, 25, 7, 0, Math.PI * 2); ctx.fill();
-    ctx.font = "600 19px 'JetBrains Mono', monospace";
-    ctx.fillStyle = p.screenMuted;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
-    ctx.fillText("echoes ~ /home", W / 2, 32);
-
-    // big name (Fraunces)
-    ctx.fillStyle = p.screenText;
-    ctx.font = "400 168px 'Fraunces', 'Noto Serif SC', serif";
-    ctx.textAlign = "center";
-    ctx.fillText(HOME_PROFILE.title, W / 2, 200);
-
-    // subtitle
-    ctx.font = "600 22px 'JetBrains Mono', monospace";
-    ctx.fillStyle = p.screenMuted;
-    ctx.fillText(HOME_PROFILE.subtitle, W / 2, 258);
-
-    // separator hairline
-    ctx.strokeStyle = p.screenMuted;
-    ctx.globalAlpha = 0.4;
+    ctx.save();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
     ctx.lineWidth = 1;
+    for (let x = 24; x < W; x += 56) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    for (let y = 20; y < H; y += 56) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.moveTo(W * 0.2, 298);
-    ctx.lineTo(W * 0.8, 298);
+    ctx.moveTo(342, 194);
+    ctx.bezierCurveTo(480, 152, 680, 152, 856, 214);
     ctx.stroke();
-    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(324, 396);
+    ctx.bezierCurveTo(482, 452, 662, 456, 858, 404);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(882, 252);
+    ctx.bezierCurveTo(1020, 226, 1170, 214, 1368, 254);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(680, 540);
+    ctx.bezierCurveTo(816, 518, 972, 536, 1138, 600);
+    ctx.stroke();
 
-    // Info rows (label right-aligned, value left-aligned from pillar)
-    ctx.font = "600 24px 'JetBrains Mono', monospace";
-    const pillarX = W * 0.36;
-    const labelX = pillarX - 16;
-    const valueX = pillarX + 16;
-    const rowH = 42;
-    let rowY = 345;
+    ctx.fillStyle = p.screenMuted;
+    ctx.font = "600 18px 'JetBrains Mono', monospace";
+    ctx.fillText("echoes / focus map", 118, 84);
 
-    const rows = [...HOME_PROFILE.rows];
-    // append auto-computed "posts" row (count + years from Astro content)
-    const autoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
-    if (autoPosts) {
-      rows.push({ label: "posts", value: autoPosts });
-    }
-    // append live "now" row
-    const nowStr = formatNowBeijing();
-    rows.push({ label: "now", value: nowStr });
-
-    for (const row of rows) {
-      ctx.textAlign = "right";
-      ctx.fillStyle = p.screenMuted;
-      ctx.font = "500 22px 'JetBrains Mono', monospace";
-      ctx.fillText(row.label, labelX, rowY);
-      ctx.textAlign = "left";
-      ctx.fillStyle = row.label === "now" ? p.screenAccent : p.screenText;
-      ctx.font = "600 24px 'JetBrains Mono', monospace";
-      ctx.fillText(row.value, valueX, rowY);
-      rowY += rowH;
-    }
-
-    // Typewriter line (rotating status, types → holds → deletes → next)
-    rowY += 14;
-    ctx.font = "600 26px 'JetBrains Mono', monospace";
-    ctx.textAlign = "left";
-    const prefix = "> ";
-    const prefixW = ctx.measureText(prefix).width;
-    const typerX = pillarX - 80;
-    ctx.fillStyle = p.screenAccent;
-    ctx.fillText(prefix, typerX, rowY);
     ctx.fillStyle = p.screenText;
-    ctx.fillText(typerText, typerX + prefixW, rowY);
+    ctx.font = "400 156px 'Fraunces', 'Noto Serif SC', serif";
+    ctx.fillText(HOME_PROFILE.title, 176, 252);
+    ctx.font = "500 27px 'JetBrains Mono', monospace";
+    ctx.fillStyle = p.screenMuted;
+    ctx.fillText(HOME_PROFILE.subtitle, 188, 304);
+
+    drawChip(180, 348, "inside the page", true);
+    drawChip(386, 348, "scroll to pull back");
+    drawChip(638, 348, "notes / projects / reading");
+    drawChip(994, 348, "room appears later");
+
+    const autoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
+    const nowStr = formatNowBeijing();
+    const rows = Object.fromEntries(HOME_PROFILE.rows.map((row) => [row.label, row.value]));
+
+    drawNote(164, 444, 328, 112, "stack", rows.stack ?? "Rust · TypeScript");
+    drawNote(556, 430, 410, 142, "signal", "camera pulls back", true);
+    drawNote(1010, 178, 416, 106, "contact", rows.contact ?? "lsy22@vip.qq.com");
+    drawNote(1038, 404, 306, 108, "articles", autoPosts ?? "ongoing");
+    drawNote(1124, 590, 220, 92, "now", nowStr.slice(11), true);
+
+    ctx.fillStyle = p.screenMuted;
+    ctx.font = "500 17px 'JetBrains Mono', monospace";
+    ctx.fillText("attention", 842, 214);
+    ctx.fillText("screen", 884, 404);
+    ctx.fillText("room", 1366, 246);
+
+    const typerX = 184;
+    const typerY = 650;
+    ctx.fillStyle = p.screenMuted;
+    ctx.font = "500 16px 'JetBrains Mono', monospace";
+    ctx.fillText("current thread", typerX, typerY);
+    ctx.fillStyle = p.screenAccent;
+    ctx.font = "600 24px 'JetBrains Mono', monospace";
+    ctx.fillText("> ", typerX, typerY + 36);
+    ctx.fillStyle = p.screenText;
+    ctx.fillText(typerText, typerX + 30, typerY + 36);
     if (cursorOn) {
       const tw = ctx.measureText(typerText);
       ctx.fillStyle = p.screenAccent;
-      ctx.fillRect(typerX + prefixW + tw.width + 4, rowY - 22, 13, 28);
+      ctx.fillRect(typerX + 34 + tw.width, typerY + 15, 12, 24);
     }
 
-    // bottom hint
-    ctx.font = "500 18px 'JetBrains Mono', monospace";
     ctx.fillStyle = p.screenMuted;
+    ctx.font = "500 18px 'JetBrains Mono', monospace";
     ctx.textAlign = "center";
-    ctx.fillText("drag to orbit · scroll for seasons · click objects", W / 2, H - 32);
+    ctx.fillText("scroll to pull the camera back · drag later · click objects", W / 2, H - 40);
+    ctx.textAlign = "left";
 
     screenTexture.needsUpdate = true;
   };
@@ -1612,11 +1774,13 @@ export function initDiorama() {
     const h = Math.max(1, rect.height || window.innerHeight);
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
+    syncScreenIntroCamera();
     camera.updateProjectionMatrix();
   };
   resize();
   const resizeObs = new ResizeObserver(resize);
   resizeObs.observe(canvasEl);
+  applyHomeState(homeProgress);
 
   // ===== Input =====
   let hintHidden = false;
@@ -1626,34 +1790,46 @@ export function initDiorama() {
     hintEl?.classList.add("is-hidden");
   };
 
-  const wheelHandler = (e: WheelEvent) => {
-    e.preventDefault();
-    targetSeason = (targetSeason + e.deltaY * 0.00026 + 1) % 1;
-    markInteracted();
-  };
-  canvasEl.addEventListener("wheel", wheelHandler, { passive: false });
-
-  let touchY: number | null = null;
-  const touchStart = (e: TouchEvent) => { touchY = e.touches[0]?.clientY ?? null; };
-  const touchMove = (e: TouchEvent) => {
-    if (touchY == null) return;
-    const y = e.touches[0]?.clientY;
-    if (typeof y !== "number") return;
-    const dy = touchY - y;
-    if (Math.abs(dy) < 2) return;
-    targetSeason = (targetSeason + dy * 0.0006 + 1) % 1;
-    touchY = y;
-    markInteracted();
-  };
-  const touchEnd = () => { touchY = null; };
-  canvasEl.addEventListener("touchstart", touchStart, { passive: true });
-  canvasEl.addEventListener("touchmove", touchMove, { passive: true });
-  canvasEl.addEventListener("touchend", touchEnd);
-
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let hovered: Interactive | null = null;
   let tweening = false;
+  let canInteractScene = false;
+  let canvasCapturesInput = false;
+  let controlsConnected = false;
+  let sceneCapturesInput = true;
+
+  const syncCanvasInputMode = (interactive: boolean) => {
+    if (canvasCapturesInput === interactive) return;
+    canvasCapturesInput = interactive;
+    canvasEl.style.pointerEvents = interactive ? "auto" : "none";
+    canvasEl.style.touchAction = "pan-y";
+    if (!interactive) {
+      hovered = null;
+      canvasEl.style.cursor = "default";
+      tooltip?.classList.remove("is-visible");
+    }
+  };
+  syncCanvasInputMode(false);
+
+  const syncSceneInputMode = (interactive: boolean) => {
+    if (!sceneEl || sceneCapturesInput === interactive) return;
+    sceneCapturesInput = interactive;
+    sceneEl.style.pointerEvents = interactive ? "auto" : "none";
+    sceneEl.style.touchAction = "pan-y";
+  };
+  syncSceneInputMode(false);
+
+  const syncControlsConnection = (interactive: boolean) => {
+    if (controlsConnected === interactive) return;
+    controlsConnected = interactive;
+    if (interactive) {
+      controls.connect(canvasEl);
+    } else {
+      controls.disconnect();
+    }
+  };
+  syncControlsConnection(false);
 
   const updatePointer = (clientX: number, clientY: number) => {
     const rect = canvasEl.getBoundingClientRect();
@@ -1670,6 +1846,12 @@ export function initDiorama() {
   };
 
   const pointerMove = (e: PointerEvent) => {
+    if (!canInteractScene || tweening) {
+      hovered = null;
+      canvasEl.style.cursor = "default";
+      tooltip?.classList.remove("is-visible");
+      return;
+    }
     if (tweening) return;
     updatePointer(e.clientX, e.clientY);
     const hit = hitTest();
@@ -1692,10 +1874,10 @@ export function initDiorama() {
   canvasEl.addEventListener("pointermove", pointerMove);
   canvasEl.addEventListener("pointerleave", () => {
     hovered = null;
-    canvasEl.style.cursor = "grab";
+    canvasEl.style.cursor = canInteractScene ? "grab" : "default";
     tooltip?.classList.remove("is-visible");
   });
-  canvasEl.style.cursor = "grab";
+  canvasEl.style.cursor = "default";
 
   let startX = 0;
   let startY = 0;
@@ -1707,7 +1889,7 @@ export function initDiorama() {
   canvasEl.addEventListener("pointerdown", pointerDownHandler);
 
   const pointerUpHandler = (e: PointerEvent) => {
-    if (tweening) return;
+    if (!canInteractScene || tweening) return;
 
     // Ignore if this was a drag/rotation
     const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
@@ -1740,6 +1922,15 @@ export function initDiorama() {
     requestAnimationFrame(step);
   };
   canvasEl.addEventListener("pointerup", pointerUpHandler);
+
+  const passWheelThrough = (e: WheelEvent) => {
+    if (!controlsConnected) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    window.scrollBy({ top: e.deltaY, left: 0, behavior: "auto" });
+  };
+  canvasEl.addEventListener("wheel", passWheelThrough, { passive: false, capture: true });
+  sceneEl?.addEventListener("wheel", passWheelThrough, { passive: false, capture: true });
 
   // ===== Animation loop =====
   let rafId = 0;
@@ -1804,14 +1995,33 @@ export function initDiorama() {
     const dt = Math.min(64, now - lastFrame);
     lastFrame = now;
 
-    let diff = targetSeason - seasonOfYear;
-    if (diff > 0.5) diff -= 1;
-    if (diff < -0.5) diff += 1;
-    seasonOfYear = (seasonOfYear + diff * Math.min(1, dt * 0.0022) + 1) % 1;
+    const nextProgress = scrollTargetProgress;
+    homeProgress = nextProgress;
 
-    const termIdx = Math.floor(seasonOfYear * 24) % 24;
-    if (termIdx !== currentTermIndex) {
-      currentTermIndex = termIdx;
+    applyHomeState(homeProgress);
+
+    const cameraPull = easeInOutSine(clamp((homeProgress - 0.01) / 0.97));
+    const outsideReveal = easeInOutSine(clamp((homeProgress - 0.025) / 0.48));
+    const roomReveal = easeInOutSine(clamp((homeProgress - 0.04) / 0.72));
+    const sceneInteraction = easeInOutSine(clamp((homeProgress - 0.86) / 0.1));
+    const controlsShouldEnable = !tweening && homeProgress > 0.965;
+    syncSceneInputMode(controlsShouldEnable);
+    syncCanvasInputMode(controlsShouldEnable);
+    syncControlsConnection(controlsShouldEnable);
+    canInteractScene = controlsShouldEnable && sceneInteraction > 0.22;
+    if (!canInteractScene) {
+      hovered = null;
+      tooltip?.classList.remove("is-visible");
+    }
+
+    if (controls.enabled !== controlsShouldEnable) {
+      controls.enabled = controlsShouldEnable;
+      if (!controlsShouldEnable) {
+        canvasEl.style.cursor = "default";
+      } else {
+        canvasEl.style.cursor = "grab";
+        markInteracted();
+      }
     }
 
     // Typewriter tick (types → holds → deletes → idle → next line)
@@ -1871,16 +2081,53 @@ export function initDiorama() {
     const neutralSun = new THREE.Color(theme === "dark" ? 0xeadabf : 0xfff0dc);
     const neutralAmb = new THREE.Color(theme === "dark" ? 0x4a4538 : 0xf2ead8);
     sunLight.color.copy(neutralSun).lerp(sunColor, 0.08);
-    sunLight.intensity = lerp(theme === "dark" ? 0.7 : 1.5, sunI, 0.5);
+    sunLight.intensity = lerp(theme === "dark" ? 0.64 : 1.28, sunI, 0.5) * lerp(0.72, 1, outsideReveal);
     ambient.color.copy(neutralAmb).lerp(ambColor, 0.08);
-    ambient.intensity = lerp(theme === "dark" ? 0.45 : 0.6, ambI, 0.35);
+    ambient.intensity = lerp(theme === "dark" ? 0.42 : 0.56, ambI, 0.35) * lerp(0.86, 1, outsideReveal);
     windowLight.color.copy(skyColor);
-    windowLight.intensity = Math.max(0.3, sunI * 0.45);
+    windowLight.intensity = Math.max(0.24, sunI * 0.45) * lerp(0.55, 1, outsideReveal);
+    screenLight.intensity = lerp(0, theme === "dark" ? 0.18 : 0.3, easeInOutSine(clamp((homeProgress - 0.8) / 0.14)));
     mats.sky.color.copy(skyColor);
     mats.leaf.color.copy(plantColor);
-    if (scene.fog) (scene.fog as THREE.Fog).color.copy(fogColor);
+    if (scene.fog) {
+      const fog = scene.fog as THREE.Fog;
+      fog.color
+        .setHex(theme === "dark" ? 0x0f1828 : 0xf1e7d9)
+        .lerp(fogColor, outsideReveal);
+      fog.near = lerp(11.8, 7, outsideReveal);
+      fog.far = lerp(26, 16, outsideReveal);
+    }
 
-    scene.background = new THREE.Color(THEMES[theme].sceneBg);
+    scene.background = new THREE.Color(THEMES[theme].screenBg).lerp(
+      new THREE.Color(THEMES[theme].sceneBg),
+      outsideReveal,
+    );
+    renderer.toneMappingExposure = lerp(1.28, 1.05, outsideReveal);
+    mats.floor.opacity = lerp(0.08, 1, outsideReveal);
+    mats.wall.opacity = lerp(0.04, 1, roomReveal);
+    mats.ceiling.opacity = lerp(0.04, 1, roomReveal);
+    mats.deskTop.opacity = outsideReveal;
+    mats.deskLeg.opacity = outsideReveal;
+    mats.lampBody.opacity = roomReveal;
+    mats.lampShade.opacity = roomReveal;
+    mats.bulb.opacity = roomReveal;
+    mats.laptopBody.opacity = outsideReveal;
+    mats.laptopFrame.opacity = outsideReveal;
+    mats.books[0].opacity = roomReveal;
+    mats.books[1].opacity = roomReveal;
+    mats.books[2].opacity = roomReveal;
+    mats.tvBody.opacity = roomReveal;
+    tvScreenMat.opacity = roomReveal;
+    mats.pot.opacity = roomReveal;
+    mats.leaf.opacity = roomReveal;
+    for (const foliageMat of foliageMaterials) foliageMat.opacity = roomReveal;
+    mats.personSkin.opacity = roomReveal;
+    mats.personHair.opacity = roomReveal;
+    mats.personCloth.opacity = roomReveal;
+    mats.key.opacity = outsideReveal;
+    mats.windowFrame.opacity = lerp(0.12, 1, roomReveal);
+    mats.windowSill.opacity = lerp(0.12, 1, roomReveal);
+    mats.sky.opacity = lerp(0.2, 1, outsideReveal);
 
     // Particle system opacity (cross-fade between current/next season)
     const raw = seasonOfYear * 4;
@@ -1892,7 +2139,7 @@ export function initDiorama() {
       let op = 0;
       if (s === seasonIdx) op = 1 - easeInOutCubic(localFrac);
       else if (s === nextIdx) op = easeInOutCubic(localFrac);
-      particleSystems[key].material.opacity = op * 0.95;
+      particleSystems[key].material.opacity = op * lerp(0.12, 0.95, roomReveal);
     }
 
     // Screen cursor blink & redraw
@@ -1912,7 +2159,7 @@ export function initDiorama() {
     // Hover bob
     for (const it of interactives) {
       if (it.object === windowHitbox) continue;
-      const isH = hovered === it;
+      const isH = canInteractScene && hovered === it;
       const bobY = isH ? 0.04 + Math.sin(now * 0.005) * 0.01 : 0;
       it.object.position.y += (it.basePos.y + bobY - it.object.position.y) * 0.18;
     }
@@ -2040,8 +2287,8 @@ export function initDiorama() {
       if (sy < 0.9) return 0;
       return (sy - 0.9) / 0.1; // ghost sun starts coming back late winter / early spring
     })();
-    (sunDisc.material as THREE.MeshBasicMaterial).opacity = sunOp * 0.95;
-    (sunGlow.material as THREE.MeshBasicMaterial).opacity = sunOp * 0.35;
+    (sunDisc.material as THREE.MeshBasicMaterial).opacity = sunOp * lerp(0.28, 0.95, outsideReveal);
+    (sunGlow.material as THREE.MeshBasicMaterial).opacity = sunOp * lerp(0.1, 0.35, outsideReveal);
     // Sun color shifts with theme (dark theme = dimmer warm)
     const sunTint = theme === "dark" ? 0xffd080 : 0xffecb3;
     (sunDisc.material as THREE.MeshBasicMaterial).color.setHex(sunTint);
@@ -2053,7 +2300,7 @@ export function initDiorama() {
       if (sy < 0.5) return 0.35; // spring + summer: light clouds
       return 0.55 + easeInOutCubic(Math.min(1, (sy - 0.5) / 0.3)) * 0.35; // autumn + winter: heavier
     })();
-    (cloudMat as THREE.MeshBasicMaterial).opacity = overcast;
+    (cloudMat as THREE.MeshBasicMaterial).opacity = overcast * lerp(0.42, 1, outsideReveal);
     (cloudMat as THREE.MeshBasicMaterial).color.setHex(
       theme === "dark" ? 0x8894a8 : 0xf8f4ec,
     );
@@ -2101,6 +2348,13 @@ export function initDiorama() {
       sys.mesh.instanceMatrix.needsUpdate = true;
     }
 
+    if (!controls.enabled) {
+      camera.position.lerpVectors(screenCameraPos, roomCameraPos, cameraPull);
+      controls.target.lerpVectors(screenCameraTarget, roomCameraTarget, cameraPull);
+    }
+    camera.fov = lerp(screenFov, roomFov, cameraPull);
+    camera.updateProjectionMatrix();
+
     controls.update();
     renderer.render(scene, camera);
     rafId = requestAnimationFrame(animate);
@@ -2114,23 +2368,19 @@ export function initDiorama() {
     ]).then(() => drawScreen()).catch(() => {});
   }
 
-  if (reduceMotion) {
-    drawScreen();
-    renderer.render(scene, camera);
-  } else {
-    rafId = requestAnimationFrame(animate);
-  }
+  drawScreen();
+  rafId = requestAnimationFrame(animate);
 
   // ===== Cleanup =====
   const cleanup = () => {
     if (rafId) cancelAnimationFrame(rafId);
-    canvasEl.removeEventListener("wheel", wheelHandler);
-    canvasEl.removeEventListener("touchstart", touchStart);
-    canvasEl.removeEventListener("touchmove", touchMove);
-    canvasEl.removeEventListener("touchend", touchEnd);
+    window.removeEventListener("scroll", syncScrollProgress);
+    window.removeEventListener("resize", syncScrollProgress);
     canvasEl.removeEventListener("pointermove", pointerMove);
     canvasEl.removeEventListener("pointerdown", pointerDownHandler);
     canvasEl.removeEventListener("pointerup", pointerUpHandler);
+    canvasEl.removeEventListener("wheel", passWheelThrough, { capture: true });
+    sceneEl?.removeEventListener("wheel", passWheelThrough, { capture: true });
     themeObserver.disconnect();
     resizeObs.disconnect();
     controls.dispose();
@@ -2146,6 +2396,13 @@ export function initDiorama() {
     });
     screenTexture.dispose();
     renderer.dispose();
+    docEl.style.removeProperty("--home-progress");
+    sceneEl?.style.removeProperty("--home-progress");
+    if (sceneEl) sceneEl.style.pointerEvents = "";
+    if (sceneEl) sceneEl.style.touchAction = "";
+    canvasEl.style.touchAction = "";
+    sceneEl?.removeAttribute("data-home-phase");
+    cueEl?.removeAttribute("data-home-visible");
 
     const w = window as unknown as Record<string, unknown>;
     if (w[CLEANUP_KEY] === cleanup) delete w[CLEANUP_KEY];

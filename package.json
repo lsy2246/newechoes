@@ -42,6 +42,7 @@
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "astro-compressor": "^1.2.0",
+    "playwright": "^1.60.0",
     "rehype-external-links": "^3.0.0"
   }
 }
