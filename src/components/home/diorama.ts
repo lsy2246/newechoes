@@ -1,6 +1,13 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { HOME_PROFILE } from "@/consts";
+import {
+  createHomeBoardContent,
+  type HomeBoardContent,
+  type HomeBoardDevice,
+  type HomeBoardItem,
+} from "./homeBoard";
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
 
@@ -81,10 +88,10 @@ const THEMES: Record<ThemeName, Theme> = {
     personSkin: 0xeec8a8,
     personHair: 0x241811,
     personCloth: 0x4a6a8a,
-    screenBg: "#0e0f14",
-    screenText: "#f5f0e6",
-    screenMuted: "#b8ac98",
-    screenAccent: "#e4b95a",
+    screenBg: "#f5f1e8",
+    screenText: "#211912",
+    screenMuted: "#7d6d5b",
+    screenAccent: "#b88430",
     keyTop: 0x2a2a30,
     windowFrame: 0x6b4a32,
     windowSill: 0xa27c54,
@@ -110,10 +117,10 @@ const THEMES: Record<ThemeName, Theme> = {
     personSkin: 0xa88060,
     personHair: 0x100a08,
     personCloth: 0x2a3a5a,
-    screenBg: "#090a10",
+    screenBg: "#111722",
     screenText: "#f5f0e6",
-    screenMuted: "#9d8e7b",
-    screenAccent: "#ffc878",
+    screenMuted: "#ad9f8d",
+    screenAccent: "#efc678",
     keyTop: 0x0e0e12,
     windowFrame: 0x2a1e14,
     windowSill: 0x3a2a1c,
@@ -134,6 +141,59 @@ type Interactive = {
   basePos: THREE.Vector3;
 };
 
+type ScreenCarrierPreset = {
+  canvas: { width: number; height: number };
+  screen: { w: number; h: number; t: number };
+  groupPosition: THREE.Vector3;
+  groupRotationX: number;
+  screenFaceYOffset: number;
+  screenBodyOffsetZ: number;
+  cameraFit: number;
+  roomDistance: number;
+  roomUp: number;
+  roomRight: number;
+  introTargetUp: number;
+  roomTargetUp: number;
+  roomTargetRight: number;
+};
+
+const getDeviceClass = (width: number, height: number): HomeBoardDevice => {
+  return width > height ? "desktop" : "mobile";
+};
+
+const SCREEN_CARRIER_PRESETS: Record<HomeBoardDevice, ScreenCarrierPreset> = {
+  desktop: {
+    canvas: { width: 2048, height: 1280 },
+    screen: { w: 1.2, h: 0.78, t: 0.026 },
+    groupPosition: new THREE.Vector3(0, 0.055, -0.4),
+    groupRotationX: -0.22,
+    screenFaceYOffset: 0.39,
+    screenBodyOffsetZ: -0.013,
+    cameraFit: 0.975,
+    roomDistance: 4.1,
+    roomUp: 1.45,
+    roomRight: 0.62,
+    introTargetUp: -0.015,
+    roomTargetUp: -0.18,
+    roomTargetRight: -0.04,
+  },
+  mobile: {
+    canvas: { width: 1280, height: 2304 },
+    screen: { w: 0.29, h: 0.6, t: 0.022 },
+    groupPosition: new THREE.Vector3(0, 0.08, -0.055),
+    groupRotationX: -0.1,
+    screenFaceYOffset: 0,
+    screenBodyOffsetZ: -0.01,
+    cameraFit: 0.99,
+    roomDistance: 3.94,
+    roomUp: 1.3,
+    roomRight: 0.28,
+    introTargetUp: 0,
+    roomTargetUp: 0.06,
+    roomTargetRight: 0.08,
+  },
+};
+
 export function initDiorama() {
   if (typeof window === "undefined") return () => {};
 
@@ -145,10 +205,26 @@ export function initDiorama() {
 
   const shellEl = document.querySelector<HTMLElement>("[data-home-shell]");
   const sceneEl = document.querySelector<HTMLElement>("[data-home-scene]");
+  const boardHitareaEl = document.querySelector<HTMLElement>("[data-home-board-hitarea]");
   const hintEl = document.querySelector<HTMLElement>("[data-diorama-hint]");
   const cueEl = document.querySelector<HTMLElement>("[data-home-scroll-cue]");
   const tooltip = document.querySelector<HTMLElement>("[data-diorama-tooltip]");
   const docEl = document.documentElement;
+  const deviceClass = getDeviceClass(window.innerWidth, window.innerHeight);
+  const screenPreset = SCREEN_CARRIER_PRESETS[deviceClass];
+  const useMobileCarrier = deviceClass === "mobile";
+  let activeBoard = createHomeBoardContent(
+    {
+      title: HOME_PROFILE.title,
+      subtitle: HOME_PROFILE.subtitle,
+      stack: "Rust · TypeScript",
+      contact: "lsy22@vip.qq.com",
+      postsLabel: "ongoing",
+      thread: HOME_PROFILE.typewriter[0] ?? "now building",
+      now: "北京时间加载中",
+    },
+    deviceClass,
+  );
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -688,27 +764,31 @@ export function initDiorama() {
   lpBase.position.y = lpBaseH / 2 + 0.002;
   lpBase.castShadow = true;
   lpBase.receiveShadow = true;
+  lpBase.visible = !useMobileCarrier;
   laptop.add(lpBase);
 
   // Screen (hinged at back edge)
   const lpScreenGroup = new THREE.Group();
-  lpScreenGroup.position.set(0, lpBaseH + 0.005, -lpBaseD / 2 + 0.02);
-  const lpScreenW = 1.2;
-  const lpScreenH = 0.78;
-  const lpScreenT = 0.026;
+  lpScreenGroup.position.copy(screenPreset.groupPosition);
+  const lpScreenW = screenPreset.screen.w;
+  const lpScreenH = screenPreset.screen.h;
+  const lpScreenT = screenPreset.screen.t;
+  let mobileShellH = 0;
+  let mobileShellDepth = 0;
   const lpScreenBody = new THREE.Mesh(
     new THREE.BoxGeometry(lpScreenW, lpScreenH, lpScreenT),
     mats.laptopFrame,
   );
-  lpScreenBody.position.y = lpScreenH / 2;
-  lpScreenBody.position.z = -lpScreenT / 2;
+  lpScreenBody.position.y = screenPreset.screenFaceYOffset;
+  lpScreenBody.position.z = screenPreset.screenBodyOffsetZ;
   lpScreenBody.castShadow = true;
+  lpScreenBody.visible = !useMobileCarrier;
   lpScreenGroup.add(lpScreenBody);
 
   // Screen canvas texture (1024×640 logical — fast to regen, crisp enough with high aniso)
   const screenCanvas = document.createElement("canvas");
-  screenCanvas.width = 2048;
-  screenCanvas.height = 1280;
+  screenCanvas.width = screenPreset.canvas.width;
+  screenCanvas.height = screenPreset.canvas.height;
   const screenCtx = screenCanvas.getContext("2d")!;
   const screenTexture = new THREE.CanvasTexture(screenCanvas);
   screenTexture.colorSpace = THREE.SRGBColorSpace;
@@ -722,10 +802,12 @@ export function initDiorama() {
     new THREE.PlaneGeometry(lpScreenW - 0.06, lpScreenH - 0.06),
     mats.screen,
   );
-  screenFace.position.set(0, lpScreenH / 2, 0.002);
+  const screenFaceW = lpScreenW - 0.06;
+  const screenFaceH = lpScreenH - 0.06;
+  screenFace.position.set(0, screenPreset.screenFaceYOffset, 0.002);
   lpScreenGroup.add(screenFace);
 
-  lpScreenGroup.rotation.x = -0.22;
+  lpScreenGroup.rotation.x = screenPreset.groupRotationX;
   laptop.add(lpScreenGroup);
 
   // Keyboard (InstancedMesh)
@@ -769,6 +851,7 @@ export function initDiorama() {
   keyMesh.setMatrixAt(k++, keyDummy.matrix);
   keyDummy.scale.set(1, 1, 1);
   keyMesh.instanceMatrix.needsUpdate = true;
+  keyMesh.visible = !useMobileCarrier;
   laptop.add(keyMesh);
 
   // Trackpad (visual only)
@@ -777,9 +860,60 @@ export function initDiorama() {
     mats.laptopFrame,
   );
   trackpad.position.set(0, lpBaseH + 0.002, 0.28);
+  trackpad.visible = !useMobileCarrier;
   laptop.add(trackpad);
 
-  laptop.position.set(0.1, deskTopWorldY, -0.2);
+  if (useMobileCarrier) {
+    const shellPaddingX = 0.04;
+    const shellPaddingTop = 0.054;
+    const shellPaddingBottom = 0.064;
+    const shellDepth = 0.044;
+    const shellRadius = 0.07;
+    const shellW = screenFaceW + shellPaddingX * 2;
+    const shellH = screenFaceH + shellPaddingTop + shellPaddingBottom;
+    mobileShellH = shellH;
+    mobileShellDepth = shellDepth;
+
+    const phoneShell = new THREE.Mesh(
+      new RoundedBoxGeometry(shellW, shellH, shellDepth, 8, shellRadius),
+      mats.laptopBody,
+    );
+    phoneShell.position.set(0, screenPreset.screenFaceYOffset, 0);
+    phoneShell.castShadow = true;
+    phoneShell.receiveShadow = true;
+    lpScreenGroup.add(phoneShell);
+
+    const innerFrame = new THREE.Mesh(
+      new RoundedBoxGeometry(screenFaceW + 0.036, screenFaceH + 0.036, 0.016, 6, shellRadius * 0.78),
+      mats.laptopFrame,
+    );
+    innerFrame.position.set(0, screenPreset.screenFaceYOffset, shellDepth / 2 - 0.008);
+    innerFrame.visible = false;
+
+    screenFace.position.z = shellDepth / 2 + 0.003;
+
+    const sensor = new THREE.Mesh(
+      new THREE.SphereGeometry(0.009, 16, 16),
+      mats.key,
+    );
+    sensor.position.set(0, screenPreset.screenFaceYOffset + shellH / 2 - 0.042, shellDepth / 2 + 0.001);
+    lpScreenGroup.add(sensor);
+
+    const speaker = new THREE.Mesh(
+      new RoundedBoxGeometry(0.09, 0.012, 0.01, 4, 0.005),
+      mats.laptopBody,
+    );
+    speaker.position.set(0, screenPreset.screenFaceYOffset + shellH / 2 - 0.068, shellDepth / 2 + 0.001);
+    lpScreenGroup.add(speaker);
+
+  }
+
+  laptop.position.set(
+    useMobileCarrier ? -0.02 : 0.1,
+    deskTopWorldY + (useMobileCarrier ? 0.22 : 0),
+    useMobileCarrier ? -0.26 : -0.2,
+  );
+  laptop.rotation.set(0, 0, 0);
   scene.add(laptop);
 
   // ===== Book stack (→ /articles?collection=books) =====
@@ -1363,12 +1497,11 @@ export function initDiorama() {
     elbowGroup.add(hand);
 
     person.add(armGroup);
-    return { armGroup, elbowGroup, hand };
+    return { armGroup, elbowGroup, wrist, hand };
   }
 
   const leftArm = makeArm(-1);
   const rightArm = makeArm(1);
-
   // ---- Legs: thighs horizontal forward (-Z), shins vertical down, feet on floor ----
   function makeLeg(side: -1 | 1) {
     const thighLen = 0.42;
@@ -1427,14 +1560,182 @@ export function initDiorama() {
 
   // Seated further back from laptop: chair+seat at z=0.55, so hips at z=0.55
   person.position.set(0.15, 0, 0.55);
+  person.scale.setScalar(1);
+  person.rotation.set(0, 0, 0);
+  leftArm.armGroup.rotation.x = 1.24;
+  leftArm.armGroup.rotation.z = 0.06;
+  leftArm.elbowGroup.rotation.x = 0.32;
+  leftArm.hand.position.set(0, -0.435, 0.04);
+  rightArm.armGroup.rotation.x = 1.24;
+  rightArm.armGroup.rotation.z = -0.06;
+  rightArm.elbowGroup.rotation.x = 0.32;
+  rightArm.hand.position.set(0, -0.435, 0.04);
+  torso.rotation.x = 0;
+  torso.rotation.y = 0;
+  head.position.z = 0;
+  hair.position.z = 0;
+  if (useMobileCarrier) {
+    person.position.set(-0.02, 0, 0.62);
+    person.scale.setScalar(0.84);
+    person.rotation.y = 0;
+    chairSeat.scale.z = 0.84;
+    chairBack.scale.z = 0.86;
+    chairBack.position.z = 0.31;
+    shoulderL.position.z = 0.03;
+    shoulderR.position.z = 0.03;
+    torso.scale.set(0.92, 1, 0.72);
+    pelvis.scale.z = 0.72;
+    leftArm.armGroup.visible = false;
+    rightArm.armGroup.visible = false;
+    torso.rotation.x = -0.1;
+    torso.rotation.y = 0;
+    head.position.z = -0.015;
+    hair.position.z = -0.015;
+
+    const deskHandY = deskTopWorldY + 0.018;
+    const toPersonLocal = (world: THREE.Vector3) =>
+      world.clone().sub(person.position).divideScalar(person.scale.x);
+    const makeBone = (
+      start: THREE.Vector3,
+      end: THREE.Vector3,
+      radiusTop: number,
+      radiusBottom: number,
+      material: THREE.Material,
+    ) => {
+      const delta = end.clone().sub(start);
+      const length = Math.max(0.001, delta.length());
+      const mesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(radiusTop, radiusBottom, length, 12),
+        material,
+      );
+      mesh.position.copy(start).add(end).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+      mesh.castShadow = true;
+      return mesh;
+    };
+
+    const makeMobileArm = (side: -1 | 1) => {
+      const wristWorld = new THREE.Vector3(
+        person.position.x + (side === -1 ? -0.1 : 0.12),
+        deskHandY,
+        person.position.z - 0.62,
+      );
+      const elbowWorld = new THREE.Vector3(
+        person.position.x + (side === -1 ? -0.2 : 0.22),
+        deskTopWorldY + 0.085,
+        person.position.z - 0.3,
+      );
+      const shoulderLocal = new THREE.Vector3(0.18 * side, 0.545, -0.01);
+      const elbowLocal = toPersonLocal(elbowWorld);
+      const wristLocal = toPersonLocal(wristWorld);
+
+      const armGroup = new THREE.Group();
+      armGroup.add(makeBone(shoulderLocal, elbowLocal, 0.066, 0.058, mats.personCloth));
+
+      const shoulderCap = new THREE.Mesh(
+        new THREE.SphereGeometry(0.056, 12, 10),
+        mats.personCloth,
+      );
+      shoulderCap.position.copy(shoulderLocal);
+      armGroup.add(shoulderCap);
+
+      const elbowCap = new THREE.Mesh(
+        new THREE.SphereGeometry(0.056, 12, 10),
+        mats.personCloth,
+      );
+      elbowCap.position.copy(elbowLocal);
+      armGroup.add(elbowCap);
+
+      armGroup.add(makeBone(elbowLocal, wristLocal, 0.054, 0.046, mats.personCloth));
+
+      const cuff = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 0.028, 12),
+        mats.personCloth,
+      );
+      cuff.position.copy(wristLocal);
+      cuff.rotation.z = Math.PI / 2;
+      armGroup.add(cuff);
+
+      const wrist = new THREE.Mesh(
+        new THREE.SphereGeometry(0.042, 12, 10),
+        mats.personSkin,
+      );
+      wrist.position.copy(wristLocal);
+      armGroup.add(wrist);
+
+      const forearmDirWorld = wristWorld.clone().sub(elbowWorld).normalize();
+      const handWorld = wristWorld
+        .clone()
+        .addScaledVector(forearmDirWorld, 0.052)
+        .add(new THREE.Vector3(0, 0.004, 0));
+      const hand = new THREE.Mesh(
+        new THREE.SphereGeometry(0.052, 16, 14),
+        mats.personSkin,
+      );
+      hand.position.copy(toPersonLocal(handWorld));
+      hand.castShadow = true;
+      armGroup.add(hand);
+
+      person.add(armGroup);
+    };
+
+    makeMobileArm(-1);
+    makeMobileArm(1);
+  }
   scene.add(person);
+
+  if (useMobileCarrier) {
+    const standBase = new THREE.Mesh(
+      new RoundedBoxGeometry(0.16, 0.02, 0.12, 6, 0.014),
+      mats.windowFrame,
+    );
+    standBase.position.set(laptop.position.x, deskTopWorldY + 0.01, laptop.position.z - 0.03);
+    standBase.castShadow = true;
+    standBase.receiveShadow = true;
+    scene.add(standBase);
+
+    const standPost = new THREE.Mesh(
+      new THREE.BoxGeometry(0.024, 0.14, 0.03),
+      mats.windowFrame,
+    );
+    standPost.position.set(laptop.position.x, deskTopWorldY + 0.08, laptop.position.z - 0.07);
+    standPost.castShadow = true;
+    scene.add(standPost);
+
+    const standBrace = new THREE.Mesh(
+      new RoundedBoxGeometry(0.12, 0.18, 0.026, 6, 0.016),
+      mats.windowFrame,
+    );
+    standBrace.position.set(
+      laptop.position.x,
+      deskTopWorldY + 0.16,
+      laptop.position.z - 0.055,
+    );
+    standBrace.rotation.x = -0.34;
+    standBrace.castShadow = true;
+    scene.add(standBrace);
+
+    const standLip = new THREE.Mesh(
+      new RoundedBoxGeometry(0.11, 0.026, 0.026, 6, 0.01),
+      mats.windowFrame,
+    );
+    standLip.position.set(
+      laptop.position.x,
+      deskTopWorldY + 0.023,
+      laptop.position.z + 0.02,
+    );
+    standLip.castShadow = true;
+    scene.add(standLip);
+  }
 
   // ===== Interactive registry =====
   // Lamp + window are decorative only. Notebook → /articles, clicking the person → /about.
+  const projectLabel = deviceClass === "desktop" ? "电脑 · 项目" : "手机 · 项目";
+  const aboutTarget = person;
   const interactives: Interactive[] = [
     { object: notebook, label: "笔记本 · 文章", route: "/articles", basePos: notebook.position.clone() },
-    { object: laptop, label: "电脑 · 项目", route: "/projects", basePos: laptop.position.clone() },
-    { object: person, label: "lsy · 关于", route: "/about", basePos: person.position.clone() },
+    { object: laptop, label: projectLabel, route: "/projects", basePos: laptop.position.clone() },
+    { object: aboutTarget, label: "lsy · 关于", route: "/about", basePos: aboutTarget.position.clone() },
     { object: bookStack, label: "书 · 读书", route: "/books", basePos: bookStack.position.clone() },
     { object: tv, label: "电视 · 观影", route: "/movies", basePos: tv.position.clone() },
   ];
@@ -1456,25 +1757,37 @@ export function initDiorama() {
     const tanHalfFov = Math.tan(THREE.MathUtils.degToRad(screenFov) / 2);
     const fitByHeight = screenHalfH / Math.max(0.0001, tanHalfFov);
     const fitByWidth = screenHalfW / Math.max(0.0001, tanHalfFov * camera.aspect);
-    const introDistance = Math.min(fitByHeight, fitByWidth) * 0.965;
+    const introDistance = Math.min(fitByHeight, fitByWidth) * screenPreset.cameraFit;
 
     screenCameraTarget
       .copy(screenCenterWorld)
-      .addScaledVector(screenWorldUp, -0.015);
+      .addScaledVector(screenWorldUp, screenPreset.introTargetUp);
     screenCameraPos
       .copy(screenCenterWorld)
       .addScaledVector(screenWorldNormal, introDistance)
-      .addScaledVector(screenWorldUp, -0.015);
+      .addScaledVector(screenWorldUp, screenPreset.introTargetUp);
 
-    roomCameraTarget
-      .copy(screenCenterWorld)
-      .addScaledVector(screenWorldUp, -0.18)
-      .addScaledVector(screenWorldRight, -0.04);
-    roomCameraPos
-      .copy(screenCenterWorld)
-      .addScaledVector(screenWorldNormal, 4.1)
-      .addScaledVector(screenWorldUp, 1.45)
-      .addScaledVector(screenWorldRight, 0.62);
+    if (useMobileCarrier) {
+      roomCameraTarget
+        .copy(screenCenterWorld)
+        .addScaledVector(screenWorldUp, screenPreset.roomTargetUp)
+        .addScaledVector(screenWorldRight, screenPreset.roomTargetRight);
+      roomCameraPos
+        .copy(screenCenterWorld)
+        .addScaledVector(screenWorldNormal, screenPreset.roomDistance)
+        .addScaledVector(screenWorldUp, screenPreset.roomUp)
+        .addScaledVector(screenWorldRight, screenPreset.roomRight);
+    } else {
+      roomCameraTarget
+        .copy(screenCenterWorld)
+        .addScaledVector(screenWorldUp, screenPreset.roomTargetUp)
+        .addScaledVector(screenWorldRight, screenPreset.roomTargetRight);
+      roomCameraPos
+        .copy(screenCenterWorld)
+        .addScaledVector(screenWorldNormal, screenPreset.roomDistance)
+        .addScaledVector(screenWorldUp, screenPreset.roomUp)
+        .addScaledVector(screenWorldRight, screenPreset.roomRight);
+    }
   };
   syncScreenIntroCamera();
   camera.position.copy(screenCameraPos);
@@ -1526,6 +1839,20 @@ export function initDiorama() {
   // ===== Scroll-driven homepage state =====
   let homeProgress = 0;
   let scrollTargetProgress = 0;
+  let boardScale = 1;
+  let boardViewX = activeBoard.viewport.initialX;
+  let boardViewY = activeBoard.viewport.initialY;
+  let dragRegion = { x: 0, y: 0, w: 1, h: 1, radius: 28 };
+  const clampBoardView = (x: number, y: number) => {
+    const viewport = activeBoard.viewport;
+    return {
+      x: clamp(x, viewport.minX, viewport.maxX),
+      y: clamp(y, viewport.minY, viewport.maxY),
+    };
+  };
+  const syncSceneOverlay = () => {
+    docEl.style.setProperty("--scene-opacity", "1");
+  };
 
   const getScrollProgress = () => {
     if (!shellEl) return 1;
@@ -1538,7 +1865,18 @@ export function initDiorama() {
   };
   syncScrollProgress();
   window.addEventListener("scroll", syncScrollProgress, { passive: true });
-  window.addEventListener("resize", syncScrollProgress);
+  const handleBreakpointResize = () => {
+    const nextDevice = getDeviceClass(window.innerWidth, window.innerHeight);
+    if (nextDevice !== deviceClass) {
+      cleanup();
+      requestAnimationFrame(() => {
+        initDiorama();
+      });
+      return;
+    }
+    syncScrollProgress();
+  };
+  window.addEventListener("resize", handleBreakpointResize);
 
   const applyHomeState = (progress: number) => {
     const value = progress.toFixed(4);
@@ -1632,57 +1970,236 @@ export function initDiorama() {
     const W = screenCanvas.width;
     const H = screenCanvas.height;
     const p = THEMES[theme];
-    const drawChip = (x: number, y: number, text: string, accent = false) => {
-      ctx.font = "500 16px 'JetBrains Mono', monospace";
-      const width = ctx.measureText(text).width + 28;
-      ctx.fillStyle = accent ? "rgba(228, 185, 90, 0.16)" : "rgba(255, 255, 255, 0.05)";
-      ctx.strokeStyle = accent ? "rgba(228, 185, 90, 0.35)" : "rgba(255, 255, 255, 0.09)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(x, y, width, 28, 14);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = accent ? p.screenAccent : p.screenMuted;
-      ctx.fillText(text, x + 14, y + 19);
-    };
-    const drawNote = (x: number, y: number, w: number, h: number, title: string, value: string, accent = false) => {
-      const fill = accent ? "rgba(255, 255, 255, 0.075)" : "rgba(255, 255, 255, 0.045)";
-      const stroke = accent ? "rgba(228, 185, 90, 0.28)" : "rgba(255, 255, 255, 0.08)";
+    const edgeStroke = theme === "dark" ? "rgba(219, 224, 232, 0.1)" : "rgba(78, 65, 48, 0.1)";
+    const frameFill = theme === "dark" ? "rgba(17, 23, 33, 0.84)" : "rgba(255, 251, 246, 0.86)";
+    const sidebarFill = theme === "dark" ? "rgba(19, 24, 32, 0.88)" : "rgba(255, 251, 246, 0.88)";
+    const boardPanelFill = theme === "dark" ? "rgba(13, 18, 26, 0.5)" : "rgba(250, 245, 238, 0.72)";
+    const shadowColor = theme === "dark" ? "rgba(0, 0, 0, 0.28)" : "rgba(82, 58, 28, 0.12)";
+    const autoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
+    const nowStr = formatNowBeijing();
+    const rows = Object.fromEntries(HOME_PROFILE.rows.map((row) => [row.label, row.value]));
+    const threadValue = typerText || HOME_PROFILE.typewriter[0] || "now building";
+    const board = createHomeBoardContent({
+      title: HOME_PROFILE.title,
+      subtitle: HOME_PROFILE.subtitle,
+      stack: rows.stack ?? "Rust · TypeScript",
+      contact: rows.contact ?? "lsy22@vip.qq.com",
+      postsLabel: autoPosts ?? "ongoing",
+      thread: threadValue,
+      now: nowStr,
+    }, deviceClass);
+    activeBoard = board;
+
+    const drawRoundedPanel = (
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      radius: number,
+      fill: string,
+      stroke = edgeStroke,
+    ) => {
+      ctx.save();
       ctx.fillStyle = fill;
       ctx.strokeStyle = stroke;
       ctx.lineWidth = 1;
+      ctx.shadowColor = shadowColor;
+      ctx.shadowBlur = 28;
+      ctx.shadowOffsetY = 14;
       ctx.beginPath();
-      ctx.roundRect(x, y, w, h, 22);
+      ctx.roundRect(x, y, w, h, radius);
+      ctx.fill();
+      ctx.shadowColor = "rgba(0, 0, 0, 0)";
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    const drawPill = (
+      x: number,
+      y: number,
+      text: string,
+      accent = false,
+      fontSize = 14,
+      paddingX = 14,
+      height = 28,
+    ) => {
+      ctx.save();
+      ctx.font = `500 ${fontSize}px 'JetBrains Mono', monospace`;
+      const width = ctx.measureText(text).width + paddingX * 2;
+      ctx.fillStyle = accent
+        ? theme === "dark"
+          ? "rgba(239, 198, 120, 0.14)"
+          : "rgba(228, 188, 101, 0.22)"
+        : theme === "dark"
+          ? "rgba(255, 255, 255, 0.05)"
+          : "rgba(255, 255, 255, 0.7)";
+      ctx.strokeStyle = accent
+        ? theme === "dark"
+          ? "rgba(239, 198, 120, 0.24)"
+          : "rgba(184, 132, 48, 0.22)"
+        : edgeStroke;
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, height / 2);
       ctx.fill();
       ctx.stroke();
+      ctx.fillStyle = accent ? p.screenAccent : p.screenMuted;
+      ctx.fillText(text, x + paddingX, y + height * 0.68);
+      ctx.restore();
+      return width;
+    };
+
+    const drawBoardConnector = (points: [number, number][], tone: "ink" | "soft" | "amber") => {
+      if (points.length < 2) return;
+      ctx.save();
+      ctx.strokeStyle = tone === "amber"
+        ? theme === "dark"
+          ? "rgba(229, 190, 110, 0.44)"
+          : "rgba(190, 134, 54, 0.54)"
+        : tone === "soft"
+          ? theme === "dark"
+            ? "rgba(169, 161, 221, 0.28)"
+            : "rgba(112, 104, 163, 0.44)"
+          : theme === "dark"
+            ? "rgba(132, 164, 214, 0.6)"
+            : "rgba(90, 124, 174, 0.72)";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      for (let index = 1; index < points.length; index += 1) {
+        const previous = points[index - 1];
+        const current = points[index];
+        const midX = (previous[0] + current[0]) / 2;
+        const midY = (previous[1] + current[1]) / 2;
+        ctx.quadraticCurveTo(previous[0], previous[1], midX, midY);
+      }
+      const last = points[points.length - 1];
+      ctx.lineTo(last[0], last[1]);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    const getToneFill = (tone: HomeBoardItem["tone"]) => {
+      if (tone === "accent") return theme === "dark" ? "rgba(38, 28, 17, 0.84)" : "rgba(255, 246, 226, 0.9)";
+      if (tone === "amber") return theme === "dark" ? "rgba(101, 74, 31, 0.92)" : "#f0d58d";
+      if (tone === "ghost") return theme === "dark" ? "rgba(20, 26, 36, 0.8)" : "rgba(255, 252, 247, 0.72)";
+      return theme === "dark" ? "rgba(20, 26, 36, 0.84)" : "rgba(255, 252, 247, 0.84)";
+    };
+
+    const getToneStroke = (tone: HomeBoardItem["tone"]) => {
+      if (tone === "accent") return theme === "dark" ? "rgba(229, 190, 110, 0.2)" : "rgba(185, 131, 61, 0.18)";
+      if (tone === "amber") return theme === "dark" ? "rgba(229, 190, 110, 0.16)" : "rgba(152, 109, 33, 0.16)";
+      return edgeStroke;
+    };
+
+    const getValueFont = (item: HomeBoardItem) => {
+      if (item.kind === "hero") return "500 164px 'Fraunces', 'Noto Serif SC', serif";
+      const size = item.valueSize ?? "md";
+      if (size === "xl") return "500 96px 'Fraunces', 'Noto Serif SC', serif";
+      if (size === "lg") return "500 58px 'Fraunces', 'Noto Serif SC', serif";
+      if (size === "sm") return "500 26px 'JetBrains Mono', monospace";
+      return "500 34px 'JetBrains Mono', monospace";
+    };
+
+    const drawBodyLines = (
+      lines: string[],
+      x: number,
+      y: number,
+      lineHeight: number,
+      color: string,
+      font = "400 17px 'JetBrains Mono', monospace",
+    ) => {
+      ctx.save();
+      ctx.font = font;
+      ctx.fillStyle = color;
+      lines.forEach((line, index) => {
+        ctx.fillText(line, x, y + index * lineHeight);
+      });
+      ctx.restore();
+    };
+
+    const drawBoardItem = (item: HomeBoardItem) => {
+      const fill = getToneFill(item.tone);
+      const stroke = getToneStroke(item.tone);
+      const rotation = THREE.MathUtils.degToRad(item.rotate ?? 0);
+      const bodyColor = theme === "dark" ? "rgba(243, 237, 227, 0.72)" : "rgba(42, 36, 31, 0.76)";
+
+      ctx.save();
+      ctx.translate(item.x + item.w / 2, item.y + item.h / 2);
+      ctx.rotate(rotation);
+      drawRoundedPanel(-item.w / 2, -item.h / 2, item.w, item.h, item.kind === "note" ? 28 : 34, fill, stroke);
+
+      if (item.kind === "hero") {
+        ctx.fillStyle = p.screenMuted;
+        ctx.font = "500 15px 'JetBrains Mono', monospace";
+        ctx.fillText(item.eyebrow, -item.w / 2 + 28, -item.h / 2 + 34);
+        ctx.fillStyle = p.screenText;
+        ctx.font = getValueFont(item);
+        ctx.fillText(item.title, -item.w / 2 + 28, -item.h / 2 + 178);
+        ctx.fillStyle = p.screenMuted;
+        ctx.font = "500 24px 'JetBrains Mono', monospace";
+        ctx.fillText(item.subtitle, -item.w / 2 + 36, -item.h / 2 + 236);
+        let chipX = -item.w / 2 + 28;
+        item.chips.forEach((chip, index) => {
+          drawPill(chipX, -item.h / 2 + 274, chip, index === 0);
+          ctx.font = "500 14px 'JetBrains Mono', monospace";
+          chipX += ctx.measureText(chip).width + 48;
+        });
+        ctx.restore();
+        return;
+      }
+
       ctx.fillStyle = p.screenMuted;
-      ctx.font = "500 16px 'JetBrains Mono', monospace";
-      ctx.fillText(title, x + 22, y + 28);
-      ctx.fillStyle = accent ? p.screenAccent : p.screenText;
-      ctx.font = `600 ${accent ? 28 : 24}px 'JetBrains Mono', monospace`;
-      ctx.fillText(value, x + 22, y + 62);
+      ctx.font = "500 15px 'JetBrains Mono', monospace";
+      ctx.fillText(item.eyebrow, -item.w / 2 + 24, -item.h / 2 + 34);
+      ctx.fillStyle = p.screenText;
+      ctx.font = getValueFont(item);
+      const valueX = -item.w / 2 + 24;
+      const valueY = -item.h / 2 + (item.kind === "note" ? 82 : 96);
+      const valueLines = item.value.split("\n");
+      const lineHeight = item.valueSize === "sm" ? 34 : item.valueSize === "lg" ? 62 : 42;
+      valueLines.forEach((line, index) => {
+        ctx.fillText(line, valueX, valueY + index * lineHeight);
+      });
+      if (item.kind === "card" && item.id === "thread" && cursorOn) {
+        const lastLine = valueLines[valueLines.length - 1] ?? "";
+        const cursorOffset = ctx.measureText(lastLine).width + 12;
+        ctx.fillRect(valueX + cursorOffset, valueY - 24 + (valueLines.length - 1) * lineHeight, 10, 22);
+      }
+      const bodyLines = item.body ?? [];
+      if (bodyLines.length > 0) {
+        const bodyY = valueY + valueLines.length * lineHeight + 22;
+        drawBodyLines(bodyLines, -item.w / 2 + 24, bodyY, 25, bodyColor);
+      }
+      ctx.restore();
     };
 
     ctx.fillStyle = p.screenBg;
     ctx.fillRect(0, 0, W, H);
 
-    const wash = ctx.createRadialGradient(W * 0.24, H * 0.2, 30, W * 0.24, H * 0.2, W * 0.7);
-    wash.addColorStop(0, "rgba(228, 185, 90, 0.14)");
-    wash.addColorStop(0.5, "rgba(80, 136, 226, 0.06)");
-    wash.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = wash;
+    const gradA = ctx.createRadialGradient(250, 160, 0, 250, 160, 300);
+    gradA.addColorStop(0, theme === "dark" ? "rgba(204, 165, 92, 0.16)" : "rgba(235, 199, 126, 0.24)");
+    gradA.addColorStop(1, "rgba(235, 199, 126, 0)");
+    ctx.fillStyle = gradA;
+    ctx.fillRect(0, 0, W, H);
+
+    const gradB = ctx.createRadialGradient(1120, 120, 0, 1120, 120, 280);
+    gradB.addColorStop(0, theme === "dark" ? "rgba(90, 130, 193, 0.22)" : "rgba(128, 161, 214, 0.18)");
+    gradB.addColorStop(1, "rgba(128, 161, 214, 0)");
+    ctx.fillStyle = gradB;
     ctx.fillRect(0, 0, W, H);
 
     ctx.save();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.strokeStyle = theme === "dark" ? "rgba(222, 226, 232, 0.07)" : "rgba(68, 58, 47, 0.08)";
     ctx.lineWidth = 1;
-    for (let x = 24; x < W; x += 56) {
+    for (let x = 18; x < W; x += 44) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, H);
       ctx.stroke();
     }
-    for (let y = 20; y < H; y += 56) {
+    for (let y = 18; y < H; y += 44) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(W, y);
@@ -1690,82 +2207,217 @@ export function initDiorama() {
     }
     ctx.restore();
 
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(342, 194);
-    ctx.bezierCurveTo(480, 152, 680, 152, 856, 214);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(324, 396);
-    ctx.bezierCurveTo(482, 452, 662, 456, 858, 404);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(882, 252);
-    ctx.bezierCurveTo(1020, 226, 1170, 214, 1368, 254);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(680, 540);
-    ctx.bezierCurveTo(816, 518, 972, 536, 1138, 600);
-    ctx.stroke();
+    const { topbar, sidebar, boardPanel, boardViewport } = board.screen;
+    const isDesktopBoard = board.device === "desktop";
+    const titleFont = isDesktopBoard ? 16 : 14;
+    const subtitleFont = isDesktopBoard ? 13 : 12;
+    const workspaceTitleFont = isDesktopBoard ? 30 : 24;
+    const navFont = board.device === "mobile" ? 13 : 15;
+    const pillFont = board.device === "mobile" ? 11 : 13;
+    const pillHeight = board.device === "mobile" ? 24 : 28;
 
-    ctx.fillStyle = p.screenMuted;
-    ctx.font = "600 18px 'JetBrains Mono', monospace";
-    ctx.fillText("echoes / focus map", 118, 84);
+    drawRoundedPanel(topbar.x, topbar.y, topbar.w, topbar.h, 28, frameFill);
+    if (sidebar) {
+      drawRoundedPanel(sidebar.x, sidebar.y, sidebar.w, sidebar.h, 34, sidebarFill);
+    }
+    drawRoundedPanel(boardPanel.x, boardPanel.y, boardPanel.w, boardPanel.h, 36, frameFill);
+
+    const trafficBaseX = topbar.x + 36;
+    const trafficY = topbar.y + topbar.h / 2;
+    ctx.fillStyle = "#d08e64";
+    ctx.beginPath(); ctx.arc(trafficBaseX, trafficY, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#dfb765";
+    ctx.beginPath(); ctx.arc(trafficBaseX + 20, trafficY, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#88a1c9";
+    ctx.beginPath(); ctx.arc(trafficBaseX + 40, trafficY, 6, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = p.screenText;
-    ctx.font = "400 156px 'Fraunces', 'Noto Serif SC', serif";
-    ctx.fillText(HOME_PROFILE.title, 176, 252);
-    ctx.font = "500 27px 'JetBrains Mono', monospace";
+    ctx.font = `600 ${titleFont}px 'JetBrains Mono', monospace`;
+    ctx.fillText(board.chrome.title, topbar.x + 132, topbar.y + 42);
     ctx.fillStyle = p.screenMuted;
-    ctx.fillText(HOME_PROFILE.subtitle, 188, 304);
+    ctx.font = `400 ${subtitleFont}px 'JetBrains Mono', monospace`;
+    ctx.fillText(board.chrome.subtitle, topbar.x + 132, topbar.y + 66);
 
-    drawChip(180, 348, "inside the page", true);
-    drawChip(386, 348, "scroll to pull back");
-    drawChip(638, 348, "notes / projects / reading");
-    drawChip(994, 348, "room appears later");
-
-    const autoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
-    const nowStr = formatNowBeijing();
-    const rows = Object.fromEntries(HOME_PROFILE.rows.map((row) => [row.label, row.value]));
-
-    drawNote(164, 444, 328, 112, "stack", rows.stack ?? "Rust · TypeScript");
-    drawNote(556, 430, 410, 142, "signal", "camera pulls back", true);
-    drawNote(1010, 178, 416, 106, "contact", rows.contact ?? "lsy22@vip.qq.com");
-    drawNote(1038, 404, 306, 108, "articles", autoPosts ?? "ongoing");
-    drawNote(1124, 590, 220, 92, "now", nowStr.slice(11), true);
-
-    ctx.fillStyle = p.screenMuted;
-    ctx.font = "500 17px 'JetBrains Mono', monospace";
-    ctx.fillText("attention", 842, 214);
-    ctx.fillText("screen", 884, 404);
-    ctx.fillText("room", 1366, 246);
-
-    const typerX = 184;
-    const typerY = 650;
-    ctx.fillStyle = p.screenMuted;
-    ctx.font = "500 16px 'JetBrains Mono', monospace";
-    ctx.fillText("current thread", typerX, typerY);
-    ctx.fillStyle = p.screenAccent;
-    ctx.font = "600 24px 'JetBrains Mono', monospace";
-    ctx.fillText("> ", typerX, typerY + 36);
-    ctx.fillStyle = p.screenText;
-    ctx.fillText(typerText, typerX + 30, typerY + 36);
-    if (cursorOn) {
-      const tw = ctx.measureText(typerText);
-      ctx.fillStyle = p.screenAccent;
-      ctx.fillRect(typerX + 34 + tw.width, typerY + 15, 12, 24);
+    const visiblePills = board.chrome.pills.slice(0, 2);
+    let pillX = topbar.x + topbar.w - 24;
+    for (let index = visiblePills.length - 1; index >= 0; index -= 1) {
+      const pill = visiblePills[index];
+      const width = drawPill(pillX - 10, topbar.y + 28, pill.label, Boolean(pill.accent), pillFont, 12, pillHeight);
+      pillX -= width + 12;
     }
 
+    if (sidebar) {
+      ctx.fillStyle = p.screenMuted;
+      ctx.font = "500 13px 'JetBrains Mono', monospace";
+      ctx.fillText(board.chrome.workspaceLabel, sidebar.x + 28, sidebar.y + 46);
+      ctx.fillStyle = p.screenText;
+      ctx.font = `500 ${workspaceTitleFont}px 'Fraunces', 'Noto Serif SC', serif`;
+      ctx.fillText(board.chrome.workspaceTitle, sidebar.x + 28, sidebar.y + 88);
+
+      board.chrome.sidebarItems.forEach((item, index) => {
+        const y = sidebar.y + 128 + index * 74;
+        drawRoundedPanel(
+          sidebar.x + 24,
+          y,
+          sidebar.w - 52,
+          52,
+          18,
+          item.active
+            ? theme === "dark"
+              ? "rgba(239, 198, 120, 0.12)"
+              : "rgba(236, 203, 129, 0.22)"
+            : theme === "dark"
+              ? "rgba(255, 255, 255, 0.035)"
+              : "rgba(255, 255, 255, 0.54)",
+          item.active
+            ? theme === "dark"
+              ? "rgba(239, 198, 120, 0.24)"
+              : "rgba(176, 126, 63, 0.22)"
+            : "transparent",
+        );
+        ctx.fillStyle = item.active ? p.screenAccent : p.screenText;
+        ctx.font = "500 14px 'JetBrains Mono', monospace";
+        ctx.fillText(item.label, sidebar.x + 46, y + 31);
+      });
+
+      ctx.fillStyle = p.screenMuted;
+      ctx.font = "500 13px 'JetBrains Mono', monospace";
+      ctx.fillText(board.chrome.routesLabel, sidebar.x + 28, sidebar.y + 512);
+      ctx.fillStyle = theme === "dark" ? "rgba(243, 237, 227, 0.72)" : "rgba(42, 36, 31, 0.72)";
+      ctx.font = `400 ${navFont}px 'JetBrains Mono', monospace`;
+      ctx.fillText(board.chrome.routes.slice(0, 3).join(" / "), sidebar.x + 28, sidebar.y + 544);
+      ctx.fillText(board.chrome.routes.slice(3).join(" / "), sidebar.x + 28, sidebar.y + 570);
+    } else {
+      ctx.fillStyle = p.screenMuted;
+      ctx.font = "500 13px 'JetBrains Mono', monospace";
+      ctx.fillText(board.chrome.routesLabel, boardPanel.x + 28, boardPanel.y + boardPanel.h - 64);
+      ctx.fillStyle = theme === "dark" ? "rgba(243, 237, 227, 0.72)" : "rgba(42, 36, 31, 0.72)";
+      ctx.font = `400 ${navFont}px 'JetBrains Mono', monospace`;
+      ctx.fillText(board.chrome.routes.join(" / "), boardPanel.x + 28, boardPanel.y + boardPanel.h - 36);
+    }
+
+    const boardViewportRect = boardViewport;
+    drawRoundedPanel(boardViewportRect.x, boardViewportRect.y, boardViewportRect.w, boardViewportRect.h, 28, boardPanelFill);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(boardViewportRect.x, boardViewportRect.y, boardViewportRect.w, boardViewportRect.h, 28);
+    ctx.clip();
+
+    const boardInnerScale = Math.min(
+      boardViewportRect.w / board.viewport.width,
+      boardViewportRect.h / board.viewport.height,
+    );
+    boardScale = boardInnerScale;
+    const boardOffsetX = boardViewportRect.x + (boardViewportRect.w - board.viewport.width * boardInnerScale) / 2 - boardViewX * boardInnerScale;
+    const boardOffsetY = boardViewportRect.y + (boardViewportRect.h - board.viewport.height * boardInnerScale) / 2 - boardViewY * boardInnerScale;
+
+    ctx.translate(boardOffsetX, boardOffsetY);
+    ctx.scale(boardInnerScale, boardInnerScale);
+    ctx.fillStyle = p.screenBg;
+    ctx.fillRect(0, 0, board.stage.width, board.stage.height);
+
+    const boardGradA = ctx.createRadialGradient(340, 210, 0, 340, 210, 340);
+    boardGradA.addColorStop(0, theme === "dark" ? "rgba(196, 154, 82, 0.16)" : "rgba(235, 199, 126, 0.22)");
+    boardGradA.addColorStop(1, "rgba(235, 199, 126, 0)");
+    ctx.fillStyle = boardGradA;
+    ctx.fillRect(0, 0, board.stage.width, board.stage.height);
+
+    const boardGradB = ctx.createRadialGradient(1880, 190, 0, 1880, 190, 320);
+    boardGradB.addColorStop(0, theme === "dark" ? "rgba(90, 124, 178, 0.18)" : "rgba(127, 158, 208, 0.18)");
+    boardGradB.addColorStop(1, "rgba(127, 158, 208, 0)");
+    ctx.fillStyle = boardGradB;
+    ctx.fillRect(0, 0, board.stage.width, board.stage.height);
+
+    ctx.save();
+    ctx.strokeStyle = theme === "dark" ? "rgba(219, 224, 232, 0.06)" : "rgba(77, 63, 47, 0.08)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < board.stage.width; x += 44) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, board.stage.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < board.stage.height; y += 44) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(board.stage.width, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    board.connectors.forEach((connector) => {
+      drawBoardConnector(connector.points, connector.tone);
+    });
+    board.items.forEach((item) => {
+      drawBoardItem(item);
+    });
+    ctx.restore();
+
+    dragRegion = {
+      x: boardViewportRect.x / W,
+      y: boardViewportRect.y / H,
+      w: boardViewportRect.w / W,
+      h: boardViewportRect.h / H,
+      radius: 28,
+    };
+
     ctx.fillStyle = p.screenMuted;
-    ctx.font = "500 18px 'JetBrains Mono', monospace";
-    ctx.textAlign = "center";
-    ctx.fillText("scroll to pull the camera back · drag later · click objects", W / 2, H - 40);
+    ctx.font = "500 16px 'JetBrains Mono', monospace";
+    ctx.fillText(board.chrome.boardStatus, boardPanel.x + 24, boardPanel.y + boardPanel.h - 42);
+    ctx.textAlign = "right";
+    ctx.fillText(board.chrome.footer, boardPanel.x + boardPanel.w - 24, boardPanel.y + boardPanel.h - 42);
     ctx.textAlign = "left";
 
     screenTexture.needsUpdate = true;
   };
   drawScreen();
+
+  const screenCornerLocal = [
+    new THREE.Vector3(-screenFaceW / 2, screenFaceH / 2, 0),
+    new THREE.Vector3(screenFaceW / 2, screenFaceH / 2, 0),
+    new THREE.Vector3(screenFaceW / 2, -screenFaceH / 2, 0),
+    new THREE.Vector3(-screenFaceW / 2, -screenFaceH / 2, 0),
+  ];
+  const syncBoardHitarea = () => {
+    if (!boardHitareaEl || !sceneEl) return;
+    const canvasRect = canvasEl.getBoundingClientRect();
+    const sceneRect = sceneEl.getBoundingClientRect();
+    if (!canvasRect.width || !canvasRect.height) return;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const localCorner of screenCornerLocal) {
+      const projected = screenFace.localToWorld(localCorner.clone()).project(camera);
+      const px = ((projected.x + 1) / 2) * canvasRect.width + (canvasRect.left - sceneRect.left);
+      const py = ((1 - projected.y) / 2) * canvasRect.height + (canvasRect.top - sceneRect.top);
+      minX = Math.min(minX, px);
+      minY = Math.min(minY, py);
+      maxX = Math.max(maxX, px);
+      maxY = Math.max(maxY, py);
+    }
+
+    const outerX = minX;
+    const outerY = minY;
+    const outerW = Math.max(0, maxX - minX);
+    const outerH = Math.max(0, maxY - minY);
+    const hitX = outerX + outerW * dragRegion.x;
+    const hitY = outerY + outerH * dragRegion.y;
+    const hitW = outerW * dragRegion.w;
+    const hitH = outerH * dragRegion.h;
+    const radiusScale = Math.min(outerW / screenCanvas.width, outerH / screenCanvas.height);
+    const hitRadius = Math.max(12, dragRegion.radius * radiusScale);
+
+    boardHitareaEl.style.position = "absolute";
+    boardHitareaEl.style.left = `${hitX.toFixed(2)}px`;
+    boardHitareaEl.style.top = `${hitY.toFixed(2)}px`;
+    boardHitareaEl.style.width = `${hitW.toFixed(2)}px`;
+    boardHitareaEl.style.height = `${hitH.toFixed(2)}px`;
+    boardHitareaEl.style.borderRadius = `${hitRadius.toFixed(2)}px`;
+  };
 
   // ===== Resize =====
   const resize = () => {
@@ -1776,6 +2428,9 @@ export function initDiorama() {
     camera.aspect = w / h;
     syncScreenIntroCamera();
     camera.updateProjectionMatrix();
+    syncSceneOverlay();
+    drawScreen();
+    syncBoardHitarea();
   };
   resize();
   const resizeObs = new ResizeObserver(resize);
@@ -1789,6 +2444,57 @@ export function initDiorama() {
     hintHidden = true;
     hintEl?.classList.add("is-hidden");
   };
+
+  let boardDragging = false;
+  let boardPointerId = -1;
+  let boardDragStartX = 0;
+  let boardDragStartY = 0;
+  let boardDragOriginX = boardViewX;
+  let boardDragOriginY = boardViewY;
+  const canDragBoard = () => homeProgress < 0.16 && !tweening;
+  const finishBoardDrag = () => {
+    boardDragging = false;
+    boardPointerId = -1;
+    boardHitareaEl?.classList.remove("is-dragging");
+  };
+  const boardPointerDown = (event: PointerEvent) => {
+    if (!boardHitareaEl || !canDragBoard()) return;
+    boardDragging = true;
+    boardPointerId = event.pointerId;
+    boardDragStartX = event.clientX;
+    boardDragStartY = event.clientY;
+    boardDragOriginX = boardViewX;
+    boardDragOriginY = boardViewY;
+    boardHitareaEl.classList.add("is-dragging");
+    boardHitareaEl.setPointerCapture(event.pointerId);
+    markInteracted();
+  };
+  const boardPointerMove = (event: PointerEvent) => {
+    if (!boardDragging || event.pointerId !== boardPointerId) return;
+    const dx = (event.clientX - boardDragStartX) / Math.max(boardScale, 0.0001);
+    const dy = (event.clientY - boardDragStartY) / Math.max(boardScale, 0.0001);
+    const next = clampBoardView(boardDragOriginX - dx, boardDragOriginY - dy);
+    boardViewX = next.x;
+    boardViewY = next.y;
+    needScreenRedraw = true;
+  };
+  const boardStopDrag = (event: PointerEvent) => {
+    if (!boardHitareaEl || event.pointerId !== boardPointerId) return;
+    if (boardHitareaEl.hasPointerCapture(event.pointerId)) {
+      boardHitareaEl.releasePointerCapture(event.pointerId);
+    }
+    finishBoardDrag();
+  };
+  const boardPointerLeave = () => {
+    if (!boardDragging) boardHitareaEl?.classList.remove("is-dragging");
+  };
+  if (boardHitareaEl) {
+    boardHitareaEl.addEventListener("pointerdown", boardPointerDown);
+    boardHitareaEl.addEventListener("pointermove", boardPointerMove);
+    boardHitareaEl.addEventListener("pointerup", boardStopDrag);
+    boardHitareaEl.addEventListener("pointercancel", boardStopDrag);
+    boardHitareaEl.addEventListener("pointerleave", boardPointerLeave);
+  }
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -1999,12 +2705,17 @@ export function initDiorama() {
     homeProgress = nextProgress;
 
     applyHomeState(homeProgress);
+    syncSceneOverlay();
 
-    const cameraPull = easeInOutSine(clamp((homeProgress - 0.01) / 0.97));
-    const outsideReveal = easeInOutSine(clamp((homeProgress - 0.025) / 0.48));
-    const roomReveal = easeInOutSine(clamp((homeProgress - 0.04) / 0.72));
+    const cameraPull = easeInOutSine(clamp((homeProgress - 0.07) / 0.89));
+    const outsideReveal = easeInOutSine(clamp((homeProgress - 0.09) / 0.45));
+    const roomReveal = easeInOutSine(clamp((homeProgress - 0.11) / 0.65));
     const sceneInteraction = easeInOutSine(clamp((homeProgress - 0.86) / 0.1));
+    const boardShouldCapture = canDragBoard();
+    if (boardHitareaEl) boardHitareaEl.style.pointerEvents = boardShouldCapture ? "auto" : "none";
+    if (!boardShouldCapture && boardDragging) finishBoardDrag();
     const controlsShouldEnable = !tweening && homeProgress > 0.965;
+    syncSceneOverlay();
     syncSceneInputMode(controlsShouldEnable);
     syncCanvasInputMode(controlsShouldEnable);
     syncControlsConnection(controlsShouldEnable);
@@ -2060,7 +2771,6 @@ export function initDiorama() {
         typerLastTick = now;
       }
     }
-
     // Time tick — redraw when formatted time string changes (minute change)
     const newTimeStr = formatNowBeijing();
     if (newTimeStr !== lastTimeStr) {
@@ -2217,15 +2927,24 @@ export function initDiorama() {
       item.mesh.scale.set(item.baseScale.x * v, item.baseScale.y * v, item.baseScale.z * v);
     }
 
-    // Person head/torso idle motion
-    head.rotation.x = Math.sin(now * 0.0004) * 0.02 + 0.1;
-    head.rotation.y = Math.sin(now * 0.0003) * 0.03;
-    hair.rotation.x = head.rotation.x - 0.15;
-    hair.rotation.y = head.rotation.y;
-    torso.rotation.y = Math.sin(now * 0.0003) * 0.015;
+    // Person idle motion
+    if (useMobileCarrier) {
+      head.rotation.x = Math.sin(now * 0.00035) * 0.012 + 0.08;
+      head.rotation.y = 0;
+      hair.rotation.x = head.rotation.x - 0.15;
+      hair.rotation.y = 0;
+      torso.rotation.y = 0;
+      torso.rotation.x = -0.18;
+    } else {
+      head.rotation.x = Math.sin(now * 0.0004) * 0.02 + 0.1;
+      head.rotation.y = Math.sin(now * 0.0003) * 0.03;
+      hair.rotation.x = head.rotation.x - 0.15;
+      hair.rotation.y = head.rotation.y;
+      torso.rotation.y = Math.sin(now * 0.0003) * 0.015;
+      torso.rotation.x = 0;
+    }
 
-    // Arm AI — each hand drifts across keyboard to a target key,
-    // presses that specific key on arrival, then picks another.
+    // Arm AI — desktop only. Mobile stays in a fixed phone-reading pose.
     const updateArmAI = (ai: ArmAI, arm: { armGroup: THREE.Group; elbowGroup: THREE.Group }, side: -1 | 1) => {
       if (ai.phase === "moving") {
         const total = Math.max(1, ai.moveEnd - ai.moveStart);
@@ -2248,33 +2967,37 @@ export function initDiorama() {
         if (now >= ai.holdUntil) planNextKey(ai, side, now);
       }
     };
-    if (!reduceMotion) {
+    if (!reduceMotion && !useMobileCarrier) {
       updateArmAI(leftAI, leftArm, -1);
       updateArmAI(rightAI, rightArm, 1);
     }
-    for (let i = 0; i < keyStates.length; i++) keyStates[i].press *= 0.8;
+    if (!useMobileCarrier) {
+      for (let i = 0; i < keyStates.length; i++) keyStates[i].press *= 0.8;
+    }
 
     // Update key matrices
-    let ki = 0;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
+    if (!useMobileCarrier) {
+      let ki = 0;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const s = keyStates[ki];
+          keyDummy.position.set(s.x, s.baseY - s.press * 0.009, s.z);
+          keyDummy.scale.set(1, 1, 1);
+          keyDummy.updateMatrix();
+          keyMesh.setMatrixAt(ki, keyDummy.matrix);
+          ki++;
+        }
+      }
+      {
         const s = keyStates[ki];
         keyDummy.position.set(s.x, s.baseY - s.press * 0.009, s.z);
-        keyDummy.scale.set(1, 1, 1);
+        keyDummy.scale.set(spaceW / keyW, 1, 1);
         keyDummy.updateMatrix();
         keyMesh.setMatrixAt(ki, keyDummy.matrix);
-        ki++;
+        keyDummy.scale.set(1, 1, 1);
       }
+      keyMesh.instanceMatrix.needsUpdate = true;
     }
-    {
-      const s = keyStates[ki];
-      keyDummy.position.set(s.x, s.baseY - s.press * 0.009, s.z);
-      keyDummy.scale.set(spaceW / keyW, 1, 1);
-      keyDummy.updateMatrix();
-      keyMesh.setMatrixAt(ki, keyDummy.matrix);
-      keyDummy.scale.set(1, 1, 1);
-    }
-    keyMesh.instanceMatrix.needsUpdate = true;
 
     // Outdoor particles (all 4 systems, each with own motion pattern)
     const dtSec = dt / 1000;
@@ -2351,11 +3074,15 @@ export function initDiorama() {
     if (!controls.enabled) {
       camera.position.lerpVectors(screenCameraPos, roomCameraPos, cameraPull);
       controls.target.lerpVectors(screenCameraTarget, roomCameraTarget, cameraPull);
+      camera.lookAt(controls.target);
     }
     camera.fov = lerp(screenFov, roomFov, cameraPull);
     camera.updateProjectionMatrix();
+    syncBoardHitarea();
 
-    controls.update();
+    if (controls.enabled) {
+      controls.update();
+    }
     renderer.render(scene, camera);
     rafId = requestAnimationFrame(animate);
   };
@@ -2375,10 +3102,15 @@ export function initDiorama() {
   const cleanup = () => {
     if (rafId) cancelAnimationFrame(rafId);
     window.removeEventListener("scroll", syncScrollProgress);
-    window.removeEventListener("resize", syncScrollProgress);
+    window.removeEventListener("resize", handleBreakpointResize);
     canvasEl.removeEventListener("pointermove", pointerMove);
     canvasEl.removeEventListener("pointerdown", pointerDownHandler);
     canvasEl.removeEventListener("pointerup", pointerUpHandler);
+    boardHitareaEl?.removeEventListener("pointerdown", boardPointerDown);
+    boardHitareaEl?.removeEventListener("pointermove", boardPointerMove);
+    boardHitareaEl?.removeEventListener("pointerup", boardStopDrag);
+    boardHitareaEl?.removeEventListener("pointercancel", boardStopDrag);
+    boardHitareaEl?.removeEventListener("pointerleave", boardPointerLeave);
     canvasEl.removeEventListener("wheel", passWheelThrough, { capture: true });
     sceneEl?.removeEventListener("wheel", passWheelThrough, { capture: true });
     themeObserver.disconnect();
@@ -2397,7 +3129,16 @@ export function initDiorama() {
     screenTexture.dispose();
     renderer.dispose();
     docEl.style.removeProperty("--home-progress");
+    docEl.style.removeProperty("--scene-opacity");
     sceneEl?.style.removeProperty("--home-progress");
+    boardHitareaEl?.style.removeProperty("position");
+    boardHitareaEl?.style.removeProperty("left");
+    boardHitareaEl?.style.removeProperty("top");
+    boardHitareaEl?.style.removeProperty("width");
+    boardHitareaEl?.style.removeProperty("height");
+    boardHitareaEl?.style.removeProperty("border-radius");
+    boardHitareaEl?.style.removeProperty("pointer-events");
+    boardHitareaEl?.classList.remove("is-dragging");
     if (sceneEl) sceneEl.style.pointerEvents = "";
     if (sceneEl) sceneEl.style.touchAction = "";
     canvasEl.style.touchAction = "";

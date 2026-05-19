@@ -52,9 +52,9 @@ export const HOME_PROFILE = {
         { label: 'contact', value: 'lsy22@vip.qq.com' },
     ] as { label: string; value: string }[],
     typewriter: [
-        'echo "Hello, World!"',
-        'sudo su -',
-        'rm -rf /*',
+        '正在整理主页草稿',
+        '把项目、文章和兴趣放到同一张画布上',
+        '滚动后会退回 3D 房间',
     ] as string[],
 };
 
