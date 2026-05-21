@@ -908,6 +908,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   const [error, setError] = useState<string | null>(null);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false); // 添加排序下拉框状态
+  const [isPageSizeDropdownOpen, setIsPageSizeDropdownOpen] = useState(false);
   const [tagSearchInput, setTagSearchInput] = useState("");
   const [isFilterReady, setIsFilterReady] = useState(false);
   const [isArticlesLoaded, setIsArticlesLoaded] = useState(false);
@@ -923,6 +924,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   const tagSelectorButtonRef = useRef<HTMLButtonElement>(null);
   const sortDropdownRef = useRef<HTMLDivElement>(null); // 添加排序下拉框引用
   const sortSelectorButtonRef = useRef<HTMLButtonElement>(null); // 添加排序按钮引用
+  const pageSizeDropdownRef = useRef<HTMLDivElement>(null);
+  const pageSizeSelectorButtonRef = useRef<HTMLButtonElement>(null);
 
   const startFilterLoading = useCallback(
     (mode: FilterLoadingMode = "immediate") => {
@@ -1356,6 +1359,40 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     };
   }, [isSortDropdownOpen]);
 
+  // 点击外部关闭每页数量下拉菜单
+  useEffect(() => {
+    function handlePageSizeDropdownClickOutside(
+      event: MouseEvent | TouchEvent,
+    ) {
+      if (
+        isPageSizeDropdownOpen &&
+        pageSizeDropdownRef.current &&
+        !pageSizeDropdownRef.current.contains(event.target as Node) &&
+        pageSizeSelectorButtonRef.current &&
+        !pageSizeSelectorButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsPageSizeDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePageSizeDropdownClickOutside, {
+      passive: true,
+    });
+    document.addEventListener("touchstart", handlePageSizeDropdownClickOutside, {
+      passive: true,
+    });
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handlePageSizeDropdownClickOutside,
+      );
+      document.removeEventListener(
+        "touchstart",
+        handlePageSizeDropdownClickOutside,
+      );
+    };
+  }, [isPageSizeDropdownOpen]);
+
   // 清除所有筛选条件
   const resetAllFilters = useCallback(() => {
     const defaultFilters = { ...DEFAULT_FILTERS };
@@ -1441,9 +1478,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     };
 
     // 处理每页数量变更
-    const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const value = parseInt(e.target.value);
+    const pageSizeOptions = [12, 24, 36, 48];
 
+    const handlePageSizeChange = (value: number) => {
       // 先更新UI状态
       setActiveFilters((prev) => ({
         ...prev,
@@ -1996,34 +2033,33 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
           {/* 每页显示数量 */}
           <div className="flex items-center">
             <label
-              htmlFor="pageSizeOption"
+              id="page-size-label"
+              htmlFor="pageSizeButton"
               className="text-sm text-gray-600 dark:text-gray-400 mr-2"
             >
               每页显示:
             </label>
             <div className="relative inline-block w-24">
-              <select
-                id="pageSizeOption"
-                value={activeFilters.pageSize.toString()}
-                onChange={handlePageSizeChange}
-                aria-label="选择每页显示的文章数量"
-                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-1 px-2 text-sm rounded focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 focus:outline-none appearance-none"
+              <button
+                ref={pageSizeSelectorButtonRef}
+                type="button"
+                id="pageSizeButton"
+                onClick={() =>
+                  setIsPageSizeDropdownOpen(!isPageSizeDropdownOpen)
+                }
+                aria-expanded={isPageSizeDropdownOpen}
+                aria-haspopup="listbox"
+                aria-labelledby="page-size-label"
+                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-1 px-2 text-sm rounded-lg focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 focus:outline-none text-left flex justify-between items-center"
               >
-                <option value="12">12 篇</option>
-                <option value="24">24 篇</option>
-                <option value="36">36 篇</option>
-                <option value="48">48 篇</option>
-              </select>
-              <div
-                className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 dark:text-gray-400"
-                aria-hidden="true"
-              >
+                <span className="truncate">{activeFilters.pageSize} 篇</span>
                 <svg
-                  className="w-3 h-3"
+                  className="w-3 h-3 ml-2 shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
@@ -2032,7 +2068,38 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                     d="M19 9l-7 7-7-7"
                   />
                 </svg>
-              </div>
+              </button>
+
+              {isPageSizeDropdownOpen && (
+                <div
+                  ref={pageSizeDropdownRef}
+                  className="absolute right-0 z-20 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg overflow-hidden"
+                  role="listbox"
+                  aria-labelledby="page-size-label"
+                >
+                  <div>
+                    {pageSizeOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`w-full text-left px-3 py-2 text-sm ${
+                          activeFilters.pageSize === option
+                            ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        }`}
+                        onClick={() => {
+                          handlePageSizeChange(option);
+                          setIsPageSizeDropdownOpen(false);
+                        }}
+                        role="option"
+                        aria-selected={activeFilters.pageSize === option}
+                      >
+                        {option} 篇
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
