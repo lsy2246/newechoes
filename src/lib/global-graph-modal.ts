@@ -1063,14 +1063,15 @@ export function initGlobalGraphModal() {
     return;
   }
 
-  modal.dataset.graphBound = "true";
+  const modalEl = modal;
+  modalEl.dataset.graphBound = "true";
 
-  const stage = modal.querySelector("[data-graph-stage]");
-  const mount = modal.querySelector("[data-graph-canvas]");
-  const tooltip = modal.querySelector("[data-graph-tooltip]");
-  const status = modal.querySelector("[data-graph-status]");
-  const dataElement = modal.querySelector("[data-global-graph-json]");
-  const locationLabel = modal.querySelector("[data-current-location]");
+  const stage = modalEl.querySelector("[data-graph-stage]");
+  const mount = modalEl.querySelector("[data-graph-canvas]");
+  const tooltip = modalEl.querySelector("[data-graph-tooltip]");
+  const status = modalEl.querySelector("[data-graph-status]");
+  const dataElement = modalEl.querySelector("[data-global-graph-json]");
+  const locationLabel = modalEl.querySelector("[data-current-location]");
 
   if (
     !(stage instanceof HTMLElement) ||
@@ -1080,6 +1081,13 @@ export function initGlobalGraphModal() {
   ) {
     return;
   }
+
+  const stageEl = stage;
+  const mountEl = mount;
+  const tooltipEl = tooltip;
+  const statusEl = status instanceof HTMLElement ? status : null;
+  const locationLabelEl =
+    locationLabel instanceof HTMLElement ? locationLabel : null;
 
   const payload = JSON.parse(
     dataElement.textContent || '{"nodes":[],"links":[]}',
@@ -1128,26 +1136,26 @@ export function initGlobalGraphModal() {
   }
 
   function closeModal() {
-    modal.classList.add("hidden");
-    modal.setAttribute("aria-hidden", "true");
+    modalEl.classList.add("hidden");
+    modalEl.setAttribute("aria-hidden", "true");
     document.body.classList.remove("global-graph-open");
     syncButtons(false);
     isOpen = false;
-    tooltip.hidden = true;
+    tooltipEl.hidden = true;
     graphRuntime?.stop();
   }
 
   function applyCurrentInfo(info: ReturnType<typeof determineCurrentNode>) {
     currentNodeId = info.nodeId;
 
-    if (locationLabel) {
-      locationLabel.textContent = info.label;
-      if (locationLabel instanceof HTMLAnchorElement) {
-        locationLabel.href = info.route;
+    if (locationLabelEl) {
+      locationLabelEl.textContent = info.label;
+      if (locationLabelEl instanceof HTMLAnchorElement) {
+        locationLabelEl.href = info.route;
       }
     }
 
-    modal.querySelectorAll(".graph-tree-link").forEach((link) => {
+    modalEl.querySelectorAll(".graph-tree-link").forEach((link) => {
       if (!(link instanceof HTMLElement)) return;
       const linkRoute = normalizeRoute(
         link.getAttribute("data-route-target") ||
@@ -1164,7 +1172,7 @@ export function initGlobalGraphModal() {
       link.classList.toggle("is-current", isCurrent);
     });
 
-    modal.querySelectorAll("[data-section-path]").forEach((element) => {
+    modalEl.querySelectorAll("[data-section-path]").forEach((element) => {
       if (!(element instanceof HTMLElement)) return;
       const sectionPath = element.getAttribute("data-section-path");
       if (!sectionPath) return;
@@ -1221,17 +1229,17 @@ export function initGlobalGraphModal() {
   }
 
   function centerTreeOnCurrentItem() {
-    const treeShell = modal.querySelector(".global-graph-tree-shell");
+    const treeShell = modalEl.querySelector(".global-graph-tree-shell");
     if (!(treeShell instanceof HTMLElement)) return;
 
     const activeLink =
       (currentNodeId
-        ? modal.querySelector(
+        ? modalEl.querySelector(
             `[data-node-target="${CSS.escape(currentNodeId)}"]`,
           )
         : null) ||
-      modal.querySelector(".graph-tree-link-article.is-current") ||
-      modal.querySelector(".graph-tree-link-section.is-current");
+      modalEl.querySelector(".graph-tree-link-article.is-current") ||
+      modalEl.querySelector(".graph-tree-link-section.is-current");
 
     if (!(activeLink instanceof HTMLElement)) return;
 
@@ -1253,16 +1261,16 @@ export function initGlobalGraphModal() {
     if (graphRuntime) return graphRuntime;
     if (graphRuntimePromise) return graphRuntimePromise;
 
-    if (status instanceof HTMLElement) {
-      status.hidden = false;
-      status.textContent = "正在加载 3D 知识图谱...";
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.textContent = "正在加载 3D 知识图谱...";
     }
 
     graphRuntimePromise = createGraphRuntime({
-      stage,
-      mount,
-      tooltip,
-      status: status instanceof HTMLElement ? status : null,
+      stage: stageEl,
+      mount: mountEl,
+      tooltip: tooltipEl,
+      status: statusEl,
       payload,
       getCurrentNodeId,
       navigateTo,
@@ -1274,9 +1282,9 @@ export function initGlobalGraphModal() {
       })
       .catch((error) => {
         console.error("3D 图谱加载失败:", error);
-        if (status instanceof HTMLElement) {
-          status.hidden = false;
-          status.textContent =
+        if (statusEl) {
+          statusEl.hidden = false;
+          statusEl.textContent =
             error instanceof Error &&
             /Failed to fetch dynamically imported module|Outdated Optimize Dep/i.test(
               error.message,
@@ -1292,8 +1300,8 @@ export function initGlobalGraphModal() {
   }
 
   async function openModal() {
-    modal.classList.remove("hidden");
-    modal.setAttribute("aria-hidden", "false");
+    modalEl.classList.remove("hidden");
+    modalEl.setAttribute("aria-hidden", "false");
     document.body.classList.add("global-graph-open");
     syncButtons(true);
     isOpen = true;
@@ -1320,11 +1328,12 @@ export function initGlobalGraphModal() {
     graphRuntime?.setCurrentNode(currentNodeId, true);
   }
 
-  function onKeydown(event: KeyboardEvent) {
+  const onKeydown: EventListener = (event) => {
+    if (!(event instanceof KeyboardEvent)) return;
     if (event.key === "Escape" && isOpen) {
       closeModal();
     }
-  }
+  };
 
   const themeObserver = new MutationObserver(() => {
     graphRuntime?.updateTheme();
@@ -1339,11 +1348,11 @@ export function initGlobalGraphModal() {
     addListener(button, "click", openModal);
   });
 
-  modal.querySelectorAll("[data-close-global-graph]").forEach((element) => {
+  modalEl.querySelectorAll("[data-close-global-graph]").forEach((element) => {
     addListener(element, "click", closeModal);
   });
 
-  modal.querySelectorAll(".graph-tree-link").forEach((link) => {
+  modalEl.querySelectorAll(".graph-tree-link").forEach((link) => {
     if (!(link instanceof HTMLElement)) return;
     const nodeId = link.getAttribute("data-node-target");
     const route = link.getAttribute("data-route-target") || link.getAttribute("href");
@@ -1368,8 +1377,8 @@ export function initGlobalGraphModal() {
     });
   });
 
-  if (locationLabel instanceof HTMLAnchorElement) {
-    addListener(locationLabel, "click", (event) => {
+  if (locationLabelEl instanceof HTMLAnchorElement) {
+    addListener(locationLabelEl, "click", (event) => {
       event.preventDefault();
       syncCurrentLocation();
       centerTreeOnCurrentItem();
@@ -1403,7 +1412,7 @@ export function initGlobalGraphModal() {
     graphRuntime?.dispose();
     graphRuntime = null;
     graphRuntimePromise = null;
-    modal.dataset.graphBound = "false";
+    modalEl.dataset.graphBound = "false";
     document.body.classList.remove("global-graph-open");
   };
 

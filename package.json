@@ -11,6 +11,7 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@astrojs/check": "^0.9.9",
     "@astrojs/mdx": "^5.0.6",
     "@astrojs/node": "^10.1.1",
     "@astrojs/react": "^5.0.5",
@@ -36,6 +37,7 @@
     "swup": "^4.9.0",
     "tailwindcss": "^4.3.0",
     "three": "^0.184.0",
+    "typescript": "^6.0.3",
     "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {

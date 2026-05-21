@@ -812,7 +812,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                     />
                   ) : null}
 
-                  {shouldLoadFullPreviewImage ? (
+                  {shouldLoadFullPreviewImage && previewFullImageUrl ? (
                     <img
                       ref={previewFullImageElementRef}
                       src={previewFullImageUrl}

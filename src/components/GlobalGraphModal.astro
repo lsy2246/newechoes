@@ -1,6 +1,6 @@
 ---
-import { getCollection } from "astro:content";
-import { contentStructure, getSpecialPath, type SectionStructure } from "@/content.config";
+import { getCollection, type CollectionEntry } from "astro:content";
+import { contentStructure, type SectionStructure } from "@/content.config";
 import {
   createArticleReferenceResolver,
   extractArticleReferences,
@@ -12,7 +12,7 @@ interface Props {
   currentPath?: string;
 }
 
-type ArticleRecord = Awaited<ReturnType<typeof getCollection<"articles">>>[number];
+type ArticleRecord = CollectionEntry<"articles">;
 
 type GraphNode = {
   id: string;
@@ -30,7 +30,7 @@ type GraphLink = {
 };
 
 const { currentPath = "/" } = Astro.props;
-const articles = await getCollection("articles");
+const articles: ArticleRecord[] = await getCollection("articles");
 
 function normalizeRoute(path: string) {
   if (!path) return "/";

@@ -129,17 +129,17 @@ const ensureFilterReady = async (indexUrl?: string) => {
 };
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
-  const { id, type, payload } = event.data;
+  const { id, type } = event.data;
 
   try {
     switch (type) {
       case "initSearch": {
-        await ensureSearchReady(payload.indexUrl);
+        await ensureSearchReady(event.data.payload.indexUrl);
         respond(id, { ready: true });
         return;
       }
       case "initFilter": {
-        await ensureFilterReady(payload.indexUrl);
+        await ensureFilterReady(event.data.payload.indexUrl);
         respond(id, { ready: true });
         return;
       }
@@ -149,7 +149,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         if (typeof wasm.search_cached !== "function") {
           throw new Error("search_wasm 缺少 search_cached 导出");
         }
-        const resultJson = wasm.search_cached(JSON.stringify(payload.request));
+        const resultJson = wasm.search_cached(JSON.stringify(event.data.payload.request));
         respond(id, JSON.parse(resultJson));
         return;
       }
@@ -159,7 +159,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         if (typeof wasm.search_cached !== "function") {
           throw new Error("search_wasm 缺少 search_cached 导出");
         }
-        const resultJson = wasm.search_cached(JSON.stringify(payload.request));
+        const resultJson = wasm.search_cached(JSON.stringify(event.data.payload.request));
         respond(id, JSON.parse(resultJson));
         return;
       }
@@ -167,7 +167,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         await ensureFilterReady();
         const wasm = await loadFilterModule();
         const result = wasm.ArticleFilterJS.filter_articles(
-          JSON.stringify(payload.request),
+          JSON.stringify(event.data.payload.request),
         );
         respond(id, result);
         return;

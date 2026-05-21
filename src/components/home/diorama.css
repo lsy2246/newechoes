@@ -3,11 +3,6 @@
 :root {
   --home-progress: 0;
   --scene-opacity: 1;
-  --hitarea-x: 0px;
-  --hitarea-y: 0px;
-  --hitarea-w: 0px;
-  --hitarea-h: 0px;
-  --hitarea-radius: 0px;
   --story-opacity: 1;
   --story-progress: 0;
   --story-local: 0;
@@ -47,7 +42,6 @@
 
 .home-diorama__canvas,
 .home-diorama__veil,
-.home-hitarea,
 .home-diorama__hud {
   position: absolute;
   inset: 0;
@@ -595,27 +589,6 @@
 
 [data-theme="dark"] .today-panel__status {
   border-top-color: rgba(218, 224, 232, 0.08);
-}
-
-.home-hitarea {
-  z-index: 3;
-  pointer-events: none;
-}
-
-.home-hitarea__board {
-  position: absolute;
-  left: var(--hitarea-x);
-  top: var(--hitarea-y);
-  width: var(--hitarea-w);
-  height: var(--hitarea-h);
-  border-radius: var(--hitarea-radius);
-  pointer-events: auto;
-  touch-action: pan-y;
-  cursor: grab;
-}
-
-.home-hitarea__board.is-dragging {
-  cursor: grabbing;
 }
 
 .home-editor__stage {

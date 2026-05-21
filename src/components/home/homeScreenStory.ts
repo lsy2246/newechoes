@@ -1393,7 +1393,7 @@ const drawDesktopStory = (
   const trackAreaW = stageW * 0.9;
   const trackX = centerX - trackAreaW / 2;
   const trackW = (trackAreaW - trackGap * 2) / 3;
-  const trackH = 318 * unit;
+  const trackH = 276 * unit;
   const trackY = centerY - 118 * unit;
   const tracks = STORY_TRACKS;
   const trackRects = tracks.map((_, index) => ({
@@ -1404,14 +1404,26 @@ const drawDesktopStory = (
   }));
 
   const groupOrders = [0, 0, 1, 1, 2, 2];
-  const groupIndexes = [0, 1, 0, 1, 0, 1];
   const trackSlot = (index: number): Rect => {
     const track = trackRects[groupOrders[index]];
-    const slotH = 78 * unit;
+    const pairIndexes = materials.map((item, itemIndex) => (item.group === groupOrders[index] ? itemIndex : -1)).filter((itemIndex) => itemIndex >= 0);
+    const column = Math.max(0, pairIndexes.indexOf(index));
+    const targetPillScale = 1.08;
+    const pillWidths = pairIndexes.map((itemIndex) => measure(materials[itemIndex].tag, 20 * unit * targetPillScale) + 26 * unit * targetPillScale);
+    const gap = 20 * unit;
+    const totalPillW = pillWidths.reduce((sum, width) => sum + width, 0);
+    const maxPillW = track.w - 44 * unit - gap * Math.max(0, pairIndexes.length - 1);
+    const fitScale = Math.min(1, Math.max(0.72, maxPillW / Math.max(1, totalPillW)));
+    const visibleWidths = pillWidths.map((width) => width * fitScale);
+    const totalW = visibleWidths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, pairIndexes.length - 1);
+    const startX = track.x + (track.w - totalW) / 2;
+    const x = startX + visibleWidths.slice(0, column).reduce((sum, width) => sum + width + gap, 0);
+    const pad = 18 * unit;
+    const slotH = 58 * unit;
     return {
-      x: track.x + 22 * unit,
-      y: track.y + 128 * unit + groupIndexes[index] * (slotH + 16 * unit),
-      w: track.w - 44 * unit,
+      x: x - pad,
+      y: track.y + 166 * unit,
+      w: visibleWidths[column] + pad * 2,
       h: slotH,
     };
   };
@@ -1460,17 +1472,22 @@ const drawDesktopStory = (
   ) => {
     withAlpha(ctx, alpha, () => {
       const pad = lerp(24 * unit, 18 * unit, compact);
-      const basePillScale = lerp(1, 0.72, compact);
+      const trackPhase = phase(compact, 0.58, 1);
+      const basePillScale = lerp(1, 1.08, trackPhase);
       const bodySize = lerp(23 * unit, 18 * unit, compact);
       const detailAlpha = detailReveal * clamp((rect.h - 104 * unit) / (24 * unit));
       const basePillW = measure(item.tag, 20 * unit * basePillScale) + 26 * unit * basePillScale;
       const pillScale = Math.min(basePillScale, Math.max(0.58, (rect.w - pad * 2) / Math.max(1, basePillW)) * basePillScale);
       const pillW = measure(item.tag, 20 * unit * pillScale) + 26 * unit * pillScale;
       const pillH = 34 * unit * pillScale;
+      const trackItem = compact > 0.58;
+      const chromeAlpha = trackItem ? 1 - phase(compact, 0.58, 0.86) : 1;
       const isTinyCard = detailAlpha < 0.12;
-      const pillX = isTinyCard ? rect.x + (rect.w - pillW) / 2 : rect.x + pad;
-      const pillY = isTinyCard ? rect.y + (rect.h - pillH) / 2 : rect.y + pad * 0.75;
-      rounded(ctx, rect, lerp(28 * unit, 18 * unit, compact), isTinyCard ? glass : glassStrong, hairline);
+      const pillX = trackItem || isTinyCard ? rect.x + (rect.w - pillW) / 2 : rect.x + pad;
+      const pillY = trackItem || isTinyCard ? rect.y + (rect.h - pillH) / 2 : rect.y + pad * 0.75;
+      withAlpha(ctx, chromeAlpha, () => {
+        rounded(ctx, rect, lerp(28 * unit, 18 * unit, compact), isTinyCard ? glass : glassStrong, hairline);
+      });
       pill(item.tag, pillX, pillY, item.active, pillScale);
       withAlpha(ctx, detailAlpha, () => {
         text(item.body, rect.x + pad, rect.y + rect.h - lerp(24 * unit, 18 * unit, compact), bodySize, palette.muted, "'JetBrains Mono', monospace", 600);
@@ -1483,10 +1500,6 @@ const drawDesktopStory = (
         ctx.stroke();
         ctx.restore();
       });
-      if (compact > 0.55) {
-        const tagSize = 18 * unit;
-        text(tracks[item.group].label, rect.x + rect.w - pad - measure(tracks[item.group].label, tagSize, "'JetBrains Mono', monospace", 700), rect.y + pad + 10 * unit, tagSize, palette.quiet, "'JetBrains Mono', monospace", 700);
-      }
     });
   };
 
