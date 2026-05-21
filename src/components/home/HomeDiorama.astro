@@ -39,6 +39,26 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
         <a href="/movies" data-astro-prefetch="hover">观影</a>
       </div>
 
+      <div class="home-scroll-cue" data-home-scroll-cue data-home-visible="true" data-cue-mode="scroll" aria-hidden="true">
+        <div class="home-scroll-cue__motion">
+          <span class="home-scroll-cue__motion-icon home-scroll-cue__motion-icon--scroll">
+            <svg class="home-scroll-cue__mouse" viewBox="0 0 24 32" role="img">
+              <rect x="7" y="3" width="10" height="18" rx="5"></rect>
+              <path class="home-scroll-cue__wheel" d="M12 7.5v4.5"></path>
+            </svg>
+          </span>
+          <span class="home-scroll-cue__motion-icon home-scroll-cue__motion-icon--drag">
+            <svg class="home-scroll-cue__drag" viewBox="0 0 32 18" role="img">
+              <path d="M5 9h22"></path>
+              <path d="m10 4-5 5 5 5"></path>
+              <path d="m22 4 5 5-5 5"></path>
+            </svg>
+          </span>
+        </div>
+        <div class="home-scroll-cue__progress"><span></span></div>
+        <span class="home-scroll-cue__percent" data-home-cue-percent>0%</span>
+      </div>
+
       <div class="diorama-tooltip" data-diorama-tooltip aria-hidden="true"></div>
     </div>
   </div>

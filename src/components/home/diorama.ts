@@ -234,6 +234,7 @@ export function initDiorama() {
   const boardHitareaEl = document.querySelector<HTMLElement>("[data-home-board-hitarea]");
   const hintEl = document.querySelector<HTMLElement>("[data-diorama-hint]");
   const cueEl = document.querySelector<HTMLElement>("[data-home-scroll-cue]");
+  const cuePercentEl = document.querySelector<HTMLElement>("[data-home-cue-percent]");
   const tooltip = document.querySelector<HTMLElement>("[data-diorama-tooltip]");
   const docEl = document.documentElement;
   const deviceClass = getDeviceClass(window.innerWidth, window.innerHeight);
@@ -2001,7 +2002,12 @@ export function initDiorama() {
     storyEl?.style.setProperty("--story-progress", storyProgress.toFixed(4));
     storyEl?.style.setProperty("--story-local", storyProgress.toFixed(4));
     sceneEl?.setAttribute("data-home-phase", progress > 0.76 ? "room" : "page");
-    cueEl?.setAttribute("data-home-visible", progress < 0.75 ? "true" : "false");
+    const cueMode = progress > 0.965 ? "explore" : progress > 0.9 ? "settle" : "scroll";
+    const cueProgress = clamp(progress / 0.965);
+    cueEl?.style.setProperty("--cue-progress", cueProgress.toFixed(4));
+    cueEl?.setAttribute("data-home-visible", "true");
+    cueEl?.setAttribute("data-cue-mode", cueMode);
+    if (cuePercentEl) cuePercentEl.textContent = `${Math.round(cueProgress * 100)}%`;
   };
 
   // ===== Season state =====
@@ -3440,7 +3446,10 @@ export function initDiorama() {
     storyEl?.removeAttribute("data-story-step");
     storyEl?.style.removeProperty("--story-progress");
     storyEl?.style.removeProperty("--story-local");
+    cueEl?.style.removeProperty("--cue-progress");
     cueEl?.removeAttribute("data-home-visible");
+    cueEl?.removeAttribute("data-cue-mode");
+    if (cuePercentEl) cuePercentEl.textContent = "0%";
 
     const w = window as unknown as Record<string, unknown>;
     if (w[CLEANUP_KEY] === cleanup) delete w[CLEANUP_KEY];

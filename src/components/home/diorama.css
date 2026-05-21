@@ -1229,55 +1229,254 @@
 }
 
 .home-scroll-cue {
+  --cue-ink-rgb: 75 107 255;
   position: absolute;
   left: 50%;
-  bottom: 1.5rem;
-  display: flex;
-  flex-direction: column;
+  bottom: max(2.1rem, calc(env(safe-area-inset-bottom) + 1.2rem));
+  z-index: 8;
+  display: grid;
+  grid-template-columns: 3.05rem minmax(6.8rem, 10.5rem) auto;
   align-items: center;
-  gap: 0.42rem;
-  transform: translateX(-50%);
-  opacity: calc(1 - var(--home-progress) * 1.36);
-  text-align: center;
+  gap: 0.68rem;
+  width: min(17.4rem, calc(100vw - 2rem));
+  min-height: 3.15rem;
+  padding: 0.42rem 0.62rem;
+  color: rgba(75, 107, 255, 0.78);
+  background: rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(75, 107, 255, 0.1);
+  border-radius: 999px;
+  box-shadow: 0 12px 34px rgba(37, 65, 183, 0.07);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(-50%, 0.38rem, 0) scale(0.98);
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    background 0.24s ease;
 }
 
-.home-scroll-cue__label {
+.home-scroll-cue[data-home-visible="true"] {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0) scale(1);
+}
+
+[data-theme="dark"] .home-scroll-cue {
+  --cue-ink-rgb: 145 167 255;
+  color: rgba(145, 167, 255, 0.84);
+  background: rgba(15, 23, 42, 0.28);
+  border-color: rgba(145, 167, 255, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.home-scroll-cue__motion {
+  position: relative;
+  width: 3.05rem;
+  height: 2.35rem;
+  display: grid;
+  place-items: center;
+}
+
+.home-scroll-cue__motion::before {
+  content: "";
+  position: absolute;
+  inset: 0.15rem 0.3rem;
+  border-radius: 999px;
+  background: rgb(var(--cue-ink-rgb) / 0.075);
+  opacity: 0.5;
+  animation: home-cue-halo 2.45s ease-in-out infinite;
+}
+
+.home-scroll-cue__motion-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(0.88);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.home-scroll-cue[data-cue-mode="scroll"] .home-scroll-cue__motion-icon--scroll,
+.home-scroll-cue[data-cue-mode="settle"] .home-scroll-cue__motion-icon--scroll,
+.home-scroll-cue[data-cue-mode="explore"] .home-scroll-cue__motion-icon--drag {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.home-scroll-cue[data-cue-mode="settle"] .home-scroll-cue__motion::before {
+  animation-duration: 2.25s;
+}
+
+.home-scroll-cue[data-cue-mode="explore"] .home-scroll-cue__motion::before {
+  inset: 0.42rem 0.15rem;
+  animation: home-cue-halo-wide 1.9s ease-in-out infinite;
+}
+
+.home-scroll-cue__mouse,
+.home-scroll-cue__drag {
+  position: absolute;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.home-scroll-cue__mouse {
+  left: 50%;
+  top: 50%;
+  width: 1.88rem;
+  height: 2.5rem;
+  stroke-width: 1.8;
+  opacity: 0.76;
+  transform: translate(-50%, -40%);
+}
+
+.home-scroll-cue__wheel {
+  animation: home-cue-wheel 1.7s ease-in-out infinite;
+}
+
+.home-scroll-cue[data-cue-mode="settle"] .home-scroll-cue__wheel {
+  animation-duration: 2.15s;
+}
+
+.home-scroll-cue__drag {
+  inset: 0.54rem 0.24rem auto;
+  width: 2.58rem;
+  height: 1.46rem;
+  stroke-width: 2.1;
+  animation: home-cue-drag-side 1.75s ease-in-out infinite;
+}
+
+.home-scroll-cue[data-cue-mode="explore"] {
+  bottom: max(2.75rem, calc(env(safe-area-inset-bottom) + 1.8rem));
+  color: rgba(245, 248, 255, 0.96);
+  background: rgba(24, 34, 54, 0.66);
+  border-color: rgba(190, 206, 255, 0.28);
+  box-shadow: 0 18px 46px rgba(8, 16, 32, 0.26);
+  backdrop-filter: blur(8px) saturate(1.08);
+  -webkit-backdrop-filter: blur(8px) saturate(1.08);
+}
+
+.home-scroll-cue__progress {
+  height: 0.12rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(75, 107, 255, 0.14);
+}
+
+[data-theme="dark"] .home-scroll-cue__progress {
+  background: rgba(145, 167, 255, 0.16);
+}
+
+.home-scroll-cue__progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(75, 107, 255, 0.36), rgba(75, 107, 255, 0.86));
+  transform: scaleX(var(--cue-progress, 0));
+  transform-origin: left center;
+  transition: transform 0.12s linear;
+}
+
+[data-theme="dark"] .home-scroll-cue__progress span {
+  background: linear-gradient(90deg, rgba(145, 167, 255, 0.36), rgba(192, 193, 255, 0.86));
+}
+
+.home-scroll-cue__percent {
+  min-width: 2.35rem;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 0.64rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  opacity: 0.72;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-align: right;
+  color: currentColor;
+  opacity: 0.66;
+  font-variant-numeric: tabular-nums;
 }
 
-.home-scroll-cue__title {
-  max-width: min(42rem, calc(100vw - 4rem));
-  font-family: "Fraunces", "Noto Serif SC", serif;
-  font-size: clamp(1rem, 0.92rem + 0.42vw, 1.22rem);
-  line-height: 1.35;
+.home-scroll-cue[data-cue-mode="explore"] .home-scroll-cue__motion::before {
+  background: rgba(245, 248, 255, 0.16);
 }
 
-.home-scroll-cue__line {
-  width: 1px;
-  height: 4.6rem;
-  background: linear-gradient(180deg, currentColor 0%, rgba(29, 24, 19, 0.08) 100%);
-  transform-origin: top center;
-  animation: home-scroll-line 1.9s ease-in-out infinite;
+.home-scroll-cue[data-cue-mode="explore"] .home-scroll-cue__progress {
+  background: rgba(226, 234, 255, 0.24);
 }
 
-[data-theme="dark"] .home-scroll-cue__line {
-  background: linear-gradient(180deg, currentColor 0%, rgba(239, 233, 221, 0.06) 100%);
+.home-scroll-cue[data-cue-mode="explore"] .home-scroll-cue__progress span {
+  background: linear-gradient(90deg, rgba(151, 177, 255, 0.8), rgba(255, 255, 255, 0.95));
 }
 
-@keyframes home-scroll-line {
+.home-scroll-cue[data-cue-mode="explore"] .home-scroll-cue__percent {
+  opacity: 0.9;
+}
+
+[data-theme="dark"] .home-scroll-cue[data-cue-mode="explore"] {
+  color: rgba(245, 248, 255, 0.98);
+  background: rgba(8, 14, 26, 0.72);
+  border-color: rgba(192, 193, 255, 0.26);
+}
+
+@keyframes home-cue-halo {
   0%,
   100% {
-    transform: scaleY(0.72);
-    opacity: 0.52;
+    opacity: 0.18;
+    transform: scale(0.94);
   }
 
   50% {
-    transform: scaleY(1);
-    opacity: 0.92;
+    opacity: 0.5;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes home-cue-halo-wide {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: scaleX(0.9);
+  }
+
+  50% {
+    opacity: 0.74;
+    transform: scaleX(1.08);
+  }
+}
+
+@keyframes home-cue-wheel {
+  0%,
+  20% {
+    opacity: 0.95;
+    stroke-dasharray: 4.5 0;
+    stroke-dashoffset: 0;
+    transform: translateY(-0.08rem);
+  }
+
+  72%,
+  100% {
+    opacity: 0.18;
+    stroke-dasharray: 2 4;
+    stroke-dashoffset: -4;
+    transform: translateY(0.34rem);
+  }
+}
+
+@keyframes home-cue-drag-side {
+  0%,
+  100% {
+    opacity: 0.58;
+    transform: translateX(-0.18rem);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(0.18rem);
   }
 }
 
@@ -1377,12 +1576,40 @@
   }
 
   .home-scroll-cue {
-    bottom: 1.1rem;
-    width: calc(100vw - 2rem);
+    bottom: max(1.65rem, calc(env(safe-area-inset-bottom) + 1rem));
+    grid-template-columns: 2.35rem minmax(4.8rem, 1fr) 2.05rem;
+    gap: 0.42rem;
+    width: min(13.2rem, calc(100vw - 2rem));
+    min-height: 2.68rem;
+    padding: 0.32rem 0.5rem;
   }
 
-  .home-scroll-cue__line {
-    height: 3.6rem;
+  .home-scroll-cue[data-cue-mode="explore"] {
+    bottom: max(2.15rem, calc(env(safe-area-inset-bottom) + 1.45rem));
+    width: min(13.6rem, calc(100vw - 2rem));
+  }
+
+  .home-scroll-cue__motion {
+    width: 2.35rem;
+    height: 1.86rem;
+  }
+
+  .home-scroll-cue__mouse {
+    width: 1.42rem;
+    height: 1.9rem;
+    transform: translate(-50%, -39%);
+  }
+
+  .home-scroll-cue__drag {
+    inset: 0.4rem 0.18rem auto;
+    width: 2rem;
+    height: 1.12rem;
+    stroke-width: 2.2;
+  }
+
+  .home-scroll-cue__percent {
+    min-width: 2.05rem;
+    font-size: 0.64rem;
   }
 
   .home-story__scene {
@@ -1549,7 +1776,12 @@
   .story-material,
   .story-flow::before,
   .home-scroll-cue,
-  .home-scroll-cue__line,
+  .home-scroll-cue__motion::before,
+  .home-scroll-cue__motion-icon,
+  .home-scroll-cue__mouse,
+  .home-scroll-cue__wheel,
+  .home-scroll-cue__drag,
+  .home-scroll-cue__progress span,
   .home-card__value--thread::after,
   .diorama-tooltip {
     transition: none !important;
