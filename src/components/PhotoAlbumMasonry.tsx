@@ -33,18 +33,14 @@ interface AlbumResponse {
 }
 
 interface ScrollLockState {
+  scrollX: number;
   scrollY: number;
-  overflow: string;
-  position: string;
-  top: string;
-  left: string;
-  right: string;
-  width: string;
-  paddingRight: string;
 }
 
 const REVEAL_BATCH_SIZE = 15;
 const CLIENT_TIMEOUT_MS = 12000;
+const EMPTY_IMAGE_SRC =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 const breakpointColumns = {
   default: 5,
@@ -107,7 +103,9 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   const [loadedMediaIds, setLoadedMediaIds] = useState<Record<string, true>>({});
   const [previewThumbLoaded, setPreviewThumbLoaded] = useState(false);
   const [previewFullLoaded, setPreviewFullLoaded] = useState(false);
+  const [previewVideoRequested, setPreviewVideoRequested] = useState(false);
   const [previewVideoReady, setPreviewVideoReady] = useState(false);
+  const [previewVideoFailed, setPreviewVideoFailed] = useState(false);
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const scrollDetectorRef = useRef<HTMLDivElement | null>(null);
@@ -115,6 +113,10 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   const isMountedRef = useRef(true);
   const imageFailureIdsRef = useRef(new Set<string>());
   const scrollLockStateRef = useRef<ScrollLockState | null>(null);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
+  const previewPosterImageRef = useRef<HTMLImageElement | null>(null);
+  const previewImageElementRef = useRef<HTMLImageElement | null>(null);
+  const previewFullImageElementRef = useRef<HTMLImageElement | null>(null);
 
   const stateRef = useRef({
     isLoading: false,
@@ -148,6 +150,57 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     selectedPhoto?.width && selectedPhoto?.height
       ? `min(100%, calc(80vh * ${previewAspectRatio}))`
       : "100%";
+  const shouldLoadFullPreviewImage =
+    Boolean(previewFullImageUrl) &&
+    previewFullImageUrl !== previewImageUrl &&
+    previewThumbLoaded;
+
+  const abortImageRequest = useCallback((image: HTMLImageElement | null) => {
+    if (!image) {
+      return;
+    }
+
+    image.onload = null;
+    image.onerror = null;
+    image.removeAttribute("src");
+    image.src = EMPTY_IMAGE_SRC;
+  }, []);
+
+  const stopPreviewMediaRequests = useCallback(() => {
+    const video = previewVideoRef.current;
+
+    if (video) {
+      video.pause();
+      video.removeAttribute("src");
+      video.removeAttribute("poster");
+      video.load();
+    }
+
+    abortImageRequest(previewPosterImageRef.current);
+    abortImageRequest(previewImageElementRef.current);
+    abortImageRequest(previewFullImageElementRef.current);
+  }, [abortImageRequest]);
+
+  const requestPreviewVideo = useCallback(() => {
+    if (!selectedPhoto?.videoUrl) {
+      return;
+    }
+
+    setPreviewVideoRequested(true);
+    setPreviewVideoReady(false);
+    setPreviewVideoFailed(false);
+
+    const video = previewVideoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    video.src = selectedPhoto.videoUrl;
+    video.poster = selectedPhoto.previewUrl || selectedPhoto.displayUrl;
+    video.load();
+    video.play().catch(() => undefined);
+  }, [selectedPhoto?.displayUrl, selectedPhoto?.previewUrl, selectedPhoto?.videoUrl]);
 
   const fetchPhotoPage = useCallback(
     async (cursor: string | null = null, loadedCount = 0) => {
@@ -253,26 +306,31 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   }, []);
 
   const closePreview = useCallback(() => {
+    stopPreviewMediaRequests();
     setSelectedIndex(null);
-  }, []);
+  }, [stopPreviewMediaRequests]);
 
   const showPrev = useCallback(() => {
+    stopPreviewMediaRequests();
+
     setSelectedIndex((current) => {
       if (current === null || current <= 0) {
         return current;
       }
       return current - 1;
     });
-  }, []);
+  }, [stopPreviewMediaRequests]);
 
   const showNext = useCallback(() => {
+    stopPreviewMediaRequests();
+
     setSelectedIndex((current) => {
       if (current === null || current >= orderedPhotos.length - 1) {
         return current;
       }
       return current + 1;
     });
-  }, [orderedPhotos.length]);
+  }, [orderedPhotos.length, stopPreviewMediaRequests]);
 
   useEffect(() => {
     stateRef.current.visibleCount = visibleCount;
@@ -374,31 +432,10 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       return;
     }
 
-    const bodyStyle = document.body.style;
-    const scrollY = window.scrollY;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-
     scrollLockStateRef.current = {
-      scrollY,
-      overflow: bodyStyle.overflow,
-      position: bodyStyle.position,
-      top: bodyStyle.top,
-      left: bodyStyle.left,
-      right: bodyStyle.right,
-      width: bodyStyle.width,
-      paddingRight: bodyStyle.paddingRight,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
     };
-
-    bodyStyle.overflow = "hidden";
-    bodyStyle.position = "fixed";
-    bodyStyle.top = `-${scrollY}px`;
-    bodyStyle.left = "0";
-    bodyStyle.right = "0";
-    bodyStyle.width = "100%";
-
-    if (scrollbarWidth > 0) {
-      bodyStyle.paddingRight = `${scrollbarWidth}px`;
-    }
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -416,14 +453,10 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       const lockState = scrollLockStateRef.current;
 
       if (lockState) {
-        bodyStyle.overflow = lockState.overflow;
-        bodyStyle.position = lockState.position;
-        bodyStyle.top = lockState.top;
-        bodyStyle.left = lockState.left;
-        bodyStyle.right = lockState.right;
-        bodyStyle.width = lockState.width;
-        bodyStyle.paddingRight = lockState.paddingRight;
-        window.scrollTo(0, lockState.scrollY);
+        window.scrollTo(lockState.scrollX, lockState.scrollY);
+        window.requestAnimationFrame(() => {
+          window.scrollTo(lockState.scrollX, lockState.scrollY);
+        });
         scrollLockStateRef.current = null;
       }
 
@@ -432,104 +465,12 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   }, [isPreviewOpen, closePreview, showNext, showPrev]);
 
   useEffect(() => {
-    if (!selectedPhoto) {
-      setPreviewThumbLoaded(false);
-      setPreviewFullLoaded(false);
-      setPreviewVideoReady(false);
-      return;
-    }
-
     setPreviewThumbLoaded(false);
     setPreviewFullLoaded(false);
+    setPreviewVideoRequested(false);
     setPreviewVideoReady(false);
-
-    let disposed = false;
-    const preloadImage = (src: string | null, onDone: () => void) => {
-      if (!src) {
-        return null;
-      }
-
-      const image = new window.Image();
-      image.decoding = "async";
-      image.src = src;
-
-      const finish = () => {
-        if (disposed) {
-          return;
-        }
-
-        onDone();
-      };
-
-      const finishAfterDecode = () => {
-        if (typeof image.decode === "function") {
-          image.decode().catch(() => undefined).finally(finish);
-          return;
-        }
-
-        finish();
-      };
-
-      if (image.complete && image.naturalWidth > 0) {
-        finishAfterDecode();
-        return image;
-      }
-
-      image.onload = finishAfterDecode;
-      image.onerror = finish;
-      return image;
-    };
-
-    const loadedImages: HTMLImageElement[] = [];
-
-    if (selectedPhoto.mediaType === "video") {
-      const posterImage = preloadImage(selectedPhoto.previewUrl || selectedPhoto.displayUrl, () => {
-        setPreviewThumbLoaded(true);
-      });
-
-      if (posterImage) {
-        loadedImages.push(posterImage);
-      }
-    } else {
-      const previewSource = selectedPhoto.previewUrl || selectedPhoto.displayUrl;
-      const fullSource = selectedPhoto.originalLikeUrl || previewSource;
-
-      if (previewSource && previewSource === fullSource) {
-        const fullImage = preloadImage(fullSource, () => {
-          setPreviewThumbLoaded(true);
-          setPreviewFullLoaded(true);
-        });
-
-        if (fullImage) {
-          loadedImages.push(fullImage);
-        }
-      } else {
-        const previewImage = preloadImage(previewSource, () => {
-          setPreviewThumbLoaded(true);
-        });
-        const fullImage = preloadImage(fullSource, () => {
-          setPreviewThumbLoaded(true);
-          setPreviewFullLoaded(true);
-        });
-
-        if (previewImage) {
-          loadedImages.push(previewImage);
-        }
-
-        if (fullImage) {
-          loadedImages.push(fullImage);
-        }
-      }
-    }
-
-    return () => {
-      disposed = true;
-      loadedImages.forEach((image) => {
-        image.onload = null;
-        image.onerror = null;
-      });
-    };
-  }, [selectedPhoto]);
+    setPreviewVideoFailed(false);
+  }, [selectedPhoto?.id]);
 
   const registerImageFailure = (photoId: string) => {
     if (imageFailureIdsRef.current.has(photoId)) {
@@ -676,8 +617,13 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
 
       {selectedPhoto ? (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
           onClick={closePreview}
+          onWheel={(event) => event.preventDefault()}
+          style={{
+            overscrollBehavior: "contain",
+            touchAction: "none",
+          }}
         >
           <button
             type="button"
@@ -720,16 +666,21 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
             className="relative flex max-h-full w-full max-w-6xl flex-col items-center gap-4"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="max-h-[80vh] w-full overflow-hidden rounded-2xl shadow-2xl">
+            <div
+              className="max-h-[80vh] max-w-full overflow-hidden rounded-2xl shadow-2xl"
+              style={{
+                width: previewFrameWidth,
+              }}
+            >
               {selectedPhoto.mediaType === "video" && selectedPhoto.videoUrl ? (
                 <div
-                  className="relative mx-auto overflow-hidden rounded-2xl"
+                  className="relative mx-auto overflow-hidden rounded-2xl bg-black"
                   style={{
                     aspectRatio:
                       selectedPhoto.width && selectedPhoto.height
                         ? `${selectedPhoto.width} / ${selectedPhoto.height}`
                         : "16 / 9",
-                    width: previewFrameWidth,
+                    width: "100%",
                     maxWidth: "100%",
                     maxHeight: "80vh",
                   }}
@@ -741,29 +692,83 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                   />
 
                   <img
+                    ref={previewPosterImageRef}
                     src={selectedPhoto.previewUrl || selectedPhoto.displayUrl}
                     alt={
                       album?.title && selectedPhotoOrder !== null
                         ? `${album.title} ${selectedPhotoOrder}`
                         : `相册缩略图 ${selectedPhotoOrder ?? ""}`.trim()
                     }
+                    onLoad={() => setPreviewThumbLoaded(true)}
+                    onError={() => setPreviewThumbLoaded(true)}
                     className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
                       !previewVideoReady ? "opacity-100" : "opacity-0"
                     }`}
                   />
 
+                  {!previewVideoReady ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/35 px-4 text-white">
+                      {previewVideoRequested && !previewVideoFailed ? (
+                        <div
+                          className="flex items-center gap-3 rounded-full bg-black/70 px-4 py-3 text-sm font-medium shadow-lg"
+                          role="status"
+                        >
+                          <span
+                            className="h-5 w-5 animate-spin rounded-full border-2 border-white/70 border-r-transparent"
+                            aria-hidden="true"
+                          />
+                          <span>正在加载视频...</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={requestPreviewVideo}
+                          className="flex items-center gap-3 rounded-full bg-black/75 px-4 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-black/90"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="h-5 w-5"
+                            aria-hidden="true"
+                          >
+                            <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z" />
+                          </svg>
+                          <span>{previewVideoFailed ? "重新加载视频" : "加载并播放视频"}</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+
                   <video
-                    src={selectedPhoto.videoUrl}
-                    poster={selectedPhoto.previewUrl || selectedPhoto.displayUrl}
-                    controls
-                    autoPlay
+                    ref={previewVideoRef}
+                    key={selectedPhoto.id}
+                    src={previewVideoRequested ? selectedPhoto.videoUrl : undefined}
+                    poster={
+                      previewVideoRequested
+                        ? selectedPhoto.previewUrl || selectedPhoto.displayUrl
+                        : undefined
+                    }
+                    controls={previewVideoReady}
                     playsInline
+                    preload={previewVideoRequested ? "auto" : "none"}
+                    onCanPlay={(event) => {
+                      setPreviewThumbLoaded(true);
+                      setPreviewVideoReady(true);
+                      setPreviewVideoFailed(false);
+                      event.currentTarget.play().catch(() => undefined);
+                    }}
                     onLoadedData={() => {
                       setPreviewThumbLoaded(true);
                       setPreviewVideoReady(true);
+                      setPreviewVideoFailed(false);
+                    }}
+                    onError={() => {
+                      setPreviewThumbLoaded(true);
+                      setPreviewVideoFailed(true);
                     }}
                     className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
-                      previewVideoReady ? "opacity-100" : "opacity-0"
+                      previewVideoReady ? "opacity-100" : "pointer-events-none opacity-0"
                     }`}
                   />
                 </div>
@@ -775,7 +780,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                       selectedPhoto.width && selectedPhoto.height
                         ? `${selectedPhoto.width} / ${selectedPhoto.height}`
                         : "3 / 4",
-                    width: previewFrameWidth,
+                    width: "100%",
                     maxWidth: "100%",
                     maxHeight: "80vh",
                   }}
@@ -788,24 +793,36 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
 
                   {previewImageUrl ? (
                     <img
+                      ref={previewImageElementRef}
                       src={previewImageUrl}
                       alt={
                         album?.title && selectedPhotoOrder !== null
                           ? `${album.title} ${selectedPhotoOrder}`
                           : `相册缩略图 ${selectedPhotoOrder ?? ""}`.trim()
                       }
+                      onLoad={() => {
+                        setPreviewThumbLoaded(true);
+
+                        if (previewImageUrl === previewFullImageUrl) {
+                          setPreviewFullLoaded(true);
+                        }
+                      }}
+                      onError={() => setPreviewThumbLoaded(true)}
                       className="absolute inset-0 h-full w-full object-contain"
                     />
                   ) : null}
 
-                  {previewFullImageUrl ? (
+                  {shouldLoadFullPreviewImage ? (
                     <img
+                      ref={previewFullImageElementRef}
                       src={previewFullImageUrl}
                       alt={
                         album?.title && selectedPhotoOrder !== null
                           ? `${album.title} ${selectedPhotoOrder}`
                           : `相册照片 ${selectedPhotoOrder ?? ""}`.trim()
                       }
+                      onLoad={() => setPreviewFullLoaded(true)}
+                      onError={() => setPreviewFullLoaded(true)}
                       className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
                         previewFullLoaded ? "opacity-100" : "opacity-0"
                       }`}
