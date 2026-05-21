@@ -472,10 +472,11 @@ const drawMobileStory = (
     });
   };
 
-  const mobileChip = (value: string, x: number, y: number, active = false) => {
+  const mobileChip = (value: string, x: number, y: number, active = false, maxWidth = Infinity) => {
     ctx.save();
-    ctx.font = `700 ${smallSize * 0.9}px 'JetBrains Mono', monospace`;
-    const chipW = ctx.measureText(value).width + 28 * unit;
+    const chipTextSize = fitSize(value, maxWidth - 28 * unit, smallSize * 0.9, smallSize * 0.68, "'JetBrains Mono', monospace", 700);
+    ctx.font = `700 ${chipTextSize}px 'JetBrains Mono', monospace`;
+    const chipW = Math.min(ctx.measureText(value).width + 28 * unit, maxWidth);
     const chipH = 32 * unit;
     rounded(ctx, { x, y, w: chipW, h: chipH }, chipH / 2, active ? palette.accentSoft : palette.soft, active ? palette.line : hairline);
     ctx.fillStyle = active ? palette.accent : palette.muted;
@@ -521,11 +522,12 @@ const drawMobileStory = (
     const pad = 22 * unit;
     const maxWidth = rect.w - pad * 2;
     clipRounded(rect, radius * 0.7, () => {
-      text(`0${index}`, rect.x + pad, rect.y + rect.h * 0.3, smallSize * 0.82, palette.accent, "'JetBrains Mono', monospace", 700);
-      textFit(label, rect.x + pad, rect.y + rect.h * 0.48, smallSize * 0.72, maxWidth, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.58);
-      textFit(title, rect.x + pad, rect.y + rect.h * 0.68, bodySize * 0.88, maxWidth, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.66);
-      wrapText(body, maxWidth, smallSize * 0.64, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
-        text(line, rect.x + pad, rect.y + rect.h - 14 * unit, smallSize * 0.64, palette.muted, "'JetBrains Mono', monospace", 600);
+      text(`0${index}`, rect.x + pad, rect.y + 34 * unit, smallSize * 0.74, palette.accent, "'JetBrains Mono', monospace", 700);
+      textFit(label, rect.x + pad + 52 * unit, rect.y + 34 * unit, smallSize * 0.62, maxWidth - 52 * unit, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.5);
+      textFit(title, rect.x + pad, rect.y + 76 * unit, bodySize * 0.78, maxWidth, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.58);
+      const bodyY = Math.min(rect.y + 108 * unit, rect.y + rect.h - 22 * unit);
+      wrapText(body, maxWidth, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+        text(line, rect.x + pad, bodyY, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
       });
     });
   };
@@ -669,27 +671,46 @@ const drawMobileStory = (
   withAlpha(ctx, chipAlpha, () => {
     const tagItems = inputCards.map((card, index) => ({
       value: card.title,
-      target: index,
       active: card.active,
       offsetX: index % 2 === 0 ? -24 : 20,
-      offsetY: 34 + Math.floor(index / 2) * 7,
+      offsetY: Math.floor(index / 2) === 1 ? 10 : 28,
     }));
+    const chipScale = lerp(0.94, 0.78, gather);
+    const chipMaxW = Math.min((safe.w * 0.47) / chipScale, 180 * unit);
+    const rowGap = 12 * unit;
+    const rowOffsets = [-110 * unit, 0, 110 * unit];
+    const tagLayout = tagItems.map((_, index) => {
+      const row = Math.floor(index / 2);
+      const col = index % 2;
+      const rowIndexes = [row * 2, row * 2 + 1];
+      const rowWidths = rowIndexes.map((itemIndex) => {
+        const value = tagItems[itemIndex]?.value ?? "";
+        return Math.min(measure(value, smallSize * 0.9, "'JetBrains Mono', monospace", 700) + 28 * unit, chipMaxW);
+      });
+      const effectiveWidths = rowWidths.map((chipW) => chipW * chipScale);
+      const rowW = effectiveWidths.reduce((sum, chipW) => sum + chipW, 0) + rowGap;
+      const x = width / 2 - rowW / 2 + effectiveWidths.slice(0, col).reduce((sum, chipW) => sum + chipW + rowGap, 0);
+      return {
+        x: clamp(x, safe.x, safe.x + safe.w - rowWidths[col] * chipScale),
+        y: introCenter.y + rowOffsets[row],
+        maxWidth: rowWidths[col],
+      };
+    });
 
     tagItems.forEach((item, index) => {
-      const targetRect = inputRects[item.target];
-      const targetX = targetRect.x + 18 * unit;
-      const targetY = targetRect.y + 18 * unit;
+      const target = tagLayout[index];
+      const targetX = target.x;
+      const targetY = target.y;
       const fromX = targetX + item.offsetX * unit;
-      const fromY = targetRect.y + targetRect.h * 0.58 + item.offsetY * unit;
+      const fromY = targetY + item.offsetY * unit;
       const driftX = Math.sin(progress * 8 + index * 1.7) * 10 * unit * (1 - gather);
       const driftY = Math.cos(progress * 7 + index * 1.3) * 8 * unit * (1 - gather);
       const x = lerp(fromX + driftX, targetX, gather);
       const y = lerp(fromY + driftY, targetY, gather);
-      const scale = lerp(1, 0.78, gather);
       ctx.save();
       ctx.translate(x, y);
-      ctx.scale(scale, scale);
-      mobileChip(item.value, 0, 0, item.active);
+      ctx.scale(chipScale, chipScale);
+      mobileChip(item.value, 0, 0, item.active, target.maxWidth);
       ctx.restore();
     });
   });
@@ -738,7 +759,8 @@ const drawMobileStory = (
   });
 
   const workAlpha = phase(progress, 0.62, 0.72) * (1 - phase(progress, 0.9, 0.96));
-  const rowH = safe.h * 0.16;
+  const workGapY = 16 * unit;
+  const rowH = Math.min(clamp(safe.h * 0.185, 126 * unit, 152 * unit), (safe.h - 112 * unit - workGapY * 2) / 3);
   const workRows = STORY_WORK_ROWS;
   const buildRect = {
     x: lineX + 42 * unit,
@@ -747,9 +769,9 @@ const drawMobileStory = (
     h: 62 * unit,
   };
   const workRects = workRows.map((_, index) => ({
-    x: safe.x,
-    y: safe.y + 62 * unit + index * (rowH + gap),
-    w: safe.w,
+    x: safe.x + 2 * unit,
+    y: safe.y + 76 * unit + index * (rowH + workGapY),
+    w: safe.w - 4 * unit,
     h: rowH,
   }));
   withAlpha(ctx, workAlpha, () => {
@@ -770,13 +792,13 @@ const drawMobileStory = (
     const source = workRects[1];
     const target = {
       x: safe.x,
-      y: safe.y + safe.h * 0.04,
+      y: safe.y + safe.h * 0.055,
       w: safe.w,
-      h: safe.h * 0.86,
+      h: safe.h * 0.84,
     };
     const rect = moveRect(source, target, todayProgress);
     rounded(ctx, rect, radius, palette.paperStrong, "rgba(148, 163, 184, 0.16)", palette.shadow);
-    const pad = 28 * unit;
+    const pad = 26 * unit;
     const contentAlpha = phase(todayProgress, 0.56, 0.86);
     ctx.save();
     ctx.beginPath();
@@ -796,18 +818,21 @@ const drawMobileStory = (
       ctx.restore();
 
       text("lsy", rect.x + pad, top + 90 * unit, titleSize * 0.82, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      text("full-stack & AI engineer", rect.x + pad, top + 142 * unit, bodySize * 0.78, palette.text, "'JetBrains Mono', monospace", 700);
-      text("working with AI, writing,", rect.x + pad, top + 174 * unit, smallSize * 0.78, palette.muted, "'JetBrains Mono', monospace", 600);
-      text("and the world outside the screen", rect.x + pad, top + 199 * unit, smallSize * 0.72, palette.muted, "'JetBrains Mono', monospace", 600);
+      textFit("full-stack & AI engineer", rect.x + pad, top + 142 * unit, bodySize * 0.76, rect.w - pad * 2, palette.text, "'JetBrains Mono', monospace", 700, bodySize * 0.56);
+      wrapText("working with AI, writing, and the world outside the screen", rect.w - pad * 2, smallSize * 0.7, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
+        text(line, rect.x + pad, top + 174 * unit + lineIndex * 24 * unit, smallSize * 0.7, palette.muted, "'JetBrains Mono', monospace", 600);
+      });
 
       const panels = STORY_TODAY_PANELS;
       const panelGap = 9 * unit;
-      const panelH = 66 * unit;
+      const statusTop = rect.y + rect.h - 62 * unit;
+      const panelTop = top + 224 * unit;
+      const panelH = Math.min(64 * unit, Math.max(52 * unit, (statusTop - panelTop - panelGap * 2 - 14 * unit) / 3));
       panels.forEach((panel, index) => {
         const sourceRect = workRects[Math.min(index, workRects.length - 1)];
         const targetPanel = {
           x: rect.x + pad,
-          y: top + 212 * unit + index * (panelH + panelGap),
+          y: panelTop + index * (panelH + panelGap),
           w: rect.w - pad * 2,
           h: panelH,
         };
@@ -815,16 +840,18 @@ const drawMobileStory = (
         snapshotPanel(panelRect, panel[0], panel[1], panel[2], index === 0);
       });
 
-      const statusRect = {
-        x: rect.x + pad,
-        y: rect.y + rect.h - 86 * unit,
-        w: rect.w - pad * 2,
-        h: 58 * unit,
-      };
-      rounded(ctx, statusRect, radius * 0.66, palette.paper, hairline, palette.shadow);
-      const statusPad = 18 * unit;
-      textFit(STORY_STATUS, statusRect.x + statusPad, statusRect.y + 25 * unit, smallSize * 0.74, statusRect.w - statusPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.58);
-      textFit(input.contact || "lsy22@vip.qq.com", statusRect.x + statusPad, statusRect.y + 48 * unit, smallSize * 0.64, statusRect.w - statusPad * 2, palette.muted, "'JetBrains Mono', monospace", 600, smallSize * 0.52);
+      ctx.save();
+      ctx.strokeStyle = hairline;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(rect.x + pad, statusTop - 7 * unit);
+      ctx.lineTo(rect.x + rect.w - pad, statusTop - 7 * unit);
+      ctx.stroke();
+      ctx.restore();
+      const statusTextX = rect.x + pad;
+      const statusMaxW = rect.w - pad * 2;
+      textFit(STORY_STATUS, statusTextX, statusTop + 24 * unit, smallSize * 0.62, statusMaxW, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+      textFit(input.contact || "lsy22@vip.qq.com", statusTextX, statusTop + 50 * unit, smallSize * 0.58, statusMaxW, palette.muted, "'JetBrains Mono', monospace", 600, smallSize * 0.46);
     });
     ctx.restore();
   });
@@ -1393,7 +1420,7 @@ const drawDesktopStory = (
   const trackAreaW = stageW * 0.9;
   const trackX = centerX - trackAreaW / 2;
   const trackW = (trackAreaW - trackGap * 2) / 3;
-  const trackH = 276 * unit;
+  const trackH = 230 * unit;
   const trackY = centerY - 118 * unit;
   const tracks = STORY_TRACKS;
   const trackRects = tracks.map((_, index) => ({
@@ -1419,10 +1446,10 @@ const drawDesktopStory = (
     const startX = track.x + (track.w - totalW) / 2;
     const x = startX + visibleWidths.slice(0, column).reduce((sum, width) => sum + width + gap, 0);
     const pad = 18 * unit;
-    const slotH = 58 * unit;
+    const slotH = 54 * unit;
     return {
       x: x - pad,
-      y: track.y + 166 * unit,
+      y: track.y + 154 * unit,
       w: visibleWidths[column] + pad * 2,
       h: slotH,
     };
@@ -1536,9 +1563,10 @@ const drawDesktopStory = (
     sourceTrack: (typeof tracks)[number],
     amount: number,
     alpha: number,
+    showSourceText = true,
   ) => {
     withAlpha(ctx, alpha, () => {
-      const trackTextAlpha = 1 - phase(amount, 0.08, 0.36);
+      const trackTextAlpha = showSourceText ? 1 - phase(amount, 0.08, 0.36) : 0;
       const workTextAlpha = phase(amount, 0.32, 0.72);
       const fill = amount > 0.56 && row.active ? palette.accentSoft : amount > 0.56 ? palette.paperStrong : row.active ? palette.accentSoft : glass;
       const stroke = row.active ? palette.line : hairline;
@@ -1645,7 +1673,7 @@ const drawDesktopStory = (
         const source = trackRects[row.from];
         const origin: Rect = source;
         const rect = moveRect(origin, workRects[index], build);
-        drawBuildMorphCard(rect, row, tracks[row.from], build, 1);
+        drawBuildMorphCard(rect, row, tracks[row.from], build, 1, index === 1);
       });
     });
   });
