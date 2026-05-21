@@ -14,7 +14,7 @@ const CLEANUP_KEY = "__homeDioramaCleanup";
 
 type ThemeName = "light" | "dark";
 
-type SeasonPal = {
+type OutdoorPalette = {
   sun: number;
   sunI: number;
   amb: number;
@@ -22,21 +22,37 @@ type SeasonPal = {
   sky: number;
   plant: number;
   fogTint: number;
+  cloud: number;
+  cloudOpacity: number;
+  rainOpacity: number;
 };
 
-const SEASONS_LIGHT: SeasonPal[] = [
-  { sun: 0xfff4e0, sunI: 1.55, amb: 0xfff4e6, ambI: 0.58, sky: 0xd8ecff, plant: 0x9fc970, fogTint: 0xeee4d0 },
-  { sun: 0xfff8ea, sunI: 1.7,  amb: 0xfffaee, ambI: 0.62, sky: 0x9cd2f0, plant: 0x5a8e3e, fogTint: 0xf2e8d4 },
-  { sun: 0xfff0dc, sunI: 1.5,  amb: 0xfff0e0, ambI: 0.56, sky: 0xb4c4d4, plant: 0xc8742a, fogTint: 0xd8d4cc },
-  { sun: 0xf0f2f8, sunI: 1.35, amb: 0xeef0f4, ambI: 0.52, sky: 0xc4cfdc, plant: 0x8b5a32, fogTint: 0xdce0e4 },
-];
-
-const SEASONS_DARK: SeasonPal[] = [
-  { sun: 0xffe4c8, sunI: 0.7,  amb: 0x4a4238, ambI: 0.4,  sky: 0x2a3a5a, plant: 0x6f9450, fogTint: 0x1a2230 },
-  { sun: 0xfff0d8, sunI: 0.85, amb: 0x4a483c, ambI: 0.44, sky: 0x1a3a5a, plant: 0x3a6e28, fogTint: 0x182638 },
-  { sun: 0xffd4a0, sunI: 0.7,  amb: 0x4a3a30, ambI: 0.4,  sky: 0x2a1e14, plant: 0x9a5418, fogTint: 0x181210 },
-  { sun: 0xd8dcec, sunI: 0.55, amb: 0x3a3e4a, ambI: 0.38, sky: 0x1a2636, plant: 0x5a3a20, fogTint: 0x0c1628 },
-];
+const OUTDOOR_PALETTES: Record<ThemeName, OutdoorPalette> = {
+  light: {
+    sun: 0xfff0dc,
+    sunI: 1.48,
+    amb: 0xf2ead8,
+    ambI: 0.56,
+    sky: 0xd8ecff,
+    plant: 0x6fa95d,
+    fogTint: 0xf1e7d9,
+    cloud: 0xf8f4ec,
+    cloudOpacity: 0.42,
+    rainOpacity: 0,
+  },
+  dark: {
+    sun: 0xbfd1ec,
+    sunI: 0.48,
+    amb: 0x384356,
+    ambI: 0.38,
+    sky: 0x16243a,
+    plant: 0x4f7044,
+    fogTint: 0x0f1828,
+    cloud: 0x7f8ca2,
+    cloudOpacity: 0.76,
+    rainOpacity: 0.52,
+  },
+};
 
 type Theme = {
   floor: number;
@@ -369,10 +385,7 @@ export function initDiorama() {
     personHair: new THREE.MeshToonMaterial({ color: 0x241811 }),
     personCloth: new THREE.MeshToonMaterial({ color: 0x4a6a8a }),
     key: new THREE.MeshToonMaterial({ color: 0x2a2a30 }),
-    petal: new THREE.MeshBasicMaterial({ color: 0xffc8dc, transparent: true, opacity: 0, side: THREE.DoubleSide }),
     rain: new THREE.MeshBasicMaterial({ color: 0xaec8e0, transparent: true, opacity: 0 }),
-    mapleLeaf: new THREE.MeshBasicMaterial({ color: 0xd46830, transparent: true, opacity: 0, side: THREE.DoubleSide }),
-    snow: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }),
   };
   const revealMaterials: THREE.Material[] = [
     mats.floor,
@@ -574,7 +587,7 @@ export function initDiorama() {
   skyPlane.position.set(0, 2, roomBackZ - 3);
   scene.add(skyPlane);
 
-  // Sun (bright disc, visible through window on sunny seasons)
+  // Sun/moon disc behind the window.
   const sunDisc = new THREE.Mesh(
     new THREE.CircleGeometry(0.38, 32),
     new THREE.MeshBasicMaterial({
@@ -598,7 +611,7 @@ export function initDiorama() {
   sunGlow.position.set(0.7, 2.8, roomBackZ - 2.65);
   scene.add(sunGlow);
 
-  // Drifting clouds (soft planes) — always present, cross-fade intensity by season
+  // Drifting clouds (soft planes) — tinted by the current theme.
   const cloudsGroup = new THREE.Group();
   const cloudMat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -622,83 +635,46 @@ export function initDiorama() {
   }
   scene.add(cloudsGroup);
 
-  // ===== Seasonal particle systems =====
-  const particleCount = window.innerWidth < 768 ? 28 : 60;
-
-  function makePetalGeo() {
-    // soft teardrop oval
+  const makeLeafGeo = () => {
     const shape = new THREE.Shape();
-    shape.moveTo(0, 0.055);
-    shape.bezierCurveTo(0.05, 0.04, 0.035, -0.03, 0, -0.055);
-    shape.bezierCurveTo(-0.035, -0.03, -0.05, 0.04, 0, 0.055);
-    return new THREE.ShapeGeometry(shape, 8);
-  }
+    shape.moveTo(0, 0.08);
+    shape.bezierCurveTo(0.045, 0.048, 0.055, -0.04, 0, -0.08);
+    shape.bezierCurveTo(-0.055, -0.04, -0.045, 0.048, 0, 0.08);
+    return new THREE.ShapeGeometry(shape, 10);
+  };
+
+  // ===== Night rain =====
+  const rainCount = window.innerWidth < 768 ? 36 : 86;
+
   function makeRainGeo() {
     return new THREE.PlaneGeometry(0.006, 0.16);
   }
-  function makeMapleGeo() {
-    // stylized 5-pointed leaf
-    const shape = new THREE.Shape();
-    const points: [number, number][] = [
-      [0, 0.09], [0.05, 0.055], [0.085, 0.065], [0.06, 0.01],
-      [0.1, -0.02], [0.055, -0.03], [0.035, -0.09], [0, -0.05],
-      [-0.035, -0.09], [-0.055, -0.03], [-0.1, -0.02], [-0.06, 0.01],
-      [-0.085, 0.065], [-0.05, 0.055], [0, 0.09],
-    ];
-    shape.moveTo(points[0][0], points[0][1]);
-    for (let i = 1; i < points.length; i++) shape.lineTo(points[i][0], points[i][1]);
-    return new THREE.ShapeGeometry(shape);
-  }
-  function makeSnowGeo() {
-    return new THREE.CircleGeometry(0.03, 6);
-  }
 
-  type ParticleSystem = {
+  type RainSystem = {
     mesh: THREE.InstancedMesh;
     material: THREE.MeshBasicMaterial;
     positions: Float32Array;
-    rotations: Float32Array;
-    rotVel: Float32Array;
     phases: Float32Array;
     fall: number;
-    sway: number;
-    tumble: boolean;
-    rotateFace: boolean; // rain: face camera (no rotation)
   };
 
-  function buildParticleSystem(
-    geo: THREE.BufferGeometry,
-    mat: THREE.MeshBasicMaterial,
-    fall: number,
-    sway: number,
-    tumble: boolean,
-    rotateFace: boolean,
-  ): ParticleSystem {
-    const mesh = new THREE.InstancedMesh(geo, mat, particleCount);
+  function buildRainSystem(): RainSystem {
+    const mesh = new THREE.InstancedMesh(makeRainGeo(), mats.rain, rainCount);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.frustumCulled = false;
-    const positions = new Float32Array(particleCount * 3);
-    const rotations = new Float32Array(particleCount);
-    const rotVel = new Float32Array(particleCount);
-    const phases = new Float32Array(particleCount);
-    for (let i = 0; i < particleCount; i++) {
+    const positions = new Float32Array(rainCount * 3);
+    const phases = new Float32Array(rainCount);
+    for (let i = 0; i < rainCount; i++) {
       positions[i * 3] = (Math.random() - 0.5) * 8;
       positions[i * 3 + 1] = Math.random() * 5 - 0.3;
       positions[i * 3 + 2] = roomBackZ - 0.6 - Math.random() * 2.4;
-      rotations[i] = Math.random() * Math.PI * 2;
-      rotVel[i] = (Math.random() - 0.5) * 0.05;
       phases[i] = Math.random() * Math.PI * 2;
     }
     scene.add(mesh);
-    return { mesh, material: mat, positions, rotations, rotVel, phases, fall, sway, tumble, rotateFace };
+    return { mesh, material: mats.rain, positions, phases, fall: 1.8 };
   }
 
-  const particleSystems = {
-    spring: buildParticleSystem(makePetalGeo(), mats.petal, 0.3, 0.55, true, false),
-    summer: buildParticleSystem(makeRainGeo(), mats.rain, 1.8, 0.02, false, true),
-    autumn: buildParticleSystem(makeMapleGeo(), mats.mapleLeaf, 0.5, 0.45, true, false),
-    winter: buildParticleSystem(makeSnowGeo(), mats.snow, 0.5, 0.18, false, true),
-  };
+  const rainSystem = buildRainSystem();
 
   // ===== Desk =====
   const desk = new THREE.Group();
@@ -1055,7 +1031,7 @@ export function initDiorama() {
   notebook.rotation.y = -0.25;
   scene.add(notebook);
 
-  // ===== Bonsai Tree (with 8 seasonal states) =====
+  // ===== Bonsai Tree =====
   const plant = new THREE.Group();
 
   const pot = new THREE.Mesh(
@@ -1183,22 +1159,13 @@ export function initDiorama() {
   const startRadius = 0.025;
   buildBranch(startPos, startDir, startLength, startRadius, 1, new THREE.Vector3(0,0,-1));
 
-  // Foliage elements (Leaves, Flowers, Buds)
+  // Foliage elements (evergreen leaves)
   const foliageGroup = new THREE.Group();
   trunkGroup.add(foliageGroup);
   const foliageMaterials: THREE.MeshToonMaterial[] = [];
 
-  type FoliageItem = {
-    mesh: THREE.Mesh;
-    type: "leaf" | "flower" | "bud";
-    baseScale: THREE.Vector3;
-    tipIdx: number;
-    localPos: THREE.Vector3;
-  };
-  const foliageItems: FoliageItem[] = [];
-
-  const addFoliageCluster = (tip: THREE.Vector3, tipIdx: number) => {
-    // 1. Leaves (flat planes, starburst/fan pattern, crossed for volume)
+  const addFoliageCluster = (tip: THREE.Vector3) => {
+    // Flat crossed leaves keep the bonsai light and readable in the small scene.
     const numLeaves = 11;
     for (let i = 0; i < numLeaves; i++) {
       const angle = (i / numLeaves) * Math.PI * 2 + Math.random() * 0.5;
@@ -1223,9 +1190,8 @@ export function initDiorama() {
       );
       foliageMaterials.push(leafMat);
 
-      // Create two meshes for volume (crossed planes)
       for (let j = 0; j < 2; j++) {
-        const leafGeo = makeMapleGeo();
+        const leafGeo = makeLeafGeo();
         const leaf = new THREE.Mesh(leafGeo, leafMat);
 
         leaf.position.set(tip.x + offsetX, tip.y + offsetY, tip.z + offsetZ);
@@ -1236,95 +1202,11 @@ export function initDiorama() {
 
         leaf.castShadow = true;
         foliageGroup.add(leaf);
-        foliageItems.push({ mesh: leaf, type: "leaf", baseScale, tipIdx, localPos: leaf.position.clone() });
       }
-    }
-
-    // 2. Flowers (Pink blossoms for spring, flat planes, crossed for volume, tighter cluster)
-    const numFlowers = 7;
-    for (let i = 0; i < numFlowers; i++) {
-      const angle = (i / numFlowers) * Math.PI * 2 + Math.random() * 0.5;
-      const radius = 0.01 + Math.random() * 0.03;
-      const offsetX = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.012;
-      const offsetY = (Math.random() - 0.3) * 0.04;
-      const offsetZ = Math.sin(angle) * radius + (Math.random() - 0.5) * 0.012;
-      const baseScale = new THREE.Vector3(0.48 + Math.random() * 0.08, 0.48 + Math.random() * 0.08, 0.48 + Math.random() * 0.08);
-      const tilt = Math.random() * 0.8 + 0.2;
-
-      // Flower material with jitter
-      const flowerMat = new THREE.MeshToonMaterial({
-        color: 0xffb6c1,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0,
-      });
-      const hsl = { h: 0, s: 0, l: 0 };
-      flowerMat.color.getHSL(hsl);
-      flowerMat.color.setHSL(
-        hsl.h + (Math.random() - 0.5) * 0.05,
-        hsl.s + (Math.random() - 0.5) * 0.1,
-        hsl.l + (Math.random() - 0.5) * 0.1
-      );
-      foliageMaterials.push(flowerMat);
-
-      // Create two meshes for volume (crossed planes)
-      for (let j = 0; j < 2; j++) {
-        const flowerGeo = makePetalGeo();
-        const flower = new THREE.Mesh(flowerGeo, flowerMat);
-
-        flower.position.set(tip.x + offsetX, tip.y + offsetY, tip.z + offsetZ);
-        flower.scale.copy(baseScale);
-
-        const offsetAngle = angle + (j * Math.PI / 2); // 90-degree offset for the second plane
-        flower.rotation.set(tilt * Math.cos(offsetAngle), offsetAngle, tilt * Math.sin(offsetAngle));
-
-        flower.castShadow = true;
-        foliageGroup.add(flower);
-        foliageItems.push({ mesh: flower, type: "flower", baseScale, tipIdx, localPos: flower.position.clone() });
-      }
-    }
-
-    // 3. Buds (True buds for early spring, using DodecahedronGeometry for volume)
-    const numBuds = 4;
-    for (let i = 0; i < numBuds; i++) {
-      const angle = (i / numBuds) * Math.PI * 2 + Math.random() * 0.5;
-      const radius = 0.012 + Math.random() * 0.038;
-      const offsetX = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.016;
-      const offsetY = (Math.random() - 0.3) * 0.05;
-      const offsetZ = Math.sin(angle) * radius + (Math.random() - 0.5) * 0.016;
-      const baseScale = new THREE.Vector3(0.9 + Math.random() * 0.18, 0.9 + Math.random() * 0.18, 0.9 + Math.random() * 0.18);
-      const tilt = Math.random() * 0.8 + 0.2;
-
-      // Bud material with jitter
-      const budMat = new THREE.MeshToonMaterial({
-        color: 0x8fbc8f,
-        transparent: true,
-        opacity: 0,
-      }); // Dark sea green
-      const hsl = { h: 0, s: 0, l: 0 };
-      budMat.color.getHSL(hsl);
-      budMat.color.setHSL(
-        hsl.h + (Math.random() - 0.5) * 0.05,
-        hsl.s + (Math.random() - 0.5) * 0.1,
-        hsl.l + (Math.random() - 0.5) * 0.1
-      );
-      foliageMaterials.push(budMat);
-
-      // Volume bud
-      const budGeo = new THREE.DodecahedronGeometry(0.015, 0);
-      const bud = new THREE.Mesh(budGeo, budMat);
-
-      bud.position.set(tip.x + offsetX, tip.y + offsetY, tip.z + offsetZ);
-      bud.scale.copy(baseScale);
-      bud.rotation.set(tilt * Math.cos(angle), angle, tilt * Math.sin(angle));
-
-      bud.castShadow = true;
-      foliageGroup.add(bud);
-      foliageItems.push({ mesh: bud, type: "bud", baseScale, tipIdx, localPos: bud.position.clone() });
     }
   };
 
-  branchTips.forEach((tip, i) => addFoliageCluster(tip, i));
+  branchTips.forEach((tip) => addFoliageCluster(tip));
 
   // Move plant toward desk center
   plant.position.set(1.5, deskTopWorldY, -0.2);
@@ -1945,6 +1827,7 @@ export function initDiorama() {
   let renderMode = getRenderMode(homeProgress);
   let cameraRejoinActive = false;
   let cameraInertialCatchup = false;
+  let initialCameraSyncPending = true;
   let lastDrawnStoryProgress = -1;
   let boardScale = 1;
   const cameraRejoinStartPos = new THREE.Vector3();
@@ -2014,6 +1897,18 @@ export function initDiorama() {
     camera.fov = lerp(camera.fov, desiredFov, alpha);
     camera.lookAt(controls.target);
   };
+  const syncCameraToScrollState = (progress: number) => {
+    const desiredFov = lerp(
+      screenFov,
+      roomFov,
+      getScrollCameraState(progress, desiredCameraPos, desiredCameraTarget),
+    );
+    camera.position.copy(desiredCameraPos);
+    controls.target.copy(desiredCameraTarget);
+    camera.fov = desiredFov;
+    camera.lookAt(controls.target);
+    camera.updateProjectionMatrix();
+  };
   const getInitialBoardViewY = () => {
     if (!useMobileCarrier) return activeBoard.viewport.initialY;
     const viewportAspect = window.innerWidth / Math.max(1, window.innerHeight);
@@ -2048,6 +1943,8 @@ export function initDiorama() {
     scrollTargetProgress = getScrollProgress();
   };
   syncScrollProgress();
+  homeProgress = scrollTargetProgress;
+  renderMode = getRenderMode(homeProgress);
   window.addEventListener("scroll", syncScrollProgress, { passive: true });
   const handleBreakpointResize = () => {
     const nextDevice = getDeviceClass(window.innerWidth, window.innerHeight);
@@ -2084,8 +1981,6 @@ export function initDiorama() {
     if (cuePercentEl) cuePercentEl.textContent = `${Math.round(cueProgress * 100)}%`;
   };
 
-  // ===== Season state =====
-  const seasonOfYear = 0.3;
   let needScreenRedraw = true;
   let cursorOn = true;
   let cursorLastToggle = performance.now();
@@ -2129,37 +2024,6 @@ export function initDiorama() {
   let typerText = "";
   let typerLastTick = performance.now();
   let typerHoldUntil = 0;
-
-  const tmpColor = new THREE.Color();
-  const tmpColor2 = new THREE.Color();
-  const blendSeason = (s: number, key: keyof SeasonPal, out: THREE.Color) => {
-    const seasons = theme === "dark" ? SEASONS_DARK : SEASONS_LIGHT;
-    const raw = s * 4;
-    const idx = Math.floor(raw) % 4;
-    const next = (idx + 1) % 4;
-    const local = raw - Math.floor(raw);
-    const t = easeInOutCubic(local);
-    const a = seasons[idx][key] as number;
-    const b = seasons[next][key] as number;
-    tmpColor.setHex(a);
-    tmpColor2.setHex(b);
-    out.copy(tmpColor).lerp(tmpColor2, t);
-  };
-  const blendSeasonScalar = (s: number, key: keyof SeasonPal): number => {
-    const seasons = theme === "dark" ? SEASONS_DARK : SEASONS_LIGHT;
-    const raw = s * 4;
-    const idx = Math.floor(raw) % 4;
-    const next = (idx + 1) % 4;
-    const local = raw - Math.floor(raw);
-    const t = easeInOutCubic(local);
-    return lerp(seasons[idx][key] as number, seasons[next][key] as number, t);
-  };
-
-  const sunColor = new THREE.Color();
-  const ambColor = new THREE.Color();
-  const skyColor = new THREE.Color();
-  const plantColor = new THREE.Color();
-  const fogColor = new THREE.Color();
 
   const resizeStoryCanvas = () => {
     if (!storyCanvasEl) return false;
@@ -2761,6 +2625,11 @@ export function initDiorama() {
     syncBoardHitarea();
   };
   resize();
+  if (initialCameraSyncPending) {
+    initialCameraSyncPending = false;
+    syncCameraToScrollState(homeProgress);
+    syncBoardHitarea();
+  }
   const resizeObs = new ResizeObserver(resize);
   resizeObs.observe(canvasEl);
   applyHomeState(homeProgress);
@@ -3020,8 +2889,12 @@ export function initDiorama() {
     ai.phase = "moving";
   };
 
-  const particleDummy = new THREE.Object3D();
-  const SEASON_KEYS = ["spring", "summer", "autumn", "winter"] as const;
+  const outdoorSunColor = new THREE.Color();
+  const outdoorAmbientColor = new THREE.Color();
+  const outdoorSkyColor = new THREE.Color();
+  const outdoorPlantColor = new THREE.Color();
+  const outdoorFogColor = new THREE.Color();
+  const rainDummy = new THREE.Object3D();
 
   const animate = () => {
     const now = performance.now();
@@ -3150,24 +3023,19 @@ export function initDiorama() {
       if (renderMode !== "room") needScreenRedraw = true;
     }
 
-    blendSeason(seasonOfYear, "sun", sunColor);
-    blendSeason(seasonOfYear, "amb", ambColor);
-    blendSeason(seasonOfYear, "sky", skyColor);
-    blendSeason(seasonOfYear, "plant", plantColor);
-    blendSeason(seasonOfYear, "fogTint", fogColor);
-    const sunI = blendSeasonScalar(seasonOfYear, "sunI");
-    const ambI = blendSeasonScalar(seasonOfYear, "ambI");
+    const outdoor = OUTDOOR_PALETTES[theme];
+    outdoorSunColor.setHex(outdoor.sun);
+    outdoorAmbientColor.setHex(outdoor.amb);
+    outdoorSkyColor.setHex(outdoor.sky);
+    outdoorPlantColor.setHex(outdoor.plant);
+    outdoorFogColor.setHex(outdoor.fogTint);
 
-    // Season affects INTERIOR only through intensity — color stays mostly neutral.
-    // Only outdoor (sky, window light, plant leaves, particles) shows full seasonal hue.
-    const neutralSun = new THREE.Color(theme === "dark" ? 0xeadabf : 0xfff0dc);
-    const neutralAmb = new THREE.Color(theme === "dark" ? 0x4a4538 : 0xf2ead8);
-    sunLight.color.copy(neutralSun).lerp(sunColor, 0.08);
-    sunLight.intensity = lerp(theme === "dark" ? 0.64 : 1.28, sunI, 0.5) * lerp(0.72, 1, outsideReveal);
-    ambient.color.copy(neutralAmb).lerp(ambColor, 0.08);
-    ambient.intensity = lerp(theme === "dark" ? 0.42 : 0.56, ambI, 0.35) * lerp(0.86, 1, outsideReveal);
-    windowLight.color.copy(skyColor);
-    windowLight.intensity = Math.max(0.24, sunI * 0.45) * lerp(0.55, 1, outsideReveal);
+    sunLight.color.copy(outdoorSunColor);
+    sunLight.intensity = outdoor.sunI * lerp(0.72, 1, outsideReveal);
+    ambient.color.copy(outdoorAmbientColor);
+    ambient.intensity = outdoor.ambI * lerp(0.86, 1, outsideReveal);
+    windowLight.color.copy(outdoorSkyColor);
+    windowLight.intensity = Math.max(0.24, outdoor.sunI * 0.45) * lerp(0.55, 1, outsideReveal);
     const screenLightMax = useMobileCarrier
       ? theme === "dark"
         ? 0.018
@@ -3176,13 +3044,14 @@ export function initDiorama() {
         ? 0.18
         : 0.3;
     screenLight.intensity = lerp(0, screenLightMax, easeInOutSine(clamp((homeProgress - 0.8) / 0.14)));
-    mats.sky.color.copy(skyColor);
-    mats.leaf.color.copy(plantColor);
+    mats.sky.color.copy(outdoorSkyColor);
+    mats.leaf.color.copy(outdoorPlantColor);
+    for (const foliageMat of foliageMaterials) foliageMat.color.copy(outdoorPlantColor);
     if (scene.fog) {
       const fog = scene.fog as THREE.Fog;
       fog.color
         .setHex(theme === "dark" ? 0x0f1828 : 0xf1e7d9)
-        .lerp(fogColor, outsideReveal);
+        .lerp(outdoorFogColor, outsideReveal);
       fog.near = lerp(11.8, 7, outsideReveal);
       fog.far = lerp(26, 16, outsideReveal);
     }
@@ -3218,19 +3087,7 @@ export function initDiorama() {
     mats.windowFrame.opacity = lerp(0.12 * introRoomGhost, 1, roomReveal);
     mats.windowSill.opacity = lerp(0.12 * introRoomGhost, 1, roomReveal);
     mats.sky.opacity = lerp(0.2 * introRoomGhost, 1, outsideReveal);
-
-    // Particle system opacity (cross-fade between current/next season)
-    const raw = seasonOfYear * 4;
-    const seasonIdx = Math.floor(raw) % 4;
-    const nextIdx = (seasonIdx + 1) % 4;
-    const localFrac = raw - Math.floor(raw);
-    for (let s = 0; s < 4; s++) {
-      const key = SEASON_KEYS[s];
-      let op = 0;
-      if (s === seasonIdx) op = 1 - easeInOutCubic(localFrac);
-      else if (s === nextIdx) op = easeInOutCubic(localFrac);
-      particleSystems[key].material.opacity = op * lerp(0.12, 0.95, roomReveal);
-    }
+    rainSystem.material.opacity = outdoor.rainOpacity * lerp(0.12, 0.95, roomReveal);
 
     // Screen cursor blink & redraw
     if (renderMode !== "room" && now - cursorLastToggle > 520) {
@@ -3254,58 +3111,10 @@ export function initDiorama() {
       it.object.position.y += (it.basePos.y + bobY - it.object.position.y) * 0.18;
     }
 
-    // Plant sway + seasonal growth
+    // Plant sway
     foliageGroup.rotation.y = Math.sin(now * 0.0005) * 0.05;
     foliageGroup.rotation.x = Math.sin(now * 0.0008) * 0.02;
     branches.rotation.y = foliageGroup.rotation.y * 0.5;
-
-    const s = (seasonOfYear * 4) % 4; // 0.0 to 4.0 continuum for seasons
-
-    const smooth = (val: number) => easeInOutCubic(clamp(val, 0, 1));
-
-    for (const item of foliageItems) {
-      let scale = 0;
-
-      if (item.type === "bud") {
-        if (s > 3.5) scale = lerp(0.0, 1.0, smooth((s - 3.5) / 0.5));
-        else if (s <= 0.4) scale = lerp(1.0, 0.0, smooth(s / 0.4));
-        else scale = 0;
-      } else if (item.type === "flower") {
-        if (s <= 0.4) scale = lerp(0.0, 1.0, smooth(s / 0.4));
-        else if (s <= 0.8) scale = lerp(1.0, 0.0, smooth((s - 0.4) / 0.4));
-        else scale = 0;
-      } else if (item.type === "leaf") {
-        if (s <= 0.4) scale = 0;
-        else if (s <= 0.8) scale = lerp(0.0, 1.0, smooth((s - 0.4) / 0.4));
-        else if (s <= 2.5) scale = 1.0;
-        else if (s <= 3.0) {
-          const dropOffset = Math.abs(item.localPos.x * 10) % 0.3;
-          const t = s - dropOffset;
-          if (t < 2.5) scale = 1.0;
-          else if (t < 3.0) scale = lerp(1.0, 0.0, smooth((t - 2.5) / 0.5));
-          else scale = 0;
-        } else scale = 0;
-
-        if (scale > 0) {
-          const c = item.mesh.material as THREE.MeshToonMaterial;
-          if (s < 1.5) {
-            c.color.copy(plantColor); // Global green plant color
-          } else if (s < 2.5) {
-            // Gradual color change from green -> yellow -> orange -> red (1.5 to 2.0)
-            const tColor = clamp((s - 1.5) / 0.5, 0, 1);
-            if (tColor < 0.33) c.color.copy(plantColor).lerp(new THREE.Color(0xd4b84a), tColor / 0.33);
-            else if (tColor < 0.66) c.color.setHex(0xd4b84a).lerp(new THREE.Color(0xd4884a), (tColor - 0.33) / 0.33);
-            else c.color.setHex(0xd4884a).lerp(new THREE.Color(0xb04444), (tColor - 0.66) / 0.34);
-          } else {
-            c.color.setHex(0xb04444); // Stay red while falling
-          }
-        }
-      }
-
-      item.mesh.visible = scale > 0.01;
-      const v = Math.max(0.001, scale);
-      item.mesh.scale.set(item.baseScale.x * v, item.baseScale.y * v, item.baseScale.z * v);
-    }
 
     // Person idle motion
     if (useMobileCarrier) {
@@ -3379,76 +3188,45 @@ export function initDiorama() {
       keyMesh.instanceMatrix.needsUpdate = true;
     }
 
-    // Outdoor particles (all 4 systems, each with own motion pattern)
+    // Outdoor motion
     const dtSec = dt / 1000;
 
-    // Sun visibility — strong in spring (0–0.25) + summer (0.25–0.5), fade out autumn/winter
-    const sunOp = (() => {
-      const sy = seasonOfYear;
-      if (sy < 0.42) return 1;
-      if (sy < 0.55) return 1 - (sy - 0.42) / 0.13;
-      if (sy < 0.9) return 0;
-      return (sy - 0.9) / 0.1; // ghost sun starts coming back late winter / early spring
-    })();
+    const sunOp = theme === "dark" ? 0.22 : 0.92;
     (sunDisc.material as THREE.MeshBasicMaterial).opacity = sunOp * lerp(0.28, 0.95, outsideReveal);
-    (sunGlow.material as THREE.MeshBasicMaterial).opacity = sunOp * lerp(0.1, 0.35, outsideReveal);
-    // Sun color shifts with theme (dark theme = dimmer warm)
-    const sunTint = theme === "dark" ? 0xffd080 : 0xffecb3;
+    (sunGlow.material as THREE.MeshBasicMaterial).opacity = sunOp * lerp(0.08, 0.28, outsideReveal);
+    const sunTint = theme === "dark" ? 0xc8d7f0 : 0xffecb3;
     (sunDisc.material as THREE.MeshBasicMaterial).color.setHex(sunTint);
     (sunGlow.material as THREE.MeshBasicMaterial).color.setHex(sunTint);
 
-    // Clouds drift + density by season (more in autumn/winter = overcast)
-    const overcast = (() => {
-      const sy = seasonOfYear;
-      if (sy < 0.5) return 0.35; // spring + summer: light clouds
-      return 0.55 + easeInOutCubic(Math.min(1, (sy - 0.5) / 0.3)) * 0.35; // autumn + winter: heavier
-    })();
-    (cloudMat as THREE.MeshBasicMaterial).opacity = overcast * lerp(0.42, 1, outsideReveal);
-    (cloudMat as THREE.MeshBasicMaterial).color.setHex(
-      theme === "dark" ? 0x8894a8 : 0xf8f4ec,
-    );
+    (cloudMat as THREE.MeshBasicMaterial).opacity = outdoor.cloudOpacity * lerp(0.42, 1, outsideReveal);
+    (cloudMat as THREE.MeshBasicMaterial).color.setHex(outdoor.cloud);
     for (const cd of cloudData) {
       cd.mesh.position.x += cd.speed * dtSec;
       if (cd.mesh.position.x > 5.5) cd.mesh.position.x = -5.5;
       cd.mesh.position.y = cd.baseY + Math.sin(now * 0.0002 + cd.mesh.position.x) * 0.03;
     }
 
-    for (let s = 0; s < 4; s++) {
-      const key = SEASON_KEYS[s];
-      const sys = particleSystems[key];
-      if (sys.material.opacity < 0.005) continue;
-      for (let i = 0; i < particleCount; i++) {
-        sys.positions[i * 3 + 1] -= sys.fall * dtSec * 0.9;
-        if (sys.sway > 0) {
-          const phase = sys.phases[i] + now * 0.001;
-          sys.positions[i * 3] += Math.sin(phase) * sys.sway * dtSec * 0.6;
-        }
-        if (sys.tumble) sys.rotations[i] += sys.rotVel[i];
-
-        if (sys.positions[i * 3 + 1] < -0.6) {
-          sys.positions[i * 3 + 1] = 5;
-          sys.positions[i * 3] = (Math.random() - 0.5) * 7;
+    if (rainSystem.material.opacity > 0.005) {
+      for (let i = 0; i < rainCount; i++) {
+        rainSystem.positions[i * 3 + 1] -= rainSystem.fall * dtSec;
+        const phase = rainSystem.phases[i] + now * 0.001;
+        rainSystem.positions[i * 3] += Math.sin(phase) * 0.012 * dtSec;
+        if (rainSystem.positions[i * 3 + 1] < -0.6) {
+          rainSystem.positions[i * 3 + 1] = 5;
+          rainSystem.positions[i * 3] = (Math.random() - 0.5) * 8;
+          rainSystem.positions[i * 3 + 2] = roomBackZ - 0.6 - Math.random() * 2.4;
         }
 
-        particleDummy.position.set(
-          sys.positions[i * 3],
-          sys.positions[i * 3 + 1],
-          sys.positions[i * 3 + 2],
+        rainDummy.position.set(
+          rainSystem.positions[i * 3],
+          rainSystem.positions[i * 3 + 1],
+          rainSystem.positions[i * 3 + 2],
         );
-        if (sys.rotateFace) {
-          // face camera for rain/snow
-          particleDummy.rotation.set(0, 0, 0);
-        } else {
-          particleDummy.rotation.set(
-            sys.tumble ? sys.rotations[i] * 0.4 : 0,
-            0,
-            sys.tumble ? sys.rotations[i] : 0,
-          );
-        }
-        particleDummy.updateMatrix();
-        sys.mesh.setMatrixAt(i, particleDummy.matrix);
+        rainDummy.rotation.set(0, 0, 0);
+        rainDummy.updateMatrix();
+        rainSystem.mesh.setMatrixAt(i, rainDummy.matrix);
       }
-      sys.mesh.instanceMatrix.needsUpdate = true;
+      rainSystem.mesh.instanceMatrix.needsUpdate = true;
     }
 
     if (!controls.enabled) {
