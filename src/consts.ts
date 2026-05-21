@@ -46,15 +46,15 @@ export const PHOTO_ALBUM_CONFIG = {
 // 所有字段都可以改。rows 可加可减；typewriter 列表里的每一条都会被轮播打字-删除。
 export const HOME_PROFILE = {
     title: 'lsy',                               // 屏幕上的大字
-    subtitle: 'full-stack engineer',            // 大字下方副标题
+    subtitle: 'full-stack & AI',                // 大字下方副标题
     rows: [
-        { label: 'stack', value: 'Rust · TypeScript' },
+        { label: 'stack', value: 'React · TypeScript · Rust' },
         { label: 'contact', value: 'lsy22@vip.qq.com' },
     ] as { label: string; value: string }[],
     typewriter: [
-        '正在整理主页草稿',
-        '把项目、文章和兴趣放到同一张画布上',
-        '滚动后会退回 3D 房间',
+        'today in echoes',
+        'local workspace',
+        'updating',
     ] as string[],
 };
 

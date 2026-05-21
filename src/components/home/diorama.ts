@@ -8,6 +8,7 @@ import {
   type HomeBoardDevice,
   type HomeBoardItem,
 } from "./homeBoard";
+import { drawHomeScreenBackdrop, drawHomeScreenStory } from "./homeScreenStory";
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
 
@@ -88,10 +89,10 @@ const THEMES: Record<ThemeName, Theme> = {
     personSkin: 0xeec8a8,
     personHair: 0x241811,
     personCloth: 0x4a6a8a,
-    screenBg: "#f5f1e8",
-    screenText: "#211912",
-    screenMuted: "#7d6d5b",
-    screenAccent: "#b88430",
+    screenBg: "#f5f7ff",
+    screenText: "#0f172a",
+    screenMuted: "#64748b",
+    screenAccent: "#4b6bff",
     keyTop: 0x2a2a30,
     windowFrame: 0x6b4a32,
     windowSill: 0xa27c54,
@@ -117,10 +118,10 @@ const THEMES: Record<ThemeName, Theme> = {
     personSkin: 0xa88060,
     personHair: 0x100a08,
     personCloth: 0x2a3a5a,
-    screenBg: "#111722",
-    screenText: "#f5f0e6",
-    screenMuted: "#ad9f8d",
-    screenAccent: "#efc678",
+    screenBg: "#0f172a",
+    screenText: "#e2e8f0",
+    screenMuted: "#94a3b8",
+    screenAccent: "#839dff",
     keyTop: 0x0e0e12,
     windowFrame: 0x2a1e14,
     windowSill: 0x3a2a1c,
@@ -163,13 +164,13 @@ const getDeviceClass = (width: number, height: number): HomeBoardDevice => {
 
 const SCREEN_CARRIER_PRESETS: Record<HomeBoardDevice, ScreenCarrierPreset> = {
   desktop: {
-    canvas: { width: 2048, height: 1280 },
-    screen: { w: 1.2, h: 0.78, t: 0.026 },
+    canvas: { width: 3840, height: 2160 },
+    screen: { w: 1.38, h: 0.8, t: 0.026 },
     groupPosition: new THREE.Vector3(0, 0.055, -0.4),
     groupRotationX: -0.22,
     screenFaceYOffset: 0.39,
     screenBodyOffsetZ: -0.013,
-    cameraFit: 0.975,
+    cameraFit: 1,
     roomDistance: 4.1,
     roomUp: 1.45,
     roomRight: 0.62,
@@ -178,20 +179,42 @@ const SCREEN_CARRIER_PRESETS: Record<HomeBoardDevice, ScreenCarrierPreset> = {
     roomTargetRight: -0.04,
   },
   mobile: {
-    canvas: { width: 1280, height: 2304 },
-    screen: { w: 0.29, h: 0.6, t: 0.022 },
+    canvas: { width: 1480, height: 3200 },
+    screen: { w: 0.31, h: 0.6, t: 0.022 },
     groupPosition: new THREE.Vector3(0, 0.08, -0.055),
     groupRotationX: -0.1,
     screenFaceYOffset: 0,
     screenBodyOffsetZ: -0.01,
-    cameraFit: 0.99,
-    roomDistance: 3.94,
-    roomUp: 1.3,
-    roomRight: 0.28,
+    cameraFit: 1,
+    roomDistance: 5.6,
+    roomUp: 2.2,
+    roomRight: 0.62,
     introTargetUp: 0,
-    roomTargetUp: 0.06,
-    roomTargetRight: 0.08,
+    roomTargetUp: 0.22,
+    roomTargetRight: 0.04,
   },
+};
+
+const createScreenCarrierPreset = (
+  device: HomeBoardDevice,
+  viewportAspect: number,
+): ScreenCarrierPreset => {
+  const base = SCREEN_CARRIER_PRESETS[device];
+  if (device !== "mobile") return base;
+
+  const screenFaceH = base.screen.h - 0.06;
+  const screenFaceAspect = clamp(viewportAspect, 0.44, 0.78);
+  return {
+    ...base,
+    canvas: {
+      width: Math.round(base.canvas.height * screenFaceAspect),
+      height: base.canvas.height,
+    },
+    screen: {
+      ...base.screen,
+      w: screenFaceH * screenFaceAspect + 0.06,
+    },
+  };
 };
 
 export function initDiorama() {
@@ -205,13 +228,19 @@ export function initDiorama() {
 
   const shellEl = document.querySelector<HTMLElement>("[data-home-shell]");
   const sceneEl = document.querySelector<HTMLElement>("[data-home-scene]");
+  const storyEl = document.querySelector<HTMLElement>("[data-home-story]");
+  const storyCanvasEl = document.querySelector<HTMLCanvasElement>("[data-story-canvas]");
+  const storyCtx = storyCanvasEl?.getContext("2d") ?? null;
   const boardHitareaEl = document.querySelector<HTMLElement>("[data-home-board-hitarea]");
   const hintEl = document.querySelector<HTMLElement>("[data-diorama-hint]");
   const cueEl = document.querySelector<HTMLElement>("[data-home-scroll-cue]");
   const tooltip = document.querySelector<HTMLElement>("[data-diorama-tooltip]");
   const docEl = document.documentElement;
   const deviceClass = getDeviceClass(window.innerWidth, window.innerHeight);
-  const screenPreset = SCREEN_CARRIER_PRESETS[deviceClass];
+  const screenPreset = createScreenCarrierPreset(
+    deviceClass,
+    window.innerWidth / Math.max(1, window.innerHeight),
+  );
   const useMobileCarrier = deviceClass === "mobile";
   let activeBoard = createHomeBoardContent(
     {
@@ -294,8 +323,17 @@ export function initDiorama() {
   lampLight.position.set(-1.1, 0.85, -0.6);
   scene.add(lampLight);
 
-  const screenLight = new THREE.PointLight(0xede8df, 0, 1.2, 1.5);
-  screenLight.position.set(0.1, 0.6, -0.25);
+  const screenLight = new THREE.PointLight(
+    0xe8edf8,
+    0,
+    useMobileCarrier ? 0.56 : 1.2,
+    useMobileCarrier ? 2.2 : 1.5,
+  );
+  screenLight.position.set(
+    useMobileCarrier ? 0.01 : 0.1,
+    useMobileCarrier ? 0.46 : 0.6,
+    useMobileCarrier ? -0.27 : -0.25,
+  );
   scene.add(screenLight);
 
   const tvLight = new THREE.PointLight(0xff8866, 0.3, 2.5, 1.6);
@@ -753,7 +791,7 @@ export function initDiorama() {
   // ===== Laptop (→ /projects) =====
   const laptop = new THREE.Group();
 
-  const lpBaseW = 1.25;
+  const lpBaseW = useMobileCarrier ? 1.25 : 1.45;
   const lpBaseD = 0.88;
   const lpBaseH = 0.05;
 
@@ -785,7 +823,7 @@ export function initDiorama() {
   lpScreenBody.visible = !useMobileCarrier;
   lpScreenGroup.add(lpScreenBody);
 
-  // Screen canvas texture (1024×640 logical — fast to regen, crisp enough with high aniso)
+  // Mipmaps keep the screen readable after the camera pulls back into the room.
   const screenCanvas = document.createElement("canvas");
   screenCanvas.width = screenPreset.canvas.width;
   screenCanvas.height = screenPreset.canvas.height;
@@ -793,10 +831,14 @@ export function initDiorama() {
   const screenTexture = new THREE.CanvasTexture(screenCanvas);
   screenTexture.colorSpace = THREE.SRGBColorSpace;
   screenTexture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 16);
-  screenTexture.generateMipmaps = false;
-  screenTexture.minFilter = THREE.LinearFilter;
+  screenTexture.generateMipmaps = true;
+  screenTexture.minFilter = THREE.LinearMipmapLinearFilter;
   screenTexture.magFilter = THREE.LinearFilter;
-  mats.screen = new THREE.MeshBasicMaterial({ map: screenTexture, toneMapped: false });
+  mats.screen = new THREE.MeshBasicMaterial({
+    map: screenTexture,
+    toneMapped: false,
+    color: useMobileCarrier ? 0xd9e1ee : 0xffffff,
+  });
 
   const screenFace = new THREE.Mesh(
     new THREE.PlaneGeometry(lpScreenW - 0.06, lpScreenH - 0.06),
@@ -804,7 +846,38 @@ export function initDiorama() {
   );
   const screenFaceW = lpScreenW - 0.06;
   const screenFaceH = lpScreenH - 0.06;
+  let introBackdropTexture: THREE.CanvasTexture | null = null;
+  let introBackdropMaterial: THREE.MeshBasicMaterial | null = null;
+  let introBackdropCtx: CanvasRenderingContext2D | null = null;
+  if (useMobileCarrier) {
+    const introBackdropCanvas = document.createElement("canvas");
+    introBackdropCanvas.width = 1800;
+    introBackdropCanvas.height = 1900;
+    introBackdropCtx = introBackdropCanvas.getContext("2d");
+    introBackdropTexture = new THREE.CanvasTexture(introBackdropCanvas);
+    introBackdropTexture.colorSpace = THREE.SRGBColorSpace;
+    introBackdropTexture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+    introBackdropTexture.generateMipmaps = true;
+    introBackdropTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    introBackdropTexture.magFilter = THREE.LinearFilter;
+    introBackdropMaterial = new THREE.MeshBasicMaterial({
+      map: introBackdropTexture,
+      transparent: true,
+      opacity: 1,
+      toneMapped: false,
+      depthWrite: false,
+      color: 0xd9e1ee,
+    });
+    const introBackdrop = new THREE.Mesh(
+      new THREE.PlaneGeometry(screenFaceH * 1.12, screenFaceH * 1.18),
+      introBackdropMaterial,
+    );
+    introBackdrop.position.set(0, screenPreset.screenFaceYOffset, -0.026);
+    introBackdrop.renderOrder = -2;
+    lpScreenGroup.add(introBackdrop);
+  }
   screenFace.position.set(0, screenPreset.screenFaceYOffset, 0.002);
+  screenFace.renderOrder = 1;
   lpScreenGroup.add(screenFace);
 
   lpScreenGroup.rotation.x = screenPreset.groupRotationX;
@@ -1685,8 +1758,11 @@ export function initDiorama() {
   scene.add(person);
 
   if (useMobileCarrier) {
+    const standBaseW = clamp(screenFaceW * 0.72, 0.17, 0.34);
+    const standBraceW = clamp(screenFaceW * 0.58, 0.13, 0.28);
+    const standLipW = clamp(screenFaceW * 0.48, 0.11, 0.22);
     const standBase = new THREE.Mesh(
-      new RoundedBoxGeometry(0.16, 0.02, 0.12, 6, 0.014),
+      new RoundedBoxGeometry(standBaseW, 0.02, 0.12, 6, 0.014),
       mats.windowFrame,
     );
     standBase.position.set(laptop.position.x, deskTopWorldY + 0.01, laptop.position.z - 0.03);
@@ -1703,7 +1779,7 @@ export function initDiorama() {
     scene.add(standPost);
 
     const standBrace = new THREE.Mesh(
-      new RoundedBoxGeometry(0.12, 0.18, 0.026, 6, 0.016),
+      new RoundedBoxGeometry(standBraceW, 0.18, 0.026, 6, 0.016),
       mats.windowFrame,
     );
     standBrace.position.set(
@@ -1716,7 +1792,7 @@ export function initDiorama() {
     scene.add(standBrace);
 
     const standLip = new THREE.Mesh(
-      new RoundedBoxGeometry(0.11, 0.026, 0.026, 6, 0.01),
+      new RoundedBoxGeometry(standLipW, 0.026, 0.026, 6, 0.01),
       mats.windowFrame,
     );
     standLip.position.set(
@@ -1757,7 +1833,12 @@ export function initDiorama() {
     const tanHalfFov = Math.tan(THREE.MathUtils.degToRad(screenFov) / 2);
     const fitByHeight = screenHalfH / Math.max(0.0001, tanHalfFov);
     const fitByWidth = screenHalfW / Math.max(0.0001, tanHalfFov * camera.aspect);
-    const introDistance = Math.min(fitByHeight, fitByWidth) * screenPreset.cameraFit;
+    // Mobile uses contain-fit so wider portrait devices don't crop the hand-screen
+    // vertically. Desktop keeps the cover-fit cinematic screen reveal.
+    const introFitDistance = useMobileCarrier
+      ? Math.max(fitByHeight, fitByWidth)
+      : Math.min(fitByHeight, fitByWidth);
+    const introDistance = introFitDistance * screenPreset.cameraFit;
 
     screenCameraTarget
       .copy(screenCenterWorld)
@@ -1810,6 +1891,9 @@ export function initDiorama() {
     lampLight.color.setHex(p.lampGlow);
     mats.laptopBody.color.setHex(p.laptopBody);
     mats.laptopFrame.color.setHex(p.laptopFrame);
+    const mobileScreenTint = t === "dark" ? 0xc1ccd8 : 0xd9e1ee;
+    mats.screen.color.setHex(useMobileCarrier ? mobileScreenTint : 0xffffff);
+    introBackdropMaterial?.color.setHex(mobileScreenTint);
     mats.books[0].color.setHex(p.bookA);
     mats.books[1].color.setHex(p.bookB);
     mats.books[2].color.setHex(p.bookC);
@@ -1840,8 +1924,15 @@ export function initDiorama() {
   let homeProgress = 0;
   let scrollTargetProgress = 0;
   let boardScale = 1;
+  const getInitialBoardViewY = () => {
+    if (!useMobileCarrier) return activeBoard.viewport.initialY;
+    const viewportAspect = window.innerWidth / Math.max(1, window.innerHeight);
+    const shortPortraitCompensation = clamp((viewportAspect - 0.5) / 0.25, 0, 1) * 430;
+    return activeBoard.viewport.initialY - shortPortraitCompensation;
+  };
   let boardViewX = activeBoard.viewport.initialX;
-  let boardViewY = activeBoard.viewport.initialY;
+  let boardViewY = getInitialBoardViewY();
+  let boardDragging = false;
   let dragRegion = { x: 0, y: 0, w: 1, h: 1, radius: 28 };
   const clampBoardView = (x: number, y: number) => {
     const viewport = activeBoard.viewport;
@@ -1852,6 +1943,7 @@ export function initDiorama() {
   };
   const syncSceneOverlay = () => {
     docEl.style.setProperty("--scene-opacity", "1");
+    docEl.style.setProperty("--story-opacity", "0");
   };
 
   const getScrollProgress = () => {
@@ -1874,15 +1966,24 @@ export function initDiorama() {
       });
       return;
     }
+    if (useMobileCarrier && homeProgress < 0.16 && !boardDragging) {
+      boardViewY = getInitialBoardViewY();
+      needScreenRedraw = true;
+    }
     syncScrollProgress();
   };
   window.addEventListener("resize", handleBreakpointResize);
 
   const applyHomeState = (progress: number) => {
     const value = progress.toFixed(4);
+    const storyProgress = clamp(progress / 0.7);
     docEl.style.setProperty("--home-progress", value);
+    docEl.style.setProperty("--story-progress", storyProgress.toFixed(4));
+    docEl.style.setProperty("--story-local", storyProgress.toFixed(4));
     sceneEl?.style.setProperty("--home-progress", value);
-    sceneEl?.setAttribute("data-home-phase", progress > 0.86 ? "room" : "page");
+    storyEl?.style.setProperty("--story-progress", storyProgress.toFixed(4));
+    storyEl?.style.setProperty("--story-local", storyProgress.toFixed(4));
+    sceneEl?.setAttribute("data-home-phase", progress > 0.76 ? "room" : "page");
     cueEl?.setAttribute("data-home-visible", progress < 0.75 ? "true" : "false");
   };
 
@@ -1963,6 +2064,35 @@ export function initDiorama() {
   const plantColor = new THREE.Color();
   const fogColor = new THREE.Color();
 
+  const resizeStoryCanvas = () => {
+    if (!storyCanvasEl) return false;
+    const rect = storyCanvasEl.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const nextW = Math.max(1, Math.round((rect.width || window.innerWidth) * dpr));
+    const nextH = Math.max(1, Math.round((rect.height || window.innerHeight) * dpr));
+    const changed = storyCanvasEl.width !== nextW || storyCanvasEl.height !== nextH;
+    if (changed) {
+      storyCanvasEl.width = nextW;
+      storyCanvasEl.height = nextH;
+    }
+    return changed;
+  };
+
+  const drawStoryOverlay = () => {
+    if (!storyCanvasEl || !storyCtx) return;
+    resizeStoryCanvas();
+    const W = storyCanvasEl.width;
+    const H = storyCanvasEl.height;
+    storyCtx.setTransform(1, 0, 0, 1, 0, 0);
+    storyCtx.clearRect(0, 0, W, H);
+    storyCtx.imageSmoothingEnabled = true;
+    storyCtx.imageSmoothingQuality = "high";
+    const scale = Math.max(W / screenCanvas.width, H / screenCanvas.height);
+    const drawW = screenCanvas.width * scale;
+    const drawH = screenCanvas.height * scale;
+    storyCtx.drawImage(screenCanvas, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
+  };
+
   // Screen canvas drawing
   const drawScreen = () => {
     const ctx = screenCtx;
@@ -1970,11 +2100,37 @@ export function initDiorama() {
     const W = screenCanvas.width;
     const H = screenCanvas.height;
     const p = THEMES[theme];
-    const edgeStroke = theme === "dark" ? "rgba(219, 224, 232, 0.1)" : "rgba(78, 65, 48, 0.1)";
-    const frameFill = theme === "dark" ? "rgba(17, 23, 33, 0.84)" : "rgba(255, 251, 246, 0.86)";
-    const sidebarFill = theme === "dark" ? "rgba(19, 24, 32, 0.88)" : "rgba(255, 251, 246, 0.88)";
-    const boardPanelFill = theme === "dark" ? "rgba(13, 18, 26, 0.5)" : "rgba(250, 245, 238, 0.72)";
-    const shadowColor = theme === "dark" ? "rgba(0, 0, 0, 0.28)" : "rgba(82, 58, 28, 0.12)";
+    const storyAutoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
+    const profileRows = Object.fromEntries(HOME_PROFILE.rows.map((row) => [row.label, row.value]));
+    const storyProgress = reduceMotion ? 1 : clamp(homeProgress / 0.7);
+
+    drawHomeScreenStory(ctx, {
+      device: deviceClass,
+      theme,
+      progress: storyProgress,
+      now: formatNowBeijing(),
+      stack: profileRows.stack ?? "Rust · TypeScript",
+      contact: profileRows.contact ?? "lsy22@vip.qq.com",
+      postsLabel: storyAutoPosts ?? "ongoing",
+    });
+    if (introBackdropCtx && introBackdropTexture) {
+      introBackdropCtx.setTransform(1, 0, 0, 1, 0, 0);
+      drawHomeScreenBackdrop(introBackdropCtx, {
+        theme,
+        progress: storyProgress,
+      });
+      introBackdropTexture.needsUpdate = true;
+    }
+    boardScale = 1;
+    dragRegion = { x: 0, y: 0, w: 1, h: 1, radius: Math.min(W, H) * 0.02 };
+    screenTexture.needsUpdate = true;
+    drawStoryOverlay();
+    return;
+    const edgeStroke = theme === "dark" ? "rgba(148, 163, 184, 0.16)" : "rgba(75, 107, 255, 0.12)";
+    const frameFill = theme === "dark" ? "rgba(15, 23, 42, 0.88)" : "rgba(255, 255, 255, 0.9)";
+    const sidebarFill = theme === "dark" ? "rgba(15, 23, 42, 0.92)" : "rgba(248, 250, 255, 0.92)";
+    const boardPanelFill = theme === "dark" ? "rgba(15, 23, 42, 0.22)" : "rgba(255, 255, 255, 0.32)";
+    const shadowColor = theme === "dark" ? "rgba(0, 0, 0, 0.3)" : "rgba(37, 65, 183, 0.1)";
     const autoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
     const nowStr = formatNowBeijing();
     const rows = Object.fromEntries(HOME_PROFILE.rows.map((row) => [row.label, row.value]));
@@ -2004,8 +2160,8 @@ export function initDiorama() {
       ctx.strokeStyle = stroke;
       ctx.lineWidth = 1;
       ctx.shadowColor = shadowColor;
-      ctx.shadowBlur = 28;
-      ctx.shadowOffsetY = 14;
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetY = 10;
       ctx.beginPath();
       ctx.roundRect(x, y, w, h, radius);
       ctx.fill();
@@ -2028,15 +2184,15 @@ export function initDiorama() {
       const width = ctx.measureText(text).width + paddingX * 2;
       ctx.fillStyle = accent
         ? theme === "dark"
-          ? "rgba(239, 198, 120, 0.14)"
-          : "rgba(228, 188, 101, 0.22)"
+          ? "rgba(131, 157, 255, 0.18)"
+          : "rgba(75, 107, 255, 0.11)"
         : theme === "dark"
-          ? "rgba(255, 255, 255, 0.05)"
-          : "rgba(255, 255, 255, 0.7)";
+          ? "rgba(255, 255, 255, 0.06)"
+          : "rgba(255, 255, 255, 0.76)";
       ctx.strokeStyle = accent
         ? theme === "dark"
-          ? "rgba(239, 198, 120, 0.24)"
-          : "rgba(184, 132, 48, 0.22)"
+          ? "rgba(131, 157, 255, 0.3)"
+          : "rgba(75, 107, 255, 0.22)"
         : edgeStroke;
       ctx.beginPath();
       ctx.roundRect(x, y, width, height, height / 2);
@@ -2053,16 +2209,16 @@ export function initDiorama() {
       ctx.save();
       ctx.strokeStyle = tone === "amber"
         ? theme === "dark"
-          ? "rgba(229, 190, 110, 0.44)"
-          : "rgba(190, 134, 54, 0.54)"
+          ? "rgba(131, 157, 255, 0.34)"
+          : "rgba(75, 107, 255, 0.36)"
         : tone === "soft"
           ? theme === "dark"
-            ? "rgba(169, 161, 221, 0.28)"
-            : "rgba(112, 104, 163, 0.44)"
+            ? "rgba(148, 163, 184, 0.28)"
+            : "rgba(71, 85, 105, 0.3)"
           : theme === "dark"
-            ? "rgba(132, 164, 214, 0.6)"
-            : "rgba(90, 124, 174, 0.72)";
-      ctx.lineWidth = 4;
+            ? "rgba(131, 157, 255, 0.5)"
+            : "rgba(75, 107, 255, 0.48)";
+      ctx.lineWidth = 3;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.beginPath();
@@ -2081,25 +2237,44 @@ export function initDiorama() {
     };
 
     const getToneFill = (tone: HomeBoardItem["tone"]) => {
-      if (tone === "accent") return theme === "dark" ? "rgba(38, 28, 17, 0.84)" : "rgba(255, 246, 226, 0.9)";
-      if (tone === "amber") return theme === "dark" ? "rgba(101, 74, 31, 0.92)" : "#f0d58d";
-      if (tone === "ghost") return theme === "dark" ? "rgba(20, 26, 36, 0.8)" : "rgba(255, 252, 247, 0.72)";
-      return theme === "dark" ? "rgba(20, 26, 36, 0.84)" : "rgba(255, 252, 247, 0.84)";
+      if (tone === "accent") return theme === "dark" ? "rgba(30, 41, 59, 0.92)" : "rgba(235, 240, 255, 0.96)";
+      if (tone === "amber") return theme === "dark" ? "rgba(30, 41, 59, 0.9)" : "rgba(239, 243, 255, 0.94)";
+      if (tone === "ghost") return theme === "dark" ? "rgba(15, 23, 42, 0.76)" : "rgba(248, 250, 252, 0.78)";
+      return theme === "dark" ? "rgba(30, 41, 59, 0.9)" : "rgba(255, 255, 255, 0.92)";
     };
 
     const getToneStroke = (tone: HomeBoardItem["tone"]) => {
-      if (tone === "accent") return theme === "dark" ? "rgba(229, 190, 110, 0.2)" : "rgba(185, 131, 61, 0.18)";
-      if (tone === "amber") return theme === "dark" ? "rgba(229, 190, 110, 0.16)" : "rgba(152, 109, 33, 0.16)";
+      if (tone === "accent") return theme === "dark" ? "rgba(131, 157, 255, 0.26)" : "rgba(75, 107, 255, 0.18)";
+      if (tone === "amber") return theme === "dark" ? "rgba(131, 157, 255, 0.2)" : "rgba(75, 107, 255, 0.16)";
       return edgeStroke;
     };
 
     const getValueFont = (item: HomeBoardItem) => {
-      if (item.kind === "hero") return "500 164px 'Fraunces', 'Noto Serif SC', serif";
+      if (item.kind === "hero") return "500 112px 'Fraunces', 'Noto Serif SC', serif";
       const size = item.valueSize ?? "md";
-      if (size === "xl") return "500 96px 'Fraunces', 'Noto Serif SC', serif";
-      if (size === "lg") return "500 58px 'Fraunces', 'Noto Serif SC', serif";
-      if (size === "sm") return "500 26px 'JetBrains Mono', monospace";
-      return "500 34px 'JetBrains Mono', monospace";
+      if (size === "xl") return "500 64px 'Fraunces', 'Noto Serif SC', serif";
+      if (size === "lg") return "500 40px 'Fraunces', 'Noto Serif SC', serif";
+      if (size === "sm") return "500 17px 'JetBrains Mono', monospace";
+      return "500 23px 'JetBrains Mono', 'Noto Serif SC', monospace";
+    };
+
+    const wrapText = (text: string, maxWidth: number, font: string) => {
+      ctx.save();
+      ctx.font = font;
+      const lines: string[] = [];
+      let current = "";
+      Array.from(text).forEach((char) => {
+        const next = current + char;
+        if (current && ctx.measureText(next).width > maxWidth) {
+          lines.push(current);
+          current = char.trimStart();
+        } else {
+          current = next;
+        }
+      });
+      if (current) lines.push(current);
+      ctx.restore();
+      return lines;
     };
 
     const drawBodyLines = (
@@ -2123,54 +2298,62 @@ export function initDiorama() {
       const fill = getToneFill(item.tone);
       const stroke = getToneStroke(item.tone);
       const rotation = THREE.MathUtils.degToRad(item.rotate ?? 0);
-      const bodyColor = theme === "dark" ? "rgba(243, 237, 227, 0.72)" : "rgba(42, 36, 31, 0.76)";
+      const bodyColor = theme === "dark" ? "rgba(226, 232, 240, 0.72)" : "rgba(51, 65, 85, 0.72)";
 
       ctx.save();
       ctx.translate(item.x + item.w / 2, item.y + item.h / 2);
       ctx.rotate(rotation);
-      drawRoundedPanel(-item.w / 2, -item.h / 2, item.w, item.h, item.kind === "note" ? 28 : 34, fill, stroke);
+      drawRoundedPanel(-item.w / 2, -item.h / 2, item.w, item.h, item.kind === "note" ? 14 : 18, fill, stroke);
 
       if (item.kind === "hero") {
+        const heroPad = 24;
+        const heroTop = -item.h / 2;
+        const heroLeft = -item.w / 2;
         ctx.fillStyle = p.screenMuted;
-        ctx.font = "500 15px 'JetBrains Mono', monospace";
-        ctx.fillText(item.eyebrow, -item.w / 2 + 28, -item.h / 2 + 34);
+        ctx.font = "500 12px 'JetBrains Mono', monospace";
+        ctx.fillText(item.eyebrow, heroLeft + heroPad, heroTop + 29);
         ctx.fillStyle = p.screenText;
         ctx.font = getValueFont(item);
-        ctx.fillText(item.title, -item.w / 2 + 28, -item.h / 2 + 178);
+        ctx.fillText(item.title, heroLeft + heroPad, heroTop + 132);
         ctx.fillStyle = p.screenMuted;
-        ctx.font = "500 24px 'JetBrains Mono', monospace";
-        ctx.fillText(item.subtitle, -item.w / 2 + 36, -item.h / 2 + 236);
-        let chipX = -item.w / 2 + 28;
+        ctx.font = "500 18px 'JetBrains Mono', monospace";
+        ctx.fillText(item.subtitle, heroLeft + heroPad + 4, heroTop + 172);
+        let chipX = heroLeft + heroPad;
+        const chipY = heroTop + item.h - 38;
         item.chips.forEach((chip, index) => {
-          drawPill(chipX, -item.h / 2 + 274, chip, index === 0);
-          ctx.font = "500 14px 'JetBrains Mono', monospace";
-          chipX += ctx.measureText(chip).width + 48;
+          const chipWidth = drawPill(chipX, chipY, chip, index === 0, 11, 11, 23);
+          chipX += chipWidth + 12;
         });
         ctx.restore();
         return;
       }
 
       ctx.fillStyle = p.screenMuted;
-      ctx.font = "500 15px 'JetBrains Mono', monospace";
-      ctx.fillText(item.eyebrow, -item.w / 2 + 24, -item.h / 2 + 34);
+      ctx.font = "500 12px 'JetBrains Mono', monospace";
+      ctx.fillText(item.eyebrow, -item.w / 2 + 18, -item.h / 2 + 28);
       ctx.fillStyle = p.screenText;
       ctx.font = getValueFont(item);
-      const valueX = -item.w / 2 + 24;
-      const valueY = -item.h / 2 + (item.kind === "note" ? 82 : 96);
-      const valueLines = item.value.split("\n");
-      const lineHeight = item.valueSize === "sm" ? 34 : item.valueSize === "lg" ? 62 : 42;
+      const valueX = -item.w / 2 + 18;
+      const valueY = -item.h / 2 + (item.kind === "note" ? 62 : 72);
+      const valueFont = getValueFont(item);
+      const valueMaxWidth = item.w - 36;
+      const valueLines = item.value
+        .split("\n")
+        .flatMap((line) => wrapText(line, valueMaxWidth, valueFont))
+        .slice(0, item.kind === "note" ? 3 : 2);
+      const lineHeight = item.valueSize === "sm" ? 25 : item.valueSize === "lg" ? 48 : 31;
       valueLines.forEach((line, index) => {
         ctx.fillText(line, valueX, valueY + index * lineHeight);
       });
       if (item.kind === "card" && item.id === "thread" && cursorOn) {
         const lastLine = valueLines[valueLines.length - 1] ?? "";
-        const cursorOffset = ctx.measureText(lastLine).width + 12;
-        ctx.fillRect(valueX + cursorOffset, valueY - 24 + (valueLines.length - 1) * lineHeight, 10, 22);
+        const cursorOffset = ctx.measureText(lastLine).width + 10;
+        ctx.fillRect(valueX + cursorOffset, valueY - 20 + (valueLines.length - 1) * lineHeight, 8, 18);
       }
       const bodyLines = item.body ?? [];
       if (bodyLines.length > 0) {
-        const bodyY = valueY + valueLines.length * lineHeight + 22;
-        drawBodyLines(bodyLines, -item.w / 2 + 24, bodyY, 25, bodyColor);
+        const bodyY = valueY + valueLines.length * lineHeight + 16;
+        drawBodyLines(bodyLines, -item.w / 2 + 18, bodyY, 19, bodyColor, "400 13px 'JetBrains Mono', monospace");
       }
       ctx.restore();
     };
@@ -2178,28 +2361,23 @@ export function initDiorama() {
     ctx.fillStyle = p.screenBg;
     ctx.fillRect(0, 0, W, H);
 
-    const gradA = ctx.createRadialGradient(250, 160, 0, 250, 160, 300);
-    gradA.addColorStop(0, theme === "dark" ? "rgba(204, 165, 92, 0.16)" : "rgba(235, 199, 126, 0.24)");
-    gradA.addColorStop(1, "rgba(235, 199, 126, 0)");
+    const gradA = ctx.createLinearGradient(0, 0, W, H);
+    gradA.addColorStop(0, theme === "dark" ? "rgba(30, 41, 59, 0.78)" : "rgba(235, 240, 255, 0.98)");
+    gradA.addColorStop(0.52, theme === "dark" ? "rgba(15, 23, 42, 0.94)" : "rgba(248, 250, 255, 0.98)");
+    gradA.addColorStop(1, theme === "dark" ? "rgba(15, 23, 42, 0.88)" : "rgba(241, 245, 249, 0.96)");
     ctx.fillStyle = gradA;
     ctx.fillRect(0, 0, W, H);
 
-    const gradB = ctx.createRadialGradient(1120, 120, 0, 1120, 120, 280);
-    gradB.addColorStop(0, theme === "dark" ? "rgba(90, 130, 193, 0.22)" : "rgba(128, 161, 214, 0.18)");
-    gradB.addColorStop(1, "rgba(128, 161, 214, 0)");
-    ctx.fillStyle = gradB;
-    ctx.fillRect(0, 0, W, H);
-
     ctx.save();
-    ctx.strokeStyle = theme === "dark" ? "rgba(222, 226, 232, 0.07)" : "rgba(68, 58, 47, 0.08)";
+    ctx.strokeStyle = theme === "dark" ? "rgba(148, 163, 184, 0.055)" : "rgba(75, 107, 255, 0.055)";
     ctx.lineWidth = 1;
-    for (let x = 18; x < W; x += 44) {
+    for (let x = 18; x < W; x += 40) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, H);
       ctx.stroke();
     }
-    for (let y = 18; y < H; y += 44) {
+    for (let y = 18; y < H; y += 40) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(W, y);
@@ -2209,6 +2387,7 @@ export function initDiorama() {
 
     const { topbar, sidebar, boardPanel, boardViewport } = board.screen;
     const isDesktopBoard = board.device === "desktop";
+    const isMobileBoard = board.device === "mobile";
     const titleFont = isDesktopBoard ? 16 : 14;
     const subtitleFont = isDesktopBoard ? 13 : 12;
     const workspaceTitleFont = isDesktopBoard ? 30 : 24;
@@ -2216,34 +2395,43 @@ export function initDiorama() {
     const pillFont = board.device === "mobile" ? 11 : 13;
     const pillHeight = board.device === "mobile" ? 24 : 28;
 
-    drawRoundedPanel(topbar.x, topbar.y, topbar.w, topbar.h, 28, frameFill);
-    if (sidebar) {
-      drawRoundedPanel(sidebar.x, sidebar.y, sidebar.w, sidebar.h, 34, sidebarFill);
+    const hasTopbar = topbar.w > 0 && topbar.h > 0;
+
+    if (hasTopbar) {
+      drawRoundedPanel(topbar.x, topbar.y, topbar.w, topbar.h, 20, frameFill);
     }
-    drawRoundedPanel(boardPanel.x, boardPanel.y, boardPanel.w, boardPanel.h, 36, frameFill);
+    if (sidebar) {
+      drawRoundedPanel(sidebar.x, sidebar.y, sidebar.w, sidebar.h, 22, sidebarFill);
+    }
+    const boardPanelIsFullBleed = boardPanel.x <= 0 && boardPanel.w >= W;
+    if (!boardPanelIsFullBleed) {
+      drawRoundedPanel(boardPanel.x, boardPanel.y, boardPanel.w, boardPanel.h, 24, frameFill);
+    }
 
-    const trafficBaseX = topbar.x + 36;
-    const trafficY = topbar.y + topbar.h / 2;
-    ctx.fillStyle = "#d08e64";
-    ctx.beginPath(); ctx.arc(trafficBaseX, trafficY, 6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#dfb765";
-    ctx.beginPath(); ctx.arc(trafficBaseX + 20, trafficY, 6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#88a1c9";
-    ctx.beginPath(); ctx.arc(trafficBaseX + 40, trafficY, 6, 0, Math.PI * 2); ctx.fill();
+    if (hasTopbar) {
+      const trafficBaseX = topbar.x + 36;
+      const trafficY = topbar.y + topbar.h / 2;
+      ctx.fillStyle = "#d08e64";
+      ctx.beginPath(); ctx.arc(trafficBaseX, trafficY, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#dfb765";
+      ctx.beginPath(); ctx.arc(trafficBaseX + 20, trafficY, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#88a1c9";
+      ctx.beginPath(); ctx.arc(trafficBaseX + 40, trafficY, 6, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = p.screenText;
-    ctx.font = `600 ${titleFont}px 'JetBrains Mono', monospace`;
-    ctx.fillText(board.chrome.title, topbar.x + 132, topbar.y + 42);
-    ctx.fillStyle = p.screenMuted;
-    ctx.font = `400 ${subtitleFont}px 'JetBrains Mono', monospace`;
-    ctx.fillText(board.chrome.subtitle, topbar.x + 132, topbar.y + 66);
+      ctx.fillStyle = p.screenText;
+      ctx.font = `600 ${titleFont}px 'JetBrains Mono', monospace`;
+      ctx.fillText(board.chrome.title, topbar.x + 132, topbar.y + 42);
+      ctx.fillStyle = p.screenMuted;
+      ctx.font = `400 ${subtitleFont}px 'JetBrains Mono', monospace`;
+      ctx.fillText(board.chrome.subtitle, topbar.x + 132, topbar.y + 66);
 
-    const visiblePills = board.chrome.pills.slice(0, 2);
-    let pillX = topbar.x + topbar.w - 24;
-    for (let index = visiblePills.length - 1; index >= 0; index -= 1) {
-      const pill = visiblePills[index];
-      const width = drawPill(pillX - 10, topbar.y + 28, pill.label, Boolean(pill.accent), pillFont, 12, pillHeight);
-      pillX -= width + 12;
+      const visiblePills = board.chrome.pills.slice(0, 2);
+      let pillX = topbar.x + topbar.w - 24;
+      for (let index = visiblePills.length - 1; index >= 0; index -= 1) {
+        const pill = visiblePills[index];
+        const width = drawPill(pillX - 10, topbar.y + 28, pill.label, Boolean(pill.accent), pillFont, 12, pillHeight);
+        pillX -= width + 12;
+      }
     }
 
     if (sidebar) {
@@ -2264,15 +2452,15 @@ export function initDiorama() {
           18,
           item.active
             ? theme === "dark"
-              ? "rgba(239, 198, 120, 0.12)"
-              : "rgba(236, 203, 129, 0.22)"
+              ? "rgba(131, 157, 255, 0.16)"
+              : "rgba(75, 107, 255, 0.12)"
             : theme === "dark"
               ? "rgba(255, 255, 255, 0.035)"
               : "rgba(255, 255, 255, 0.54)",
           item.active
             ? theme === "dark"
-              ? "rgba(239, 198, 120, 0.24)"
-              : "rgba(176, 126, 63, 0.22)"
+              ? "rgba(131, 157, 255, 0.28)"
+              : "rgba(75, 107, 255, 0.22)"
             : "transparent",
         );
         ctx.fillStyle = item.active ? p.screenAccent : p.screenText;
@@ -2287,7 +2475,7 @@ export function initDiorama() {
       ctx.font = `400 ${navFont}px 'JetBrains Mono', monospace`;
       ctx.fillText(board.chrome.routes.slice(0, 3).join(" / "), sidebar.x + 28, sidebar.y + 544);
       ctx.fillText(board.chrome.routes.slice(3).join(" / "), sidebar.x + 28, sidebar.y + 570);
-    } else {
+    } else if (!isMobileBoard && !boardPanelIsFullBleed) {
       ctx.fillStyle = p.screenMuted;
       ctx.font = "500 13px 'JetBrains Mono', monospace";
       ctx.fillText(board.chrome.routesLabel, boardPanel.x + 28, boardPanel.y + boardPanel.h - 64);
@@ -2297,11 +2485,17 @@ export function initDiorama() {
     }
 
     const boardViewportRect = boardViewport;
-    drawRoundedPanel(boardViewportRect.x, boardViewportRect.y, boardViewportRect.w, boardViewportRect.h, 28, boardPanelFill);
+    const viewportRadius = boardViewportRect.x <= 0 && boardViewportRect.w >= W ? 0 : 18;
+    if (viewportRadius > 0) {
+      drawRoundedPanel(boardViewportRect.x, boardViewportRect.y, boardViewportRect.w, boardViewportRect.h, viewportRadius, boardPanelFill);
+    } else {
+      ctx.fillStyle = boardPanelFill;
+      ctx.fillRect(boardViewportRect.x, boardViewportRect.y, boardViewportRect.w, boardViewportRect.h);
+    }
 
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(boardViewportRect.x, boardViewportRect.y, boardViewportRect.w, boardViewportRect.h, 28);
+    ctx.roundRect(boardViewportRect.x, boardViewportRect.y, boardViewportRect.w, boardViewportRect.h, viewportRadius);
     ctx.clip();
 
     const boardInnerScale = Math.min(
@@ -2311,37 +2505,61 @@ export function initDiorama() {
     boardScale = boardInnerScale;
     const boardOffsetX = boardViewportRect.x + (boardViewportRect.w - board.viewport.width * boardInnerScale) / 2 - boardViewX * boardInnerScale;
     const boardOffsetY = boardViewportRect.y + (boardViewportRect.h - board.viewport.height * boardInnerScale) / 2 - boardViewY * boardInnerScale;
+    const visibleBoardX = -boardOffsetX / boardInnerScale;
+    const visibleBoardY = -boardOffsetY / boardInnerScale;
+    const visibleBoardW = boardViewportRect.w / boardInnerScale;
+    const visibleBoardH = boardViewportRect.h / boardInnerScale;
+    const bgPad = 180;
 
     ctx.translate(boardOffsetX, boardOffsetY);
     ctx.scale(boardInnerScale, boardInnerScale);
     ctx.fillStyle = p.screenBg;
-    ctx.fillRect(0, 0, board.stage.width, board.stage.height);
+    ctx.fillRect(
+      visibleBoardX - bgPad,
+      visibleBoardY - bgPad,
+      visibleBoardW + bgPad * 2,
+      visibleBoardH + bgPad * 2,
+    );
 
     const boardGradA = ctx.createRadialGradient(340, 210, 0, 340, 210, 340);
-    boardGradA.addColorStop(0, theme === "dark" ? "rgba(196, 154, 82, 0.16)" : "rgba(235, 199, 126, 0.22)");
-    boardGradA.addColorStop(1, "rgba(235, 199, 126, 0)");
+    boardGradA.addColorStop(0, theme === "dark" ? "rgba(131, 157, 255, 0.11)" : "rgba(75, 107, 255, 0.08)");
+    boardGradA.addColorStop(1, "rgba(75, 107, 255, 0)");
     ctx.fillStyle = boardGradA;
-    ctx.fillRect(0, 0, board.stage.width, board.stage.height);
+    ctx.fillRect(
+      visibleBoardX - bgPad,
+      visibleBoardY - bgPad,
+      visibleBoardW + bgPad * 2,
+      visibleBoardH + bgPad * 2,
+    );
 
-    const boardGradB = ctx.createRadialGradient(1880, 190, 0, 1880, 190, 320);
-    boardGradB.addColorStop(0, theme === "dark" ? "rgba(90, 124, 178, 0.18)" : "rgba(127, 158, 208, 0.18)");
-    boardGradB.addColorStop(1, "rgba(127, 158, 208, 0)");
+    const boardGradB = ctx.createRadialGradient(1250, 220, 0, 1250, 220, 360);
+    boardGradB.addColorStop(0, theme === "dark" ? "rgba(148, 163, 184, 0.12)" : "rgba(148, 163, 184, 0.1)");
+    boardGradB.addColorStop(1, "rgba(148, 163, 184, 0)");
     ctx.fillStyle = boardGradB;
-    ctx.fillRect(0, 0, board.stage.width, board.stage.height);
+    ctx.fillRect(
+      visibleBoardX - bgPad,
+      visibleBoardY - bgPad,
+      visibleBoardW + bgPad * 2,
+      visibleBoardH + bgPad * 2,
+    );
 
     ctx.save();
-    ctx.strokeStyle = theme === "dark" ? "rgba(219, 224, 232, 0.06)" : "rgba(77, 63, 47, 0.08)";
+    ctx.strokeStyle = theme === "dark" ? "rgba(148, 163, 184, 0.055)" : "rgba(75, 107, 255, 0.055)";
     ctx.lineWidth = 1;
-    for (let x = 0; x < board.stage.width; x += 44) {
+    const gridStartX = Math.floor((visibleBoardX - bgPad) / 44) * 44;
+    const gridEndX = visibleBoardX + visibleBoardW + bgPad;
+    const gridStartY = Math.floor((visibleBoardY - bgPad) / 44) * 44;
+    const gridEndY = visibleBoardY + visibleBoardH + bgPad;
+    for (let x = gridStartX; x < gridEndX; x += 44) {
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, board.stage.height);
+      ctx.moveTo(x, visibleBoardY - bgPad);
+      ctx.lineTo(x, gridEndY);
       ctx.stroke();
     }
-    for (let y = 0; y < board.stage.height; y += 44) {
+    for (let y = gridStartY; y < gridEndY; y += 44) {
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(board.stage.width, y);
+      ctx.moveTo(visibleBoardX - bgPad, y);
+      ctx.lineTo(gridEndX, y);
       ctx.stroke();
     }
     ctx.restore();
@@ -2359,15 +2577,17 @@ export function initDiorama() {
       y: boardViewportRect.y / H,
       w: boardViewportRect.w / W,
       h: boardViewportRect.h / H,
-      radius: 28,
+      radius: viewportRadius,
     };
 
-    ctx.fillStyle = p.screenMuted;
-    ctx.font = "500 16px 'JetBrains Mono', monospace";
-    ctx.fillText(board.chrome.boardStatus, boardPanel.x + 24, boardPanel.y + boardPanel.h - 42);
-    ctx.textAlign = "right";
-    ctx.fillText(board.chrome.footer, boardPanel.x + boardPanel.w - 24, boardPanel.y + boardPanel.h - 42);
-    ctx.textAlign = "left";
+    if (!isMobileBoard && !boardPanelIsFullBleed) {
+      ctx.fillStyle = p.screenMuted;
+      ctx.font = "500 16px 'JetBrains Mono', monospace";
+      ctx.fillText(board.chrome.boardStatus, boardPanel.x + 24, boardPanel.y + boardPanel.h - 42);
+      ctx.textAlign = "right";
+      ctx.fillText(board.chrome.footer, boardPanel.x + boardPanel.w - 24, boardPanel.y + boardPanel.h - 42);
+      ctx.textAlign = "left";
+    }
 
     screenTexture.needsUpdate = true;
   };
@@ -2445,13 +2665,12 @@ export function initDiorama() {
     hintEl?.classList.add("is-hidden");
   };
 
-  let boardDragging = false;
   let boardPointerId = -1;
   let boardDragStartX = 0;
   let boardDragStartY = 0;
   let boardDragOriginX = boardViewX;
   let boardDragOriginY = boardViewY;
-  const canDragBoard = () => homeProgress < 0.16 && !tweening;
+  const canDragBoard = () => false;
   const finishBoardDrag = () => {
     boardDragging = false;
     boardPointerId = -1;
@@ -2702,15 +2921,24 @@ export function initDiorama() {
     lastFrame = now;
 
     const nextProgress = scrollTargetProgress;
+    const prevProgress = homeProgress;
     homeProgress = nextProgress;
+    if (Math.abs(prevProgress - homeProgress) > 0.0005) {
+      needScreenRedraw = true;
+    }
 
     applyHomeState(homeProgress);
     syncSceneOverlay();
 
-    const cameraPull = easeInOutSine(clamp((homeProgress - 0.07) / 0.89));
-    const outsideReveal = easeInOutSine(clamp((homeProgress - 0.09) / 0.45));
-    const roomReveal = easeInOutSine(clamp((homeProgress - 0.11) / 0.65));
-    const sceneInteraction = easeInOutSine(clamp((homeProgress - 0.86) / 0.1));
+    const cameraPull = easeInOutSine(clamp((homeProgress - 0.7) / 0.27));
+    const outsideReveal = easeInOutSine(clamp((homeProgress - 0.66) / 0.3));
+    const roomReveal = easeInOutSine(clamp((homeProgress - 0.7) / 0.26));
+    const sceneInteraction = easeInOutSine(clamp((homeProgress - 0.9) / 0.08));
+    if (introBackdropMaterial) {
+      const backdropFade = 1 - easeInOutSine(clamp((homeProgress - 0.56) / 0.18));
+      introBackdropMaterial.opacity = backdropFade;
+      introBackdropMaterial.visible = backdropFade > 0.01;
+    }
     const boardShouldCapture = canDragBoard();
     if (boardHitareaEl) boardHitareaEl.style.pointerEvents = boardShouldCapture ? "auto" : "none";
     if (!boardShouldCapture && boardDragging) finishBoardDrag();
@@ -2796,7 +3024,14 @@ export function initDiorama() {
     ambient.intensity = lerp(theme === "dark" ? 0.42 : 0.56, ambI, 0.35) * lerp(0.86, 1, outsideReveal);
     windowLight.color.copy(skyColor);
     windowLight.intensity = Math.max(0.24, sunI * 0.45) * lerp(0.55, 1, outsideReveal);
-    screenLight.intensity = lerp(0, theme === "dark" ? 0.18 : 0.3, easeInOutSine(clamp((homeProgress - 0.8) / 0.14)));
+    const screenLightMax = useMobileCarrier
+      ? theme === "dark"
+        ? 0.018
+        : 0.032
+      : theme === "dark"
+        ? 0.18
+        : 0.3;
+    screenLight.intensity = lerp(0, screenLightMax, easeInOutSine(clamp((homeProgress - 0.8) / 0.14)));
     mats.sky.color.copy(skyColor);
     mats.leaf.color.copy(plantColor);
     if (scene.fog) {
@@ -2813,9 +3048,10 @@ export function initDiorama() {
       outsideReveal,
     );
     renderer.toneMappingExposure = lerp(1.28, 1.05, outsideReveal);
-    mats.floor.opacity = lerp(0.08, 1, outsideReveal);
-    mats.wall.opacity = lerp(0.04, 1, roomReveal);
-    mats.ceiling.opacity = lerp(0.04, 1, roomReveal);
+    const introRoomGhost = useMobileCarrier ? 0 : 1;
+    mats.floor.opacity = lerp(0.08 * introRoomGhost, 1, outsideReveal);
+    mats.wall.opacity = lerp(0.04 * introRoomGhost, 1, roomReveal);
+    mats.ceiling.opacity = lerp(0.04 * introRoomGhost, 1, roomReveal);
     mats.deskTop.opacity = outsideReveal;
     mats.deskLeg.opacity = outsideReveal;
     mats.lampBody.opacity = roomReveal;
@@ -2835,9 +3071,9 @@ export function initDiorama() {
     mats.personHair.opacity = roomReveal;
     mats.personCloth.opacity = roomReveal;
     mats.key.opacity = outsideReveal;
-    mats.windowFrame.opacity = lerp(0.12, 1, roomReveal);
-    mats.windowSill.opacity = lerp(0.12, 1, roomReveal);
-    mats.sky.opacity = lerp(0.2, 1, outsideReveal);
+    mats.windowFrame.opacity = lerp(0.12 * introRoomGhost, 1, roomReveal);
+    mats.windowSill.opacity = lerp(0.12 * introRoomGhost, 1, roomReveal);
+    mats.sky.opacity = lerp(0.2 * introRoomGhost, 1, outsideReveal);
 
     // Particle system opacity (cross-fade between current/next season)
     const raw = seasonOfYear * 4;
@@ -3127,9 +3363,13 @@ export function initDiorama() {
       }
     });
     screenTexture.dispose();
+    introBackdropTexture?.dispose();
     renderer.dispose();
     docEl.style.removeProperty("--home-progress");
     docEl.style.removeProperty("--scene-opacity");
+    docEl.style.removeProperty("--story-opacity");
+    docEl.style.removeProperty("--story-progress");
+    docEl.style.removeProperty("--story-local");
     sceneEl?.style.removeProperty("--home-progress");
     boardHitareaEl?.style.removeProperty("position");
     boardHitareaEl?.style.removeProperty("left");
@@ -3143,6 +3383,9 @@ export function initDiorama() {
     if (sceneEl) sceneEl.style.touchAction = "";
     canvasEl.style.touchAction = "";
     sceneEl?.removeAttribute("data-home-phase");
+    storyEl?.removeAttribute("data-story-step");
+    storyEl?.style.removeProperty("--story-progress");
+    storyEl?.style.removeProperty("--story-local");
     cueEl?.removeAttribute("data-home-visible");
 
     const w = window as unknown as Record<string, unknown>;

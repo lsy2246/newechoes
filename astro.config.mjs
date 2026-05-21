@@ -22,6 +22,9 @@ export default defineConfig({
   site: SITE_URL,
   output: "static",
   trailingSlash: "ignore",
+  devToolbar: {
+    enabled: false,
+  },
 
   build: {
     format: "directory",
