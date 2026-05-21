@@ -1,5 +1,3 @@
-import { HOME_PROFILE } from "@/consts";
-
 export type HomeScreenStoryDevice = "desktop" | "mobile";
 export type HomeScreenStoryTheme = "light" | "dark";
 
@@ -65,6 +63,57 @@ const PALETTES: Record<HomeScreenStoryTheme, Palette> = {
     shadow: "rgba(0, 0, 0, 0.36)",
   },
 };
+
+const STORY_MATERIALS = [
+  { tag: "cinema log", body: "A slower way to see the world", group: 0, active: false, angle: -2.65 },
+  { tag: "travel journal", body: "Distance turns into inner weather", group: 0, active: false, angle: -1.55 },
+  { tag: "code sketches", body: "Thoughts that learn to move", group: 1, active: false, angle: 1.9 },
+  { tag: "AI playground", body: "A mirror for unfinished questions", group: 1, active: true, angle: 0.85 },
+  { tag: "reading list", body: "Other minds left open on the desk", group: 2, active: false, angle: -0.35 },
+  { tag: "writing archive", body: "Loose days becoming a shape", group: 2, active: false, angle: 2.75 },
+] as const;
+
+const STORY_TRACKS = [
+  { label: "seeing", title: "cinema / travel", note: "Images, places, and the way memory edits them" },
+  { label: "making", title: "code / AI", note: "Tools, systems, and strange new working habits" },
+  { label: "thinking", title: "books / writing", note: "Borrowed thoughts becoming my own language" },
+] as const;
+
+const STORY_WORK_ROWS = [
+  {
+    label: "agent system",
+    title: "Ennoia",
+    body: "A light core for agents, memory, and permissioned tools",
+    from: 1,
+    active: false,
+    details: ["agent scheduling", "memory and tool boundaries"],
+  },
+  {
+    label: "model gateway",
+    title: "API Worker",
+    body: "A resilient bridge across models, streams, and fallbacks",
+    from: 1,
+    active: true,
+    details: ["model routing", "stream fallback paths"],
+  },
+  {
+    label: "study-abroad product",
+    title: "distilledu",
+    body: "A mentor platform shaped around search, booking, and trust",
+    from: 1,
+    active: false,
+    details: ["mentor discovery", "booking and trust loop"],
+  },
+] as const;
+
+const STORY_TODAY_PANELS = [
+  ["BUILD", "Ennoia · API Worker · distilledu", "Systems that stay useful under real constraints"],
+  ["WRITE", "blog.lsy22.com", "Notes, essays, and unfinished questions"],
+  ["LIVE", "cinema · travel · books", "A life kept close to perception"],
+] as const;
+
+const STORY_STATUS = "still building · still noticing";
+const STORY_SUMMARY = "Full-stack builder working with AI, writing, and the world outside the screen.";
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const lerp = (from: number, to: number, progress: number) => from + (to - from) * progress;
@@ -343,6 +392,76 @@ const drawMobileStory = (
     ctx.restore();
   };
 
+  const measure = (value: string, size: number, font = "'JetBrains Mono', monospace", weight = 600) => {
+    ctx.save();
+    ctx.font = `${weight} ${size}px ${font}`;
+    const result = ctx.measureText(value).width;
+    ctx.restore();
+    return result;
+  };
+
+  const wrapText = (
+    value: string,
+    maxWidth: number,
+    size: number,
+    font = "'JetBrains Mono', monospace",
+    weight = 600,
+    maxLines = 2,
+  ) => {
+    const words = value.split(" ");
+    const lines: string[] = [];
+    let current = "";
+    words.forEach((word) => {
+      const next = current ? `${current} ${word}` : word;
+      if (measure(next, size, font, weight) <= maxWidth || !current) {
+        current = next;
+        return;
+      }
+      lines.push(current);
+      current = word;
+    });
+    if (current) lines.push(current);
+    return lines.slice(0, maxLines);
+  };
+
+  const fitSize = (
+    value: string,
+    maxWidth: number,
+    size: number,
+    minSize: number,
+    font = "'JetBrains Mono', monospace",
+    weight = 600,
+  ) => {
+    let fitted = size;
+    while (fitted > minSize && measure(value, fitted, font, weight) > maxWidth) {
+      fitted -= 0.6 * unit;
+    }
+    return fitted;
+  };
+
+  const clipRounded = (rect: Rect, clipRadius: number, draw: () => void) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, clipRadius);
+    ctx.clip();
+    draw();
+    ctx.restore();
+  };
+
+  const textFit = (
+    value: string,
+    x: number,
+    y: number,
+    size: number,
+    maxWidth: number,
+    color = palette.text,
+    font = "'JetBrains Mono', monospace",
+    weight = 600,
+    minSize = size * 0.72,
+  ) => {
+    text(value, x, y, fitSize(value, maxWidth, size, minSize, font, weight), color, font, weight);
+  };
+
   const mobileCard = (rect: Rect, label: string, title: string, lines: string[], active = false) => {
     rounded(ctx, rect, radius, active ? palette.accentSoft : palette.paper, active ? palette.line : hairline, palette.shadow);
     const pad = Math.max(24 * unit, rect.w * 0.062);
@@ -365,20 +484,53 @@ const drawMobileStory = (
     return chipW;
   };
 
+  type MobileInputCard = {
+    label: string;
+    title: string;
+    meta: string;
+    active: boolean;
+    group: 0 | 1 | 2;
+  };
+
+  const drawMobileInputCard = (
+    rect: Rect,
+    item: MobileInputCard,
+    toMethod: number,
+  ) => {
+    const r = lerp(radius * 0.72, radius * 0.42, toMethod);
+    rounded(ctx, rect, r, item.active ? palette.accentSoft : palette.paper, item.active ? palette.line : hairline, palette.shadow);
+    const pad = lerp(18 * unit, 13 * unit, toMethod);
+    const lane = STORY_TRACKS[item.group];
+    const maxWidth = rect.w - pad * 2;
+    const title = toMethod < 0.58 ? item.title : lane.label;
+    const meta = toMethod < 0.58 ? item.meta : lane.title;
+    const showMeta = rect.h > 70 * unit;
+    clipRounded(rect, r, () => {
+      textFit(item.label, rect.x + pad, rect.y + 23 * unit, smallSize * lerp(0.82, 0.66, toMethod), maxWidth, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.56);
+      textFit(title, rect.x + pad, rect.y + (showMeta ? 52 * unit : 45 * unit), lerp(bodySize * 0.86, bodySize * 0.72, toMethod), maxWidth, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.52);
+      if (showMeta) {
+        wrapText(meta, maxWidth, smallSize * lerp(0.66, 0.58, toMethod), "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+          text(line, rect.x + pad, rect.y + rect.h - 14 * unit, smallSize * lerp(0.66, 0.58, toMethod), palette.muted, "'JetBrains Mono', monospace", 600);
+        });
+      }
+    });
+  };
+
   const rowCard = (rect: Rect, label: string, title: string, body: string, index: number) => {
     rounded(ctx, rect, radius * 0.7, palette.paper, hairline, palette.shadow);
     const pad = 22 * unit;
-    text(`0${index}`, rect.x + pad, rect.y + rect.h * 0.34, smallSize * 0.9, palette.accent, "'JetBrains Mono', monospace", 700);
-    text(title, rect.x + pad, rect.y + rect.h * 0.6, bodySize * 1.03, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-    ctx.save();
-    ctx.font = `700 ${smallSize * 0.82}px 'JetBrains Mono', monospace`;
-    const labelWidth = ctx.measureText(label).width;
-    ctx.restore();
-    text(label, rect.x + rect.w - pad - labelWidth, rect.y + rect.h * 0.34, smallSize * 0.82, palette.muted, "'JetBrains Mono', monospace", 700);
-    text(body, rect.x + pad, rect.y + rect.h * 0.84, smallSize * 0.82, palette.muted, "'JetBrains Mono', monospace", 600);
+    const maxWidth = rect.w - pad * 2;
+    clipRounded(rect, radius * 0.7, () => {
+      text(`0${index}`, rect.x + pad, rect.y + rect.h * 0.3, smallSize * 0.82, palette.accent, "'JetBrains Mono', monospace", 700);
+      textFit(label, rect.x + pad, rect.y + rect.h * 0.48, smallSize * 0.72, maxWidth, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.58);
+      textFit(title, rect.x + pad, rect.y + rect.h * 0.68, bodySize * 0.88, maxWidth, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.66);
+      wrapText(body, maxWidth, smallSize * 0.64, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+        text(line, rect.x + pad, rect.y + rect.h - 14 * unit, smallSize * 0.64, palette.muted, "'JetBrains Mono', monospace", 600);
+      });
+    });
   };
 
-  const snapshotPanel = (rect: Rect, label: string, title: string, _body: string, active = false) => {
+  const snapshotPanel = (rect: Rect, label: string, title: string, body: string, active = false) => {
     rounded(
       ctx,
       rect,
@@ -387,8 +539,19 @@ const drawMobileStory = (
       active ? palette.line : hairline,
     );
     const pad = 16 * unit;
-    text(label, rect.x + pad, rect.y + rect.h * 0.34, smallSize * 0.78, active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
-    text(title, rect.x + pad, rect.y + rect.h * 0.74, bodySize * 0.72, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+    const maxWidth = rect.w - pad * 2;
+    clipRounded(rect, radius * 0.5, () => {
+      text(label, rect.x + pad, rect.y + 24 * unit, smallSize * 0.72, active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
+      const titleSize = fitSize(title, maxWidth, bodySize * 0.6, bodySize * 0.42, "'Fraunces', 'Noto Serif SC', serif", 600);
+      wrapText(title, maxWidth, titleSize, "'Fraunces', 'Noto Serif SC', serif", 600, 1).forEach((line) => {
+        text(line, rect.x + pad, rect.y + 43 * unit, titleSize, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+      });
+      if (rect.h > 70 * unit) {
+        wrapText(body, maxWidth, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+          text(line, rect.x + pad, rect.y + rect.h - 12 * unit, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
+        });
+      }
+    });
   };
 
   const stageY = (enter: number, exit: number, direction = 1) => {
@@ -399,19 +562,20 @@ const drawMobileStory = (
 
   const gap = 18 * unit;
   const cardW = (safe.w - gap) / 2;
-  const cardH = safe.h * 0.19;
-  const inputCards: [string, string, string][] = [
-    ["Film", "frames", "clips / texture"],
-    ["Travel", "routes", "places / notes"],
-    ["Books", "margins", "quotes / ideas"],
-    ["AI", "systems", "agents / tools"],
-  ];
+  const cardH = clamp(safe.h * 0.13, 78 * unit, 96 * unit);
+  const inputCards = STORY_MATERIALS.map((item) => ({
+    label: STORY_TRACKS[item.group].label,
+    title: item.tag,
+    meta: item.body,
+    active: item.active,
+    group: item.group,
+  }));
   const inputRects = inputCards.map((_, index) => {
     const col = index % 2;
     const row = Math.floor(index / 2);
     return {
       x: safe.x + col * (cardW + gap),
-      y: safe.y + 52 * unit + row * (cardH + gap),
+      y: safe.y + 52 * unit + row * (cardH + gap * 0.72),
       w: cardW,
       h: cardH,
     };
@@ -496,58 +660,54 @@ const drawMobileStory = (
           h: rect.h,
         },
         radius * 0.72,
-        index === 3 ? palette.accentSoft : slotFill,
-        index === 3 ? palette.line : hairline,
+        inputCards[index].active ? palette.accentSoft : slotFill,
+        inputCards[index].active ? palette.line : hairline,
       );
     });
   });
 
   withAlpha(ctx, chipAlpha, () => {
-    const tagItems = [
-      { value: "Film", target: 0, active: false, mini: false, offsetX: -24, offsetY: 44 },
-      { value: "Travel", target: 1, active: false, mini: false, offsetX: 20, offsetY: 38 },
-      { value: "Books", target: 2, active: false, mini: false, offsetX: -14, offsetY: 36 },
-      { value: "AI", target: 3, active: true, mini: false, offsetX: 24, offsetY: 42 },
-      { value: "Web", target: 3, active: false, mini: true, offsetX: -28, offsetY: 88 },
-      { value: "Rust", target: 3, active: false, mini: true, offsetX: 42, offsetY: 88 },
-    ];
+    const tagItems = inputCards.map((card, index) => ({
+      value: card.title,
+      target: index,
+      active: card.active,
+      offsetX: index % 2 === 0 ? -24 : 20,
+      offsetY: 34 + Math.floor(index / 2) * 7,
+    }));
 
     tagItems.forEach((item, index) => {
       const targetRect = inputRects[item.target];
-      const targetX = item.mini ? targetRect.x + targetRect.w * (index === 4 ? 0.16 : 0.48) : targetRect.x + 18 * unit;
-      const targetY = item.mini ? targetRect.y + targetRect.h - 44 * unit : targetRect.y + 22 * unit;
+      const targetX = targetRect.x + 18 * unit;
+      const targetY = targetRect.y + 18 * unit;
       const fromX = targetX + item.offsetX * unit;
       const fromY = targetRect.y + targetRect.h * 0.58 + item.offsetY * unit;
       const driftX = Math.sin(progress * 8 + index * 1.7) * 10 * unit * (1 - gather);
       const driftY = Math.cos(progress * 7 + index * 1.3) * 8 * unit * (1 - gather);
       const x = lerp(fromX + driftX, targetX, gather);
       const y = lerp(fromY + driftY, targetY, gather);
-      const scale = lerp(1, item.mini ? 0.72 : 0.84, gather);
-      const localAlpha = item.mini ? 1 - phase(progress, 0.28, 0.42) : 1;
-      withAlpha(ctx, localAlpha, () => {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.scale(scale, scale);
-        mobileChip(item.value, 0, 0, item.active);
-        ctx.restore();
-      });
+      const scale = lerp(1, 0.78, gather);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      mobileChip(item.value, 0, 0, item.active);
+      ctx.restore();
     });
   });
 
   const lineX = safe.x + 36 * unit;
   const methodStartY = safe.y + 96 * unit;
-  const methodGap = safe.h * 0.165;
+  const methodGap = safe.h * 0.118;
   const methodRects = inputCards.map((_, index) => ({
     x: lineX + 42 * unit,
     y: methodStartY + index * methodGap - 24 * unit,
     w: safe.w - 68 * unit,
-    h: 62 * unit,
+    h: 68 * unit,
   }));
   const toMethod = phase(progress, 0.52, 0.66);
   const inputAlpha = phase(progress, 0.32, 0.48) * (1 - phase(progress, 0.66, 0.74));
 
   withAlpha(ctx, inputAlpha, () => {
-    const label = toMethod < 0.5 ? "input" : "method";
+    const label = toMethod < 0.5 ? "input" : "classify";
     text(label, safe.x, safe.y, smallSize * 1.08, palette.accent, "'JetBrains Mono', monospace", 700);
 
     withAlpha(ctx, phase(toMethod, 0.12, 0.42), () => {
@@ -558,24 +718,17 @@ const drawMobileStory = (
       ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(lineX, methodStartY);
-      ctx.lineTo(lineX, methodStartY + methodGap * 3);
+      ctx.lineTo(lineX, methodStartY + methodGap * 5);
       ctx.stroke();
       ctx.restore();
     });
 
     inputCards.forEach((item, index) => {
       const rect = moveRect(inputRects[index], methodRects[index], toMethod);
-      const r = lerp(radius * 0.72, radius * 0.42, toMethod);
-      rounded(ctx, rect, r, index === 3 ? palette.accentSoft : palette.paper, index === 3 ? palette.line : hairline, palette.shadow);
-      const pad = lerp(18 * unit, 12 * unit, toMethod);
-      const title = toMethod < 0.58 ? item[1] : ["observe", "archive", "connect", "build"][index];
-      const meta = toMethod < 0.58 ? item[2] : ["material", "archive", "relation", "project"][index];
-      text(item[0], rect.x + pad, rect.y + lerp(38 * unit, 18 * unit, toMethod), smallSize * lerp(1, 0.8, toMethod), palette.muted, "'JetBrains Mono', monospace", 700);
-      text(title, rect.x + pad, rect.y + lerp(rect.h * 0.58, 42 * unit, toMethod), lerp(bodySize * 1.02, bodySize * 0.84, toMethod), palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      text(meta, rect.x + pad, rect.y + lerp(rect.h - 28 * unit, 58 * unit, toMethod), smallSize * lerp(0.88, 0.74, toMethod), palette.muted, "'JetBrains Mono', monospace", 600);
+      drawMobileInputCard(rect, item, toMethod);
       if (toMethod > 0.35) {
         ctx.save();
-        ctx.fillStyle = index <= Math.floor(toMethod * 4) ? palette.accent : palette.paperStrong;
+        ctx.fillStyle = index <= Math.floor(toMethod * 6) ? palette.accent : palette.paperStrong;
         ctx.beginPath();
         ctx.arc(lineX, methodStartY + index * methodGap, 12 * unit, 0, Math.PI * 2);
         ctx.fill();
@@ -586,14 +739,10 @@ const drawMobileStory = (
 
   const workAlpha = phase(progress, 0.62, 0.72) * (1 - phase(progress, 0.9, 0.96));
   const rowH = safe.h * 0.16;
-  const workRows: [string, string, string][] = [
-    ["system", "Ennoia", "memory / tools / permission"],
-    ["api", "API Worker", "protocol / stream / fallback"],
-    ["product", "真留平台", "mentor / search / chat"],
-  ];
+  const workRows = STORY_WORK_ROWS;
   const buildRect = {
     x: lineX + 42 * unit,
-    y: methodStartY + methodGap * 3 - 24 * unit,
+    y: methodStartY + methodGap * 5 - 24 * unit,
     w: safe.w - 68 * unit,
     h: 62 * unit,
   };
@@ -610,7 +759,7 @@ const drawMobileStory = (
       const stagger = phase(progress, 0.66 + index * 0.04, 0.78 + index * 0.03);
       withAlpha(ctx, rowAlpha, () => {
         const rect = moveRect(buildRect, workRects[index], stagger);
-        rowCard(rect, row[0], row[1], row[2], index + 1);
+        rowCard(rect, row.label, row.title, row.body, index + 1);
       });
     });
   });
@@ -648,20 +797,17 @@ const drawMobileStory = (
 
       text("lsy", rect.x + pad, top + 90 * unit, titleSize * 0.82, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
       text("full-stack & AI engineer", rect.x + pad, top + 142 * unit, bodySize * 0.78, palette.text, "'JetBrains Mono', monospace", 700);
-      text(input.stack, rect.x + pad, top + 176 * unit, smallSize * 0.78, palette.muted, "'JetBrains Mono', monospace", 600);
+      text("working with AI, writing,", rect.x + pad, top + 174 * unit, smallSize * 0.78, palette.muted, "'JetBrains Mono', monospace", 600);
+      text("and the world outside the screen", rect.x + pad, top + 199 * unit, smallSize * 0.72, palette.muted, "'JetBrains Mono', monospace", 600);
 
-      const panels = [
-        ["BUILD", "Ennoia / API Worker", "memory · stream · product"],
-        ["WRITE", "blog.lsy22.com", "systems notes"],
-        ["LIVE", "film / travel / books", "routes · margins · frames"],
-      ] as const;
-      const panelGap = 11 * unit;
-      const panelH = 58 * unit;
+      const panels = STORY_TODAY_PANELS;
+      const panelGap = 9 * unit;
+      const panelH = 66 * unit;
       panels.forEach((panel, index) => {
         const sourceRect = workRects[Math.min(index, workRects.length - 1)];
         const targetPanel = {
           x: rect.x + pad,
-          y: top + 204 * unit + index * (panelH + panelGap),
+          y: top + 212 * unit + index * (panelH + panelGap),
           w: rect.w - pad * 2,
           h: panelH,
         };
@@ -671,13 +817,14 @@ const drawMobileStory = (
 
       const statusRect = {
         x: rect.x + pad,
-        y: rect.y + rect.h - 96 * unit,
+        y: rect.y + rect.h - 86 * unit,
         w: rect.w - pad * 2,
-        h: 68 * unit,
+        h: 58 * unit,
       };
       rounded(ctx, statusRect, radius * 0.66, palette.paper, hairline, palette.shadow);
-      text("local workspace · updating", statusRect.x + 18 * unit, statusRect.y + 28 * unit, smallSize * 0.82, palette.text, "'JetBrains Mono', monospace", 700);
-      text(input.now, statusRect.x + 18 * unit, statusRect.y + 53 * unit, smallSize * 0.72, palette.muted, "'JetBrains Mono', monospace", 600);
+      const statusPad = 18 * unit;
+      textFit(STORY_STATUS, statusRect.x + statusPad, statusRect.y + 25 * unit, smallSize * 0.74, statusRect.w - statusPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.58);
+      textFit(input.contact || "lsy22@vip.qq.com", statusRect.x + statusPad, statusRect.y + 48 * unit, smallSize * 0.64, statusRect.w - statusPad * 2, palette.muted, "'JetBrains Mono', monospace", 600, smallSize * 0.52);
     });
     ctx.restore();
   });
@@ -768,21 +915,10 @@ const drawDesktopStoryLegacy = (
       text(label, rect.x + pad, rect.y + 46 * unit, 24 * unit, active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
       text(title, rect.x + pad, rect.y + 112 * unit, titleSize, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
       text(body, rect.x + pad, rect.y + 160 * unit, bodySize, palette.muted, "'JetBrains Mono', monospace", 600);
-      const detailMap: Record<string, { chips: string[]; lines: string[] }> = {
-        system: {
-          chips: ["memory", "sandbox", "permission"],
-          lines: ["agent memory layers", "tool execution boundary"],
-        },
-        api: {
-          chips: ["workers", "stream", "fallback"],
-          lines: ["multi-model gateway", "stream protocol bridge"],
-        },
-        product: {
-          chips: ["mentor", "search", "chat"],
-          lines: ["mentor discovery", "consultation workflow"],
-        },
-      };
-      const details = detailMap[label] ?? { chips: [], lines: [] };
+      const detailMap = Object.fromEntries(
+        STORY_WORK_ROWS.map((row) => [row.label, { lines: [...row.details] }]),
+      ) as Record<string, { lines: string[] }>;
+      const details = detailMap[label] ?? { lines: [] };
       details.lines.forEach((line, index) => {
         text(line, rect.x + pad, rect.y + 204 * unit + index * 32 * unit, 22 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
       });
@@ -797,13 +933,6 @@ const drawDesktopStoryLegacy = (
         ctx.stroke();
       }
       ctx.restore();
-      details.chips.forEach((detail, index) => {
-        const x = rect.x + pad + index * rect.w * 0.25;
-        const y = rect.y + rect.h - 39 * unit;
-        const w = measure(detail, 19 * unit) + 24 * unit;
-        rounded(ctx, { x, y, w, h: 32 * unit }, 16 * unit, active && index === 0 ? palette.accentSoft : palette.soft, active && index === 0 ? palette.line : "rgba(148, 163, 184, 0.14)");
-        text(detail, x + 12 * unit, y + 22 * unit, 19 * unit, index === 0 && active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
-      });
     });
   };
 
@@ -833,11 +962,7 @@ const drawDesktopStoryLegacy = (
     w: methodCardW,
     h: methodCardH,
   }));
-  const workRows: [string, string, string][] = [
-    ["system", "Ennoia", "memory / tools / permission"],
-    ["api", "API Worker", "protocol / stream / fallback"],
-    ["product", "真留平台", "mentor / search / chat"],
-  ];
+  const workRows: [string, string, string][] = STORY_WORK_ROWS.map((row) => [row.label, row.title, row.body]);
   const workGap = stageW * 0.022;
   const workW = (stageW * 0.9 - workGap * 2) / 3;
   const workH = clamp(height * 0.36, 286 * unit, 350 * unit);
@@ -926,16 +1051,9 @@ const drawDesktopStoryLegacy = (
     });
 
     withAlpha(ctx, inputLabelAlpha, () => {
-      text("input / personal materials", inputHeaderX, inputHeaderY, 30 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
-      text("film · travel · books · web · AI · life", inputHeaderX, inputHeaderY + 62 * unit, 50 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      const inputDescriptions = [
-        "frames and visual rhythm",
-        "routes and place notes",
-        "margins and quotes",
-        "agent workflow traces",
-        "systems and tools",
-        "recent writing output",
-      ];
+      text("input / things I keep returning to", inputHeaderX, inputHeaderY, 30 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
+      text("cinema · travel · books · code · AI · writing", inputHeaderX, inputHeaderY + 62 * unit, 50 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+      const inputDescriptions = STORY_MATERIALS.map((item) => item.body);
       inputDescriptions.forEach((description, index) => {
         const slot = inputSlot(index);
         rounded(ctx, slot.cell, 28 * unit, "rgba(255, 255, 255, 0.56)", "rgba(148, 163, 184, 0.14)");
@@ -994,14 +1112,14 @@ const drawDesktopStoryLegacy = (
     });
   });
 
-  const materials = [
-    { value: "film_024.mov", active: false, angle: -2.65, slot: 0, node: 0, sub: 0 },
-    { value: "Bangkok -> Penang", active: false, angle: -1.55, slot: 1, node: 0, sub: 1 },
-    { value: "book margin", active: false, angle: -0.35, slot: 2, node: 1, sub: 0 },
-    { value: "AI workflow", active: true, angle: 0.85, slot: 3, node: 2, sub: 0 },
-    { value: "Rust tools", active: false, angle: 1.9, slot: 4, node: 2, sub: 1 },
-    { value: input.postsLabel, active: false, angle: 2.75, slot: 5, node: 3, sub: 0 },
-  ];
+  const materials = STORY_MATERIALS.map((item, index) => ({
+    value: item.tag,
+    active: item.active,
+    angle: item.angle,
+    slot: index,
+    node: [0, 0, 1, 2, 2, 3][index],
+    sub: [0, 1, 0, 0, 1, 0][index],
+  }));
   const materialPositions = materials.map((item, index) => {
     const orbitAngle = item.angle + progress * 0.42;
     const orbitX = centerX + Math.cos(orbitAngle) * heroRect.w * 0.58 - 78 * unit;
@@ -1091,14 +1209,10 @@ const drawDesktopStoryLegacy = (
       ctx.restore();
 
       text("lsy", rect.x + pad, top + 122 * unit, 142 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      text(`${HOME_PROFILE.subtitle} engineer`, rect.x + pad, top + 186 * unit, 39 * unit, palette.text, "'JetBrains Mono', monospace", 700);
-      text(input.stack, rect.x + pad, top + 228 * unit, 30 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      text("Full-stack builder", rect.x + pad, top + 186 * unit, 39 * unit, palette.text, "'JetBrains Mono', monospace", 700);
+      text(STORY_SUMMARY, rect.x + pad, top + 228 * unit, 24 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
 
-      const panels = [
-        ["BUILD", "Ennoia + API", "memory · stream"],
-        ["WRITE", "blog.lsy22.com", "systems notes"],
-        ["LIVE", "film / travel", "books · routes"],
-      ] as const;
+      const panels = STORY_TODAY_PANELS;
       const panelGap = 14 * unit;
       const panelW = (rect.w - pad * 2 - panelGap * 2) / 3;
       const panelH = 118 * unit;
@@ -1122,9 +1236,10 @@ const drawDesktopStoryLegacy = (
         h: 54 * unit,
       };
       rounded(ctx, statusRect, 23 * unit, palette.paper, hairline);
-      text("local workspace · updating", statusRect.x + 22 * unit, statusRect.y + 33 * unit, 23 * unit, palette.text, "'JetBrains Mono', monospace", 700);
-      const nowW = measure(input.now, 21 * unit, "'JetBrains Mono', monospace", 600);
-      text(input.now, statusRect.x + statusRect.w - nowW - 22 * unit, statusRect.y + 33 * unit, 21 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      text(STORY_STATUS, statusRect.x + 22 * unit, statusRect.y + 33 * unit, 23 * unit, palette.text, "'JetBrains Mono', monospace", 700);
+      const contact = input.contact || "lsy22@vip.qq.com";
+      const contactW = measure(contact, 21 * unit, "'JetBrains Mono', monospace", 600);
+      text(contact, statusRect.x + statusRect.w - contactW - 22 * unit, statusRect.y + 33 * unit, 21 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
     });
   });
 };
@@ -1175,6 +1290,30 @@ const drawDesktopStory = (
     return result;
   };
 
+  const wrapText = (
+    value: string,
+    maxWidth: number,
+    size: number,
+    font = "'JetBrains Mono', monospace",
+    weight = 600,
+    maxLines = 2,
+  ) => {
+    const words = value.split(" ");
+    const lines: string[] = [];
+    let current = "";
+    words.forEach((word) => {
+      const next = current ? `${current} ${word}` : word;
+      if (measure(next, size, font, weight) <= maxWidth || !current) {
+        current = next;
+        return;
+      }
+      lines.push(current);
+      current = word;
+    });
+    if (current) lines.push(current);
+    return lines.slice(0, maxLines);
+  };
+
   const pill = (value: string, x: number, y: number, active = false, scale = 1) => {
     const size = 20 * unit * scale;
     const h = 34 * unit * scale;
@@ -1193,7 +1332,9 @@ const drawDesktopStory = (
   const stageHeader = (label: string, title: string, alpha: number, y = height * 0.265, x = stageX) => {
     withAlpha(ctx, alpha, () => {
       text(label, x, y, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
-      text(title, x, y + 58 * unit, 48 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+      const titleFont = "'Fraunces', 'Noto Serif SC', serif";
+      const titleSize = Math.min(48 * unit, ((safeRight - x) * 0.96) / Math.max(1, measure(title, 1, titleFont, 600)));
+      text(title, x, y + 58 * unit, titleSize, palette.text, titleFont, 600);
     });
   };
 
@@ -1219,14 +1360,7 @@ const drawDesktopStory = (
     });
   };
 
-  const materials = [
-    { tag: "film_024.mov", body: "frames and visual rhythm", group: 0, active: false, angle: -2.65 },
-    { tag: "Bangkok -> Penang", body: "routes and place notes", group: 0, active: false, angle: -1.55 },
-    { tag: "AI workflow", body: "agent workflow traces", group: 1, active: true, angle: 0.85 },
-    { tag: "Rust tools", body: "systems and tools", group: 1, active: false, angle: 1.9 },
-    { tag: "book margin", body: "margins and quotes", group: 2, active: false, angle: -0.35 },
-    { tag: input.postsLabel, body: "recent writing output", group: 2, active: false, angle: 2.75 },
-  ];
+  const materials = STORY_MATERIALS;
 
   const mindOffsets = [
     { x: -stageW * 0.31, y: -height * 0.15 },
@@ -1261,11 +1395,7 @@ const drawDesktopStory = (
   const trackW = (trackAreaW - trackGap * 2) / 3;
   const trackH = 318 * unit;
   const trackY = centerY - 118 * unit;
-  const tracks = [
-    { label: "culture", title: "film / travel", note: "visual memory" },
-    { label: "systems", title: "AI / Rust", note: "tools and agents" },
-    { label: "writing", title: "books / notes", note: "public traces" },
-  ];
+  const tracks = STORY_TRACKS;
   const trackRects = tracks.map((_, index) => ({
     x: trackX + index * (trackW + trackGap),
     y: trackY,
@@ -1286,19 +1416,15 @@ const drawDesktopStory = (
     };
   };
 
-  const workRows = [
-    { label: "system", title: "Ennoia", body: "memory / tools / permission", from: 1, active: false },
-    { label: "api", title: "API Worker", body: "protocol / stream / fallback", from: 2, active: true },
-    { label: "product", title: "真留平台", body: "mentor / search / chat", from: 0, active: false },
-  ];
+  const workRows = STORY_WORK_ROWS;
   const workGap = stageW * 0.027;
   const workAreaW = stageW * 0.84;
   const workX = centerX - workAreaW / 2;
   const workW = (workAreaW - workGap * 2) / 3;
-  const workH = clamp(height * 0.34, 275 * unit, 335 * unit);
+  const workH = clamp(height * 0.3, 245 * unit, 300 * unit);
   const workRects = workRows.map((_, index) => ({
     x: workX + index * (workW + workGap),
-    y: centerY - workH * 0.44,
+    y: centerY - workH * 0.47,
     w: workW,
     h: workH,
   }));
@@ -1370,7 +1496,9 @@ const drawDesktopStory = (
       const pad = 24 * unit;
       text(track.label, rect.x + pad, rect.y + 40 * unit, 24 * unit, index === 1 ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
       text(track.title, rect.x + pad, rect.y + 78 * unit, 31 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      text(track.note, rect.x + pad, rect.y + 108 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      wrapText(track.note, rect.w - pad * 2, 17 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
+        text(line, rect.x + pad, rect.y + 108 * unit + lineIndex * 22 * unit, 17 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      });
     });
   };
 
@@ -1380,24 +1508,11 @@ const drawDesktopStory = (
       const pad = 34 * unit;
       text(row.label, rect.x + pad, rect.y + 42 * unit, 23 * unit, row.active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
       text(row.title, rect.x + pad, rect.y + 106 * unit, clamp(rect.w * 0.15, 44 * unit, 64 * unit), palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      const bodyParts = row.body.split(" / ");
-      text(bodyParts.slice(0, 2).join(" / "), rect.x + pad, rect.y + 148 * unit, 23 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-      if (bodyParts.length > 2) {
-        text(bodyParts.slice(2).join(" / "), rect.x + pad, rect.y + 178 * unit, 22 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-      }
-      const details =
-        row.label === "system"
-          ? ["agent memory layers", "tool execution boundary"]
-          : row.label === "api"
-            ? ["multi-model gateway", "stream protocol bridge"]
-            : ["mentor discovery", "consultation workflow"];
-      details.forEach((detail, index) => {
-        text(detail, rect.x + pad, rect.y + 218 * unit + index * 28 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      wrapText(row.body, rect.w - pad * 2, 21 * unit, "'JetBrains Mono', monospace", 600, 3).forEach((line, index) => {
+        text(line, rect.x + pad, rect.y + 148 * unit + index * 28 * unit, 21 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
       });
-      const chips =
-        row.label === "system" ? ["memory", "sandbox"] : row.label === "api" ? ["workers", "stream"] : ["mentor", "search"];
-      chips.forEach((chipLabel, index) => {
-        pill(chipLabel, rect.x + pad + index * rect.w * 0.28, rect.y + rect.h - 42 * unit, row.active && index === 0, 0.78);
+      row.details.forEach((detail, index) => {
+        text(detail, rect.x + pad, rect.y + rect.h - 52 * unit + index * 26 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
       });
     });
   };
@@ -1426,24 +1541,11 @@ const drawDesktopStory = (
       withAlpha(ctx, workTextAlpha, () => {
         text(row.label, rect.x + pad, rect.y + 42 * unit, 23 * unit, row.active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
         text(row.title, rect.x + pad, rect.y + 106 * unit, clamp(rect.w * 0.15, 44 * unit, 64 * unit), palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-        const bodyParts = row.body.split(" / ");
-        text(bodyParts.slice(0, 2).join(" / "), rect.x + pad, rect.y + 148 * unit, 23 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-        if (bodyParts.length > 2) {
-          text(bodyParts.slice(2).join(" / "), rect.x + pad, rect.y + 178 * unit, 22 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-        }
-        const details =
-          row.label === "system"
-            ? ["agent memory layers", "tool execution boundary"]
-            : row.label === "api"
-              ? ["multi-model gateway", "stream protocol bridge"]
-              : ["mentor discovery", "consultation workflow"];
-        details.forEach((detail, index) => {
-          text(detail, rect.x + pad, rect.y + 218 * unit + index * 28 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+        wrapText(row.body, rect.w - pad * 2, 21 * unit, "'JetBrains Mono', monospace", 600, 3).forEach((line, index) => {
+          text(line, rect.x + pad, rect.y + 148 * unit + index * 28 * unit, 21 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
         });
-        const chips =
-          row.label === "system" ? ["memory", "sandbox"] : row.label === "api" ? ["workers", "stream"] : ["mentor", "search"];
-        chips.forEach((chipLabel, index) => {
-          pill(chipLabel, rect.x + pad + index * rect.w * 0.28, rect.y + rect.h - 42 * unit, row.active && index === 0, 0.78);
+        row.details.forEach((detail, index) => {
+          text(detail, rect.x + pad, rect.y + rect.h - 52 * unit + index * 26 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
         });
       });
     });
@@ -1475,9 +1577,9 @@ const drawDesktopStory = (
       ctx.restore();
     });
 
-    stageHeader("input / personal materials", "film · travel · books · web · AI · life", inputHeaderAlpha, height * 0.265, inputAreaX);
-    stageHeader("classify / three lanes", "culture / systems / writing", classifyAlpha, height * 0.265, trackX);
-    stageHeader("work", "things built from those lanes", workHeaderAlpha, height * 0.245, workX);
+    stageHeader("input / things I keep returning to", "cinema · travel · books · code · AI · writing", inputHeaderAlpha, height * 0.265, inputAreaX);
+    stageHeader("classify / three inner lanes", "seeing · making · thinking", classifyAlpha, height * 0.265, trackX);
+    stageHeader("work / systems I shaped", "Ideas becoming products, agents, and infrastructure", workHeaderAlpha, height * 0.245, workX);
 
     trackRects.forEach((rect, index) => drawTrack(rect, tracks[index], index, classifyAlpha));
 
@@ -1543,6 +1645,8 @@ const drawDesktopStory = (
       const pad = Math.max(42 * unit, rect.w * 0.045);
       const top = rect.y + pad;
       text("today / lsy", rect.x + pad, top, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
+      const nowW = measure(input.now, 22 * unit, "'JetBrains Mono', monospace", 600);
+      text(input.now, rect.x + rect.w - pad - nowW, top, 22 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
       ctx.save();
       ctx.strokeStyle = palette.line;
       ctx.lineWidth = 1.4 * unit;
@@ -1553,40 +1657,45 @@ const drawDesktopStory = (
       ctx.restore();
 
       text("lsy", rect.x + pad, top + 122 * unit, 142 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      text(`${HOME_PROFILE.subtitle} engineer`, rect.x + pad, top + 186 * unit, 39 * unit, palette.text, "'JetBrains Mono', monospace", 700);
-      text(input.stack, rect.x + pad, top + 228 * unit, 30 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      text("Full-stack builder", rect.x + pad, top + 184 * unit, 39 * unit, palette.text, "'JetBrains Mono', monospace", 700);
+      wrapText(STORY_SUMMARY, rect.w - pad * 2, 25 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, index) => {
+        text(line, rect.x + pad, top + 224 * unit + index * 30 * unit, 25 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      });
 
-      const panels = [
-        ["BUILD", "Ennoia + API", "memory · stream"],
-        ["WRITE", "blog.lsy22.com", "systems notes"],
-        ["LIVE", "film / travel", "books · routes"],
-      ] as const;
+      const panels = STORY_TODAY_PANELS;
       const panelGap = 14 * unit;
       const panelW = (rect.w - pad * 2 - panelGap * 2) / 3;
-      const panelH = 118 * unit;
+      const panelH = 142 * unit;
       panels.forEach((panel, index) => {
         const panelRect = {
           x: rect.x + pad + index * (panelW + panelGap),
-          y: top + 264 * unit,
+          y: top + 276 * unit,
           w: panelW,
           h: panelH,
         };
         rounded(ctx, panelRect, 20 * unit, index === 0 ? palette.accentSoft : palette.soft, index === 0 ? palette.line : "rgba(148, 163, 184, 0.14)");
         text(panel[0], panelRect.x + 22 * unit, panelRect.y + 37 * unit, 23 * unit, index === 0 ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
-        text(panel[1], panelRect.x + 22 * unit, panelRect.y + 76 * unit, 30 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-        text(panel[2], panelRect.x + 22 * unit, panelRect.y + 104 * unit, 21 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+        const titleLines = wrapText(panel[1], panelRect.w - 44 * unit, 22 * unit, "'Fraunces', 'Noto Serif SC', serif", 600, 2);
+        titleLines.forEach((line, lineIndex) => {
+          text(line, panelRect.x + 22 * unit, panelRect.y + 68 * unit + lineIndex * 24 * unit, 22 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+        });
+        const bodyY = panelRect.y + (titleLines.length > 1 ? 116 : 100) * unit;
+        wrapText(panel[2], panelRect.w - 44 * unit, 16 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
+          text(line, panelRect.x + 22 * unit, bodyY + lineIndex * 18 * unit, 16 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+        });
       });
 
       const statusRect = {
         x: rect.x + pad,
-        y: rect.y + rect.h - 68 * unit,
+        y: rect.y + rect.h - 72 * unit,
         w: rect.w - pad * 2,
-        h: 50 * unit,
+        h: 54 * unit,
       };
       rounded(ctx, statusRect, 23 * unit, palette.paper, "rgba(148, 163, 184, 0.14)");
-      text("local workspace · updating", statusRect.x + 22 * unit, statusRect.y + 30 * unit, 24 * unit, palette.text, "'JetBrains Mono', monospace", 700);
-      const nowW = measure(input.now, 22 * unit, "'JetBrains Mono', monospace", 600);
-      text(input.now, statusRect.x + statusRect.w - nowW - 22 * unit, statusRect.y + 30 * unit, 22 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      text(STORY_STATUS, statusRect.x + 22 * unit, statusRect.y + 33 * unit, 23 * unit, palette.text, "'JetBrains Mono', monospace", 700);
+      const contact = input.contact || "lsy22@vip.qq.com";
+      const contactW = measure(contact, 22 * unit, "'JetBrains Mono', monospace", 600);
+      text(contact, statusRect.x + statusRect.w - contactW - 22 * unit, statusRect.y + 33 * unit, 22 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
     });
   });
 
