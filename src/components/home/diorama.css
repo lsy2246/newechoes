@@ -86,18 +86,12 @@
   opacity: var(--story-opacity, 1);
   transition: opacity 0.18s linear;
   color: #211914;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(234, 191, 126, 0.18), transparent 25%),
-    radial-gradient(circle at 78% 20%, rgba(131, 159, 201, 0.18), transparent 24%),
-    linear-gradient(180deg, rgba(244, 237, 225, 0.98), rgba(237, 226, 210, 0.98));
+  background: #f5f7ff;
 }
 
 [data-theme="dark"] .home-story {
   color: #efe9dd;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(209, 164, 90, 0.12), transparent 24%),
-    radial-gradient(circle at 78% 20%, rgba(84, 117, 167, 0.15), transparent 24%),
-    linear-gradient(180deg, rgba(17, 23, 34, 0.98), rgba(10, 17, 27, 0.98));
+  background: #0f172a;
 }
 
 .home-story__canvas {

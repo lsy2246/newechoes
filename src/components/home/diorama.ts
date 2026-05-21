@@ -164,7 +164,7 @@ const getDeviceClass = (width: number, height: number): HomeBoardDevice => {
 
 const SCREEN_CARRIER_PRESETS: Record<HomeBoardDevice, ScreenCarrierPreset> = {
   desktop: {
-    canvas: { width: 3840, height: 2160 },
+    canvas: { width: 2560, height: 1440 },
     screen: { w: 1.38, h: 0.8, t: 0.026 },
     groupPosition: new THREE.Vector3(0, 0.055, -0.4),
     groupRotationX: -0.22,
@@ -179,7 +179,7 @@ const SCREEN_CARRIER_PRESETS: Record<HomeBoardDevice, ScreenCarrierPreset> = {
     roomTargetRight: -0.04,
   },
   mobile: {
-    canvas: { width: 1480, height: 3200 },
+    canvas: { width: 1120, height: 2400 },
     screen: { w: 0.31, h: 0.6, t: 0.022 },
     groupPosition: new THREE.Vector3(0, 0.08, -0.055),
     groupRotationX: -0.1,
@@ -276,7 +276,7 @@ export function initDiorama() {
     alpha: false,
     powerPreference: "high-performance",
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, useMobileCarrier ? 1.35 : 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -823,16 +823,15 @@ export function initDiorama() {
   lpScreenBody.visible = !useMobileCarrier;
   lpScreenGroup.add(lpScreenBody);
 
-  // Mipmaps keep the screen readable after the camera pulls back into the room.
   const screenCanvas = document.createElement("canvas");
   screenCanvas.width = screenPreset.canvas.width;
   screenCanvas.height = screenPreset.canvas.height;
   const screenCtx = screenCanvas.getContext("2d")!;
   const screenTexture = new THREE.CanvasTexture(screenCanvas);
   screenTexture.colorSpace = THREE.SRGBColorSpace;
-  screenTexture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 16);
-  screenTexture.generateMipmaps = true;
-  screenTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  screenTexture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+  screenTexture.generateMipmaps = false;
+  screenTexture.minFilter = THREE.LinearFilter;
   screenTexture.magFilter = THREE.LinearFilter;
   mats.screen = new THREE.MeshBasicMaterial({
     map: screenTexture,
@@ -851,14 +850,14 @@ export function initDiorama() {
   let introBackdropCtx: CanvasRenderingContext2D | null = null;
   if (useMobileCarrier) {
     const introBackdropCanvas = document.createElement("canvas");
-    introBackdropCanvas.width = 1800;
-    introBackdropCanvas.height = 1900;
+    introBackdropCanvas.width = 1180;
+    introBackdropCanvas.height = 1240;
     introBackdropCtx = introBackdropCanvas.getContext("2d");
     introBackdropTexture = new THREE.CanvasTexture(introBackdropCanvas);
     introBackdropTexture.colorSpace = THREE.SRGBColorSpace;
     introBackdropTexture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-    introBackdropTexture.generateMipmaps = true;
-    introBackdropTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    introBackdropTexture.generateMipmaps = false;
+    introBackdropTexture.minFilter = THREE.LinearFilter;
     introBackdropTexture.magFilter = THREE.LinearFilter;
     introBackdropMaterial = new THREE.MeshBasicMaterial({
       map: introBackdropTexture,
@@ -1921,8 +1920,24 @@ export function initDiorama() {
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   // ===== Scroll-driven homepage state =====
+  type RenderMode = "story" | "handoff" | "room";
+  const STORY_MODE_END = 0.7;
+  const HANDOFF_MODE_END = 0.735;
+  const STORY_PROGRESS_END = 0.7;
+  const SCREEN_REDRAW_STEP = 0.0035;
+  const STORY_FADE_START = 0.695;
+  const STORY_FADE_END = 0.71;
+  const SCENE_FADE_START = 0.708;
+  const SCENE_FADE_END = 0.735;
+  const getRenderMode = (progress: number): RenderMode => {
+    if (progress < STORY_MODE_END) return "story";
+    if (progress < HANDOFF_MODE_END) return "handoff";
+    return "room";
+  };
   let homeProgress = 0;
   let scrollTargetProgress = 0;
+  let renderMode = getRenderMode(homeProgress);
+  let lastDrawnStoryProgress = -1;
   let boardScale = 1;
   const getInitialBoardViewY = () => {
     if (!useMobileCarrier) return activeBoard.viewport.initialY;
@@ -1942,8 +1957,10 @@ export function initDiorama() {
     };
   };
   const syncSceneOverlay = () => {
-    docEl.style.setProperty("--scene-opacity", "1");
-    docEl.style.setProperty("--story-opacity", "0");
+    const storyOut = easeInOutSine(clamp((homeProgress - STORY_FADE_START) / (STORY_FADE_END - STORY_FADE_START)));
+    const sceneIn = easeInOutSine(clamp((homeProgress - SCENE_FADE_START) / (SCENE_FADE_END - SCENE_FADE_START)));
+    docEl.style.setProperty("--scene-opacity", sceneIn.toFixed(4));
+    docEl.style.setProperty("--story-opacity", (1 - storyOut).toFixed(4));
   };
 
   const getScrollProgress = () => {
@@ -1976,7 +1993,7 @@ export function initDiorama() {
 
   const applyHomeState = (progress: number) => {
     const value = progress.toFixed(4);
-    const storyProgress = clamp(progress / 0.7);
+    const storyProgress = clamp(progress / STORY_PROGRESS_END);
     docEl.style.setProperty("--home-progress", value);
     docEl.style.setProperty("--story-progress", storyProgress.toFixed(4));
     docEl.style.setProperty("--story-local", storyProgress.toFixed(4));
@@ -2067,7 +2084,7 @@ export function initDiorama() {
   const resizeStoryCanvas = () => {
     if (!storyCanvasEl) return false;
     const rect = storyCanvasEl.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const nextW = Math.max(1, Math.round((rect.width || window.innerWidth) * dpr));
     const nextH = Math.max(1, Math.round((rect.height || window.innerHeight) * dpr));
     const changed = storyCanvasEl.width !== nextW || storyCanvasEl.height !== nextH;
@@ -2078,7 +2095,7 @@ export function initDiorama() {
     return changed;
   };
 
-  const drawStoryOverlay = () => {
+  const drawStoryOverlay = (storyInput: Parameters<typeof drawHomeScreenStory>[1]) => {
     if (!storyCanvasEl || !storyCtx) return;
     resizeStoryCanvas();
     const W = storyCanvasEl.width;
@@ -2086,15 +2103,21 @@ export function initDiorama() {
     storyCtx.setTransform(1, 0, 0, 1, 0, 0);
     storyCtx.clearRect(0, 0, W, H);
     storyCtx.imageSmoothingEnabled = true;
-    storyCtx.imageSmoothingQuality = "high";
-    const scale = Math.max(W / screenCanvas.width, H / screenCanvas.height);
-    const drawW = screenCanvas.width * scale;
-    const drawH = screenCanvas.height * scale;
-    storyCtx.drawImage(screenCanvas, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
+    storyCtx.imageSmoothingQuality = "medium";
+    if (W > H) {
+      const scale = Math.max(W / screenCanvas.width, H / screenCanvas.height);
+      const drawW = screenCanvas.width * scale;
+      const drawH = screenCanvas.height * scale;
+      storyCtx.drawImage(screenCanvas, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
+      return;
+    }
+    drawHomeScreenStory(storyCtx, { ...storyInput, device: "mobile" });
   };
 
   // Screen canvas drawing
-  const drawScreen = () => {
+  const drawScreen = (targets?: { overlay?: boolean; texture?: boolean }) => {
+    const drawOverlay = targets?.overlay ?? renderMode !== "room";
+    const updateTexture = targets?.texture ?? renderMode !== "story";
     const ctx = screenCtx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const W = screenCanvas.width;
@@ -2102,9 +2125,8 @@ export function initDiorama() {
     const p = THEMES[theme];
     const storyAutoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
     const profileRows = Object.fromEntries(HOME_PROFILE.rows.map((row) => [row.label, row.value]));
-    const storyProgress = reduceMotion ? 1 : clamp(homeProgress / 0.7);
-
-    drawHomeScreenStory(ctx, {
+    const storyProgress = reduceMotion ? 1 : clamp(homeProgress / STORY_PROGRESS_END);
+    const storyInput: Parameters<typeof drawHomeScreenStory>[1] = {
       device: deviceClass,
       theme,
       progress: storyProgress,
@@ -2112,8 +2134,13 @@ export function initDiorama() {
       stack: profileRows.stack ?? "Rust · TypeScript",
       contact: profileRows.contact ?? "lsy22@vip.qq.com",
       postsLabel: storyAutoPosts ?? "ongoing",
-    });
-    if (introBackdropCtx && introBackdropTexture) {
+    };
+
+    const overlayUsesScreenCanvas = drawOverlay && !useMobileCarrier;
+    if (updateTexture || overlayUsesScreenCanvas) {
+      drawHomeScreenStory(ctx, storyInput);
+    }
+    if (updateTexture && introBackdropCtx && introBackdropTexture) {
       introBackdropCtx.setTransform(1, 0, 0, 1, 0, 0);
       drawHomeScreenBackdrop(introBackdropCtx, {
         theme,
@@ -2123,8 +2150,9 @@ export function initDiorama() {
     }
     boardScale = 1;
     dragRegion = { x: 0, y: 0, w: 1, h: 1, radius: Math.min(W, H) * 0.02 };
-    screenTexture.needsUpdate = true;
-    drawStoryOverlay();
+    if (updateTexture) screenTexture.needsUpdate = true;
+    if (drawOverlay) drawStoryOverlay(storyInput);
+    lastDrawnStoryProgress = storyProgress;
     return;
     const edgeStroke = theme === "dark" ? "rgba(148, 163, 184, 0.16)" : "rgba(75, 107, 255, 0.12)";
     const frameFill = theme === "dark" ? "rgba(15, 23, 42, 0.88)" : "rgba(255, 255, 255, 0.9)";
@@ -2922,13 +2950,39 @@ export function initDiorama() {
 
     const nextProgress = scrollTargetProgress;
     const prevProgress = homeProgress;
+    const prevMode = renderMode;
     homeProgress = nextProgress;
-    if (Math.abs(prevProgress - homeProgress) > 0.0005) {
+    renderMode = getRenderMode(homeProgress);
+    const storyProgress = reduceMotion ? 1 : clamp(homeProgress / STORY_PROGRESS_END);
+    const progressChanged = Math.abs(prevProgress - homeProgress) > 0.0005;
+    const modeChanged = prevMode !== renderMode;
+    if (
+      modeChanged ||
+      (progressChanged &&
+        renderMode !== "room" &&
+        Math.abs(storyProgress - lastDrawnStoryProgress) >= SCREEN_REDRAW_STEP)
+    ) {
       needScreenRedraw = true;
     }
 
     applyHomeState(homeProgress);
     syncSceneOverlay();
+
+    if (renderMode === "story") {
+      if (controls.enabled) controls.enabled = false;
+      syncSceneInputMode(false);
+      syncCanvasInputMode(false);
+      syncControlsConnection(false);
+      canInteractScene = false;
+      hovered = null;
+      tooltip?.classList.remove("is-visible");
+      if (needScreenRedraw) {
+        needScreenRedraw = false;
+        drawScreen({ overlay: true, texture: false });
+      }
+      rafId = requestAnimationFrame(animate);
+      return;
+    }
 
     const cameraPull = easeInOutSine(clamp((homeProgress - 0.7) / 0.27));
     const outsideReveal = easeInOutSine(clamp((homeProgress - 0.66) / 0.3));
@@ -2970,7 +3024,7 @@ export function initDiorama() {
         typerLastTick = now;
         if (typerText.length < typerTarget.length) {
           typerText = typerTarget.slice(0, typerText.length + 1);
-          needScreenRedraw = true;
+          if (renderMode !== "room") needScreenRedraw = true;
         } else {
           typerPhase = "hold";
           typerHoldUntil = now + TYPER_HOLD_MS;
@@ -2986,7 +3040,7 @@ export function initDiorama() {
         typerLastTick = now;
         if (typerText.length > 0) {
           typerText = typerText.slice(0, -1);
-          needScreenRedraw = true;
+          if (renderMode !== "room") needScreenRedraw = true;
         } else {
           typerPhase = "idle";
           typerHoldUntil = now + TYPER_IDLE_MS;
@@ -3003,7 +3057,7 @@ export function initDiorama() {
     const newTimeStr = formatNowBeijing();
     if (newTimeStr !== lastTimeStr) {
       lastTimeStr = newTimeStr;
-      needScreenRedraw = true;
+      if (renderMode !== "room") needScreenRedraw = true;
     }
 
     blendSeason(seasonOfYear, "sun", sunColor);
@@ -3089,7 +3143,7 @@ export function initDiorama() {
     }
 
     // Screen cursor blink & redraw
-    if (now - cursorLastToggle > 520) {
+    if (renderMode !== "room" && now - cursorLastToggle > 520) {
       cursorLastToggle = now;
       cursorOn = !cursorOn;
       needScreenRedraw = true;
