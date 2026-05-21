@@ -6,9 +6,9 @@ import mdx from "@astrojs/mdx";
 import react from "@astrojs/react";
 import rehypeExternalLinks from "rehype-external-links";
 import { SITE_URL } from "./src/consts";
-import compressor from "astro-compressor";
 import vercel from "@astrojs/vercel";
 import { articleIndexerIntegration } from "./src/plugins/build-article-index.js";
+import { compressionIntegration } from "./src/plugins/compression-integration.js";
 import { rehypeCodeBlocks } from "./src/plugins/rehype-code-blocks.js";
 import { rehypeTables } from "./src/plugins/rehype-tables.js";
 import { customSitemapIntegration } from "./src/plugins/sitemap-integration.js";
@@ -43,6 +43,22 @@ export default defineConfig({
     worker: {
       format: "es",
     },
+    build: {
+      chunkSizeWarningLimit: 800,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("node_modules/three/")) return "vendor-three";
+            if (id.includes("node_modules/react") || id.includes("node_modules/scheduler/")) {
+              return "vendor-react";
+            }
+            if (id.includes("node_modules/swup/") || id.includes("node_modules/@swup/")) {
+              return "vendor-swup";
+            }
+          },
+        },
+      },
+    },
   },
 
   integrations: [
@@ -61,7 +77,7 @@ export default defineConfig({
     robotsIntegration(),
     rssIntegration(),
     // 添加压缩插件 (必须放在最后位置)
-    compressor()
+    compressionIntegration()
   ],
 
   // Markdown 配置 - 使用官方语法高亮

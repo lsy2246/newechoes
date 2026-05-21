@@ -40,17 +40,6 @@ export async function getStaticPaths() {
     });
   }
   
-  // 添加根路径 (即 /articles/)
-  paths.push({
-    params: { 
-      path: undefined 
-    },
-    props: {
-      path: '',
-      pageType: 'grid'
-    }
-  });
-  
   return paths;
 }
 

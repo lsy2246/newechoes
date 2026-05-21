@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import type { FC } from "react";
 import ReactMasonryCss from "react-masonry-css";
 
 // Git 平台类型枚举
@@ -81,7 +82,7 @@ const compareProjectsByStars = (left: GitProject, right: GitProject) => {
   return left.name.localeCompare(right.name);
 };
 
-const GitProjectCollection: React.FC<GitProjectCollectionProps> = ({
+const GitProjectCollection: FC<GitProjectCollectionProps> = ({
   platform,
   username,
   organization,

@@ -3,6 +3,14 @@ name = "geo-wasm"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = [
+    "-O",
+    "--enable-bulk-memory",
+    "--enable-bulk-memory-opt",
+    "--enable-nontrapping-float-to-int",
+]
+
 [lib]
 crate-type = ["cdylib"]
 
@@ -16,8 +24,6 @@ wasm-bindgen = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 geojson = { workspace = true }
-geo = { workspace = true }
-geo-types = { workspace = true }
 js-sys = { workspace = true }
 kdtree = { workspace = true }
 console_error_panic_hook = { workspace = true }

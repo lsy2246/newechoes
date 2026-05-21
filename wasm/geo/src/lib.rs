@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
-use geojson::{Feature, GeoJson, Value};
+use geojson::{Feature, GeoJson, GeometryValue, PolygonType};
 use std::collections::{HashMap, HashSet};
 use std::f64::consts::PI;
 use kdtree::KdTree;
@@ -230,13 +230,13 @@ impl GeoProcessor {
                 // 处理几何体
                 if let Some(geom) = &feature.geometry {
                     match &geom.value {
-                        Value::Polygon(polygon) => {
-                            self.process_polygon(polygon, &region_name, is_visited, scale, 
+                        GeometryValue::Polygon { coordinates } => {
+                            self.process_polygon(coordinates, &region_name, is_visited, scale,
                                                  region_tree, regions, boundary_lines)?;
                         }
-                        Value::MultiPolygon(multi_polygon) => {
-                            for polygon in multi_polygon {
-                                self.process_polygon(polygon, &region_name, is_visited, scale, 
+                        GeometryValue::MultiPolygon { coordinates } => {
+                            for polygon in coordinates {
+                                self.process_polygon(polygon, &region_name, is_visited, scale,
                                                      region_tree, regions, boundary_lines)?;
                             }
                         }
@@ -251,7 +251,7 @@ impl GeoProcessor {
     // 处理多边形
     fn process_polygon(
         &self,
-        polygon: &Vec<Vec<Vec<f64>>>,
+        polygon: &PolygonType,
         region_name: &str,
         is_visited: bool,
         scale: f64,
