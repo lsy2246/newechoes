@@ -1930,6 +1930,11 @@ export function initDiorama() {
   const STORY_FADE_END = 0.71;
   const SCENE_FADE_START = 0.708;
   const SCENE_FADE_END = 0.735;
+  const INTERACTIVE_PROGRESS = 0.965;
+  const CAMERA_REJOIN_START = 0.925;
+  const CAMERA_REJOIN_END = INTERACTIVE_PROGRESS;
+  const CAMERA_REJOIN_FOLLOW_RATE = 0.0075;
+  const CAMERA_CATCHUP_FOLLOW_RATE = 0.012;
   const getRenderMode = (progress: number): RenderMode => {
     if (progress < STORY_MODE_END) return "story";
     if (progress < HANDOFF_MODE_END) return "handoff";
@@ -1938,8 +1943,77 @@ export function initDiorama() {
   let homeProgress = 0;
   let scrollTargetProgress = 0;
   let renderMode = getRenderMode(homeProgress);
+  let cameraRejoinActive = false;
+  let cameraInertialCatchup = false;
   let lastDrawnStoryProgress = -1;
   let boardScale = 1;
+  const cameraRejoinStartPos = new THREE.Vector3();
+  const cameraRejoinStartTarget = new THREE.Vector3();
+  const cameraRejoinEndPos = new THREE.Vector3();
+  const cameraRejoinEndTarget = new THREE.Vector3();
+  const cameraRejoinStartDir = new THREE.Vector3();
+  const cameraRejoinEndDir = new THREE.Vector3();
+  const cameraRejoinStepDir = new THREE.Vector3();
+  const cameraRejoinDeltaQuat = new THREE.Quaternion();
+  const cameraRejoinStepQuat = new THREE.Quaternion();
+  const desiredCameraPos = new THREE.Vector3();
+  const desiredCameraTarget = new THREE.Vector3();
+  let cameraRejoinStartFov = roomFov;
+  let cameraRejoinEndFov = roomFov;
+  const getCameraPull = (progress: number) => easeInOutSine(clamp((progress - 0.7) / 0.27));
+  const getScrollCameraState = (
+    progress: number,
+    outPos: THREE.Vector3,
+    outTarget: THREE.Vector3,
+  ) => {
+    const pull = getCameraPull(progress);
+    outPos.lerpVectors(screenCameraPos, roomCameraPos, pull);
+    outTarget.lerpVectors(screenCameraTarget, roomCameraTarget, pull);
+    return pull;
+  };
+  const captureCameraRejoin = () => {
+    cameraRejoinStartPos.copy(camera.position);
+    cameraRejoinStartTarget.copy(controls.target);
+    const endPull = getScrollCameraState(CAMERA_REJOIN_START, cameraRejoinEndPos, cameraRejoinEndTarget);
+    cameraRejoinStartFov = camera.fov;
+    cameraRejoinEndFov = lerp(screenFov, roomFov, endPull);
+    cameraRejoinActive = true;
+    cameraInertialCatchup = true;
+  };
+  const getCameraRejoinState = (
+    progress: number,
+    outPos: THREE.Vector3,
+    outTarget: THREE.Vector3,
+  ) => {
+    const t = easeInOutSine(clamp((CAMERA_REJOIN_END - progress) / (CAMERA_REJOIN_END - CAMERA_REJOIN_START)));
+    outTarget.lerpVectors(cameraRejoinStartTarget, cameraRejoinEndTarget, t);
+    cameraRejoinStartDir.subVectors(cameraRejoinStartPos, cameraRejoinStartTarget);
+    cameraRejoinEndDir.subVectors(cameraRejoinEndPos, cameraRejoinEndTarget);
+    const startRadius = Math.max(0.0001, cameraRejoinStartDir.length());
+    const endRadius = Math.max(0.0001, cameraRejoinEndDir.length());
+    cameraRejoinStartDir.normalize();
+    cameraRejoinEndDir.normalize();
+    cameraRejoinDeltaQuat.setFromUnitVectors(cameraRejoinStartDir, cameraRejoinEndDir);
+    cameraRejoinStepQuat.identity().slerp(cameraRejoinDeltaQuat, t);
+    cameraRejoinStepDir.copy(cameraRejoinStartDir).applyQuaternion(cameraRejoinStepQuat).normalize();
+    outPos
+      .copy(outTarget)
+      .addScaledVector(cameraRejoinStepDir, lerp(startRadius, endRadius, t));
+    return lerp(cameraRejoinStartFov, cameraRejoinEndFov, t);
+  };
+  const getCameraFollowAlpha = (dt: number, rate: number) =>
+    reduceMotion ? 1 : 1 - Math.exp(-dt * rate);
+  const isCameraCloseToDesired = (desiredFov: number) =>
+    camera.position.distanceToSquared(desiredCameraPos) < 0.000025 &&
+    controls.target.distanceToSquared(desiredCameraTarget) < 0.000025 &&
+    Math.abs(camera.fov - desiredFov) < 0.04;
+  const applyCameraPose = (desiredFov: number, dt: number, snap: boolean, rate: number) => {
+    const alpha = snap ? 1 : getCameraFollowAlpha(dt, rate);
+    camera.position.lerp(desiredCameraPos, alpha);
+    controls.target.lerp(desiredCameraTarget, alpha);
+    camera.fov = lerp(camera.fov, desiredFov, alpha);
+    camera.lookAt(controls.target);
+  };
   const getInitialBoardViewY = () => {
     if (!useMobileCarrier) return activeBoard.viewport.initialY;
     const viewportAspect = window.innerWidth / Math.max(1, window.innerHeight);
@@ -2990,7 +3064,16 @@ export function initDiorama() {
       return;
     }
 
-    const cameraPull = easeInOutSine(clamp((homeProgress - 0.7) / 0.27));
+    if (homeProgress >= INTERACTIVE_PROGRESS) {
+      cameraRejoinActive = false;
+      cameraInertialCatchup = false;
+    }
+    const shouldStartCameraRejoin =
+      prevProgress >= INTERACTIVE_PROGRESS &&
+      homeProgress < INTERACTIVE_PROGRESS;
+    if (shouldStartCameraRejoin) captureCameraRejoin();
+    if (homeProgress <= CAMERA_REJOIN_START || renderMode !== "room") cameraRejoinActive = false;
+
     const outsideReveal = easeInOutSine(clamp((homeProgress - 0.66) / 0.3));
     const roomReveal = easeInOutSine(clamp((homeProgress - 0.7) / 0.26));
     const sceneInteraction = easeInOutSine(clamp((homeProgress - 0.9) / 0.08));
@@ -3002,7 +3085,8 @@ export function initDiorama() {
     const boardShouldCapture = canDragBoard();
     if (boardHitareaEl) boardHitareaEl.style.pointerEvents = boardShouldCapture ? "auto" : "none";
     if (!boardShouldCapture && boardDragging) finishBoardDrag();
-    const controlsShouldEnable = !tweening && homeProgress > 0.965;
+    const inCameraRejoin = cameraRejoinActive && homeProgress > CAMERA_REJOIN_START && homeProgress < CAMERA_REJOIN_END;
+    const controlsShouldEnable = !tweening && homeProgress >= INTERACTIVE_PROGRESS;
     syncSceneOverlay();
     syncSceneInputMode(controlsShouldEnable);
     syncCanvasInputMode(controlsShouldEnable);
@@ -3368,11 +3452,20 @@ export function initDiorama() {
     }
 
     if (!controls.enabled) {
-      camera.position.lerpVectors(screenCameraPos, roomCameraPos, cameraPull);
-      controls.target.lerpVectors(screenCameraTarget, roomCameraTarget, cameraPull);
-      camera.lookAt(controls.target);
+      const desiredFov = inCameraRejoin
+        ? getCameraRejoinState(homeProgress, desiredCameraPos, desiredCameraTarget)
+        : lerp(
+            screenFov,
+            roomFov,
+            getScrollCameraState(homeProgress, desiredCameraPos, desiredCameraTarget),
+          );
+      const followRate = inCameraRejoin ? CAMERA_REJOIN_FOLLOW_RATE : CAMERA_CATCHUP_FOLLOW_RATE;
+      const snapCamera = !cameraInertialCatchup && !inCameraRejoin;
+      applyCameraPose(desiredFov, dt, snapCamera, followRate);
+      if (cameraInertialCatchup && !inCameraRejoin && isCameraCloseToDesired(desiredFov)) {
+        cameraInertialCatchup = false;
+      }
     }
-    camera.fov = lerp(screenFov, roomFov, cameraPull);
     camera.updateProjectionMatrix();
     syncBoardHitarea();
 
