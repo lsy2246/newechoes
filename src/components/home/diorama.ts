@@ -200,7 +200,7 @@ const SCREEN_CARRIER_PRESETS: Record<HomeScreenStoryDevice, ScreenCarrierPreset>
     screenFaceYOffset: 0,
     screenBodyOffsetZ: -0.01,
     cameraFit: 1,
-    roomDistance: 5.6,
+    roomDistance: 6.35,
     roomUp: 2.2,
     roomRight: 0.62,
     introTargetUp: 0,
@@ -1100,7 +1100,7 @@ export function initDiorama() {
     // Parameters for next branches
     const lengthDecay = 0.65 + Math.random() * 0.15;
     const radiusDecay = 0.6 + Math.random() * 0.1;
-    const branchCount = depth === 1 ? 2 : (Math.random() > 0.3 ? 2 : 3); // More branches at lower depths
+    const branchCount = depth === 1 ? 2 : (Math.random() > 0.34 ? 2 : 3);
 
     // Create a base local rotation frame perpendicular to current direction
     let localRight = new THREE.Vector3().crossVectors(upVector, dir).normalize();
@@ -1156,14 +1156,14 @@ export function initDiorama() {
 
   const addFoliageCluster = (tip: THREE.Vector3) => {
     // Flat crossed leaves keep the bonsai light and readable in the small scene.
-    const numLeaves = 11;
+    const numLeaves = useMobileCarrier ? 10 : 13;
     for (let i = 0; i < numLeaves; i++) {
       const angle = (i / numLeaves) * Math.PI * 2 + Math.random() * 0.5;
-      const radius = 0.016 + Math.random() * 0.045;
-      const offsetX = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.018;
-      const offsetY = (Math.random() - 0.08) * 0.06;
-      const offsetZ = Math.sin(angle) * radius + (Math.random() - 0.5) * 0.018;
-      const baseScale = new THREE.Vector3(0.56 + Math.random() * 0.34, 0.56 + Math.random() * 0.34, 0.56 + Math.random() * 0.34);
+      const radius = 0.02 + Math.random() * 0.058;
+      const offsetX = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.026;
+      const offsetY = (Math.random() - 0.12) * 0.074;
+      const offsetZ = Math.sin(angle) * radius + (Math.random() - 0.5) * 0.026;
+      const baseScale = new THREE.Vector3(0.72 + Math.random() * 0.42, 0.72 + Math.random() * 0.42, 0.72 + Math.random() * 0.42);
       const tilt = Math.random() * 0.8 + 0.2;
 
       // Base leaf material with jitter
@@ -1200,6 +1200,7 @@ export function initDiorama() {
 
   // Move plant toward desk center
   plant.position.set(1.5, deskTopWorldY, -0.2);
+  plant.rotation.y = THREE.MathUtils.degToRad(40);
   scene.add(plant);
 
   // ===== TV (wall-mounted on left wall → /movies) =====
@@ -2151,16 +2152,78 @@ export function initDiorama() {
   let canvasCapturesInput = false;
   let controlsConnected = false;
   let sceneCapturesInput = true;
+  type MobileGestureIntent = "pending" | "scroll" | "orbit";
+  let mobileGestureIntent: MobileGestureIntent | null = null;
+  let mobileGesturePointerId: number | null = null;
+  let mobileGestureStartX = 0;
+  let mobileGestureStartY = 0;
+  let mobileGestureLastX = 0;
+  let mobileGestureLastY = 0;
+  const mobileOrbitOffset = new THREE.Vector3();
+  const mobileOrbitSpherical = new THREE.Spherical();
+
+  const resetMobileGesture = () => {
+    mobileGestureIntent = null;
+    mobileGesturePointerId = null;
+    if (useMobileCarrier && canInteractScene && !tweening) canvasEl.style.cursor = "grab";
+  };
+
+  const startMobileGesture = (e: PointerEvent) => {
+    if (!useMobileCarrier || e.pointerType !== "touch" || !canInteractScene || tweening) return;
+    mobileGestureIntent = "pending";
+    mobileGesturePointerId = e.pointerId;
+    mobileGestureStartX = e.clientX;
+    mobileGestureStartY = e.clientY;
+    mobileGestureLastX = e.clientX;
+    mobileGestureLastY = e.clientY;
+  };
+
+  const handleMobileGestureMove = (e: PointerEvent) => {
+    if (!useMobileCarrier || e.pointerType !== "touch" || mobileGesturePointerId !== e.pointerId) return false;
+    if (!canInteractScene || tweening) {
+      resetMobileGesture();
+      return true;
+    }
+
+    const dx = e.clientX - mobileGestureStartX;
+    const dy = e.clientY - mobileGestureStartY;
+    if (mobileGestureIntent === "pending") {
+      if (Math.hypot(dx, dy) < 9) return true;
+      mobileGestureIntent = Math.abs(dy) >= Math.abs(dx) * 0.75 ? "scroll" : "orbit";
+      canvasEl.style.cursor = mobileGestureIntent === "orbit" ? "grabbing" : "default";
+    }
+
+    e.preventDefault();
+    if (mobileGestureIntent === "scroll") {
+      window.scrollBy({ top: mobileGestureLastY - e.clientY, left: 0, behavior: "auto" });
+      syncScrollProgress();
+    } else if (mobileGestureIntent === "orbit") {
+      const deltaX = e.clientX - mobileGestureLastX;
+      mobileOrbitOffset.subVectors(camera.position, controls.target);
+      mobileOrbitSpherical.setFromVector3(mobileOrbitOffset);
+      mobileOrbitSpherical.theta -= deltaX * 0.0052;
+      mobileOrbitSpherical.phi = clamp(mobileOrbitSpherical.phi, controls.minPolarAngle, controls.maxPolarAngle);
+      mobileOrbitOffset.setFromSpherical(mobileOrbitSpherical);
+      camera.position.copy(controls.target).add(mobileOrbitOffset);
+      camera.lookAt(controls.target);
+      markInteracted();
+    }
+
+    mobileGestureLastX = e.clientX;
+    mobileGestureLastY = e.clientY;
+    return true;
+  };
 
   const syncCanvasInputMode = (interactive: boolean) => {
     if (canvasCapturesInput === interactive) return;
     canvasCapturesInput = interactive;
     canvasEl.style.pointerEvents = interactive ? "auto" : "none";
-    canvasEl.style.touchAction = "pan-y";
+    canvasEl.style.touchAction = interactive && useMobileCarrier ? "none" : "pan-y";
     if (!interactive) {
       hovered = null;
       canvasEl.style.cursor = "default";
       tooltip?.classList.remove("is-visible");
+      resetMobileGesture();
     }
   };
   syncCanvasInputMode(false);
@@ -2169,14 +2232,15 @@ export function initDiorama() {
     if (!sceneEl || sceneCapturesInput === interactive) return;
     sceneCapturesInput = interactive;
     sceneEl.style.pointerEvents = interactive ? "auto" : "none";
-    sceneEl.style.touchAction = "pan-y";
+    sceneEl.style.touchAction = interactive && useMobileCarrier ? "none" : "pan-y";
   };
   syncSceneInputMode(false);
 
   const syncControlsConnection = (interactive: boolean) => {
-    if (controlsConnected === interactive) return;
-    controlsConnected = interactive;
-    if (interactive) {
+    const shouldConnect = interactive && !useMobileCarrier;
+    if (controlsConnected === shouldConnect) return;
+    controlsConnected = shouldConnect;
+    if (shouldConnect) {
       controls.connect(canvasEl);
     } else {
       controls.disconnect();
@@ -2199,6 +2263,7 @@ export function initDiorama() {
   };
 
   const pointerMove = (e: PointerEvent) => {
+    if (handleMobileGestureMove(e)) return;
     if (!canInteractScene || tweening) {
       hovered = null;
       canvasEl.style.cursor = "default";
@@ -2226,6 +2291,7 @@ export function initDiorama() {
   };
   canvasEl.addEventListener("pointermove", pointerMove);
   canvasEl.addEventListener("pointerleave", () => {
+    resetMobileGesture();
     hovered = null;
     canvasEl.style.cursor = canInteractScene ? "grab" : "default";
     tooltip?.classList.remove("is-visible");
@@ -2236,12 +2302,14 @@ export function initDiorama() {
   let startY = 0;
 
   const pointerDownHandler = (e: PointerEvent) => {
+    startMobileGesture(e);
     startX = e.clientX;
     startY = e.clientY;
   };
   canvasEl.addEventListener("pointerdown", pointerDownHandler);
 
   const pointerUpHandler = (e: PointerEvent) => {
+    if (useMobileCarrier && e.pointerType === "touch" && mobileGestureIntent !== null) resetMobileGesture();
     if (!canInteractScene || tweening) return;
 
     // Ignore if this was a drag/rotation
@@ -2275,6 +2343,7 @@ export function initDiorama() {
     requestAnimationFrame(step);
   };
   canvasEl.addEventListener("pointerup", pointerUpHandler);
+  canvasEl.addEventListener("pointercancel", resetMobileGesture);
 
   const passWheelThrough = (e: WheelEvent) => {
     if (!controlsConnected) return;
@@ -2725,6 +2794,7 @@ export function initDiorama() {
     canvasEl.removeEventListener("pointermove", pointerMove);
     canvasEl.removeEventListener("pointerdown", pointerDownHandler);
     canvasEl.removeEventListener("pointerup", pointerUpHandler);
+    canvasEl.removeEventListener("pointercancel", resetMobileGesture);
     canvasEl.removeEventListener("wheel", passWheelThrough, { capture: true });
     sceneEl?.removeEventListener("wheel", passWheelThrough, { capture: true });
     themeObserver.disconnect();

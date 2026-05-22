@@ -1576,7 +1576,9 @@ const drawDesktopStory = (
       withAlpha(ctx, trackTextAlpha, () => {
         text(sourceTrack.label, rect.x + pad, rect.y + 40 * unit, 24 * unit, row.active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
         text(sourceTrack.title, rect.x + pad, rect.y + 78 * unit, 31 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-        text(sourceTrack.note, rect.x + pad, rect.y + 108 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+        wrapText(sourceTrack.note, rect.w - pad * 2, 19 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, index) => {
+          text(line, rect.x + pad, rect.y + 108 * unit + index * 24 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+        });
       });
 
       withAlpha(ctx, workTextAlpha, () => {
