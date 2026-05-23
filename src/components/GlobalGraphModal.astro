@@ -92,9 +92,6 @@ function renderArticleItem(articleId: string, level: number) {
   const isCurrent = currentArticle?.id === articleId;
   return `<li class="graph-tree-item graph-tree-item-article" data-article-id="${escapeHtml(articleId)}" style="--tree-level:${level};">
     <a href="${href}" class="graph-tree-link graph-tree-link-article${isCurrent ? " is-current" : ""}" data-route-target="${href}" data-node-target="article:${escapeHtml(articleId)}" data-astro-prefetch="hover">
-      <span class="graph-tree-item-marker" aria-hidden="true">
-        <span class="graph-tree-dot"></span>
-      </span>
       <span class="graph-tree-label">${escapeHtml(title)}</span>
     </a>
   </li>`;
@@ -119,7 +116,6 @@ function renderSection(section: SectionStructure, level = 0): string {
           </svg>
         </span>
         <a href="${href}" class="graph-tree-link graph-tree-link-section${active ? " is-current" : ""}" data-route-target="${href}" data-section-path="${escapeHtml(section.path)}" data-node-target="section:${escapeHtml(section.path)}" data-astro-prefetch="hover">
-          <span class="graph-tree-item-marker graph-tree-item-marker-section" aria-hidden="true"></span>
           <span class="graph-tree-label">${escapeHtml(section.name)}</span>
         </a>
         <span class="graph-tree-count">${childCount}</span>
@@ -260,10 +256,10 @@ const locationRoute = currentArticle
   >
     <header class="global-graph-header">
       <div>
-        <p class="global-graph-eyebrow">Network Atlas</p>
-        <h2 id="global-graph-title">全局图谱</h2>
+        <p class="global-graph-eyebrow">Site Index</p>
+        <h2 id="global-graph-title">全站索引点群</h2>
         <p class="global-graph-subtitle">
-          左边负责精确定位，右边负责看结构、簇和连接。这里更像一张站点关系地图，不是普通导航页。
+          左边按目录精确定位，右边用一组可拖拽的点呈现文章关系。拖动一个点时，相邻节点会被轻轻带动。
         </p>
       </div>
       <button
@@ -291,7 +287,7 @@ const locationRoute = currentArticle
       <aside class="global-graph-tree-panel">
         <div class="global-graph-panel-header">
           <div>
-            <h3>全站目录树</h3>
+            <h3>文字索引</h3>
             <p>
               当前位置:
               <a
@@ -316,10 +312,10 @@ const locationRoute = currentArticle
       <section class="global-graph-stage">
         <div class="global-graph-panel-header">
           <div>
-            <h3>节点图谱</h3>
-            <p>节点会按链接关系自然聚成簇。旋转看层次，缩放看局部，选中后看它周围的知识邻域。</p>
+            <h3>2D 点群</h3>
+            <p>节点会按链接关系自然聚成簇。拖拽节点时，它会牵动相邻的一组点一起移动。</p>
           </div>
-          <span class="global-graph-drag-hint">Rotate and zoom</span>
+          <span class="global-graph-drag-hint">Drag / Zoom</span>
         </div>
 
         <div
@@ -334,7 +330,7 @@ const locationRoute = currentArticle
             class="global-graph-status"
             data-graph-status
           >
-            正在准备 3D 关系图谱...
+          正在准备 2D 点群...
           </div>
           <div
             class="global-graph-tooltip"
@@ -344,9 +340,9 @@ const locationRoute = currentArticle
         </div>
 
         <div class="global-graph-legend">
-          <span><i class="legend-dot legend-dot-root"></i> 入口枢纽</span>
-          <span><i class="legend-dot legend-dot-section"></i> 目录锚点</span>
-          <span><i class="legend-dot legend-dot-article"></i> 文章节点</span>
+          <span><i class="legend-dot legend-dot-root"></i> 入口</span>
+          <span><i class="legend-dot legend-dot-section"></i> 目录</span>
+          <span><i class="legend-dot legend-dot-article"></i> 文章</span>
         </div>
       </section>
     </div>

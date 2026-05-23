@@ -225,7 +225,7 @@ function getArticleUrl(articleId: string) {
 // 预先生成目录结构
 function generateTableOfContents(headings: Heading[]) {
   if (!headings || headings.length === 0) {
-    return '<p class="text-gray-500 dark:text-gray-400 italic">此文章没有目录</p>';
+    return '<p class="toc-empty italic">此文章没有目录</p>';
   }
 
   // 查找最低级别的标题（数值最小）
@@ -298,15 +298,15 @@ function generateTableOfContents(headings: Heading[]) {
           <a href="#${item.slug}" 
              class="toc-link ${
                isHigherLevel
-                 ? "text-gray-800 dark:text-gray-200 font-medium"
-                 : "text-gray-600 dark:text-gray-400"
-             } hover:text-primary-600 dark:hover:text-primary-400"
+                 ? "toc-link-strong font-medium"
+                 : "toc-link-muted"
+             }"
              style="padding-left: ${item.depth * 0.75}rem;">
             ${item.text}
           </a>
           ${
             hasChildren
-              ? `<button class="toc-toggle text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 ml-1 p-1" aria-expanded="false">
+              ? `<button class="toc-toggle ml-1 p-1" aria-expanded="false">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
@@ -337,7 +337,7 @@ const tableOfContents = generateTableOfContents(headings);
   pageType="article"
   previewMode={isCardPreview ? "card" : "default"}
 >
-  <div class:list={["max-w-5xl py-8", { "max-w-none py-0": isCardPreview }]}>
+  <div class:list={["article-shell max-w-5xl py-8", { "max-w-none py-0": isCardPreview }]}>
     <!-- 阅读进度条 -->
     {
       !isCardPreview && (
@@ -346,7 +346,7 @@ const tableOfContents = generateTableOfContents(headings);
           id="progress-container"
         >
           <div
-            class="h-full w-0 bg-primary-500 transition-width duration-100"
+            class="article-progress-bar h-full w-0 transition-width duration-100"
             id="progress-bar"
           >
           </div>
@@ -360,7 +360,7 @@ const tableOfContents = generateTableOfContents(headings);
         <header class="mb-8">
           <!-- 导航区域/面包屑 - 不参与视图切换 -->
           <div
-            class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 shadow-lg border border-gray-200 dark:border-gray-700 relative z-10"
+            class="article-breadcrumb-panel rounded-xl p-4 mb-6 relative z-10"
           >
             <div
               class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
@@ -399,11 +399,11 @@ const tableOfContents = generateTableOfContents(headings);
             daysDiff > ARTICLE_EXPIRY_CONFIG.expiryDays
           ) {
             return (
-              <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+              <div class="article-expiry-note p-4 mb-4">
                 <div class="flex">
                   <div class="shrink-0">
                     <svg
-                      class="h-5 w-5 text-yellow-400"
+                      class="article-expiry-icon h-5 w-5"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -415,7 +415,7 @@ const tableOfContents = generateTableOfContents(headings);
                     </svg>
                   </div>
                   <div class="ml-3">
-                    <p class="text-sm text-yellow-700">
+                    <p class="article-expiry-text text-sm">
                       {ARTICLE_EXPIRY_CONFIG.warningMessage}
                     </p>
                   </div>
@@ -427,12 +427,12 @@ const tableOfContents = generateTableOfContents(headings);
         })()
       }
 
-      <h1 class="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+      <h1 class="article-title text-3xl font-bold mb-4">
         {article.data.title}
       </h1>
 
       <div
-        class="flex flex-wrap items-center gap-4 text-sm text-secondary-600 dark:text-secondary-400 mb-4"
+        class="article-meta flex flex-wrap items-center gap-4 text-sm mb-4"
       >
         <time
           datetime={article.data.date.toISOString()}
@@ -462,7 +462,7 @@ const tableOfContents = generateTableOfContents(headings);
             {article.data.tags.map((tag: string) => (
               <a
                 href={`/filtered?tags=${tag}`}
-                class="text-xs bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 py-1 px-2 rounded hover:bg-primary-100 dark:hover:bg-primary-800/30"
+                class="article-tag text-xs py-1 px-2 rounded"
                 data-astro-prefetch="hover"
               >
                 #{tag}
@@ -473,7 +473,7 @@ const tableOfContents = generateTableOfContents(headings);
       }
 
       <article
-        class="prose prose-lg dark:prose-invert prose-primary prose-table:rounded-lg prose-table:border-separate prose-table:border-2 prose-thead:bg-primary-50 dark:prose-thead:bg-gray-800 prose-ul:list-disc prose-ol:list-decimal prose-li:my-1 prose-blockquote:border-l-4 prose-blockquote:border-primary-500 prose-blockquote:bg-gray-100 prose-blockquote:dark:bg-gray-800 prose-a:text-primary-600 prose-a:dark:text-primary-400 prose-a:no-underline prose-a:border-b prose-a:border-primary-300 prose-a:hover:border-primary-600 max-w-none mb-12"
+        class="article-prose prose prose-lg dark:prose-invert max-w-none mb-12"
       >
         <Content />
       </article>
@@ -481,8 +481,8 @@ const tableOfContents = generateTableOfContents(headings);
       <!-- 相关文章 -->
       {
         !isCardPreview && relatedArticles.length > 0 && (
-          <aside class="mt-12 pt-8 border-t border-secondary-200 dark:border-gray-700">
-            <h2 class="text-2xl font-bold mb-6 text-primary-900 dark:text-primary-100">
+          <aside class="article-related-section mt-12 pt-8">
+            <h2 class="article-related-title text-2xl font-bold mb-6">
               {relatedArticlesMatchType === "tag"
                 ? "相关文章"
                 : relatedArticlesMatchType === "directory"
@@ -490,56 +490,68 @@ const tableOfContents = generateTableOfContents(headings);
                   : "推荐阅读"}
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {relatedArticles.map((relatedArticle: ArticleEntry) => (
-                <a
-                  href={getArticleUrl(relatedArticle.id)}
-                  class="article-card"
-                  data-astro-prefetch="viewport"
-                >
-                  <div class="article-card-content">
-                    <div class="article-card-icon">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                        />
-                      </svg>
-                    </div>
-                    <div class="article-card-body">
-                      <h3 class="article-card-title">
-                        {relatedArticle.data.title}
-                      </h3>
-                      <p class="article-card-summary">
-                        {generateArticleSummary(relatedArticle)}
-                      </p>
-                      <div class="article-card-footer">
-                        <time
-                          datetime={relatedArticle.data.date.toISOString()}
-                          class="article-card-date"
-                        >
-                          {relatedArticle.data.date.toLocaleDateString(
-                            "zh-CN",
-                            {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            },
-                          )}
-                        </time>
-                        <span class="article-card-read-more">阅读全文</span>
+              {relatedArticles.map((relatedArticle: ArticleEntry) => {
+                const relatedSummary = generateArticleSummary(relatedArticle);
+
+                return (
+                  <div class="article-card">
+                    <a
+                      href={getArticleUrl(relatedArticle.id)}
+                      class="article-card-link"
+                      data-astro-prefetch="viewport"
+                    >
+                      <div class="article-card-content">
+                        <div class="article-card-body">
+                          <div class="article-card-title-row">
+                            <span class="article-card-icon">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+                                />
+                              </svg>
+                            </span>
+                            <h3 class="article-card-title">
+                              {relatedArticle.data.title}
+                            </h3>
+                          </div>
+                          <p
+                            class={relatedSummary
+                              ? "article-card-summary"
+                              : "article-card-summary article-card-summary-empty"}
+                          >
+                            {relatedSummary}
+                          </p>
+                          <div class="article-card-footer">
+                            <time
+                              datetime={relatedArticle.data.date.toISOString()}
+                              class="article-card-date"
+                            >
+                              {relatedArticle.data.date.toLocaleDateString(
+                                "zh-CN",
+                                {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                },
+                              )}
+                            </time>
+                            <span class="article-card-read-more">阅读全文</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    </a>
                   </div>
-                </a>
-              ))}
+                );
+              })}
             </div>
           </aside>
         )
@@ -550,7 +562,7 @@ const tableOfContents = generateTableOfContents(headings);
         !isCardPreview && (
           <button
             id="back-to-top"
-            class="fixed bottom-8 right-8 w-12 h-12 rounded-full bg-primary-500 dark:bg-primary-600 text-white shadow-md flex items-center justify-center opacity-0 invisible translate-y-5 hover:bg-primary-600 dark:hover:bg-primary-700"
+            class="article-back-to-top fixed bottom-8 right-8 w-12 h-12 rounded-full flex items-center justify-center opacity-0 invisible translate-y-5"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -599,15 +611,15 @@ const tableOfContents = generateTableOfContents(headings);
 
           <!-- 目录 -->
           <section
-            class="hidden xl:flex fixed right-4 2xl:right-[calc(50%-44rem)] w-64 z-30 transition-transform duration-300 flex-col gap-4"
+            class="article-right-rail hidden xl:flex fixed right-4 2xl:right-[calc(50%-44rem)] w-64 z-30 transition-transform duration-300 flex-col gap-4"
             id="toc-panel"
           >
-      <div class="article-sidecard">
+      <div class="article-sidecard article-toc-card">
         <div
           class="article-sidecard-header"
         >
           <h3
-            class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2"
+            class="article-sidecard-heading font-bold flex items-center gap-2"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -628,7 +640,7 @@ const tableOfContents = generateTableOfContents(headings);
         </div>
         <div
           id="toc-content"
-          class="text-sm p-4 pt-2 overflow-y-auto max-h-[min(24rem,calc(100vh-22rem))] bg-white dark:bg-gray-800 scroll-smooth scrollbar-thin scrollbar-thumb-primary-200 dark:scrollbar-thumb-primary-800 scrollbar-track-transparent"
+          class="article-toc-content text-sm p-4 pt-2 overflow-y-auto max-h-[min(24rem,calc(100vh-22rem))] scroll-smooth scrollbar-thin scrollbar-track-transparent"
           set:html={tableOfContents}
         />
       </div>
@@ -636,7 +648,7 @@ const tableOfContents = generateTableOfContents(headings);
       <div class="article-sidecard article-backlinks-card">
         <div class="article-sidecard-header article-sidecard-header-compact">
           <div class="article-sidecard-title-group">
-            <h3 class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2">
+            <h3 class="article-sidecard-heading font-bold flex items-center gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 class="h-4 w-4"
@@ -1250,15 +1262,9 @@ const tableOfContents = generateTableOfContents(headings);
                 });
 
                 // 增强高亮效果
-                targetElement.classList.add(
-                  "bg-primary-50",
-                  "dark:bg-primary-900/20",
-                );
+                targetElement.classList.add("article-heading-flash");
                 setTimeout(() => {
-                  targetElement.classList.remove(
-                    "bg-primary-50",
-                    "dark:bg-primary-900/20",
-                  );
+                  targetElement.classList.remove("article-heading-flash");
                 }, 2000);
               }
             });
@@ -1285,8 +1291,6 @@ const tableOfContents = generateTableOfContents(headings);
               // 移除活动类
               link.classList.remove(
                 "toc-link-active",
-                "text-primary-600",
-                "dark:text-primary-400",
                 "font-medium",
               );
             });
@@ -1319,8 +1323,6 @@ const tableOfContents = generateTableOfContents(headings);
                   // 高亮当前目录项
                   activeLink.classList.add(
                     "toc-link-active",
-                    "text-primary-600",
-                    "dark:text-primary-400",
                     "font-medium",
                   );
 

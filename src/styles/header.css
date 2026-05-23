@@ -1,43 +1,147 @@
 /* 自定义Header组件样式 */
 
-/* 滚动效果 */
-#header-bg.scrolled {
-  backdrop-filter: blur(6px);
-  background: rgba(249, 250, 251, 0.8);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.04),
-    0 4px 8px rgba(0, 0, 0, 0.04);
+#main-header {
+  --nav-signal: #000000;
+  --nav-accent: var(--nav-signal);
+  --nav-ink: rgba(0, 0, 0, 0.92);
+  --nav-ink-strong: #000000;
+  --nav-muted: rgba(0, 0, 0, 0.58);
+  --nav-soft: rgba(0, 0, 0, 0.035);
+  --nav-line: rgba(0, 0, 0, 0.12);
+  --nav-line-strong: rgba(0, 0, 0, 0.24);
+  --nav-panel: rgba(255, 255, 255, 0.88);
+  --nav-panel-strong: rgba(255, 255, 255, 0.97);
+  --nav-shadow: rgba(0, 0, 0, 0.08);
+  --nav-focus: color-mix(in oklab, var(--nav-signal) 28%, transparent);
+  color: var(--nav-ink);
 }
 
-/* 黑暗模式样式 */
-[data-theme="dark"] #header-bg.scrolled {
-  background: rgba(15, 23, 42, 0.8);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3),
-    0 2px 4px -1px rgba(0, 0, 0, 0.2);
+[data-theme="dark"] #main-header {
+  --nav-signal: #ffffff;
+  --nav-accent: var(--nav-signal);
+  --nav-ink: rgba(255, 255, 255, 0.92);
+  --nav-ink-strong: #ffffff;
+  --nav-muted: rgba(255, 255, 255, 0.6);
+  --nav-soft: rgba(255, 255, 255, 0.08);
+  --nav-line: rgba(255, 255, 255, 0.14);
+  --nav-line-strong: rgba(255, 255, 255, 0.3);
+  --nav-panel: rgba(0, 0, 0, 0.78);
+  --nav-panel-strong: rgba(0, 0, 0, 0.92);
+  --nav-shadow: rgba(0, 0, 0, 0.34);
+  --nav-focus: color-mix(in oklab, var(--nav-signal) 34%, transparent);
+}
+
+.header-bg-surface {
+  background: var(--nav-panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition:
+    background 0.36s ease,
+    box-shadow 0.36s ease,
+    backdrop-filter 0.36s ease;
+}
+
+#header-bg.scrolled {
+  background: var(--nav-panel-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 14px 38px color-mix(in oklab, var(--nav-shadow) 72%, transparent);
+}
+
+.site-wordmark {
+  color: var(--nav-ink-strong);
+  text-decoration: none;
+  transition:
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.site-wordmark:hover {
+  opacity: 0.72;
+}
+
+.header-nav-cluster {
+  gap: 0.875rem;
+}
+
+.nav-menu-row {
+  gap: 1.5rem;
+}
+
+.header-actions {
+  gap: 0.5rem;
+}
+
+.nav-icon-button {
+  color: var(--nav-muted);
+}
+
+.nav-icon-button:hover {
+  color: var(--nav-ink-strong);
+  background: var(--nav-soft);
+}
+
+.nav-icon-button:focus-visible,
+#mobile-search-button:focus-visible,
+#mobile-menu-button:focus-visible {
+  outline: 2px solid var(--nav-focus);
+  outline-offset: 2px;
 }
 
 /* 导航高亮元素的基础样式 */
 #nav-primary-highlight {
   position: absolute;
-  background-color: var(--color-primary-100);
-  border-radius: 0.75rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   z-index: 0;
+  pointer-events: none;
   transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
-}
-
-[data-theme="dark"] #nav-primary-highlight {
-  background-color: color-mix(in oklab, var(--color-primary-800) 30%, transparent);
 }
 
 #nav-secondary-highlight {
   position: absolute;
-  background-color: color-mix(in oklab, var(--color-primary-300) 80%, transparent);
-  border-radius: 0.75rem;
+  border-radius: 0.45rem;
   z-index: 10;
+  pointer-events: none;
   transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
 }
 
-[data-theme="dark"] #nav-secondary-highlight {
-  background-color: color-mix(in oklab, var(--color-primary-700) 60%, transparent);
+#nav-primary-highlight::after,
+#nav-secondary-highlight::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0.2rem;
+  width: min(1.85rem, calc(100% - 1.25rem));
+  height: 2px;
+  border-radius: 999px;
+  background: var(--nav-signal);
+  transform: translateX(-50%);
+}
+
+#nav-primary-highlight[data-scope="group"]::after {
+  opacity: 0;
+}
+
+#nav-hover-highlight {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  pointer-events: none;
+}
+
+#nav-hover-highlight::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0.2rem;
+  width: min(1.6rem, calc(100% - 1.3rem));
+  height: 1px;
+  border-radius: 999px;
+  background: var(--nav-signal);
+  opacity: 0.62;
+  transform: translateX(-50%);
 }
 
 /* 导航选择器的状态管理 */
@@ -55,27 +159,33 @@
 .nav-item[data-state="inactive"], 
 .nav-subitem[data-state="inactive"], 
 .nav-group-toggle[data-state="inactive"] {
-  color: var(--color-gray-600);
+  color: var(--nav-muted);
   font-weight: 400;
-}
-
-[data-theme="dark"] .nav-item[data-state="inactive"], 
-[data-theme="dark"] .nav-subitem[data-state="inactive"], 
-[data-theme="dark"] .nav-group-toggle[data-state="inactive"] {
-  color: var(--color-gray-300);
 }
 
 .nav-item[data-state="active"], 
 .nav-subitem[data-state="active"], 
 .nav-group-toggle[data-state="active"] {
-  color: var(--color-primary-700);
+  color: var(--nav-ink-strong);
   font-weight: 600;
 }
 
-[data-theme="dark"] .nav-item[data-state="active"], 
-[data-theme="dark"] .nav-subitem[data-state="active"], 
-[data-theme="dark"] .nav-group-toggle[data-state="active"] {
-  color: var(--color-primary-300);
+.nav-item:hover,
+.nav-subitem:hover,
+.nav-group-toggle:hover {
+  color: var(--nav-ink-strong);
+}
+
+.nav-subitem-separator {
+  display: inline-flex;
+  align-items: center;
+  height: 2.5rem;
+  margin: 0 -0.05rem;
+  color: var(--nav-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  pointer-events: none;
+  user-select: none;
 }
 
 /* 导航组展开状态 */
@@ -99,6 +209,47 @@
 /* 导航项的文字颜色过渡 */
 .nav-item, .nav-subitem, .nav-group-toggle {
   transition: color 0.3s ease, font-weight 0.15s ease;
+}
+
+.mobile-panel-shell {
+  overflow: hidden;
+  border-radius: 0 0 0.85rem 0.85rem;
+  background: var(--nav-panel-strong);
+  box-shadow: 0 18px 44px color-mix(in oklab, var(--nav-shadow) 84%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.mobile-nav-link,
+.mobile-nav-group-toggle,
+.mobile-theme-row {
+  color: var(--nav-muted);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.mobile-nav-link:hover,
+.mobile-nav-group-toggle:hover,
+.mobile-theme-row:hover {
+  color: var(--nav-ink-strong);
+  background: var(--nav-soft);
+}
+
+.mobile-nav-link-active {
+  color: var(--nav-panel-strong);
+  background: var(--nav-ink-strong);
+  box-shadow: none;
+}
+
+.mobile-submenu {
+  margin-left: 0.4rem;
+}
+
+.mobile-menu-arrow,
+.mobile-theme-label {
+  color: var(--nav-muted);
 }
 
 /* 汉堡菜单动画样式 */
@@ -195,46 +346,41 @@
 .global-graph-backdrop {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(244, 247, 250, 0.82), rgba(233, 238, 244, 0.92));
-  backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .global-graph-dialog {
-  --graph-border: rgba(148, 163, 184, 0.18);
-  --graph-panel-bg: rgba(255, 255, 255, 0.72);
-  --graph-panel-soft: rgba(255, 255, 255, 0.82);
-  --graph-text: rgba(15, 23, 42, 0.96);
-  --graph-text-soft: rgba(71, 85, 105, 0.82);
-  --graph-accent: #0f766e;
+  --graph-border: rgba(5, 5, 5, 0.12);
+  --graph-panel-bg: transparent;
+  --graph-panel-soft: transparent;
+  --graph-text: #050505;
+  --graph-text-soft: rgba(5, 5, 5, 0.62);
+  --graph-accent: var(--graph-text);
   position: relative;
   width: min(84rem, calc(100vw - 1.5rem));
   max-height: calc(100vh - 2rem);
   margin: 1rem auto;
   overflow: hidden;
-  border-radius: 1.75rem;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 248, 251, 0.98));
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+  border-radius: 0.75rem;
+  border: 1px solid var(--graph-border);
+  background: #ffffff;
+  box-shadow: none;
   animation: graph-modal-enter 0.26s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] .global-graph-backdrop {
-  background:
-    linear-gradient(180deg, rgba(3, 7, 18, 0.84), rgba(2, 6, 16, 0.92));
+  background: rgba(0, 0, 0, 0.96);
 }
 
 [data-theme="dark"] .global-graph-dialog {
-  --graph-border: rgba(148, 163, 184, 0.18);
-  --graph-panel-bg: rgba(4, 10, 22, 0.9);
-  --graph-panel-soft: rgba(7, 14, 28, 0.84);
-  --graph-text: rgba(248, 250, 252, 0.97);
-  --graph-text-soft: rgba(186, 199, 216, 0.88);
-  --graph-accent: #67e8f9;
-  background:
-    linear-gradient(180deg, rgba(4, 10, 22, 0.985), rgba(2, 7, 17, 0.992));
-  box-shadow: 0 30px 88px rgba(0, 0, 0, 0.48);
+  --graph-border: rgba(208, 204, 208, 0.16);
+  --graph-panel-bg: transparent;
+  --graph-panel-soft: transparent;
+  --graph-text: #d0ccd0;
+  --graph-text-soft: rgba(208, 204, 208, 0.64);
+  --graph-accent: var(--graph-text);
+  background: #000000;
+  box-shadow: none;
 }
 
 .global-graph-header {
@@ -250,11 +396,11 @@
   font-size: 0.72rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(15, 118, 110, 0.88);
+  color: var(--graph-text);
 }
 
 [data-theme="dark"] .global-graph-eyebrow {
-  color: rgba(103, 232, 249, 0.88);
+  color: var(--graph-text);
 }
 
 .global-graph-header h2 {
@@ -275,30 +421,28 @@
   width: 2.5rem;
   height: 2.5rem;
   flex-shrink: 0;
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  border: 0;
   border-radius: 9999px;
-  color: rgba(51, 65, 85, 0.82);
-  background: rgba(255, 255, 255, 0.7);
+  color: var(--graph-text-soft);
+  background: transparent;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease,
     transform 0.2s ease;
 }
 
 .global-graph-close:hover {
-  color: rgba(15, 23, 42, 0.96);
-  border-color: rgba(15, 118, 110, 0.18);
-  background: rgba(255, 255, 255, 0.96);
+  color: var(--graph-text);
+  background: rgba(5, 5, 5, 0.06);
   transform: rotate(90deg);
 }
 
 [data-theme="dark"] .global-graph-close {
-  color: rgba(226, 232, 240, 0.82);
-  background: rgba(15, 23, 42, 0.5);
+  color: var(--graph-text-soft);
+  background: transparent;
 }
 
 [data-theme="dark"] .global-graph-close:hover {
-  color: white;
-  border-color: rgba(103, 232, 249, 0.2);
-  background: rgba(15, 23, 42, 0.82);
+  color: var(--graph-text);
+  background: rgba(208, 204, 208, 0.08);
 }
 
 .global-graph-close svg {
@@ -314,20 +458,20 @@
 .global-graph-body-split {
   display: grid;
   grid-template-columns: minmax(18rem, 0.8fr) minmax(0, 1.2fr);
-  gap: 0.9rem;
+  gap: clamp(1rem, 2.2vw, 1.8rem);
 }
 
 .global-graph-tree-panel,
 .global-graph-stage {
-  border: 1px solid var(--graph-border);
-  border-radius: 1.35rem;
+  border: 0;
+  border-radius: 0;
   background: var(--graph-panel-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .global-graph-tree-panel,
 [data-theme="dark"] .global-graph-stage {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: none;
 }
 
 .global-graph-panel-header {
@@ -335,8 +479,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1rem 0.9rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 0.55rem 0.2rem 0.7rem;
+  border-bottom: 0;
 }
 
 .global-graph-panel-header h3 {
@@ -358,7 +502,7 @@
   display: inline-flex;
   align-items: center;
   margin-left: 0.18rem;
-  color: rgba(15, 118, 110, 0.92);
+  color: var(--graph-text);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.16rem;
@@ -366,37 +510,37 @@
 }
 
 .global-graph-current-link:hover {
-  color: rgba(13, 148, 136, 1);
+  color: var(--graph-text);
 }
 
 [data-theme="dark"] .global-graph-current-link {
-  color: rgba(165, 243, 252, 0.92);
+  color: var(--graph-text);
 }
 
 [data-theme="dark"] .global-graph-current-link:hover {
-  color: rgba(207, 250, 254, 1);
+  color: var(--graph-text);
 }
 
 .global-graph-drag-hint {
   display: inline-flex;
   align-items: center;
-  padding: 0.32rem 0.62rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(15, 118, 110, 0.14);
-  background: rgba(255, 255, 255, 0.82);
-  color: rgba(15, 118, 110, 0.88);
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  color: var(--graph-text-soft);
 }
 
 [data-theme="dark"] .global-graph-drag-hint {
-  border: 1px solid rgba(103, 232, 249, 0.16);
-  background: rgba(15, 23, 42, 0.46);
-  color: rgba(165, 243, 252, 0.88);
+  border: 0;
+  background: transparent;
+  color: var(--graph-text-soft);
 }
 
 .global-graph-tree-shell {
   max-height: 30rem;
   overflow: auto;
-  padding: 0.8rem 0.8rem 1rem;
+  padding: 0.2rem 0.1rem 1rem;
 }
 
 .global-graph-tree {
@@ -408,19 +552,13 @@
 .graph-tree-children {
   list-style: none;
   margin: 0.12rem 0 0;
-  margin-left: 0.82rem;
-  padding: 0.1rem 0 0.1rem 0.95rem;
+  margin-left: 0.7rem;
+  padding: 0.1rem 0 0.1rem 0.65rem;
   position: relative;
 }
 
 .graph-tree-children::before {
-  content: "";
-  position: absolute;
-  left: 0.18rem;
-  top: 0.1rem;
-  bottom: 0.3rem;
-  width: 1px;
-  background: rgba(148, 163, 184, 0.22);
+  content: none;
 }
 
 .graph-tree-item + .graph-tree-item {
@@ -428,7 +566,7 @@
 }
 
 [data-theme="dark"] .graph-tree-children::before {
-  background: rgba(148, 163, 184, 0.16);
+  background: transparent;
 }
 
 .graph-tree-group {
@@ -450,18 +588,17 @@
 }
 
 .graph-tree-disclosure {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  color: rgba(100, 116, 139, 0.72);
-  background: rgba(255, 255, 255, 0.58);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  transition: transform 0.2s ease, color 0.2s ease, background-color 0.2s ease,
-    border-color 0.2s ease;
+  color: var(--graph-text-soft);
+  background: transparent;
+  border: 0;
+  transition: transform 0.2s ease, color 0.2s ease;
 }
 
 .graph-tree-disclosure svg {
@@ -471,22 +608,22 @@
 }
 
 .graph-tree-group[open] > .graph-tree-summary .graph-tree-disclosure {
-  color: rgba(15, 118, 110, 0.9);
-  background: rgba(255, 255, 255, 0.84);
-  border-color: rgba(15, 118, 110, 0.12);
+  color: var(--graph-text);
+  background: transparent;
+  border-color: transparent;
   transform: rotate(90deg);
 }
 
 [data-theme="dark"] .graph-tree-disclosure {
-  color: rgba(148, 163, 184, 0.8);
-  background: rgba(15, 23, 42, 0.52);
-  border-color: rgba(148, 163, 184, 0.1);
+  color: var(--graph-text-soft);
+  background: transparent;
+  border-color: transparent;
 }
 
 [data-theme="dark"] .graph-tree-group[open] > .graph-tree-summary .graph-tree-disclosure {
-  color: rgba(165, 243, 252, 0.92);
-  background: rgba(8, 18, 34, 0.92);
-  border-color: rgba(103, 232, 249, 0.14);
+  color: var(--graph-text);
+  background: transparent;
+  border-color: transparent;
 }
 
 .graph-tree-link {
@@ -495,62 +632,62 @@
   gap: 0.55rem;
   min-width: 0;
   flex: 1;
-  padding: 0.56rem 0.72rem 0.56rem 0.68rem;
-  border-radius: 0.9rem;
-  color: rgba(51, 65, 85, 0.84);
+  padding: 0.42rem 0.2rem;
+  border-radius: 0;
+  color: var(--graph-text-soft);
   text-decoration: none;
-  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease,
-    border-color 0.2s ease;
-  border: 1px solid transparent;
+  transition: color 0.2s ease;
+  border: 0;
   position: relative;
 }
 
 .graph-tree-item:not(.graph-tree-item-top) > .graph-tree-link::before,
 .graph-tree-item-section > .graph-tree-group > .graph-tree-summary > .graph-tree-link::before {
-  content: "";
-  position: absolute;
-  left: -0.66rem;
-  top: 50%;
-  width: 0.55rem;
-  height: 1px;
-  background: rgba(148, 163, 184, 0.2);
+  content: "/";
+  position: static;
+  width: auto;
+  height: auto;
+  color: var(--graph-text-soft);
+  background: transparent;
 }
 
 [data-theme="dark"] .graph-tree-item:not(.graph-tree-item-top) > .graph-tree-link::before,
 [data-theme="dark"] .graph-tree-item-section > .graph-tree-group > .graph-tree-summary > .graph-tree-link::before {
-  background: rgba(148, 163, 184, 0.14);
+  color: var(--graph-text-soft);
+  background: transparent;
 }
 
 .graph-tree-link:hover {
-  background: rgba(255, 255, 255, 0.88);
-  border-color: rgba(15, 118, 110, 0.12);
-  color: rgba(15, 23, 42, 0.96);
-  transform: translateX(2px);
+  background: transparent;
+  border-color: transparent;
+  color: var(--graph-text);
+  transform: none;
 }
 
 [data-theme="dark"] .graph-tree-link {
-  color: rgba(226, 232, 240, 0.8);
+  color: var(--graph-text-soft);
 }
 
 [data-theme="dark"] .graph-tree-link:hover {
-  background: rgba(15, 23, 42, 0.72);
-  border-color: rgba(103, 232, 249, 0.12);
-  color: rgba(236, 254, 255, 0.96);
+  background: transparent;
+  border-color: transparent;
+  color: var(--graph-text);
 }
 
 .graph-tree-link.is-current {
-  background:
-    linear-gradient(90deg, rgba(13, 148, 136, 0.12), rgba(15, 118, 110, 0.03));
-  border-color: rgba(15, 118, 110, 0.14);
-  color: rgba(15, 23, 42, 0.98);
+  background: transparent;
+  border-color: transparent;
+  color: var(--graph-text);
   font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2rem;
 }
 
 [data-theme="dark"] .graph-tree-link.is-current {
-  background:
-    linear-gradient(90deg, rgba(34, 211, 238, 0.12), rgba(14, 165, 233, 0.04));
-  border-color: rgba(103, 232, 249, 0.16);
-  color: #ecfeff;
+  background: transparent;
+  border-color: transparent;
+  color: var(--graph-text);
 }
 
 .graph-tree-item-marker {
@@ -564,58 +701,47 @@
 
 .graph-tree-item-marker-section {
   border-radius: 0.28rem;
-  background:
-    linear-gradient(180deg, rgba(15, 118, 110, 0.16), rgba(13, 148, 136, 0.08));
-  border: 1px solid rgba(15, 118, 110, 0.14);
+  background: rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.14);
 }
 
 [data-theme="dark"] .graph-tree-item-marker-section {
-  background:
-    linear-gradient(180deg, rgba(34, 211, 238, 0.16), rgba(14, 165, 233, 0.08));
-  border: 1px solid rgba(103, 232, 249, 0.14);
+  background: rgba(248, 250, 252, 0.08);
+  border: 1px solid rgba(248, 250, 252, 0.14);
 }
 
 .graph-tree-item-section.is-active > .graph-tree-group > .graph-tree-summary .graph-tree-count {
-  color: rgba(15, 118, 110, 0.96);
-  background: rgba(13, 148, 136, 0.1);
+  color: var(--graph-text);
+  background: transparent;
 }
 
 [data-theme="dark"] .graph-tree-item-section.is-active > .graph-tree-group > .graph-tree-summary .graph-tree-count {
-  color: #cffafe;
-  background: rgba(34, 211, 238, 0.12);
+  color: var(--graph-text);
+  background: transparent;
 }
 
 .graph-tree-count {
   flex-shrink: 0;
-  min-width: 1.6rem;
-  height: 1.6rem;
+  min-width: 1.8rem;
+  height: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9999px;
   font-size: 0.72rem;
-  color: rgba(100, 116, 139, 0.86);
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  color: var(--graph-text-soft);
+  background: transparent;
+  border: 0;
+}
+
+.graph-tree-count::before {
+  content: "/";
+  margin-right: 0.18rem;
 }
 
 [data-theme="dark"] .graph-tree-count {
-  color: rgba(148, 163, 184, 0.86);
-  background: rgba(15, 23, 42, 0.74);
-  border: 1px solid rgba(148, 163, 184, 0.08);
-}
-
-.graph-tree-dot {
-  width: 0.42rem;
-  height: 0.42rem;
-  flex-shrink: 0;
-  border-radius: 9999px;
-  background: color-mix(in oklab, var(--color-primary-500) 72%, white);
-  box-shadow: 0 0 0 0.18rem rgba(59, 130, 246, 0.08);
-}
-
-[data-theme="dark"] .graph-tree-dot {
-  box-shadow: 0 0 0 0.18rem rgba(96, 165, 250, 0.08);
+  color: var(--graph-text-soft);
+  background: transparent;
+  border: 0;
 }
 
 .graph-tree-label {
@@ -628,44 +754,42 @@
 .graph-tree-top-label {
   padding: 0.35rem 0.7rem;
   font-size: 0.78rem;
-  color: rgba(100, 116, 139, 0.86);
+  color: var(--graph-text-soft);
 }
 
 .graph-tree-empty {
   padding: 0.4rem 0.8rem 0.6rem 1.2rem;
   font-size: 0.78rem;
-  color: rgba(100, 116, 139, 0.82);
+  color: var(--graph-text-soft);
 }
 
 [data-theme="dark"] .graph-tree-top-label,
 [data-theme="dark"] .graph-tree-empty {
-  color: rgba(148, 163, 184, 0.84);
+  color: var(--graph-text-soft);
 }
 
 .global-graph-stage {
   padding: 0 0 1rem;
-  background: rgba(247, 249, 251, 0.62);
+  background: transparent;
 }
 
 [data-theme="dark"] .global-graph-stage {
-  background: rgba(3, 8, 18, 0.86);
+  background: transparent;
 }
 
 .global-graph-stage-canvas {
   position: relative;
   isolation: isolate;
   min-height: 31rem;
-  margin: 0.85rem 1rem 0;
+  margin: 0.55rem 0 0;
   overflow: hidden;
-  border-radius: 1.15rem;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background:
-    linear-gradient(180deg, rgba(252, 253, 253, 0.98), rgba(246, 249, 251, 0.99));
+  border-radius: 0;
+  border: 0;
+  background: transparent;
 }
 
 [data-theme="dark"] .global-graph-stage-canvas {
-  background:
-    linear-gradient(180deg, rgba(4, 9, 19, 0.985), rgba(2, 7, 16, 0.992));
+  background: transparent;
 }
 
 .global-graph-stage-canvas::before,
@@ -677,18 +801,13 @@
 }
 
 .global-graph-stage-canvas::before {
-  background:
-    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
-  background-size: 3.25rem 3.25rem;
-  mask-image: linear-gradient(180deg, black, rgba(0, 0, 0, 0.2));
+  background: transparent;
+  mask-image: none;
   z-index: 0;
 }
 
 [data-theme="dark"] .global-graph-stage-canvas::before {
-  background:
-    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background: transparent;
 }
 
 .global-graph-stage-canvas::after {
@@ -732,12 +851,12 @@
   padding: 1.5rem;
   text-align: center;
   font-size: 0.92rem;
-  color: rgba(71, 85, 105, 0.7);
+  color: var(--graph-text-soft);
   pointer-events: none;
 }
 
 [data-theme="dark"] .global-graph-status {
-  color: rgba(226, 232, 240, 0.7);
+  color: var(--graph-text-soft);
 }
 
 .global-graph-tooltip {
@@ -745,22 +864,22 @@
   z-index: 4;
   max-width: 16rem;
   padding: 0.46rem 0.72rem;
-  border-radius: 0.72rem;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  border-radius: 0.35rem;
+  border: 1px solid var(--graph-border);
+  background: #ffffff;
+  box-shadow: none;
   font-size: 0.78rem;
   line-height: 1.45;
-  color: rgba(15, 23, 42, 0.94);
+  color: var(--graph-text);
   pointer-events: none;
-  backdrop-filter: blur(14px);
+  backdrop-filter: none;
 }
 
 [data-theme="dark"] .global-graph-tooltip {
-  border: 1px solid rgba(103, 232, 249, 0.14);
-  background: rgba(3, 8, 18, 0.94);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34);
-  color: rgba(240, 249, 255, 0.94);
+  border: 1px solid var(--graph-border);
+  background: #000000;
+  box-shadow: none;
+  color: var(--graph-text);
 }
 
 .global-graph-label-layer {
@@ -772,13 +891,13 @@
 
 .global-graph-label {
   max-width: 15rem;
-  padding: 0.16rem 0.48rem;
-  border-radius: 9999px;
-  border: 1px solid color-mix(in oklab, var(--node-accent, #67e8f9) 38%, rgba(148, 163, 184, 0.8));
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
-  color: rgba(15, 23, 42, 0.92);
+  padding: 0.08rem 0.22rem;
+  border-radius: 0;
+  border: 0;
+  background: #ffffff;
+  backdrop-filter: none;
+  box-shadow: none;
+  color: var(--graph-text);
   font-size: 0.68rem;
   font-weight: 500;
   letter-spacing: 0.01em;
@@ -786,16 +905,14 @@
   white-space: nowrap;
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.92);
-  transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.18s ease,
-    box-shadow 0.18s ease;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 [data-theme="dark"] .global-graph-label {
-  border: 1px solid color-mix(in oklab, var(--node-accent, #67e8f9) 55%, rgba(15, 23, 42, 0.9));
-  background: rgba(4, 10, 21, 0.88);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02),
-    0 10px 24px rgba(0, 0, 0, 0.34);
-  color: rgba(248, 250, 252, 0.96);
+  border: 0;
+  background: #000000;
+  box-shadow: none;
+  color: var(--graph-text);
 }
 
 .global-graph-label.is-visible {
@@ -804,13 +921,15 @@
 }
 
 .global-graph-label.is-current {
-  border-color: color-mix(in oklab, var(--node-accent, #67e8f9) 78%, white);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 0 0 0.2rem color-mix(in oklab, var(--node-accent, #67e8f9) 12%, transparent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16rem;
 }
 
 .global-graph-label.is-hover {
-  border-color: color-mix(in oklab, var(--node-accent, #67e8f9) 68%, white);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16rem;
 }
 
 .global-graph-label.is-child {
@@ -824,15 +943,15 @@
 }
 
 .global-graph-label-root {
-  background: rgba(30, 41, 59, 0.92);
-  color: rgba(248, 250, 252, 0.98);
-  border-color: rgba(30, 41, 59, 0.22);
+  background: var(--graph-text);
+  color: #ffffff;
+  border-color: transparent;
 }
 
 [data-theme="dark"] .global-graph-label-root {
-  color: rgba(248, 250, 252, 0.98);
-  background: rgba(20, 29, 45, 0.96);
-  border-color: rgba(226, 232, 240, 0.22);
+  color: #000000;
+  background: var(--graph-text);
+  border-color: transparent;
 }
 
 .global-graph-label-section {
@@ -840,24 +959,24 @@
 }
 
 .global-graph-label-article {
-  color: rgba(30, 41, 59, 0.84);
+  color: var(--graph-text-soft);
 }
 
 [data-theme="dark"] .global-graph-label-article {
-  color: rgba(232, 240, 249, 0.92);
+  color: var(--graph-text-soft);
 }
 
 .global-graph-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem 1rem;
-  padding: 0.9rem 1rem 0;
-  color: rgba(100, 116, 139, 0.84);
+  padding: 0.7rem 0 0;
+  color: var(--graph-text-soft);
   font-size: 0.78rem;
 }
 
 [data-theme="dark"] .global-graph-legend {
-  color: rgba(148, 163, 184, 0.8);
+  color: var(--graph-text-soft);
 }
 
 .global-graph-legend span {
@@ -874,30 +993,30 @@
 }
 
 .legend-dot-root {
-  background: #0f172a;
+  background: #050505;
   box-shadow: none;
 }
 
 .legend-dot-section {
-  background: #0f766e;
+  background: rgba(5, 5, 5, 0.72);
   box-shadow: none;
 }
 
 .legend-dot-article {
-  background: #2563eb;
+  background: rgba(5, 5, 5, 0.46);
   box-shadow: none;
 }
 
 [data-theme="dark"] .legend-dot-root {
-  background: #f8fafc;
+  background: #d0ccd0;
 }
 
 [data-theme="dark"] .legend-dot-section {
-  background: #67e8f9;
+  background: rgba(208, 204, 208, 0.72);
 }
 
 [data-theme="dark"] .legend-dot-article {
-  background: #60a5fa;
+  background: rgba(208, 204, 208, 0.46);
 }
 
 @keyframes graph-modal-enter {

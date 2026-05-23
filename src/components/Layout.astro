@@ -17,6 +17,7 @@ interface Props {
   fullBleed?: boolean;
   hideFooter?: boolean;
   headerMode?: "default" | "overlay";
+  backgroundMode?: "default" | "starry";
 }
 
 // 获取完整的 URL
@@ -35,6 +36,7 @@ const {
   fullBleed = false,
   hideFooter = false,
   headerMode = "default",
+  backgroundMode = "default",
 } = Astro.props;
 
 const isCardPreview = previewMode === "card";
@@ -358,16 +360,21 @@ const canonicalHref = rssLink || canonicalURL.toString();
   </head>
   <body
     class:list={[
-      "m-0 w-full h-full bg-gray-50 dark:bg-dark-bg flex flex-col min-h-screen",
+      "m-0 w-full h-full bg-page-base flex flex-col min-h-screen",
       {
         "article-card-preview-body": isCardPreview,
+        "site-monochrome-page": !useOverlayHeader && !isCardPreview,
+        "layout-article-page": pageType === "article",
+        "layout-directory-page": pageType === "directory",
         "layout-overlay-header": useOverlayHeader,
         "layout-full-bleed": fullBleed,
+        "layout-bg-starry": backgroundMode === "starry",
       },
     ]}
   >
     {!isCardPreview && <Header />}
     <main
+      data-layout-background={backgroundMode}
       class:list={[
         "grow w-full",
         isCardPreview
@@ -383,6 +390,6 @@ const canonicalHref = rssLink || canonicalURL.toString();
       {!skipSrTitle && <h1 class="sr-only">{title}</h1>}
       <slot />
     </main>
-    {!isCardPreview && !hideFooter && <Footer />}
+    {!isCardPreview && <Footer isHidden={hideFooter} />}
   </body>
 </html>

@@ -112,11 +112,35 @@ function hideLoadingSpinner(spinner) {
 
 // 根据当前路径同步首页专属的 body class
 // (home page 走 overlay header + full-bleed；其他页面不能带这些 class)
-function syncHomeBodyClasses() {
+function isHomePath() {
   const path = window.location.pathname;
-  const isHome = path === '/' || path === '';
+  return path === '/' || path === '';
+}
+
+function syncHomeBodyClasses() {
+  const isHome = isHomePath();
   document.body.classList.toggle('layout-overlay-header', isHome);
   document.body.classList.toggle('layout-full-bleed', isHome);
+}
+
+function syncLayoutFooterVisibility() {
+  const footer = document.querySelector('[data-layout-footer]');
+  if (!footer) return;
+
+  const hideFooter = isHomePath();
+  footer.hidden = hideFooter;
+  footer.classList.toggle('hidden', hideFooter);
+  footer.setAttribute('data-layout-footer-hidden', hideFooter ? 'true' : 'false');
+  footer.setAttribute('aria-hidden', hideFooter ? 'true' : 'false');
+}
+
+// Swup only replaces page containers, so body-level layout classes need syncing.
+function syncLayoutBodyClasses() {
+  const mainElement = document.querySelector('main[data-layout-background]');
+  const backgroundMode = mainElement?.getAttribute('data-layout-background') || 'default';
+  syncHomeBodyClasses();
+  syncLayoutFooterVisibility();
+  document.body.classList.toggle('layout-bg-starry', backgroundMode === 'starry');
 }
 
 // 检查是否是文章相关页面
@@ -334,6 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 初始化时设置
   setupTransition();
+  syncLayoutBodyClasses();
 
   
   // 1. 访问开始 - 显示加载动画，准备页面退出
@@ -398,6 +423,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   swup.hooks.on('content:replace', () => {
+    syncLayoutBodyClasses();
+
     // 重新设置过渡样式，但不要立即隐藏加载动画
     setTimeout(() => {
       setupTransition();
@@ -433,9 +460,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 最终确保隐藏加载动画
     hideLoadingSpinner(spinner);
 
-    // 同步首页专属的 body class —— swup 不会自动替换 body 属性
-    // 所以每次切页后按路径重新打/卸这些 class
-    syncHomeBodyClasses();
+    // 同步 body 上的页面级 layout class —— swup 不会自动替换 body 属性
+    syncLayoutBodyClasses();
   });
   
   // 加载失败处理

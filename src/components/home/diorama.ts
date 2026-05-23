@@ -103,10 +103,10 @@ const THEMES: Record<ThemeName, Theme> = {
     personSkin: 0xeec8a8,
     personHair: 0x241811,
     personCloth: 0x4a6a8a,
-    screenBg: "#f5f7ff",
-    screenText: "#0f172a",
-    screenMuted: "#64748b",
-    screenAccent: "#4b6bff",
+    screenBg: "#ffffff",
+    screenText: "#050505",
+    screenMuted: "#6f6a6f",
+    screenAccent: "#050505",
     keyTop: 0x2a2a30,
     windowFrame: 0x6b4a32,
     windowSill: 0xa27c54,
@@ -132,10 +132,10 @@ const THEMES: Record<ThemeName, Theme> = {
     personSkin: 0xa88060,
     personHair: 0x100a08,
     personCloth: 0x2a3a5a,
-    screenBg: "#0f172a",
-    screenText: "#e2e8f0",
-    screenMuted: "#94a3b8",
-    screenAccent: "#839dff",
+    screenBg: "#000000",
+    screenText: "#d0ccd0",
+    screenMuted: "#aaa5aa",
+    screenAccent: "#d0ccd0",
     keyTop: 0x0e0e12,
     windowFrame: 0x2a1e14,
     windowSill: 0x3a2a1c,
@@ -1939,8 +1939,10 @@ export function initDiorama() {
 
   const applyHomeState = (progress: number) => {
     const value = progress.toFixed(4);
+    const homeHeaderPhase = getRenderMode(progress) === "story" ? "story" : "room";
     const storyProgress = clamp(progress / STORY_PROGRESS_END);
     docEl.style.setProperty("--home-progress", value);
+    docEl.dataset.homeHeaderPhase = homeHeaderPhase;
     docEl.style.setProperty("--story-progress", storyProgress.toFixed(4));
     docEl.style.setProperty("--story-local", storyProgress.toFixed(4));
     sceneEl?.style.setProperty("--home-progress", value);
@@ -2024,12 +2026,15 @@ export function initDiorama() {
     const overlayDevice = isWideOverlay ? storyInput.device : "mobile";
     const frameIndex = Math.round(clamp(storyInput.progress) * STORY_FRAME_STEPS);
     const cachedProgress = frameIndex / STORY_FRAME_STEPS;
+    const connectorMotionActive = storyInput.progress < 0.22 && !reduceMotion;
+    const cacheMotionKey = connectorMotionActive ? storyInput.motion?.toFixed(2) : "static";
     const sourceW = isWideOverlay ? screenCanvas.width : W;
     const sourceH = isWideOverlay ? screenCanvas.height : H;
     const cacheKey = [
       overlayDevice,
       theme,
       frameIndex,
+      cacheMotionKey,
       sourceW,
       sourceH,
       storyInput.now,
@@ -2079,7 +2084,7 @@ export function initDiorama() {
   };
 
   // Screen canvas drawing
-  const drawScreen = (targets?: { overlay?: boolean; texture?: boolean }) => {
+  const drawScreen = (targets?: { overlay?: boolean; texture?: boolean }, now = performance.now()) => {
     const drawOverlay = targets?.overlay ?? renderMode !== "room";
     const updateTexture = targets?.texture ?? renderMode !== "story";
     const ctx = screenCtx;
@@ -2091,6 +2096,7 @@ export function initDiorama() {
       device: deviceClass,
       theme,
       progress: storyProgress,
+      motion: now * 0.001,
       now: formatNowBeijing(),
       stack: profileRows.stack ?? "Rust · TypeScript",
       contact: profileRows.contact ?? "lsy22@vip.qq.com",
@@ -2449,9 +2455,11 @@ export function initDiorama() {
       canInteractScene = false;
       hovered = null;
       tooltip?.classList.remove("is-visible");
+      const connectorMotionActive = storyProgress < 0.22 && !reduceMotion;
+      if (connectorMotionActive) needScreenRedraw = true;
       if (needScreenRedraw) {
         needScreenRedraw = false;
-        drawScreen({ overlay: true, texture: false });
+        drawScreen({ overlay: true, texture: false }, now);
       }
       rafId = requestAnimationFrame(animate);
       return;
@@ -2615,7 +2623,7 @@ export function initDiorama() {
     }
     if (needScreenRedraw) {
       needScreenRedraw = false;
-      drawScreen();
+      drawScreen(undefined, now);
     }
 
     // TV equalizer — animated every frame (cheap: 15 rounded rects on 640×360 canvas)
@@ -2815,6 +2823,7 @@ export function initDiorama() {
     introBackdropTexture?.dispose();
     renderer.dispose();
     docEl.style.removeProperty("--home-progress");
+    docEl.removeAttribute("data-home-header-phase");
     docEl.style.removeProperty("--scene-opacity");
     docEl.style.removeProperty("--story-opacity");
     docEl.style.removeProperty("--story-progress");

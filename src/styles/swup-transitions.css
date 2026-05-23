@@ -62,7 +62,7 @@ html.is-changing #article-content {
   width: 50px;
   height: 50px;
   border: 3px solid transparent;
-  border-top-color: var(--color-primary-500);
+  border-top-color: var(--site-ink);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   position: relative;
@@ -74,8 +74,8 @@ html.is-changing #article-content {
 
 /* 深色模式下旋转动画颜色 */
 [data-theme='dark'] .loading-spinner {
-  border-top-color: var(--color-primary-400);
-  background-color: rgba(15, 23, 42, 0.8);
+  border-top-color: var(--site-ink);
+  background-color: rgba(0, 0, 0, 0.86);
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
 }
 
@@ -92,7 +92,7 @@ html.is-changing #article-content {
   left: -3px;
   right: -3px;
   bottom: -3px;
-  border-top-color: var(--color-primary-300);
+  border-top-color: var(--site-muted);
   animation: spin 1.5s linear infinite;
 }
 
@@ -101,17 +101,17 @@ html.is-changing #article-content {
   left: 6px;
   right: 6px;
   bottom: 6px;
-  border-top-color: var(--color-primary-600);
+  border-top-color: var(--site-line-strong);
   animation: spin 0.75s linear infinite;
 }
 
 /* 深色模式下的内外圈颜色 */
 [data-theme='dark'] .loading-spinner:before {
-  border-top-color: var(--color-primary-200);
+  border-top-color: var(--site-muted);
 }
 
 [data-theme='dark'] .loading-spinner:after {
-  border-top-color: var(--color-primary-500);
+  border-top-color: var(--site-line-strong);
 }
 
 /* 旋转动画 */

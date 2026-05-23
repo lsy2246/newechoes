@@ -5,6 +5,7 @@ type StoryInput = {
   device: HomeScreenStoryDevice;
   theme: HomeScreenStoryTheme;
   progress: number;
+  motion?: number;
   now: string;
   stack: string;
   contact: string;
@@ -29,38 +30,50 @@ type Palette = {
   quiet: string;
   accent: string;
   accentSoft: string;
+  aiAccent: string;
+  aiAccentSoft: string;
+  aiLine: string;
+  aiFlow: string;
   line: string;
   shadow: string;
 };
 
 const PALETTES: Record<HomeScreenStoryTheme, Palette> = {
   light: {
-    bg: "#f5f7ff",
-    bg2: "#eef2ff",
-    paper: "rgba(255, 255, 255, 0.9)",
-    paperStrong: "rgba(255, 255, 255, 0.94)",
-    soft: "rgba(248, 250, 252, 0.86)",
-    text: "#0f172a",
-    muted: "#475569",
-    quiet: "rgba(71, 85, 105, 0.42)",
-    accent: "#4b6bff",
-    accentSoft: "rgba(75, 107, 255, 0.12)",
-    line: "rgba(75, 107, 255, 0.19)",
-    shadow: "rgba(37, 65, 183, 0.12)",
+    bg: "#ffffff",
+    bg2: "#fbfbfb",
+    paper: "rgba(5, 5, 5, 0.025)",
+    paperStrong: "rgba(5, 5, 5, 0.045)",
+    soft: "rgba(5, 5, 5, 0.035)",
+    text: "#050505",
+    muted: "rgba(5, 5, 5, 0.58)",
+    quiet: "rgba(5, 5, 5, 0.34)",
+    accent: "#050505",
+    accentSoft: "rgba(5, 5, 5, 0.07)",
+    aiAccent: "#6f5fa6",
+    aiAccentSoft: "rgba(111, 95, 166, 0.11)",
+    aiLine: "rgba(111, 95, 166, 0.34)",
+    aiFlow: "rgba(111, 95, 166, 0.58)",
+    line: "rgba(5, 5, 5, 0.14)",
+    shadow: "rgba(5, 5, 5, 0.06)",
   },
   dark: {
-    bg: "#0f172a",
-    bg2: "#111827",
-    paper: "rgba(30, 41, 59, 0.86)",
-    paperStrong: "rgba(30, 41, 59, 0.96)",
-    soft: "rgba(51, 65, 85, 0.68)",
-    text: "#f1f5ff",
-    muted: "#cbd5e1",
-    quiet: "rgba(203, 213, 225, 0.62)",
-    accent: "#91a7ff",
-    accentSoft: "rgba(91, 124, 255, 0.22)",
-    line: "rgba(129, 150, 255, 0.26)",
-    shadow: "rgba(0, 0, 0, 0.36)",
+    bg: "#000000",
+    bg2: "#000000",
+    paper: "rgba(159, 154, 159, 0.045)",
+    paperStrong: "rgba(159, 154, 159, 0.075)",
+    soft: "rgba(159, 154, 159, 0.06)",
+    text: "#aaa5aa",
+    muted: "rgba(159, 154, 159, 0.68)",
+    quiet: "rgba(159, 154, 159, 0.48)",
+    accent: "#d0ccd0",
+    accentSoft: "rgba(208, 204, 208, 0.11)",
+    aiAccent: "#b8aadf",
+    aiAccentSoft: "rgba(184, 170, 223, 0.15)",
+    aiLine: "rgba(184, 170, 223, 0.36)",
+    aiFlow: "rgba(184, 170, 223, 0.62)",
+    line: "rgba(159, 154, 159, 0.18)",
+    shadow: "rgba(0, 0, 0, 0.32)",
   },
 };
 
@@ -197,56 +210,34 @@ const layoutFor = (device: HomeScreenStoryDevice, width: number, height: number)
   };
 };
 
-const drawBackground = (ctx: CanvasRenderingContext2D, palette: Palette, progress: number) => {
+const drawEditorialGuide = (
+  ctx: CanvasRenderingContext2D,
+  palette: Palette,
+  progress: number,
+) => {
   const { width, height } = ctx.canvas;
-  const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, palette.bg2);
-  bg.addColorStop(0.58, palette.bg);
-  bg.addColorStop(1, palette.bg2);
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
-
-  const orbA = ctx.createRadialGradient(width * 0.18, height * 0.15, 0, width * 0.18, height * 0.15, width * 0.28);
-  orbA.addColorStop(0, palette.accentSoft);
-  orbA.addColorStop(1, "rgba(75, 107, 255, 0)");
-  ctx.fillStyle = orbA;
-  ctx.fillRect(0, 0, width, height);
-
-  const orbB = ctx.createRadialGradient(width * 0.78, height * 0.2, 0, width * 0.78, height * 0.2, width * 0.26);
-  orbB.addColorStop(0, palette.line);
-  orbB.addColorStop(1, "rgba(148, 163, 184, 0)");
-  ctx.fillStyle = orbB;
-  ctx.fillRect(0, 0, width, height);
-
+  const offset = progress * height * 0.018;
+  const centerX = width * 0.5;
+  const centerY = height * 0.5;
+  const mark = Math.min(width, height) * 0.042;
   ctx.save();
-  ctx.translate(-progress * 84, -progress * 46);
   ctx.strokeStyle = palette.line;
+  ctx.globalAlpha = 0.18;
   ctx.lineWidth = 1;
-  const grid = Math.max(34, Math.round(width / 76));
-  for (let x = -grid; x < width + grid * 3; x += grid) {
-    ctx.beginPath();
-    ctx.moveTo(x, -grid);
-    ctx.lineTo(x, height + grid * 2);
-    ctx.stroke();
-  }
-  for (let y = -grid; y < height + grid * 3; y += grid) {
-    ctx.beginPath();
-    ctx.moveTo(-grid, y);
-    ctx.lineTo(width + grid * 2, y);
-    ctx.stroke();
-  }
+  ctx.beginPath();
+  ctx.moveTo(centerX - mark * 2.8, centerY + mark * 2.2 - offset);
+  ctx.lineTo(centerX - mark * 1.4, centerY + mark * 2.2 - offset);
+  ctx.moveTo(centerX + mark * 1.4, centerY - mark * 2.2 + offset * 0.4);
+  ctx.lineTo(centerX + mark * 2.8, centerY - mark * 2.2 + offset * 0.4);
+  ctx.stroke();
   ctx.restore();
 };
 
-const drawChip = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, palette: Palette, active = false) => {
-  ctx.save();
-  ctx.font = "700 19px 'JetBrains Mono', monospace";
-  const w = ctx.measureText(text).width + 34;
-  rounded(ctx, { x, y, w, h: 42 }, 21, active ? palette.accentSoft : palette.soft, active ? palette.line : "rgba(148, 163, 184, 0.14)");
-  ctx.fillStyle = active ? palette.accent : palette.muted;
-  ctx.fillText(text, x + 17, y + 28);
-  ctx.restore();
-  return w;
+const drawBackground = (ctx: CanvasRenderingContext2D, palette: Palette, progress: number) => {
+  const { width, height } = ctx.canvas;
+  ctx.fillStyle = palette.bg;
+  ctx.fillRect(0, 0, width, height);
+  drawEditorialGuide(ctx, palette, progress);
 };
 
 const drawCard = (
@@ -327,30 +318,54 @@ const drawConnector = (
   ctx.restore();
 };
 
-const drawIntro = (ctx: CanvasRenderingContext2D, palette: Palette, progress: number, device: HomeScreenStoryDevice) => {
-  const { width, height } = ctx.canvas;
-  const alpha = 1 - phase(progress, 0.11, 0.25);
-  withAlpha(ctx, alpha, () => {
-    ctx.save();
-    ctx.translate(width / 2, height * (device === "mobile" ? 0.32 : 0.45) - phase(progress, 0, 0.22) * height * 0.06);
-    ctx.fillStyle = palette.text;
-    ctx.textAlign = "center";
-    ctx.font = `500 ${device === "mobile" ? width * 0.26 : width * 0.13}px 'Fraunces', 'Noto Serif SC', serif`;
-    ctx.fillText("lsy", 0, 0);
-    ctx.font = `500 ${device === "mobile" ? 22 : 24}px 'JetBrains Mono', monospace`;
-    ctx.fillStyle = palette.muted;
-    ctx.fillText("today in echoes", 0, device === "mobile" ? 52 : 68);
-    ctx.restore();
+const introTone = (theme: HomeScreenStoryTheme) => ({
+  bg: theme === "dark" ? "#000000" : "#ffffff",
+  ink: theme === "dark" ? "#aaa5aa" : "#050505",
+  muted: theme === "dark" ? "rgba(159, 154, 159, 0.62)" : "rgba(5, 5, 5, 0.52)",
+  quiet: theme === "dark" ? "rgba(159, 154, 159, 0.28)" : "rgba(5, 5, 5, 0.18)",
+  signal: theme === "dark" ? "#d0ccd0" : "#050505",
+});
 
-    const tags = ["AI", "Web", "Rust", "Film", "Travel", "Books"];
-    tags.forEach((tag, index) => {
-      const angle = (Math.PI * 2 * index) / tags.length + progress * 0.7;
-      const radiusX = device === "mobile" ? width * 0.32 : width * 0.28;
-      const radiusY = device === "mobile" ? height * 0.2 : height * 0.24;
-      const x = width / 2 + Math.cos(angle) * radiusX - 46;
-      const y = height * (device === "mobile" ? 0.35 : 0.45) + Math.sin(angle) * radiusY;
-      drawChip(ctx, tag, x, y, palette, index === 0);
-    });
+const drawIntroCover = (
+  ctx: CanvasRenderingContext2D,
+  theme: HomeScreenStoryTheme,
+  alpha: number,
+) => {
+  const { width, height } = ctx.canvas;
+  const tone = introTone(theme);
+  withAlpha(ctx, alpha, () => {
+    ctx.fillStyle = tone.bg;
+    ctx.fillRect(0, 0, width, height);
+  });
+};
+
+const drawIntro = (
+  ctx: CanvasRenderingContext2D,
+  progress: number,
+  device: HomeScreenStoryDevice,
+  theme: HomeScreenStoryTheme,
+) => {
+  const { width, height } = ctx.canvas;
+  const alpha = 1 - phase(progress, device === "mobile" ? 0.2 : 0.08, device === "mobile" ? 0.34 : 0.2);
+  const settle = phase(progress, 0, device === "mobile" ? 0.24 : 0.18);
+  const tone = introTone(theme);
+  drawIntroCover(ctx, theme, alpha);
+
+  withAlpha(ctx, alpha, () => {
+    const titleY = height * (device === "mobile" ? 0.34 : 0.48) - settle * height * (device === "mobile" ? 0.035 : 0.05);
+    const titleSize = device === "mobile" ? width * 0.25 : Math.min(width * 0.12, 184);
+    const kickerSize = device === "mobile" ? 18 : 24;
+
+    ctx.save();
+    ctx.translate(width / 2, titleY);
+    ctx.fillStyle = tone.ink;
+    ctx.textAlign = "center";
+    ctx.font = `500 ${titleSize}px 'Fraunces', 'Noto Serif SC', serif`;
+    ctx.fillText("lsy", 0, 0);
+    ctx.font = `700 ${kickerSize}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = tone.muted;
+    ctx.fillText("today in echoes", 0, device === "mobile" ? 50 : 68);
+    ctx.restore();
   });
 };
 
@@ -371,10 +386,6 @@ const drawMobileStory = (
   const titleSize = clamp(width * 0.125, 140, 184);
   const bodySize = clamp(width * 0.045, 50, 68);
   const smallSize = clamp(width * 0.034, 38, 50);
-  const radius = 30 * unit;
-  const hairline = input.theme === "dark" ? "rgba(148, 163, 184, 0.24)" : "rgba(148, 163, 184, 0.14)";
-  const glass = input.theme === "dark" ? "rgba(30, 41, 59, 0.72)" : "rgba(255, 255, 255, 0.56)";
-  const slotFill = input.theme === "dark" ? "rgba(51, 65, 85, 0.48)" : "rgba(255, 255, 255, 0.22)";
 
   const text = (
     value: string,
@@ -439,15 +450,6 @@ const drawMobileStory = (
     return fitted;
   };
 
-  const clipRounded = (rect: Rect, clipRadius: number, draw: () => void) => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, clipRadius);
-    ctx.clip();
-    draw();
-    ctx.restore();
-  };
-
   const textFit = (
     value: string,
     x: number,
@@ -462,27 +464,98 @@ const drawMobileStory = (
     text(value, x, y, fitSize(value, maxWidth, size, minSize, font, weight), color, font, weight);
   };
 
-  const mobileCard = (rect: Rect, label: string, title: string, lines: string[], active = false) => {
-    rounded(ctx, rect, radius, active ? palette.accentSoft : palette.paper, active ? palette.line : hairline, palette.shadow);
-    const pad = Math.max(24 * unit, rect.w * 0.062);
-    text(label, rect.x + pad, rect.y + pad + 6 * unit, smallSize, palette.muted, "'JetBrains Mono', monospace", 700);
-    text(title, rect.x + pad, rect.y + rect.h * 0.5, Math.min(titleSize * 0.78, rect.w * 0.112), palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-    lines.forEach((line, index) => {
-      text(line, rect.x + pad, rect.y + rect.h * 0.7 + index * bodySize * 1.18, smallSize * 0.95, palette.muted, "'JetBrains Mono', monospace", 600);
+  const clipRect = (rect: Rect, draw: () => void) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+    draw();
+    ctx.restore();
+  };
+
+  const activeInk = (active: boolean, aiSignal = false) => active ? (aiSignal ? palette.aiAccent : palette.accent) : palette.muted;
+
+  const drawMobileRule = (x: number, y: number, w: number, active = false, aiSignal = false) => {
+    ctx.save();
+    ctx.strokeStyle = active ? activeInk(true, aiSignal) : palette.line;
+    ctx.globalAlpha *= active ? 0.78 : 0.62;
+    ctx.lineWidth = active ? 1.4 * unit : 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  const introHeroY = height * 0.43;
+  const introSlotTop = safe.y + 82 * unit;
+  const introSlotGap = 18 * unit;
+  const introSlotW = (safe.w - introSlotGap) / 2;
+  const introSlotH = 52 * unit;
+  const introSlotRowGap = 118 * unit;
+  const mobileIntroSlots = [
+    { x: safe.x, y: introSlotTop, w: introSlotW, h: introSlotH },
+    { x: safe.x + introSlotW + introSlotGap, y: introSlotTop + 12 * unit, w: introSlotW, h: introSlotH },
+    { x: safe.x, y: introSlotTop + introSlotRowGap, w: introSlotW, h: introSlotH },
+    { x: safe.x + introSlotW + introSlotGap, y: introSlotTop + introSlotRowGap + 12 * unit, w: introSlotW, h: introSlotH },
+    { x: safe.x, y: introSlotTop + introSlotRowGap * 2, w: introSlotW, h: introSlotH },
+    { x: safe.x + introSlotW + introSlotGap, y: introSlotTop + introSlotRowGap * 2 + 12 * unit, w: introSlotW, h: introSlotH },
+  ];
+
+  const drawMobileChapterTitle = (chapter: string, amount: number) => {
+    const heroSize = width * 0.25;
+    const titleFont = "'Fraunces', 'Noto Serif SC', serif";
+    const startX = width / 2 - measure("lsy", heroSize, titleFont, 500) / 2;
+    const startY = introHeroY;
+    const endX = safe.x;
+    const endY = safe.y;
+    const size = lerp(heroSize, smallSize * 1.08, amount);
+    const x = lerp(startX, endX, amount);
+    const y = lerp(startY, endY, amount);
+    const chapterSize = smallSize * 1.08;
+    const label = ` / ${chapter}`;
+    const labelX = x + measure("lsy", size, titleFont, 500) + 8 * unit;
+    const labelReveal = phase(amount, 0.34, 0.72);
+    const labelW = measure(label, chapterSize, "'JetBrains Mono', monospace", 700);
+
+    text("lsy", x, y, size, palette.text, titleFont, 500);
+    clipRect({ x: labelX, y: y - chapterSize * 1.2, w: labelW * labelReveal, h: chapterSize * 1.7 }, () => {
+      text(label, labelX, y, chapterSize, palette.accent, "'JetBrains Mono', monospace", 700);
     });
   };
 
-  const mobileChip = (value: string, x: number, y: number, active = false, maxWidth = Infinity) => {
-    ctx.save();
-    const chipTextSize = fitSize(value, maxWidth - 28 * unit, smallSize * 0.9, smallSize * 0.68, "'JetBrains Mono', monospace", 700);
-    ctx.font = `700 ${chipTextSize}px 'JetBrains Mono', monospace`;
-    const chipW = Math.min(ctx.measureText(value).width + 28 * unit, maxWidth);
-    const chipH = 32 * unit;
-    rounded(ctx, { x, y, w: chipW, h: chipH }, chipH / 2, active ? palette.accentSoft : palette.soft, active ? palette.line : hairline);
-    ctx.fillStyle = active ? palette.accent : palette.muted;
-    ctx.fillText(value, x + 14 * unit, y + 21 * unit);
-    ctx.restore();
-    return chipW;
+  const drawMobileIntroMaterial = (rect: Rect, item: (typeof STORY_MATERIALS)[number], index: number, amount: number) => {
+    const pad = lerp(0, 10 * unit, amount);
+    const ruleY = rect.y + lerp(2 * unit, 8 * unit, amount);
+    const ruleW = lerp(44 * unit, Math.min(rect.w * 0.34, 70 * unit), amount);
+    const numberW = lerp(0, 42 * unit, phase(amount, 0.28, 0.62));
+    const titleSize = fitSize(item.tag, rect.w - pad * 2 - numberW, lerp(13 * unit, bodySize * 0.72, amount), 11 * unit, "'JetBrains Mono', monospace", 700);
+    const bodyReveal = phase(amount, 0.52, 0.9);
+
+    clipRect({ x: rect.x - 3 * unit, y: rect.y - 6 * unit, w: rect.w + 6 * unit, h: rect.h + 12 * unit }, () => {
+      drawMobileRule(rect.x + pad, ruleY, ruleW, item.active, item.active);
+      if (item.active) {
+        ctx.save();
+        ctx.fillStyle = palette.aiAccent;
+        ctx.beginPath();
+        ctx.arc(rect.x + pad + ruleW + 10 * unit, ruleY, 3.6 * unit, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      if (amount > 0.2) {
+        text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 34 * unit, smallSize * 0.56, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+      }
+      textFit(item.tag, rect.x + pad + numberW, rect.y + lerp(34 * unit, 35 * unit, amount), titleSize, rect.w - pad * 2 - numberW, item.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700, 10.5 * unit);
+
+      if (bodyReveal > 0.01) {
+        clipRect({ x: rect.x, y: rect.y + rect.h - 26 * unit, w: rect.w, h: 20 * unit * bodyReveal }, () => {
+          wrapText(item.body, rect.w - pad * 2, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+            text(line, rect.x + pad, rect.y + rect.h - 14 * unit, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
+          });
+        });
+      }
+    });
   };
 
   type MobileInputCard = {
@@ -493,60 +566,144 @@ const drawMobileStory = (
     group: 0 | 1 | 2;
   };
 
-  const drawMobileInputCard = (
+  const drawMobileEditorialInput = (
     rect: Rect,
     item: MobileInputCard,
     toMethod: number,
+    index: number,
   ) => {
-    const r = lerp(radius * 0.72, radius * 0.42, toMethod);
-    rounded(ctx, rect, r, item.active ? palette.accentSoft : palette.paper, item.active ? palette.line : hairline, palette.shadow);
-    const pad = lerp(18 * unit, 13 * unit, toMethod);
-    const lane = STORY_TRACKS[item.group];
+    const pad = lerp(10 * unit, 4 * unit, toMethod);
     const maxWidth = rect.w - pad * 2;
-    const title = toMethod < 0.58 ? item.title : lane.label;
-    const meta = toMethod < 0.58 ? item.meta : lane.title;
-    const showMeta = rect.h > 70 * unit;
-    clipRounded(rect, r, () => {
-      textFit(item.label, rect.x + pad, rect.y + 23 * unit, smallSize * lerp(0.82, 0.66, toMethod), maxWidth, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.56);
-      textFit(title, rect.x + pad, rect.y + (showMeta ? 52 * unit : 45 * unit), lerp(bodySize * 0.86, bodySize * 0.72, toMethod), maxWidth, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.52);
-      if (showMeta) {
-        wrapText(meta, maxWidth, smallSize * lerp(0.66, 0.58, toMethod), "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
-          text(line, rect.x + pad, rect.y + rect.h - 14 * unit, smallSize * lerp(0.66, 0.58, toMethod), palette.muted, "'JetBrains Mono', monospace", 600);
+    const indexText = String(index + 1).padStart(2, "0");
+    const clip: Rect = {
+      x: rect.x - 8 * unit,
+      y: rect.y - 12 * unit,
+      w: rect.w + 16 * unit,
+      h: rect.h + 24 * unit,
+    };
+
+    clipRect(clip, () => {
+      drawMobileRule(rect.x + pad, rect.y + 8 * unit, lerp(34 * unit, 56 * unit, toMethod), item.active, item.active);
+      if (item.active) {
+        ctx.save();
+        ctx.fillStyle = palette.aiAccent;
+        ctx.beginPath();
+        ctx.arc(rect.x + pad + 46 * unit, rect.y + 8 * unit, 3.8 * unit, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      text(indexText, rect.x + pad, rect.y + 33 * unit, smallSize * 0.56, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+      textFit(
+        item.title,
+        rect.x + pad + 42 * unit,
+        rect.y + 34 * unit,
+        lerp(bodySize * 0.72, bodySize * 0.58, toMethod),
+        maxWidth - 42 * unit,
+        item.active ? palette.aiAccent : palette.text,
+        "'Fraunces', 'Noto Serif SC', serif",
+        600,
+        bodySize * 0.48,
+      );
+
+      if (rect.h > 62 * unit) {
+        const metaSize = smallSize * lerp(0.62, 0.54, toMethod);
+        wrapText(item.meta, maxWidth, metaSize, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+          text(line, rect.x + pad, rect.y + rect.h - 14 * unit, metaSize, palette.muted, "'JetBrains Mono', monospace", 600);
         });
       }
     });
   };
 
-  const rowCard = (rect: Rect, label: string, title: string, body: string, index: number) => {
-    rounded(ctx, rect, radius * 0.7, palette.paper, hairline, palette.shadow);
-    const pad = 22 * unit;
+  const drawMobileClassifyTrack = (
+    rect: Rect,
+    track: (typeof STORY_TRACKS)[number],
+    index: number,
+    amount: number,
+  ) => {
+    const pad = 8 * unit;
     const maxWidth = rect.w - pad * 2;
-    clipRounded(rect, radius * 0.7, () => {
-      text(`0${index}`, rect.x + pad, rect.y + 34 * unit, smallSize * 0.74, palette.accent, "'JetBrains Mono', monospace", 700);
-      textFit(label, rect.x + pad + 52 * unit, rect.y + 34 * unit, smallSize * 0.62, maxWidth - 52 * unit, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.5);
-      textFit(title, rect.x + pad, rect.y + 76 * unit, bodySize * 0.78, maxWidth, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.58);
-      const bodyY = Math.min(rect.y + 108 * unit, rect.y + rect.h - 22 * unit);
-      wrapText(body, maxWidth, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
-        text(line, rect.x + pad, bodyY, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
+    const revealH = rect.h * phase(amount, 0.02, 0.72);
+
+    clipRect({ x: rect.x - 8 * unit, y: rect.y - 10 * unit, w: rect.w + 16 * unit, h: revealH + 20 * unit }, () => {
+      drawMobileRule(rect.x + pad, rect.y + 8 * unit, rect.w * 0.28, index === 1, index === 1);
+      text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 36 * unit, smallSize * 0.62, index === 1 ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+      textFit(track.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, index === 1 ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+      textFit(track.title, rect.x + pad, rect.y + 79 * unit, bodySize * 0.64, maxWidth, index === 1 ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.48);
+      wrapText(track.note, maxWidth, smallSize * 0.54, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+        text(line, rect.x + pad, rect.y + 108 * unit, smallSize * 0.54, palette.muted, "'JetBrains Mono', monospace", 600);
       });
     });
   };
 
-  const snapshotPanel = (rect: Rect, label: string, title: string, body: string, active = false) => {
-    rounded(
-      ctx,
-      rect,
-      radius * 0.5,
-      active ? palette.accentSoft : glass,
-      active ? palette.line : hairline,
-    );
-    const pad = 16 * unit;
+  const drawMobileEditorialWork = (
+    rect: Rect,
+    row: (typeof STORY_WORK_ROWS)[number],
+    index: number,
+    amount = 1,
+    showSourceText = false,
+    detailReveal = 1,
+  ) => {
+    const pad = lerp(7 * unit, 8 * unit, amount);
     const maxWidth = rect.w - pad * 2;
-    clipRounded(rect, radius * 0.5, () => {
-      text(label, rect.x + pad, rect.y + 24 * unit, smallSize * 0.72, active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
+    const sourceTrack = STORY_TRACKS[row.from];
+    const sourceTextClip = showSourceText ? 1 - phase(amount, 0.1, 0.3) : 0;
+    const workTextClip = showSourceText ? phase(amount, 0.42, 0.72) : phase(amount, 0.08, 0.42);
+    const clip: Rect = {
+      x: rect.x - 8 * unit,
+      y: rect.y - 10 * unit,
+      w: rect.w + 16 * unit,
+      h: rect.h + 20 * unit,
+    };
+
+    clipRect(clip, () => {
+      drawMobileRule(rect.x + pad, rect.y + 8 * unit, rect.w * 0.28, row.active, row.active);
+
+      clipRect({ x: rect.x, y: rect.y, w: rect.w * sourceTextClip, h: rect.h }, () => {
+        text(String(row.from + 1).padStart(2, "0"), rect.x + pad, rect.y + 36 * unit, smallSize * 0.62, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+        textFit(sourceTrack.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, row.active ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+        textFit(sourceTrack.title, rect.x + pad, rect.y + 79 * unit, bodySize * 0.64, maxWidth, row.active ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.48);
+      });
+
+      clipRect({ x: rect.x, y: rect.y, w: rect.w * workTextClip, h: rect.h }, () => {
+        text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 36 * unit, smallSize * 0.62, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+        textFit(row.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+        textFit(row.title, rect.x + pad, rect.y + 79 * unit, bodySize * 0.72, maxWidth, row.active ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.54);
+        if (rect.h > 92 * unit) {
+          const bodyY = Math.min(rect.y + 112 * unit, rect.y + rect.h - 32 * unit);
+          clipRect({ x: rect.x, y: bodyY - smallSize, w: rect.w, h: smallSize * 1.5 * detailReveal }, () => {
+            wrapText(row.body, maxWidth, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+              text(line, rect.x + pad, bodyY, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
+            });
+          });
+        }
+        if (rect.h > 126 * unit) {
+          clipRect({ x: rect.x, y: rect.y + rect.h - 32 * unit, w: rect.w, h: 24 * unit * detailReveal }, () => {
+            row.details.slice(0, 1).forEach((detail) => {
+              text(detail, rect.x + pad, rect.y + rect.h - 18 * unit, smallSize * 0.52, palette.quiet, "'JetBrains Mono', monospace", 600);
+            });
+          });
+        }
+      });
+    });
+  };
+
+  const drawMobileEditorialSnapshot = (rect: Rect, label: string, title: string, body: string, active = false) => {
+    const pad = 6 * unit;
+    const maxWidth = rect.w - pad * 2;
+    const clip: Rect = {
+      x: rect.x - 6 * unit,
+      y: rect.y - 8 * unit,
+      w: rect.w + 12 * unit,
+      h: rect.h + 16 * unit,
+    };
+
+    clipRect(clip, () => {
+      drawMobileRule(rect.x + pad, rect.y + 4 * unit, rect.w * 0.24, active);
+      text(label, rect.x + pad, rect.y + 25 * unit, smallSize * 0.62, active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
       const titleSize = fitSize(title, maxWidth, bodySize * 0.6, bodySize * 0.42, "'Fraunces', 'Noto Serif SC', serif", 600);
       wrapText(title, maxWidth, titleSize, "'Fraunces', 'Noto Serif SC', serif", 600, 1).forEach((line) => {
-        text(line, rect.x + pad, rect.y + 43 * unit, titleSize, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+        text(line, rect.x + pad, rect.y + 48 * unit, titleSize, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
       });
       if (rect.h > 70 * unit) {
         wrapText(body, maxWidth, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
@@ -554,12 +711,6 @@ const drawMobileStory = (
         });
       }
     });
-  };
-
-  const stageY = (enter: number, exit: number, direction = 1) => {
-    const inShift = (1 - phase(progress, enter, enter + 0.12)) * safeH * 0.12 * direction;
-    const outShift = phase(progress, exit, exit + 0.1) * safeH * -0.1 * direction;
-    return inShift + outShift;
   };
 
   const gap = 18 * unit;
@@ -583,278 +734,199 @@ const drawMobileStory = (
     };
   });
 
-  const gather = phase(progress, 0.14, 0.42);
-  const introAlpha = 1 - phase(progress, 0.2, 0.34);
-  const chipAlpha = 1 - phase(progress, 0.34, 0.46);
-  const frameAlpha = phase(progress, 0.08, 0.18) * (1 - phase(progress, 0.32, 0.44));
-  const slotAlpha = phase(progress, 0.16, 0.32) * (1 - phase(progress, 0.46, 0.58));
-  const introCenter = {
-    x: width / 2,
-    y: safe.y + safe.h * 0.36 - phase(progress, 0.08, 0.3) * 18 * unit,
-    scale: lerp(1, 0.96, gather),
-  };
-
-  withAlpha(ctx, introAlpha, () => {
-    ctx.save();
-    ctx.translate(introCenter.x, introCenter.y + stageY(0, 0.22, 0.22));
-    ctx.scale(introCenter.scale, introCenter.scale);
-    ctx.textAlign = "center";
-    ctx.fillStyle = palette.text;
-    ctx.font = `500 ${width * 0.25}px 'Fraunces', 'Noto Serif SC', serif`;
-    ctx.fillText("lsy", 0, 0);
-    ctx.font = `500 ${smallSize}px 'JetBrains Mono', monospace`;
-    ctx.fillStyle = palette.muted;
-    ctx.fillText("today in echoes", 0, 56 * unit);
-    ctx.restore();
-  });
-
-  withAlpha(ctx, frameAlpha, () => {
-    const frameT = phase(progress, 0.1, 0.26);
-    const frame: Rect = {
-      x: lerp(safe.x + safe.w * 0.24, safe.x - 10 * unit, frameT),
-      y: lerp(safe.y + safe.h * 0.46, safe.y + 30 * unit, frameT),
-      w: lerp(safe.w * 0.52, safe.w + 20 * unit, frameT),
-      h: lerp(86 * unit, safe.h * 0.44, frameT),
-    };
-    ctx.save();
-    ctx.strokeStyle = palette.accent;
-    ctx.globalAlpha = 0.22;
-    ctx.lineWidth = 3 * unit;
-    ctx.lineCap = "round";
-    const corner = 46 * unit;
-    const inset = 10 * unit;
-    const left = frame.x + inset;
-    const right = frame.x + frame.w - inset;
-    const top = frame.y + inset;
-    const bottom = frame.y + frame.h - inset;
-    ctx.beginPath();
-    ctx.moveTo(left, top + corner);
-    ctx.lineTo(left, top);
-    ctx.lineTo(left + corner, top);
-    ctx.moveTo(right - corner, top);
-    ctx.lineTo(right, top);
-    ctx.lineTo(right, top + corner);
-    ctx.moveTo(right, bottom - corner);
-    ctx.lineTo(right, bottom);
-    ctx.lineTo(right - corner, bottom);
-    ctx.moveTo(left + corner, bottom);
-    ctx.lineTo(left, bottom);
-    ctx.lineTo(left, bottom - corner);
-    ctx.stroke();
-    const scanY = lerp(frame.y + 18 * unit, frame.y + frame.h - 18 * unit, phase(progress, 0.12, 0.28));
-    const scanGrad = ctx.createLinearGradient(0, scanY - 28 * unit, 0, scanY + 28 * unit);
-    scanGrad.addColorStop(0, "rgba(75, 107, 255, 0)");
-    scanGrad.addColorStop(0.5, input.theme === "dark" ? "rgba(131, 157, 255, 0.14)" : "rgba(75, 107, 255, 0.12)");
-    scanGrad.addColorStop(1, "rgba(75, 107, 255, 0)");
-    ctx.fillStyle = scanGrad;
-    ctx.fillRect(frame.x, scanY - 28 * unit, frame.w, 56 * unit);
-    ctx.restore();
-  });
-
-  withAlpha(ctx, slotAlpha, () => {
-    inputRects.forEach((rect, index) => {
-      rounded(
-        ctx,
-        {
-          x: rect.x,
-          y: rect.y,
-          w: rect.w,
-          h: rect.h,
-        },
-        radius * 0.72,
-        inputCards[index].active ? palette.accentSoft : slotFill,
-        inputCards[index].active ? palette.line : hairline,
-      );
-    });
-  });
-
-  withAlpha(ctx, chipAlpha, () => {
-    const tagItems = inputCards.map((card, index) => ({
-      value: card.title,
-      active: card.active,
-      offsetX: index % 2 === 0 ? -24 : 20,
-      offsetY: Math.floor(index / 2) === 1 ? 10 : 28,
-    }));
-    const chipScale = lerp(0.94, 0.78, gather);
-    const chipMaxW = Math.min((safe.w * 0.47) / chipScale, 180 * unit);
-    const rowGap = 12 * unit;
-    const rowOffsets = [-110 * unit, 0, 110 * unit];
-    const tagLayout = tagItems.map((_, index) => {
-      const row = Math.floor(index / 2);
-      const col = index % 2;
-      const rowIndexes = [row * 2, row * 2 + 1];
-      const rowWidths = rowIndexes.map((itemIndex) => {
-        const value = tagItems[itemIndex]?.value ?? "";
-        return Math.min(measure(value, smallSize * 0.9, "'JetBrains Mono', monospace", 700) + 28 * unit, chipMaxW);
-      });
-      const effectiveWidths = rowWidths.map((chipW) => chipW * chipScale);
-      const rowW = effectiveWidths.reduce((sum, chipW) => sum + chipW, 0) + rowGap;
-      const x = width / 2 - rowW / 2 + effectiveWidths.slice(0, col).reduce((sum, chipW) => sum + chipW + rowGap, 0);
-      return {
-        x: clamp(x, safe.x, safe.x + safe.w - rowWidths[col] * chipScale),
-        y: introCenter.y + rowOffsets[row],
-        maxWidth: rowWidths[col],
-      };
-    });
-
-    tagItems.forEach((item, index) => {
-      const target = tagLayout[index];
-      const targetX = target.x;
-      const targetY = target.y;
-      const fromX = targetX + item.offsetX * unit;
-      const fromY = targetY + item.offsetY * unit;
-      const driftX = Math.sin(progress * 8 + index * 1.7) * 10 * unit * (1 - gather);
-      const driftY = Math.cos(progress * 7 + index * 1.3) * 8 * unit * (1 - gather);
-      const x = lerp(fromX + driftX, targetX, gather);
-      const y = lerp(fromY + driftY, targetY, gather);
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(chipScale, chipScale);
-      mobileChip(item.value, 0, 0, item.active, target.maxWidth);
-      ctx.restore();
-    });
-  });
-
-  const lineX = safe.x + 36 * unit;
-  const methodStartY = safe.y + 96 * unit;
-  const methodGap = safe.h * 0.118;
-  const methodRects = inputCards.map((_, index) => ({
-    x: lineX + 42 * unit,
-    y: methodStartY + index * methodGap - 24 * unit,
-    w: safe.w - 68 * unit,
-    h: 68 * unit,
+  const mobileTrackGap = 16 * unit;
+  const mobileTrackH = Math.min(clamp(safe.h * 0.16, 112 * unit, 132 * unit), (safe.h - 124 * unit - mobileTrackGap * 2) / 3);
+  const mobileTrackRects = STORY_TRACKS.map((_, index) => ({
+    x: safe.x + 2 * unit,
+    y: safe.y + 78 * unit + index * (mobileTrackH + mobileTrackGap),
+    w: safe.w - 4 * unit,
+    h: mobileTrackH,
   }));
-  const toMethod = phase(progress, 0.52, 0.66);
-  const inputAlpha = phase(progress, 0.32, 0.48) * (1 - phase(progress, 0.66, 0.74));
-
-  withAlpha(ctx, inputAlpha, () => {
-    const label = toMethod < 0.5 ? "input" : "classify";
-    text(label, safe.x, safe.y, smallSize * 1.08, palette.accent, "'JetBrains Mono', monospace", 700);
-
-    withAlpha(ctx, phase(toMethod, 0.12, 0.42), () => {
-      ctx.save();
-      ctx.strokeStyle = palette.accent;
-      ctx.globalAlpha = 0.36;
-      ctx.lineWidth = 4 * unit;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(lineX, methodStartY);
-      ctx.lineTo(lineX, methodStartY + methodGap * 5);
-      ctx.stroke();
-      ctx.restore();
-    });
-
-    inputCards.forEach((item, index) => {
-      const rect = moveRect(inputRects[index], methodRects[index], toMethod);
-      drawMobileInputCard(rect, item, toMethod);
-      if (toMethod > 0.35) {
-        ctx.save();
-        ctx.fillStyle = index <= Math.floor(toMethod * 6) ? palette.accent : palette.paperStrong;
-        ctx.beginPath();
-        ctx.arc(lineX, methodStartY + index * methodGap, 12 * unit, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-    });
-  });
-
-  const workAlpha = phase(progress, 0.62, 0.72) * (1 - phase(progress, 0.9, 0.96));
   const workGapY = 16 * unit;
   const rowH = Math.min(clamp(safe.h * 0.185, 126 * unit, 152 * unit), (safe.h - 112 * unit - workGapY * 2) / 3);
   const workRows = STORY_WORK_ROWS;
-  const buildRect = {
-    x: lineX + 42 * unit,
-    y: methodStartY + methodGap * 5 - 24 * unit,
-    w: safe.w - 68 * unit,
-    h: 62 * unit,
-  };
   const workRects = workRows.map((_, index) => ({
     x: safe.x + 2 * unit,
     y: safe.y + 76 * unit + index * (rowH + workGapY),
     w: safe.w - 4 * unit,
     h: rowH,
   }));
-  withAlpha(ctx, workAlpha, () => {
-    text("work", safe.x, safe.y, smallSize * 1.08, palette.accent, "'JetBrains Mono', monospace", 700);
+  const todayRect = {
+    x: safe.x,
+    y: safe.y + safe.h * 0.055,
+    w: safe.w,
+    h: safe.h * 0.84,
+  };
+  const todayPad = 26 * unit;
+  const todayTop = todayRect.y + todayPad;
+  const todayStatusTop = todayRect.y + todayRect.h - 62 * unit;
+  const todayPanelGap = 9 * unit;
+  const todayBuildTop = todayTop + 228 * unit;
+  const todayBuildH = 66 * unit;
+  const todayPanelTop = todayBuildTop + todayBuildH + 34 * unit;
+  const todayPanelH = Math.min(68 * unit, Math.max(56 * unit, (todayStatusTop - todayPanelTop - todayPanelGap - 14 * unit) / 2));
+  const todayPanelRects = STORY_TODAY_PANELS.slice(1).map((_, index) => ({
+    x: todayRect.x + todayPad,
+    y: todayPanelTop + index * (todayPanelH + todayPanelGap),
+    w: todayRect.w - todayPad * 2,
+    h: todayPanelH,
+  }));
+  const mobileBuildIndexRects = workRows.map((_, index) => ({
+    x: todayRect.x + todayPad + 2 * unit,
+    y: todayBuildTop + 24 * unit + index * 18 * unit,
+    w: todayRect.w - todayPad * 2 - 4 * unit,
+    h: 14 * unit,
+  }));
+
+  const drawMobileBuildIndexRow = (
+    rect: Rect,
+    row: (typeof workRows)[number],
+    index: number,
+    amount: number,
+  ) => {
+    const pad = lerp(8 * unit, 0, amount);
+    const baseline = rect.y + lerp(36 * unit, 10 * unit, amount);
+    const numberW = lerp(50 * unit, 28 * unit, amount);
+    const ruleW = lerp(rect.w * 0.28, rect.w * 0.22, amount);
+    const title = amount < 0.48 ? row.title : `${String(index + 1).padStart(2, "0")} ${row.title}`;
+
+    clipRect({ x: rect.x - 4 * unit, y: rect.y - 5 * unit, w: rect.w + 8 * unit, h: rect.h + 48 * unit }, () => {
+      drawMobileRule(rect.x + pad, rect.y + 1 * unit, ruleW, row.active, row.active);
+      if (amount < 0.48) {
+        text(String(index + 1).padStart(2, "0"), rect.x + pad, baseline, smallSize * 0.62, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+        textFit(row.label, rect.x + pad + numberW, baseline, smallSize * 0.58, rect.w - numberW, row.active ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.46);
+      } else {
+        textFit(title, rect.x + pad, baseline, smallSize * 0.52, rect.w - pad * 2, row.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.42);
+      }
+    });
+  };
+
+  const drawMobileTodayBuildHeading = (amount: number) => {
+    const reveal = phase(amount, 0.12, 0.38);
+    clipRect({ x: todayRect.x + todayPad, y: todayBuildTop - 24 * unit, w: todayRect.w - todayPad * 2, h: 40 * unit * reveal }, () => {
+      drawMobileRule(todayRect.x + todayPad, todayBuildTop - 14 * unit, 96 * unit, true, true);
+      text("BUILD", todayRect.x + todayPad, todayBuildTop + 6 * unit, smallSize * 0.62, palette.muted, "'JetBrains Mono', monospace", 700);
+    });
+  };
+
+  const drawMobileTodayFrame = (rect: Rect, amount: number) => {
+    clipRect(rect, () => {
+      const revealH = rect.h * phase(amount, 0.04, 0.42);
+      clipRect({ x: rect.x, y: rect.y, w: rect.w, h: revealH }, () => {
+        text("lsy", rect.x + todayPad, todayTop + 90 * unit, titleSize * 0.82, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+        textFit("full-stack & AI engineer", rect.x + todayPad, todayTop + 142 * unit, bodySize * 0.76, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, bodySize * 0.56);
+        wrapText("working with AI, writing, and the world outside the screen", rect.w - todayPad * 2, smallSize * 0.7, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
+          text(line, rect.x + todayPad, todayTop + 174 * unit + lineIndex * 24 * unit, smallSize * 0.7, palette.muted, "'JetBrains Mono', monospace", 600);
+        });
+      });
+
+      const statusReveal = phase(amount, 0.36, 0.82);
+      clipRect({ x: rect.x, y: todayStatusTop - 14 * unit, w: rect.w, h: 76 * unit * statusReveal }, () => {
+        drawMobileRule(rect.x + todayPad, todayStatusTop - 7 * unit, rect.w - todayPad * 2);
+        textFit(STORY_STATUS, rect.x + todayPad, todayStatusTop + 24 * unit, smallSize * 0.62, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+        textFit(input.contact || "lsy22@vip.qq.com", rect.x + todayPad, todayStatusTop + 50 * unit, smallSize * 0.58, rect.w - todayPad * 2, palette.muted, "'JetBrains Mono', monospace", 600, smallSize * 0.46);
+      });
+    });
+  };
+
+  const drawMobileTodayPanel = (
+    rect: Rect,
+    panel: (typeof STORY_TODAY_PANELS)[number],
+    index: number,
+    amount: number,
+  ) => {
+    const panelReveal = phase(amount, 0.18 + index * 0.08, 0.56 + index * 0.08);
+    clipRect({ x: rect.x, y: rect.y, w: rect.w, h: rect.h * panelReveal }, () => {
+      drawMobileEditorialSnapshot(rect, panel[0], panel[1], panel[2], index === 0);
+    });
+  };
+
+  const introToInput = phase(progress, 0.12, 0.38);
+  const titleMorph = phase(progress, 0.08, 0.3);
+  const toMethod = phase(progress, 0.42, 0.58);
+  const inputSceneHold = 1 - phase(toMethod, 0.12, 0.34);
+  const classifySceneReveal = phase(toMethod, 0.34, 0.58);
+  const makingFocus = phase(progress, 0.64, 0.76);
+  const workListReveal = phase(progress, 0.7, 0.82);
+  const centerClassifyRect = mobileTrackRects[1];
+  const focusedMakingRect = moveRect(centerClassifyRect, workRects[1], makingFocus);
+  const classifyRetire = (group: number) => group === 1 ? phase(makingFocus, 0.18, 0.38) : phase(makingFocus, 0.22, 0.48);
+  const buildBridge = phase(progress, 0.84, 0.92);
+  const todayMorph = phase(progress, 0.88, 0.98);
+  const chapter = toMethod < 0.34 ? "input" : makingFocus < 0.18 ? "classify" : todayMorph < 0.08 ? "work" : "today";
+
+  if (inputSceneHold > 0.001) {
+    STORY_MATERIALS.forEach((item, index) => {
+      const rect = moveRect(mobileIntroSlots[index], inputRects[index], introToInput);
+      const retire = 1 - inputSceneHold;
+      const inputRect = {
+        ...rect,
+        y: rect.y - retire * 22 * unit,
+        h: rect.h * lerp(1, 0.72, retire),
+      };
+
+      if (toMethod < 0.01) {
+        drawMobileIntroMaterial(rect, item, index, introToInput);
+      } else {
+        clipRect({ x: rect.x - 8 * unit, y: rect.y - 12 * unit, w: rect.w + 16 * unit, h: (rect.h + 24 * unit) * inputSceneHold }, () => {
+          drawMobileEditorialInput(inputRect, inputCards[index], 0, index);
+        });
+      }
+    });
+  }
+
+  if (classifySceneReveal > 0.001 && makingFocus < 0.18) {
+    STORY_TRACKS.forEach((track, index) => {
+      const retire = classifyRetire(index);
+      const sink = {
+        x: centerClassifyRect.x + centerClassifyRect.w * 0.5,
+        y: centerClassifyRect.y + centerClassifyRect.h * 0.5,
+        w: 2 * unit,
+        h: 2 * unit,
+      };
+      const trackRect = moveRect(mobileTrackRects[index], sink, retire);
+      const trackAmount = classifySceneReveal * (1 - retire);
+
+      if (trackAmount > 0.001) {
+        drawMobileClassifyTrack(trackRect, track, index, trackAmount);
+      }
+    });
+  }
+
+  const workSceneActive = makingFocus > 0.18 && buildBridge < 0.02;
+  if (workSceneActive) {
+    const listSourceRect = moveRect(focusedMakingRect, workRects[1], workListReveal);
+
     workRows.forEach((row, index) => {
-      const rowAlpha = phase(progress, 0.64 + index * 0.045, 0.72 + index * 0.04);
-      const stagger = phase(progress, 0.66 + index * 0.04, 0.78 + index * 0.03);
-      withAlpha(ctx, rowAlpha, () => {
-        const rect = moveRect(buildRect, workRects[index], stagger);
-        rowCard(rect, row.label, row.title, row.body, index + 1);
-      });
+      const rowInsert = index === 1 ? 1 : phase(workListReveal, index === 0 ? 0.16 : 0.24, index === 0 ? 0.72 : 0.82);
+      const rect = moveRect(listSourceRect, workRects[index], rowInsert);
+      const workAmount = index === 1 ? makingFocus : rowInsert;
+
+      if (index === 1 || rowInsert > 0.001) {
+        drawMobileEditorialWork(rect, row, index, workAmount, index === 1, 1);
+      }
     });
-  });
+  }
 
-  const todayProgress = phase(progress, 0.84, 0.96);
-  const todayAlpha = phase(progress, 0.82, 0.86);
-  withAlpha(ctx, todayAlpha, () => {
-    const source = workRects[1];
-    const target = {
-      x: safe.x,
-      y: safe.y + safe.h * 0.055,
-      w: safe.w,
-      h: safe.h * 0.84,
-    };
-    const rect = moveRect(source, target, todayProgress);
-    rounded(ctx, rect, radius, palette.paperStrong, "rgba(148, 163, 184, 0.16)", palette.shadow);
-    const pad = 26 * unit;
-    const contentAlpha = phase(todayProgress, 0.56, 0.86);
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
-    ctx.clip();
-    withAlpha(ctx, contentAlpha, () => {
-      const top = rect.y + pad;
-      text("today / lsy", rect.x + pad, top + 10 * unit, smallSize * 0.9, palette.accent, "'JetBrains Mono', monospace", 700);
-      ctx.save();
-      ctx.strokeStyle = palette.line;
-      ctx.globalAlpha = 0.8;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(rect.x + pad, top + 26 * unit);
-      ctx.lineTo(rect.x + rect.w - pad, top + 26 * unit);
-      ctx.stroke();
-      ctx.restore();
-
-      text("lsy", rect.x + pad, top + 90 * unit, titleSize * 0.82, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      textFit("full-stack & AI engineer", rect.x + pad, top + 142 * unit, bodySize * 0.76, rect.w - pad * 2, palette.text, "'JetBrains Mono', monospace", 700, bodySize * 0.56);
-      wrapText("working with AI, writing, and the world outside the screen", rect.w - pad * 2, smallSize * 0.7, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
-        text(line, rect.x + pad, top + 174 * unit + lineIndex * 24 * unit, smallSize * 0.7, palette.muted, "'JetBrains Mono', monospace", 600);
-      });
-
-      const panels = STORY_TODAY_PANELS;
-      const panelGap = 9 * unit;
-      const statusTop = rect.y + rect.h - 62 * unit;
-      const panelTop = top + 224 * unit;
-      const panelH = Math.min(64 * unit, Math.max(52 * unit, (statusTop - panelTop - panelGap * 2 - 14 * unit) / 3));
-      panels.forEach((panel, index) => {
-        const sourceRect = workRects[Math.min(index, workRects.length - 1)];
-        const targetPanel = {
-          x: rect.x + pad,
-          y: panelTop + index * (panelH + panelGap),
-          w: rect.w - pad * 2,
-          h: panelH,
-        };
-        const panelRect = moveRect(sourceRect, targetPanel, phase(todayProgress, 0.26 + index * 0.08, 0.72 + index * 0.04));
-        snapshotPanel(panelRect, panel[0], panel[1], panel[2], index === 0);
-      });
-
-      ctx.save();
-      ctx.strokeStyle = hairline;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(rect.x + pad, statusTop - 7 * unit);
-      ctx.lineTo(rect.x + rect.w - pad, statusTop - 7 * unit);
-      ctx.stroke();
-      ctx.restore();
-      const statusTextX = rect.x + pad;
-      const statusMaxW = rect.w - pad * 2;
-      textFit(STORY_STATUS, statusTextX, statusTop + 24 * unit, smallSize * 0.62, statusMaxW, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
-      textFit(input.contact || "lsy22@vip.qq.com", statusTextX, statusTop + 50 * unit, smallSize * 0.58, statusMaxW, palette.muted, "'JetBrains Mono', monospace", 600, smallSize * 0.46);
+  if (buildBridge > 0.001) {
+    workRows.forEach((row, index) => {
+      const rect = moveRect(workRects[index], mobileBuildIndexRects[index], buildBridge);
+      drawMobileBuildIndexRow(rect, row, index, buildBridge);
     });
-    ctx.restore();
-  });
+  }
+
+  if (progress >= 0.84) {
+    drawMobileTodayFrame(todayRect, todayMorph);
+    drawMobileTodayBuildHeading(todayMorph);
+    STORY_TODAY_PANELS.slice(1).forEach((panel, index) => {
+      const panelIndex = index + 1;
+      const sourceRect = mobileBuildIndexRects[Math.min(panelIndex, mobileBuildIndexRects.length - 1)];
+      const panelRect = moveRect(sourceRect, todayPanelRects[index], phase(todayMorph, 0.12 + index * 0.08, 0.68 + index * 0.08));
+      drawMobileTodayPanel(panelRect, panel, index, todayMorph);
+    });
+  }
+
+  drawMobileChapterTitle(chapter, titleMorph);
 
 };
 
@@ -1286,12 +1358,11 @@ const drawDesktopStory = (
   const centerX = width * 0.5;
   const centerY = height * 0.5;
   const stageX = centerX - stageW * 0.5;
-  const radius = 28 * unit;
-  const hairline = input.theme === "dark" ? "rgba(148, 163, 184, 0.28)" : "rgba(148, 163, 184, 0.16)";
-  const quietLine = input.theme === "dark" ? "rgba(148, 163, 184, 0.2)" : "rgba(148, 163, 184, 0.11)";
-  const glass = input.theme === "dark" ? "rgba(30, 41, 59, 0.78)" : "rgba(255, 255, 255, 0.64)";
-  const glassStrong = input.theme === "dark" ? "rgba(30, 41, 59, 0.9)" : "rgba(255, 255, 255, 0.76)";
-  const connector = input.theme === "dark" ? "rgba(145, 167, 255, 0.42)" : "rgba(75, 107, 255, 0.34)";
+  const connector = palette.aiLine;
+  const connectorFlow = palette.aiFlow;
+  const materialRuleColor = input.theme === "dark" ? "rgba(159, 154, 159, 0.3)" : "rgba(5, 5, 5, 0.2)";
+  const materialRuleActiveColor = palette.aiAccent;
+  const connectorMotion = input.motion ?? 0;
 
   const text = (
     value: string,
@@ -1341,24 +1412,88 @@ const drawDesktopStory = (
     return lines.slice(0, maxLines);
   };
 
-  const pill = (value: string, x: number, y: number, active = false, scale = 1) => {
-    const size = 20 * unit * scale;
-    const h = 34 * unit * scale;
-    const w = measure(value, size) + 26 * unit * scale;
-    rounded(
-      ctx,
-      { x, y, w, h },
-      h / 2,
-      active ? palette.accentSoft : glassStrong,
-      active ? palette.line : hairline,
-    );
-    text(value, x + 13 * unit * scale, y + 23 * unit * scale, size, active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
-    return w;
+  const fitSize = (
+    value: string,
+    maxWidth: number,
+    size: number,
+    minSize: number,
+    font = "'JetBrains Mono', monospace",
+    weight = 600,
+  ) => {
+    let fitted = size;
+    while (fitted > minSize && measure(value, fitted, font, weight) > maxWidth) {
+      fitted -= 0.7 * unit;
+    }
+    return fitted;
+  };
+
+  const textFit = (
+    value: string,
+    x: number,
+    y: number,
+    size: number,
+    maxWidth: number,
+    color = palette.text,
+    font = "'JetBrains Mono', monospace",
+    weight = 600,
+    minSize = size * 0.7,
+  ) => {
+    text(value, x, y, fitSize(value, maxWidth, size, minSize, font, weight), color, font, weight);
+  };
+
+  const clipRect = (rect: Rect, draw: () => void) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+    draw();
+    ctx.restore();
+  };
+
+  const activeInk = (active: boolean, aiSignal = false) => active ? (aiSignal ? palette.aiAccent : palette.accent) : palette.muted;
+
+  const drawEditorialRule = (x: number, y: number, w: number, active = false, aiSignal = false) => {
+    ctx.save();
+    ctx.strokeStyle = active ? activeInk(true, aiSignal) : palette.line;
+    ctx.globalAlpha *= active ? 0.78 : 0.58;
+    ctx.lineWidth = active ? 1.5 * unit : 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  const drawEditorialDot = (x: number, y: number, active = false, aiSignal = false) => {
+    ctx.save();
+    ctx.fillStyle = active ? activeInk(true, aiSignal) : palette.line;
+    ctx.globalAlpha *= active ? 0.92 : 0.56;
+    ctx.beginPath();
+    ctx.arc(x, y, active ? 3.8 * unit : 2.8 * unit, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  const drawMaterialRule = (x: number, y: number, w: number, active = false) => {
+    ctx.save();
+    ctx.strokeStyle = active ? materialRuleActiveColor : materialRuleColor;
+    ctx.fillStyle = active ? materialRuleActiveColor : materialRuleColor;
+    ctx.globalAlpha *= active ? 0.94 : 0.82;
+    ctx.lineWidth = 1.75 * unit;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + w + 16 * unit, y, 4 * unit, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   };
 
   const stageHeader = (label: string, title: string, alpha: number, y = height * 0.265, x = stageX) => {
     withAlpha(ctx, alpha, () => {
       text(label, x, y, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
+      drawEditorialRule(x, y + 18 * unit, Math.min(156 * unit, (safeRight - x) * 0.28), true);
       const titleFont = "'Fraunces', 'Noto Serif SC', serif";
       const titleSize = Math.min(48 * unit, ((safeRight - x) * 0.96) / Math.max(1, measure(title, 1, titleFont, 600)));
       text(title, x, y + 58 * unit, titleSize, palette.text, titleFont, 600);
@@ -1368,23 +1503,94 @@ const drawDesktopStory = (
   const curvedConnector = (fromX: number, fromY: number, toX: number, toY: number, alpha: number) => {
     withAlpha(ctx, alpha, () => {
       ctx.save();
-      ctx.strokeStyle = connector;
-      ctx.globalAlpha *= input.theme === "dark" ? 0.95 : 0.86;
-      ctx.lineWidth = 2.1 * unit;
-      ctx.setLineDash([7 * unit, 9 * unit]);
       const midX = (fromX + toX) / 2;
       const bend = (toY - fromY) * 0.18;
-      ctx.beginPath();
-      ctx.moveTo(fromX, fromY);
-      ctx.bezierCurveTo(midX, fromY + bend, midX, toY - bend, toX, toY);
+
+      const drawConnectorPath = () => {
+        ctx.beginPath();
+        ctx.moveTo(fromX, fromY);
+        ctx.bezierCurveTo(midX, fromY + bend, midX, toY - bend, toX, toY);
+      };
+
+      ctx.strokeStyle = connector;
+      ctx.globalAlpha *= input.theme === "dark" ? 0.9 : 0.78;
+      ctx.lineWidth = 2.2 * unit;
+      ctx.lineCap = "round";
+      ctx.setLineDash([8 * unit, 8 * unit]);
+      ctx.lineDashOffset = connectorMotion * 42 * unit;
+      drawConnectorPath();
+      ctx.stroke();
+
+      ctx.strokeStyle = connectorFlow;
+      ctx.globalAlpha *= input.theme === "dark" ? 0.58 : 0.5;
+      ctx.lineWidth = 2.8 * unit;
+      ctx.setLineDash([3 * unit, 25 * unit]);
+      ctx.lineDashOffset = connectorMotion * 92 * unit;
+      drawConnectorPath();
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = connector;
-      ctx.beginPath();
-      ctx.arc(toX, toY, 3.2 * unit, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.lineDashOffset = 0;
       ctx.restore();
     });
+  };
+
+  const materialLabelLayout = (rect: Rect, item: (typeof STORY_MATERIALS)[number], compact: number) => {
+    const pad = lerp(18 * unit, 8 * unit, compact);
+    const numberAlpha = phase(compact, 0.16, 0.48);
+    const titleOffset = lerp(0, 36 * unit, numberAlpha);
+    const titleMaxW = rect.w - pad * 2 - titleOffset;
+    const titleSize = fitSize(item.tag, titleMaxW, lerp(24 * unit, 18 * unit, compact), 12 * unit, "'JetBrains Mono', monospace", 700);
+    const titleWidth = measure(item.tag, titleSize, "'JetBrains Mono', monospace", 700);
+    const titleX = compact > 0.58 ? rect.x + titleOffset + (titleMaxW - titleWidth) / 2 : rect.x + pad + titleOffset;
+    const compactTitleY = rect.y + rect.h * 0.64;
+    const titleY = compact > 0.58 ? compactTitleY : rect.y + 40 * unit;
+    const numberY = titleY;
+    const materialRuleW = 104 * unit;
+    const dotPadding = 18 * unit;
+    const ruleX = titleX;
+    const ruleY = titleY - 24 * unit;
+    const connectorGap = 30 * unit;
+    const labelLeft = Math.min(titleX, ruleX);
+    const labelRight = Math.max(titleX + titleWidth, ruleX + materialRuleW + dotPadding);
+    const labelCenterY = (ruleY + titleY) / 2;
+
+    return {
+      pad,
+      numberAlpha,
+      titleOffset,
+      titleMaxW,
+      titleSize,
+      titleWidth,
+      titleX,
+      titleY,
+      numberY,
+      ruleX,
+      ruleY,
+      ruleW: materialRuleW,
+      connectorGap,
+      labelLeft,
+      labelRight,
+      labelCenterY,
+    };
+  };
+
+  const materialAnchor = (rect: Rect, item: (typeof STORY_MATERIALS)[number], compact: number) => {
+    const layout = materialLabelLayout(rect, item, compact);
+    const materialCenterX = (layout.labelLeft + layout.labelRight) / 2;
+    const materialCenterY = layout.labelCenterY;
+    const dx = materialCenterX - centerX;
+    const dy = materialCenterY - centerY;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    const nx = dx / distance;
+    const ny = dy / distance;
+    const centerGuard = clamp(height * 0.145, 104 * unit, 142 * unit);
+
+    return {
+      fromX: centerX + nx * centerGuard,
+      fromY: centerY + ny * centerGuard * 0.58,
+      toX: nx >= 0 ? layout.labelLeft - layout.connectorGap : layout.labelRight + layout.connectorGap,
+      toY: layout.labelCenterY,
+    };
   };
 
   const materials = STORY_MATERIALS;
@@ -1435,22 +1641,21 @@ const drawDesktopStory = (
     const track = trackRects[groupOrders[index]];
     const pairIndexes = materials.map((item, itemIndex) => (item.group === groupOrders[index] ? itemIndex : -1)).filter((itemIndex) => itemIndex >= 0);
     const column = Math.max(0, pairIndexes.indexOf(index));
-    const targetPillScale = 1.08;
-    const pillWidths = pairIndexes.map((itemIndex) => measure(materials[itemIndex].tag, 20 * unit * targetPillScale) + 26 * unit * targetPillScale);
-    const gap = 20 * unit;
-    const totalPillW = pillWidths.reduce((sum, width) => sum + width, 0);
-    const maxPillW = track.w - 44 * unit - gap * Math.max(0, pairIndexes.length - 1);
-    const fitScale = Math.min(1, Math.max(0.72, maxPillW / Math.max(1, totalPillW)));
-    const visibleWidths = pillWidths.map((width) => width * fitScale);
+    const targetTagSize = 19 * unit;
+    const tagWidths = pairIndexes.map((itemIndex) => measure(materials[itemIndex].tag, targetTagSize) + 42 * unit);
+    const gap = 18 * unit;
+    const totalTagW = tagWidths.reduce((sum, width) => sum + width, 0);
+    const maxTagW = track.w - 42 * unit - gap * Math.max(0, pairIndexes.length - 1);
+    const fitScale = Math.min(1, Math.max(0.74, maxTagW / Math.max(1, totalTagW)));
+    const visibleWidths = tagWidths.map((width) => width * fitScale);
     const totalW = visibleWidths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, pairIndexes.length - 1);
     const startX = track.x + (track.w - totalW) / 2;
     const x = startX + visibleWidths.slice(0, column).reduce((sum, width) => sum + width + gap, 0);
-    const pad = 18 * unit;
     const slotH = 54 * unit;
     return {
-      x: x - pad,
-      y: track.y + 154 * unit,
-      w: visibleWidths[column] + pad * 2,
+      x,
+      y: track.y + 166 * unit,
+      w: visibleWidths[column],
       h: slotH,
     };
   };
@@ -1476,88 +1681,94 @@ const drawDesktopStory = (
     w: todayW,
     h: todayH,
   };
+  const todayPad = Math.max(42 * unit, todayRect.w * 0.045);
+  const todayTop = todayRect.y + todayPad;
+  const todayStatusY = todayRect.y + todayRect.h - 70 * unit;
+  const todayPanelGap = 22 * unit;
+  const todayPanelW = (todayRect.w - todayPad * 2 - todayPanelGap * 2) / 3;
+  const todayPanelTop = Math.min(todayTop + 296 * unit, todayStatusY - 148 * unit);
+  const todayPanelH = Math.max(118 * unit, todayStatusY - todayPanelTop - 24 * unit);
+  const todayPanelRects = STORY_TODAY_PANELS.map((_, index) => ({
+    x: todayRect.x + todayPad + index * (todayPanelW + todayPanelGap),
+    y: todayPanelTop,
+    w: todayPanelW,
+    h: todayPanelH,
+  }));
+  const buildIndexGap = 6 * unit;
+  const buildIndexTop = todayPanelRects[0].y + 44 * unit;
+  const buildIndexH = clamp((todayPanelRects[0].h - 44 * unit - buildIndexGap * 2) / 3, 24 * unit, 34 * unit);
+  const buildIndexRects = STORY_WORK_ROWS.map((_, index) => ({
+    x: todayPanelRects[0].x,
+    y: buildIndexTop + index * (buildIndexH + buildIndexGap),
+    w: todayPanelRects[0].w,
+    h: buildIndexH,
+  }));
 
   const gather = phase(progress, 0.06, 0.2);
   const classify = phase(progress, 0.28, 0.52);
-  const build = phase(progress, 0.5, 0.78);
-  const todayMorph = phase(progress, 0.82, 0.98);
+  const centerWorkMorph = phase(progress, 0.54, 0.7);
+  const buildBridge = phase(progress, 0.82, 0.9);
+  const todayMorph = phase(progress, 0.86, 0.98);
   const fieldAlpha = 1 - phase(progress, 0.9, 0.98);
+  const buildIndexAlpha = phase(progress, 0.78, 0.82);
+  const workSceneAlpha = 1 - buildIndexAlpha;
 
-  const introAlpha = 1 - phase(progress, 0.08, 0.2);
   const inputHeaderAlpha = phase(progress, 0.12, 0.22) * (1 - phase(progress, 0.32, 0.44));
-  const classifyAlpha = phase(progress, 0.3, 0.42) * (1 - phase(progress, 0.5, 0.62));
-  const workAlpha = phase(progress, 0.48, 0.56) * (1 - phase(progress, 0.91, 0.97));
-  const workHeaderAlpha = phase(progress, 0.7, 0.78) * (1 - phase(progress, 0.91, 0.97));
-  const todayAlpha = phase(progress, 0.82, 0.88);
+  const classifyAlpha = phase(progress, 0.3, 0.42) * (1 - phase(progress, 0.64, 0.74));
+  const centerWorkAlpha = phase(progress, 0.3, 0.42) * workSceneAlpha;
+  const sideTrackAlpha = (index: number) => classifyAlpha * (index === 1 ? 0 : 1 - centerWorkMorph);
+  const workHeaderAlpha = phase(progress, 0.66, 0.74) * workSceneAlpha;
+  const todayAlpha = phase(progress, 0.84, 0.88);
+  const centerWorkRect = moveRect(trackRects[1], workRects[1], centerWorkMorph);
 
-  const drawMaterialCard = (
+  const drawEditorialMaterial = (
     rect: Rect,
     item: (typeof materials)[number],
     compact: number,
     alpha: number,
     detailReveal = 1,
+    index = 0,
   ) => {
     withAlpha(ctx, alpha, () => {
-      const pad = lerp(24 * unit, 18 * unit, compact);
-      const trackPhase = phase(compact, 0.58, 1);
-      const basePillScale = lerp(1, 1.08, trackPhase);
-      const bodySize = lerp(23 * unit, 18 * unit, compact);
-      const detailAlpha = detailReveal * clamp((rect.h - 104 * unit) / (24 * unit));
-      const basePillW = measure(item.tag, 20 * unit * basePillScale) + 26 * unit * basePillScale;
-      const pillScale = Math.min(basePillScale, Math.max(0.58, (rect.w - pad * 2) / Math.max(1, basePillW)) * basePillScale);
-      const pillW = measure(item.tag, 20 * unit * pillScale) + 26 * unit * pillScale;
-      const pillH = 34 * unit * pillScale;
-      const trackItem = compact > 0.58;
-      const chromeAlpha = trackItem ? 1 - phase(compact, 0.58, 0.86) : 1;
-      const isTinyCard = detailAlpha < 0.12;
-      const pillX = trackItem || isTinyCard ? rect.x + (rect.w - pillW) / 2 : rect.x + pad;
-      const pillY = trackItem || isTinyCard ? rect.y + (rect.h - pillH) / 2 : rect.y + pad * 0.75;
-      withAlpha(ctx, chromeAlpha, () => {
-        rounded(ctx, rect, lerp(28 * unit, 18 * unit, compact), isTinyCard ? glass : glassStrong, hairline);
-      });
-      pill(item.tag, pillX, pillY, item.active, pillScale);
-      withAlpha(ctx, detailAlpha, () => {
-        text(item.body, rect.x + pad, rect.y + rect.h - lerp(24 * unit, 18 * unit, compact), bodySize, palette.muted, "'JetBrains Mono', monospace", 600);
-        ctx.save();
-        ctx.strokeStyle = quietLine;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(rect.x + pad, rect.y + rect.h - lerp(38 * unit, 28 * unit, compact));
-        ctx.lineTo(rect.x + rect.w - pad, rect.y + rect.h - lerp(38 * unit, 28 * unit, compact));
-        ctx.stroke();
-        ctx.restore();
+      const layout = materialLabelLayout(rect, item, compact);
+      const detailAlpha = detailReveal * (1 - phase(compact, 0.48, 0.88));
+
+      clipRect({ x: rect.x - 8 * unit, y: rect.y - 10 * unit, w: rect.w + 16 * unit, h: rect.h + 20 * unit }, () => {
+        drawMaterialRule(layout.ruleX, layout.ruleY, layout.ruleW, item.active);
+        withAlpha(ctx, layout.numberAlpha, () => {
+          const materialNumber = String(index + 1).padStart(2, "0");
+          text(materialNumber, rect.x + layout.pad, layout.numberY, 14 * unit, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+        });
+        text(item.tag, layout.titleX, layout.titleY, layout.titleSize, item.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700);
+
+        withAlpha(ctx, detailAlpha, () => {
+          wrapText(item.body, rect.w - layout.pad * 2, 17 * unit, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+            text(line, rect.x + layout.pad, rect.y + rect.h - 22 * unit, 17 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+          });
+        });
       });
     });
   };
 
-  const drawTrack = (rect: Rect, track: (typeof tracks)[number], index: number, alpha: number) => {
+  const drawEditorialTrack = (rect: Rect, track: (typeof tracks)[number], index: number, alpha: number, textAlpha = 1) => {
     withAlpha(ctx, alpha, () => {
-      rounded(ctx, rect, radius, index === 1 ? palette.accentSoft : glass, index === 1 ? palette.line : hairline);
       const pad = 24 * unit;
-      text(track.label, rect.x + pad, rect.y + 40 * unit, 24 * unit, index === 1 ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
-      text(track.title, rect.x + pad, rect.y + 78 * unit, 31 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      wrapText(track.note, rect.w - pad * 2, 17 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
-        text(line, rect.x + pad, rect.y + 108 * unit + lineIndex * 22 * unit, 17 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      clipRect(rect, () => {
+        drawEditorialRule(rect.x + pad, rect.y + 17 * unit, rect.w * 0.34, index === 1, index === 1);
+        drawEditorialDot(rect.x + pad + rect.w * 0.34 + 12 * unit, rect.y + 17 * unit, index === 1, index === 1);
+        withAlpha(ctx, textAlpha, () => {
+          text(`0${index + 1}`, rect.x + pad, rect.y + 52 * unit, 17 * unit, index === 1 ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+          text(track.label, rect.x + pad + 54 * unit, rect.y + 52 * unit, 22 * unit, index === 1 ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700);
+          textFit(track.title, rect.x + pad, rect.y + 98 * unit, 32 * unit, rect.w - pad * 2, index === 1 ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, 23 * unit);
+          wrapText(track.note, rect.w - pad * 2, 17 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
+            text(line, rect.x + pad, rect.y + 132 * unit + lineIndex * 22 * unit, 17 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+          });
+        });
       });
     });
   };
 
-  const drawWorkCard = (rect: Rect, row: (typeof workRows)[number], alpha: number) => {
-    withAlpha(ctx, alpha, () => {
-      rounded(ctx, rect, radius, row.active ? palette.accentSoft : palette.paperStrong, row.active ? palette.line : hairline, palette.shadow);
-      const pad = 34 * unit;
-      text(row.label, rect.x + pad, rect.y + 42 * unit, 23 * unit, row.active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
-      text(row.title, rect.x + pad, rect.y + 106 * unit, clamp(rect.w * 0.15, 44 * unit, 64 * unit), palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      wrapText(row.body, rect.w - pad * 2, 21 * unit, "'JetBrains Mono', monospace", 600, 3).forEach((line, index) => {
-        text(line, rect.x + pad, rect.y + 148 * unit + index * 28 * unit, 21 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-      });
-      row.details.forEach((detail, index) => {
-        text(detail, rect.x + pad, rect.y + rect.h - 52 * unit + index * 26 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-      });
-    });
-  };
-
-  const drawBuildMorphCard = (
+  const drawEditorialWork = (
     rect: Rect,
     row: (typeof workRows)[number],
     sourceTrack: (typeof tracks)[number],
@@ -1566,68 +1777,147 @@ const drawDesktopStory = (
     showSourceText = true,
   ) => {
     withAlpha(ctx, alpha, () => {
-      const trackTextAlpha = showSourceText ? 1 - phase(amount, 0.08, 0.36) : 0;
-      const workTextAlpha = phase(amount, 0.32, 0.72);
-      const fill = amount > 0.56 && row.active ? palette.accentSoft : amount > 0.56 ? palette.paperStrong : row.active ? palette.accentSoft : glass;
-      const stroke = row.active ? palette.line : hairline;
-      rounded(ctx, rect, lerp(radius, radius * 0.92, amount), fill, stroke, amount > 0.5 ? palette.shadow : "");
-
       const pad = lerp(24 * unit, 34 * unit, amount);
-      withAlpha(ctx, trackTextAlpha, () => {
-        text(sourceTrack.label, rect.x + pad, rect.y + 40 * unit, 24 * unit, row.active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
-        text(sourceTrack.title, rect.x + pad, rect.y + 78 * unit, 31 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-        wrapText(sourceTrack.note, rect.w - pad * 2, 19 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, index) => {
-          text(line, rect.x + pad, rect.y + 108 * unit + index * 24 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-        });
-      });
+      const trackTextAlpha = showSourceText ? 1 - phase(amount, 0.08, 0.38) : 0;
+      const workTextAlpha = phase(amount, 0.32, 0.72);
 
-      withAlpha(ctx, workTextAlpha, () => {
-        text(row.label, rect.x + pad, rect.y + 42 * unit, 23 * unit, row.active ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
-        text(row.title, rect.x + pad, rect.y + 106 * unit, clamp(rect.w * 0.15, 44 * unit, 64 * unit), palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-        wrapText(row.body, rect.w - pad * 2, 21 * unit, "'JetBrains Mono', monospace", 600, 3).forEach((line, index) => {
-          text(line, rect.x + pad, rect.y + 148 * unit + index * 28 * unit, 21 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      clipRect({ x: rect.x - 12 * unit, y: rect.y - 12 * unit, w: rect.w + 24 * unit, h: rect.h + 24 * unit }, () => {
+        drawEditorialRule(rect.x + pad, rect.y + 20 * unit, Math.min(rect.w * 0.32, 116 * unit), row.active, row.active);
+        if (row.active) drawEditorialDot(rect.x + pad + Math.min(rect.w * 0.32, 116 * unit) + 12 * unit, rect.y + 20 * unit, true, true);
+
+        withAlpha(ctx, trackTextAlpha, () => {
+          text(String(row.from + 1).padStart(2, "0"), rect.x + pad, rect.y + 55 * unit, 17 * unit, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+          text(sourceTrack.label, rect.x + pad + 54 * unit, rect.y + 55 * unit, 23 * unit, row.active ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700);
+          textFit(sourceTrack.title, rect.x + pad, rect.y + 96 * unit, 31 * unit, rect.w - pad * 2, row.active ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, 22 * unit);
+          wrapText(sourceTrack.note, rect.w - pad * 2, 19 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, index) => {
+            text(line, rect.x + pad, rect.y + 128 * unit + index * 24 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+          });
         });
-        row.details.forEach((detail, index) => {
-          text(detail, rect.x + pad, rect.y + rect.h - 52 * unit + index * 26 * unit, 19 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+
+        withAlpha(ctx, workTextAlpha, () => {
+          text(row.label, rect.x + pad, rect.y + 55 * unit, 22 * unit, row.active ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700);
+          textFit(row.title, rect.x + pad, rect.y + 120 * unit, clamp(rect.w * 0.16, 45 * unit, 64 * unit), rect.w - pad * 2, row.active ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, 36 * unit);
+          wrapText(row.body, rect.w - pad * 2, 21 * unit, "'JetBrains Mono', monospace", 600, 3).forEach((line, index) => {
+            text(line, rect.x + pad, rect.y + 162 * unit + index * 28 * unit, 21 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+          });
+          row.details.forEach((detail, index) => {
+            text(detail, rect.x + pad, rect.y + rect.h - 52 * unit + index * 26 * unit, 18 * unit, palette.quiet, "'JetBrains Mono', monospace", 600);
+          });
         });
       });
     });
   };
 
-  withAlpha(ctx, fieldAlpha, () => {
-    withAlpha(ctx, introAlpha, () => {
-      const ringProgress = phase(progress, 0.02, 0.16);
-      ctx.save();
-      ctx.strokeStyle = palette.line;
-      ctx.lineWidth = 1.3 * unit;
-      ctx.globalAlpha *= 0.72;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY - height * 0.01, lerp(96 * unit, 168 * unit, ringProgress), -Math.PI * 0.18, Math.PI * 1.12);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(centerX, centerY - height * 0.01, lerp(138 * unit, 218 * unit, ringProgress), Math.PI * 0.82, Math.PI * 1.86);
-      ctx.stroke();
-      ctx.restore();
+  const drawBuildIndexRow = (
+    rect: Rect,
+    row: (typeof workRows)[number],
+    index: number,
+    amount: number,
+    alpha: number,
+  ) => {
+    withAlpha(ctx, alpha, () => {
+      const baseline = rect.y + clamp(rect.h * 0.72, 17 * unit, 23 * unit);
+      const numberW = lerp(42 * unit, 34 * unit, amount);
+      const titleSize = lerp(19 * unit, 16 * unit, amount);
+      const ruleW = Math.min(rect.w * lerp(0.2, 0.32, amount), 70 * unit);
 
-      ctx.save();
-      ctx.textAlign = "center";
-      ctx.fillStyle = palette.text;
-      ctx.font = `500 ${184 * unit}px 'Fraunces', 'Noto Serif SC', serif`;
-      ctx.fillText("lsy", centerX, centerY + 24 * unit);
-      ctx.font = `700 ${30 * unit}px 'JetBrains Mono', monospace`;
-      ctx.fillStyle = palette.muted;
-      ctx.fillText("today in echoes", centerX, centerY + 92 * unit);
-      ctx.restore();
+      clipRect({ x: rect.x - 4 * unit, y: rect.y - 5 * unit, w: rect.w + 8 * unit, h: rect.h + 10 * unit }, () => {
+        drawEditorialRule(rect.x, rect.y + 1 * unit, ruleW, row.active, row.active);
+        text(String(index + 1).padStart(2, "0"), rect.x, baseline, 14 * unit, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+        textFit(row.title, rect.x + numberW, baseline, titleSize, rect.w - numberW, row.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700, 12 * unit);
+      });
     });
+  };
+
+  const drawBuildIndex = (rects: Rect[], headingAlpha: number, rowAlpha = headingAlpha) => {
+    const panel = todayPanelRects[0];
+    withAlpha(ctx, headingAlpha, () => {
+      drawEditorialRule(panel.x, panel.y, panel.w * 0.34, true);
+      text("BUILD", panel.x, panel.y + 34 * unit, 22 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
+    });
+    rects.forEach((rect, index) => drawBuildIndexRow(rect, workRows[index], index, 1, rowAlpha));
+  };
+
+  const drawFoldingWorkRow = (
+    rect: Rect,
+    row: (typeof workRows)[number],
+    index: number,
+    amount: number,
+    alpha: number,
+  ) => {
+    const detailAlpha = 1 - phase(amount, 0.18, 0.48);
+    const indexAlpha = phase(amount, 0.2, 0.72);
+
+    withAlpha(ctx, alpha, () => {
+      drawEditorialWork(rect, row, tracks[row.from], 1, detailAlpha, false);
+      drawBuildIndexRow(rect, row, index, phase(amount, 0.18, 0.8), indexAlpha);
+    });
+  };
+
+  const drawTodayPanel = (rect: Rect, panel: (typeof STORY_TODAY_PANELS)[number], index: number, amount: number) => {
+    withAlpha(ctx, amount, () => {
+      clipRect({ x: rect.x - 4 * unit, y: rect.y - 8 * unit, w: rect.w + 8 * unit, h: rect.h + 16 * unit }, () => {
+        drawEditorialRule(rect.x, rect.y, rect.w * 0.34 * phase(amount, 0.02, 0.5), false);
+        text(panel[0], rect.x, rect.y + 34 * unit, 22 * unit, palette.muted, "'JetBrains Mono', monospace", 700);
+        const titleLines = wrapText(panel[1], rect.w, 23 * unit, "'Fraunces', 'Noto Serif SC', serif", 600, 2);
+        titleLines.forEach((line, lineIndex) => {
+          text(line, rect.x, rect.y + 72 * unit + lineIndex * 25 * unit, 23 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+        });
+        const bodyY = rect.y + (titleLines.length > 1 ? 124 : 102) * unit;
+        wrapText(panel[2], rect.w, 16 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
+          text(line, rect.x, bodyY + lineIndex * 19 * unit, 16 * unit, index === 1 ? palette.muted : palette.quiet, "'JetBrains Mono', monospace", 600);
+        });
+      });
+    });
+  };
+
+  const drawEditorialToday = (rect: Rect, amount: number) => {
+    const todayContentAlpha = phase(amount, 0.04, 0.34);
+
+    clipRect(rect, () => {
+      withAlpha(ctx, todayContentAlpha, () => {
+        text("today / lsy", rect.x + todayPad, todayTop, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
+        const nowMaxW = Math.min(rect.w * 0.34, 230 * unit);
+        textFit(input.now, rect.x + rect.w - todayPad - nowMaxW, todayTop, 22 * unit, nowMaxW, palette.muted, "'JetBrains Mono', monospace", 600, 15 * unit);
+        drawEditorialRule(rect.x + todayPad, todayTop + 29 * unit, Math.min(rect.w * 0.22, 176 * unit), true);
+
+        const nameSize = clamp(rect.w * 0.14, 108 * unit, 142 * unit);
+        text("lsy", rect.x + todayPad, todayTop + 120 * unit, nameSize, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+        textFit("Full-stack builder", rect.x + todayPad, todayTop + 184 * unit, 39 * unit, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, 26 * unit);
+        wrapText(STORY_SUMMARY, rect.w - todayPad * 2, 25 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, index) => {
+          text(line, rect.x + todayPad, todayTop + 224 * unit + index * 30 * unit, 25 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+        });
+      });
+
+      STORY_TODAY_PANELS.slice(1).forEach((panel, index) => {
+        drawTodayPanel(todayPanelRects[index + 1], panel, index + 1, todayContentAlpha);
+      });
+
+      withAlpha(ctx, todayContentAlpha, () => {
+        drawEditorialRule(rect.x + todayPad, todayStatusY - 12 * unit, rect.w - todayPad * 2);
+        textFit(STORY_STATUS, rect.x + todayPad, todayStatusY + 22 * unit, 23 * unit, (rect.w - todayPad * 2) * 0.54, palette.text, "'JetBrains Mono', monospace", 700, 18 * unit);
+        const contact = input.contact || "lsy22@vip.qq.com";
+        textFit(contact, rect.x + rect.w - todayPad - (rect.w - todayPad * 2) * 0.38, todayStatusY + 22 * unit, 20 * unit, (rect.w - todayPad * 2) * 0.38, palette.muted, "'JetBrains Mono', monospace", 600, 15 * unit);
+      });
+    });
+  };
+
+  withAlpha(ctx, fieldAlpha, () => {
+    drawIntro(ctx, progress, "desktop", input.theme);
 
     stageHeader("input / things I keep returning to", "cinema · travel · books · code · AI · writing", inputHeaderAlpha, height * 0.265, inputAreaX);
     stageHeader("classify / three inner lanes", "seeing · making · thinking", classifyAlpha, height * 0.265, trackX);
     stageHeader("work / systems I shaped", "Ideas becoming products, agents, and infrastructure", workHeaderAlpha, height * 0.245, workX);
 
-    trackRects.forEach((rect, index) => drawTrack(rect, tracks[index], index, classifyAlpha));
+    trackRects.forEach((rect, index) => {
+      if (index !== 1) drawEditorialTrack(rect, tracks[index], index, sideTrackAlpha(index));
+    });
+    drawEditorialWork(centerWorkRect, workRows[1], tracks[1], centerWorkMorph, centerWorkAlpha, true);
 
-    const materialAlpha = (1 - phase(progress, 0.48, 0.62)) * fieldAlpha;
-    const relationAlpha = (1 - phase(progress, 0.13, 0.28)) * (1 - classify);
+    const centerClassifyAlpha = centerWorkAlpha * (1 - phase(centerWorkMorph, 0.08, 0.38));
+    const materialInputAlpha = 1 - classify;
+    const materialAlpha = (group: number) => Math.max(materialInputAlpha, group === 1 ? centerClassifyAlpha : sideTrackAlpha(group));
+    const relationAlpha = (1 - phase(progress, 0.16, 0.22)) * (1 - classify);
     materials.forEach((item, index) => {
       const offset = mindOffsets[index];
       const orbitAngle = item.angle + progress * 0.42;
@@ -1641,111 +1931,45 @@ const drawDesktopStory = (
       };
       const collected = moveRect(orbit, inputRects[index], gather);
       const rect = moveRect(collected, trackSlot(index), classify);
-      curvedConnector(centerX, centerY - height * 0.01, rect.x + rect.w / 2, rect.y + rect.h / 2, relationAlpha);
-      drawMaterialCard(rect, item, classify, materialAlpha, phase(gather, 0.78, 1));
+      const anchor = materialAnchor(rect, item, classify);
+      curvedConnector(anchor.fromX, anchor.fromY, anchor.toX, anchor.toY, relationAlpha);
+      drawEditorialMaterial(rect, item, classify, materialAlpha(item.group), phase(gather, 0.78, 1), index);
     });
 
-    const handoffAlpha = phase(progress, 0.5, 0.58) * (1 - phase(progress, 0.66, 0.76));
-    withAlpha(ctx, handoffAlpha, () => {
-      ctx.save();
-      ctx.strokeStyle = palette.accent;
-      ctx.globalAlpha *= 0.22;
-      ctx.lineWidth = 1.5 * unit;
-      ctx.setLineDash([7 * unit, 12 * unit]);
-      workRows.forEach((row, index) => {
-        const source = trackRects[row.from];
-        const target = workRects[index];
-        ctx.beginPath();
-        ctx.moveTo(source.x + source.w / 2, source.y + source.h * 0.58);
-        ctx.bezierCurveTo(
-          source.x + source.w / 2,
-          source.y + source.h + 80 * unit,
-          target.x + target.w / 2,
-          target.y - 80 * unit,
-          target.x + target.w / 2,
-          target.y + target.h / 2,
-        );
-        ctx.stroke();
-      });
-      ctx.restore();
-    });
+    [0, 2].forEach((index) => {
+      const row = workRows[index];
+      const sideWorkEnd = 0.7;
+      const sideWorkStart = index === 0 ? 0.6 : 0.62;
+      const sidePull = phase(progress, sideWorkStart, sideWorkEnd);
 
-    withAlpha(ctx, workAlpha, () => {
-      workRows.forEach((row, index) => {
-        const source = trackRects[row.from];
-        const origin: Rect = source;
-        const rect = moveRect(origin, workRects[index], build);
-        drawBuildMorphCard(rect, row, tracks[row.from], build, 1, index === 1);
-      });
+      const sideDirection = index === 0 ? -1 : 1;
+      const sideSourceRect = {
+        x: centerWorkRect.x + sideDirection * centerWorkRect.w * 0.16,
+        y: centerWorkRect.y + 18 * unit,
+        w: centerWorkRect.w,
+        h: centerWorkRect.h,
+      };
+      const rect = moveRect(sideSourceRect, workRects[index], sidePull);
+      const sideAlpha = phase(progress, sideWorkStart - 0.01, sideWorkEnd) * workSceneAlpha;
+      drawEditorialWork(rect, row, tracks[row.from], sidePull, sideAlpha, false);
+    });
+  });
+
+  withAlpha(ctx, buildIndexAlpha, () => {
+    drawBuildIndex(buildIndexRects, phase(buildBridge, 0.18, 0.46), 0);
+    workRows.forEach((row, index) => {
+      const rect = moveRect(workRects[index], buildIndexRects[index], buildBridge);
+      drawFoldingWorkRow(rect, row, index, buildBridge, 1);
     });
   });
 
   withAlpha(ctx, todayAlpha, () => {
-    const rect = moveRect(workRects[1], todayRect, todayMorph);
-    rounded(ctx, rect, radius, palette.paperStrong, "rgba(148, 163, 184, 0.16)", palette.shadow);
-    const contentAlpha = phase(todayMorph, 0.32, 0.62);
-    withAlpha(ctx, contentAlpha, () => {
-      const pad = Math.max(42 * unit, rect.w * 0.045);
-      const top = rect.y + pad;
-      text("today / lsy", rect.x + pad, top, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
-      const nowW = measure(input.now, 22 * unit, "'JetBrains Mono', monospace", 600);
-      text(input.now, rect.x + rect.w - pad - nowW, top, 22 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-      ctx.save();
-      ctx.strokeStyle = palette.line;
-      ctx.lineWidth = 1.4 * unit;
-      ctx.beginPath();
-      ctx.moveTo(rect.x + pad, top + 28 * unit);
-      ctx.lineTo(rect.x + rect.w - pad, top + 28 * unit);
-      ctx.stroke();
-      ctx.restore();
-
-      text("lsy", rect.x + pad, top + 122 * unit, 142 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-      text("Full-stack builder", rect.x + pad, top + 184 * unit, 39 * unit, palette.text, "'JetBrains Mono', monospace", 700);
-      wrapText(STORY_SUMMARY, rect.w - pad * 2, 25 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, index) => {
-        text(line, rect.x + pad, top + 224 * unit + index * 30 * unit, 25 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-      });
-
-      const panels = STORY_TODAY_PANELS;
-      const panelGap = 14 * unit;
-      const panelW = (rect.w - pad * 2 - panelGap * 2) / 3;
-      const panelH = 142 * unit;
-      panels.forEach((panel, index) => {
-        const panelRect = {
-          x: rect.x + pad + index * (panelW + panelGap),
-          y: top + 276 * unit,
-          w: panelW,
-          h: panelH,
-        };
-        rounded(ctx, panelRect, 20 * unit, index === 0 ? palette.accentSoft : palette.soft, index === 0 ? palette.line : "rgba(148, 163, 184, 0.14)");
-        text(panel[0], panelRect.x + 22 * unit, panelRect.y + 37 * unit, 23 * unit, index === 0 ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
-        const titleLines = wrapText(panel[1], panelRect.w - 44 * unit, 22 * unit, "'Fraunces', 'Noto Serif SC', serif", 600, 2);
-        titleLines.forEach((line, lineIndex) => {
-          text(line, panelRect.x + 22 * unit, panelRect.y + 68 * unit + lineIndex * 24 * unit, 22 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-        });
-        const bodyY = panelRect.y + (titleLines.length > 1 ? 116 : 100) * unit;
-        wrapText(panel[2], panelRect.w - 44 * unit, 16 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
-          text(line, panelRect.x + 22 * unit, bodyY + lineIndex * 18 * unit, 16 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-        });
-      });
-
-      const statusRect = {
-        x: rect.x + pad,
-        y: rect.y + rect.h - 72 * unit,
-        w: rect.w - pad * 2,
-        h: 54 * unit,
-      };
-      rounded(ctx, statusRect, 23 * unit, palette.paper, "rgba(148, 163, 184, 0.14)");
-      text(STORY_STATUS, statusRect.x + 22 * unit, statusRect.y + 33 * unit, 23 * unit, palette.text, "'JetBrains Mono', monospace", 700);
-      const contact = input.contact || "lsy22@vip.qq.com";
-      const contactW = measure(contact, 22 * unit, "'JetBrains Mono', monospace", 600);
-      text(contact, statusRect.x + statusRect.w - contactW - 22 * unit, statusRect.y + 33 * unit, 22 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
-    });
+    drawEditorialToday(todayRect, todayMorph);
   });
 
 };
 
 export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryInput) => {
-  const { width, height } = ctx.canvas;
   const palette = PALETTES[input.theme];
   const progress = clamp(input.progress);
   if (input.device === "mobile") {

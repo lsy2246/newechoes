@@ -59,6 +59,27 @@ html.theme-transition-active {
   transition: none !important;
 }
 
+html.theme-transition-active *,
+html.theme-transition-active *::before,
+html.theme-transition-active *::after {
+  transition-property:
+    transform,
+    opacity,
+    left,
+    top,
+    right,
+    bottom,
+    width,
+    height,
+    max-width,
+    max-height,
+    margin,
+    padding,
+    filter,
+    backdrop-filter,
+    -webkit-backdrop-filter !important;
+}
+
 ::view-transition-old(root) {
   z-index: var(--theme-toggle-z-index-old) !important;
 }

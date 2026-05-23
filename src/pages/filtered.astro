@@ -10,9 +10,7 @@ const searchParams = Astro.url.searchParams;
 <Layout title="文章筛选" pageType="directory" description="文章筛选页面" skipSrTitle={false}>
   <div class="w-full">
     <!-- 导航栏/面包屑 - 不参与视图切换 -->
-    <div
-      class="bg-white dark:bg-gray-800 rounded-xl mb-4 shadow-lg border border-gray-200 dark:border-gray-700"
-    >
+    <div class="article-index-pathbar mb-4">
       <div class="px-4 py-3">
         <Breadcrumb
           pageType="filter"
@@ -30,4 +28,3 @@ const searchParams = Astro.url.searchParams;
     </div>
   </div>
 </Layout>
-

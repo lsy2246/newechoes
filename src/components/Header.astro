@@ -20,7 +20,7 @@ type NavItem = {
 
 const navItems = NAV_STRUCTURE as NavItem[];
 const iconButtonClass =
-  "inline-flex items-center justify-center h-8 w-8 cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 text-secondary-600 dark:text-secondary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200";
+  "nav-icon-button inline-flex items-center justify-center h-8 w-8 cursor-pointer rounded-md transition-colors duration-200";
 // 获取当前路径
 const currentPath = Astro.url.pathname;
 
@@ -76,7 +76,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   data-home-header
 >
   <div
-    class="absolute inset-0 bg-gray-50/95 dark:bg-dark-bg/95"
+    class="header-bg-surface absolute inset-0"
     id="header-bg"
   >
   </div>
@@ -87,7 +87,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         <div class="flex items-center">
           <a
             href="/"
-            class="text-xl md:text-2xl font-bold tracking-tight bg-linear-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent hover:from-primary-500 hover:to-primary-300 dark:from-primary-400 dark:to-primary-200 dark:hover:from-primary-300 dark:hover:to-primary-100"
+            class="site-wordmark text-xl md:text-2xl font-bold tracking-tight"
           >
             {SITE_TITLE}
           </a>
@@ -102,27 +102,27 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         </div>
 
         <!-- 导航链接 - 集成NavSelector组件 -->
-        <div class="hidden md:flex md:items-center md:space-x-4">
+        <div class="header-nav-cluster hidden md:flex md:items-center">
           <!-- 集成的NavSelector代码 -->
-          <nav class="nav-selector relative mr-4" data-duration="300" data-has-active={hasActiveNavItem.toString()}>
+          <nav class="nav-selector relative" data-duration="300" data-has-active={hasActiveNavItem.toString()}>
             <!-- 高亮背景元素 -->
             <div id="nav-primary-highlight" 
-                class="absolute z-0 bg-primary-100 dark:bg-primary-800/30 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300"></div>
+                class="absolute z-0 transition-all duration-300"></div>
             <div id="nav-secondary-highlight" 
-                class="absolute z-10 bg-primary-300/80 dark:bg-primary-700/60 rounded-xl shadow-md backdrop-blur-sm transition-all duration-300"></div>
+                class="absolute z-10 transition-all duration-300"></div>
             <!-- 悬停高亮元素 -->
             <div id="nav-hover-highlight" 
-                class="absolute z-5 bg-primary-100/50 dark:bg-primary-800/20 rounded-xl shadow-sm backdrop-blur-sm transition-all duration-200 opacity-0"></div>
+                class="absolute z-5 transition-all duration-200 opacity-0"></div>
             
             <!-- 导航菜单项 -->
-            <div class="flex items-center relative z-20 space-x-8">
+            <div class="nav-menu-row flex items-center relative z-20">
               {navItems.map((item) => (
                 <>
                   {!item.items ? (
                     <!-- 单项导航 -->
                     <a 
                       href={item.href} 
-                      class="nav-item relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
+                      class="nav-item relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium"
                       data-item-id={item.id}
                       data-state={activeItem && activeItem.id === item.id ? "active" : "inactive"}
                       data-astro-prefetch="hover"
@@ -137,7 +137,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                       <!-- 一级菜单按钮 -->
                       <button 
                         type="button"
-                        class="nav-group-toggle relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
+                        class="nav-group-toggle relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium"
                         data-toggle-id={item.id}
                         data-state={activeGroupId === item.id ? "active" : "inactive"}
                         data-height-reference="true"
@@ -148,17 +148,22 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                       <!-- 二级菜单容器 -->
                       <div class={`nav-group-items relative min-w-full ${activeGroupId === item.id ? 'menu-visible' : 'hidden'}`}>
                         <div class="flex flex-row flex-wrap justify-center items-center">
-                          {item.items.map((subItem) => (
-                            <a 
-                              href={subItem.href} 
-                              class="nav-subitem relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
-                              data-subitem-id={`${item.id}-${subItem.id}`}
-                              data-parent-id={item.id}
-                              data-state={activeSubItem && activeSubItem.id === subItem.id ? "active" : "inactive"}
-                              data-astro-prefetch="hover"
-                            >
-                              {subItem.text}
-                            </a>
+                          {item.items.map((subItem, index) => (
+                            <>
+                              {index > 0 && (
+                                <span class="nav-subitem-separator" aria-hidden="true">/</span>
+                              )}
+                              <a 
+                                href={subItem.href} 
+                                class="nav-subitem relative flex items-center justify-center h-10 px-3 py-2 text-sm font-medium"
+                                data-subitem-id={`${item.id}-${subItem.id}`}
+                                data-parent-id={item.id}
+                                data-state={activeSubItem && activeSubItem.id === subItem.id ? "active" : "inactive"}
+                                data-astro-prefetch="hover"
+                              >
+                                {subItem.text}
+                              </a>
+                            </>
                           ))}
                         </div>
                       </div>
@@ -170,7 +175,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           </nav>
           
           <!-- 使用自定义主题切换组件 -->
-          <div class="flex items-center gap-2">
+          <div class="header-actions flex items-center">
             <button
               type="button"
               class={iconButtonClass}
@@ -206,7 +211,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         <div class="flex items-center md:hidden space-x-1">
           <button
             type="button"
-            class={`${iconButtonClass} focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500`}
+            class={`${iconButtonClass} focus:outline-none focus:ring-2 focus:ring-inset`}
             data-open-global-graph
             aria-label="打开全局图谱"
             aria-haspopup="dialog"
@@ -231,7 +236,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           <!-- 移动端搜索按钮 -->
           <button
             type="button"
-            class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+            class="nav-icon-button inline-flex items-center justify-center p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-inset transition-colors duration-200"
             id="mobile-search-button"
             aria-expanded="false"
             aria-label="搜索"
@@ -256,7 +261,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           <!-- 移动端菜单按钮 -->
           <button
             type="button"
-            class="inline-flex items-center justify-center p-2 rounded-md text-secondary-400 dark:text-secondary-500 hover:text-secondary-500 dark:hover:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-dark-card focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+            class="nav-icon-button inline-flex items-center justify-center p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-inset transition-colors duration-200"
             id="mobile-menu-button"
             aria-expanded="false"
             aria-label="打开菜单"
@@ -279,7 +284,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       id="mobile-search"
     >
       <div
-        class="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-t border-gray-200 dark:border-gray-700/50 rounded-b-lg"
+        class="mobile-panel-shell"
       >
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div class="relative">
@@ -296,7 +301,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     >
       <div
         id="mobile-menu-bg"
-        class="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-t border-gray-200 dark:border-gray-700/50 rounded-b-lg"
+        class="mobile-panel-shell"
       >
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div class="grid gap-1 mt-2">
@@ -306,10 +311,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                   // 普通导航项
                   <a
                     href={item.href}
-                    class={`flex items-center px-3 py-3 rounded-lg text-base font-medium ${
+                    class={`mobile-nav-link flex items-center px-3 py-3 rounded-lg text-base font-medium ${
                       normalizedPath === item.href
-                        ? "text-white bg-primary-600 dark:bg-primary-500 shadow-sm"
-                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                        ? "mobile-nav-link-active"
+                        : ""
                     }`}
                     data-astro-prefetch="hover"
                   >
@@ -319,13 +324,13 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                   // 带子菜单的分组
                   <div class="mt-1 mb-2">
                     <div 
-                      class="flex items-center justify-between px-3 py-2 rounded-lg text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70 cursor-pointer"
+                      class="mobile-nav-group-toggle flex items-center justify-between px-3 py-2 rounded-lg text-base font-medium cursor-pointer"
                       data-mobile-menu-toggle={item.id}
                     >
                       <span>{item.text}</span>
                       <div class="mobile-menu-icon w-5 h-5 flex items-center justify-center">
                         <svg 
-                          class="mobile-menu-arrow w-4 h-4 text-gray-500 dark:text-gray-400" 
+                          class="mobile-menu-arrow w-4 h-4" 
                           fill="none" 
                           viewBox="0 0 24 24" 
                           stroke="currentColor"
@@ -334,16 +339,16 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                         </svg>
                       </div>
                     </div>
-                    <div class="mobile-submenu pl-4 border-l-2 border-gray-200 dark:border-gray-700" 
+                    <div class="mobile-submenu pl-4" 
                          data-parent-id={item.id}
                          data-expanded="false">
                       {item.items.map(subItem => (
                         <a
                           href={subItem.href}
-                          class={`flex items-center px-3 py-2 rounded-lg text-base font-medium ${
+                          class={`mobile-nav-link flex items-center px-3 py-2 rounded-lg text-base font-medium ${
                             normalizedPath === subItem.href
-                              ? "text-white bg-primary-600 dark:bg-primary-500 shadow-sm"
-                              : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                              ? "mobile-nav-link-active"
+                              : ""
                           }`}
                           data-astro-prefetch="hover"
                         >
@@ -356,10 +361,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
               ))
             }
             <div
-              class="mt-2 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/70 rounded-lg px-3 py-2"
+              class="mobile-theme-row mt-2 pt-3 flex items-center justify-between cursor-pointer rounded-lg px-3 py-2"
               id="theme-toggle-container"
             >
-              <span class="text-sm font-medium text-gray-600 dark:text-gray-300"
+              <span class="mobile-theme-label text-sm font-medium"
                 >切换主题</span
               >
               <div
@@ -552,6 +557,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const result = {
       primaryTarget,
       secondaryTarget,
+      primaryScope: isGroupActive ? "group" : "item",
       positions: {
         primary: null,
         secondary: null
@@ -589,10 +595,12 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           }
           
           // 确保高亮可见
+          primaryHighlight.dataset.scope = this.primaryScope;
           primaryHighlight.style.opacity = '1';
           navSelector.setAttribute('data-has-active', 'true');
         } else if (primaryHighlight) {
           // 隐藏高亮背景
+          delete primaryHighlight.dataset.scope;
           primaryHighlight.style.opacity = '0';
           
           // 如果没有二级高亮也处于活动状态，更新data-has-active
@@ -1511,8 +1519,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             // 确保切换按钮也具有正确的状态
             const toggle = group.querySelector('.nav-group-toggle');
             if (toggle) {
-              toggle.classList.add('menu-up', 'font-semibold', 'text-primary-700', 'dark:text-primary-300');
-              toggle.classList.remove('text-gray-600', 'dark:text-gray-300', 'hover:text-primary-600', 'dark:hover:text-primary-400');
+              toggle.classList.add('menu-up', 'font-semibold');
             }
           }
         });
@@ -1563,8 +1570,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         // 检查是否完全匹配或者路径前缀匹配（但排除根路径'/'的前缀匹配）
         if (href === normalizedPath || (normalizedPath.startsWith(href) && href !== '/')) {
           // 应用高亮样式
-          item.classList.add('text-white', 'bg-primary-600', 'dark:bg-primary-500', 'shadow-sm');
-          item.classList.remove('text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800/70');
+          item.classList.add('mobile-nav-link-active');
           
           // 如果是子菜单项，自动展开其父菜单
           const submenu = item.closest('.mobile-submenu');
@@ -1578,8 +1584,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           }
         } else {
           // 移除高亮样式
-          item.classList.remove('text-white', 'bg-primary-600', 'dark:bg-primary-500', 'shadow-sm');
-          item.classList.add('text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800/70');
+          item.classList.remove('mobile-nav-link-active');
         }
       });
     }

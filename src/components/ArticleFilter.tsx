@@ -201,33 +201,15 @@ const DateRangePicker: React.FC<{
           key={dateStr}
           type="button"
           onClick={() => handleDateClick(dateStr)}
-          className={`h-8 w-8 rounded-full flex items-center justify-center text-sm
-            ${
-              isStartDate || isEndDate
-                ? "bg-primary-600 text-white hover:bg-primary-700"
-                : ""
-            }
-            ${
-              isInRange && !isStartDate && !isEndDate
-                ? "bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300"
-                : ""
-            }
-            ${
-              !isStartDate && !isEndDate && !isInRange
-                ? "hover:bg-gray-100 dark:hover:bg-gray-700"
-                : ""
-            }
-            ${
-              isStartDate && isEndDate
-                ? "bg-primary-600 text-white hover:bg-primary-700"
-                : ""
-            }
-            ${
-              isToday && !isStartDate && !isEndDate && !isInRange
-                ? "border border-primary-500 dark:border-primary-400"
-                : ""
-            }
-          `}
+          className={`filter-calendar-day ${
+            isStartDate || isEndDate ? "is-selected" : ""
+          } ${
+            isInRange && !isStartDate && !isEndDate ? "is-in-range" : ""
+          } ${
+            isToday && !isStartDate && !isEndDate && !isInRange
+              ? "is-today"
+              : ""
+          }`}
           aria-label={ariaLabel}
           aria-pressed={ariaPressed}
           role="gridcell"
@@ -426,23 +408,21 @@ const DateRangePicker: React.FC<{
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 focus:outline-none text-left hover:bg-gray-50 dark:hover:bg-gray-600/50"
+        className="filter-control filter-date-trigger"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         id={id}
       >
         <div className="flex justify-between items-center">
           <span
-            className={`truncate ${
-              !selectedStartDate && !selectedEndDate
-                ? "text-gray-400 dark:text-gray-500"
-                : ""
+            className={`filter-control-value ${
+              !selectedStartDate && !selectedEndDate ? "is-placeholder" : ""
             }`}
           >
             {getDisplayText()}
           </span>
           <svg
-            className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0"
+            className="filter-control-icon"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -462,17 +442,17 @@ const DateRangePicker: React.FC<{
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="absolute z-40 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:w-[320px] w-full"
+          className="filter-popover filter-date-popover absolute z-40 mt-1"
           role="dialog"
           aria-modal="true"
           aria-labelledby={`${id}-calendar-heading`}
         >
           <div className="mb-2">
-            <div className="flex justify-between items-center mb-3 relative">
+            <div className="filter-calendar-header">
               <button
                 type="button"
                 onClick={prevMonth}
-                className="p-1.5 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
+                className="filter-icon-button shrink-0"
                 aria-label="上个月"
               >
                 <svg
@@ -490,7 +470,7 @@ const DateRangePicker: React.FC<{
                 </svg>
               </button>
 
-              <div className="flex items-center space-x-2 grow justify-center">
+              <div className="filter-calendar-inputs">
                 <h3
                   id={`${id}-calendar-heading`}
                   className="sr-only"
@@ -499,10 +479,10 @@ const DateRangePicker: React.FC<{
                   {currentMonth.getMonth() + 1}月
                 </h3>
                 {/* 年份输入框 */}
-                <div className="flex items-center">
+                <div className="filter-calendar-jump">
                   <label
                     htmlFor={`${id}-yearInput`}
-                    className="text-xs text-gray-600 dark:text-gray-400 mr-1"
+                    className="filter-mini-label"
                   >
                     年份:
                   </label>
@@ -513,17 +493,17 @@ const DateRangePicker: React.FC<{
                     onChange={handleYearInputChange}
                     onBlur={applyYearInput}
                     onKeyDown={handleYearKeyDown}
-                    className="w-14 py-0.5 px-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-center leading-tight"
+                    className="filter-compact-input filter-year-input"
                     maxLength={4}
                     aria-label="年份输入框"
                   />
                 </div>
 
                 {/* 月份输入框 */}
-                <div className="flex items-center">
+                <div className="filter-calendar-jump">
                   <label
                     htmlFor={`${id}-monthInput`}
-                    className="text-xs text-gray-600 dark:text-gray-400 mr-1"
+                    className="filter-mini-label"
                   >
                     月份:
                   </label>
@@ -534,7 +514,7 @@ const DateRangePicker: React.FC<{
                     onChange={handleMonthInputChange}
                     onBlur={applyMonthInput}
                     onKeyDown={handleMonthKeyDown}
-                    className="w-8 py-0.5 px-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-center leading-tight"
+                    className="filter-compact-input filter-month-input"
                     maxLength={2}
                     aria-label="月份输入框"
                   />
@@ -544,7 +524,7 @@ const DateRangePicker: React.FC<{
               <button
                 type="button"
                 onClick={nextMonth}
-                className="p-1.5 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
+                className="filter-icon-button shrink-0"
                 aria-label="下个月"
               >
                 <svg
@@ -567,7 +547,7 @@ const DateRangePicker: React.FC<{
               {["日", "一", "二", "三", "四", "五", "六"].map((day) => (
                 <div
                   key={day}
-                  className="h-8 w-8 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs"
+                  className="filter-calendar-weekday"
                   aria-hidden="true"
                 >
                   {day}
@@ -585,8 +565,8 @@ const DateRangePicker: React.FC<{
           </div>
 
           {/* 添加常见时间范围快捷选项 */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-2 pb-2 mb-1">
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1.5">
+          <div className="filter-popover-section">
+            <div className="filter-mini-label mb-1.5">
               常用时间范围:
             </div>
             <div
@@ -612,7 +592,7 @@ const DateRangePicker: React.FC<{
                   setTempStartDate(lastMonthStr);
                   setTempEndDate(todayStr);
                 }}
-                className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                className="filter-chip filter-chip-quiet"
                 aria-label="选择最近一个月的日期范围"
               >
                 最近一月
@@ -629,7 +609,7 @@ const DateRangePicker: React.FC<{
                   setTempStartDate(lastYearStr);
                   setTempEndDate(todayStr);
                 }}
-                className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                className="filter-chip filter-chip-quiet"
                 aria-label="选择最近一年的日期范围"
               >
                 最近一年
@@ -647,7 +627,7 @@ const DateRangePicker: React.FC<{
                   setTempStartDate(firstDayStr);
                   setTempEndDate(todayStr);
                 }}
-                className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                className="filter-chip filter-chip-quiet"
                 aria-label="选择今年内的日期范围"
               >
                 今年内
@@ -655,12 +635,12 @@ const DateRangePicker: React.FC<{
             </div>
           </div>
 
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2 flex justify-between">
+          <div className="filter-popover-actions">
             <button
               type="button"
               id={`${id}-clear-btn`}
               onClick={clearDates}
-              className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+              className="filter-text-button"
               aria-label="清除所有已选日期"
             >
               清除
@@ -670,7 +650,7 @@ const DateRangePicker: React.FC<{
               type="button"
               id={`${id}-apply-btn`}
               onClick={applyDates}
-              className="px-3 py-1 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800"
+              className="filter-action-button"
               aria-label="应用已选日期范围"
             >
               应用
@@ -679,7 +659,7 @@ const DateRangePicker: React.FC<{
 
           {tempStartDate && (
             <div
-              className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400"
+              className="filter-selection-note"
               id={`${id}-selected-info`}
               aria-live="polite"
             >
@@ -695,7 +675,7 @@ const DateRangePicker: React.FC<{
       {/* 显示已选日期范围或添加清除按钮 */}
       {(selectedStartDate || selectedEndDate) && (
         <div
-          className="mt-2 flex justify-between items-center text-xs text-gray-600 dark:text-gray-400"
+          className="filter-selection-note"
           aria-live="polite"
           aria-atomic="true"
           id={`${id}-display-selection`}
@@ -712,7 +692,7 @@ const DateRangePicker: React.FC<{
               setSelectedStartDate(null);
               setSelectedEndDate(null);
             }}
-            className="ml-2 text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300"
+            className="filter-text-button ml-2"
             aria-label="清除已选日期范围"
           >
             清除
@@ -1414,8 +1394,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
   // 渲染错误信息
   const renderError = () => (
-    <div className="col-span-3 text-center py-8">
-      <div className="text-red-500 mb-2">
+    <div className="filter-error col-span-3 text-center py-8">
+      <div className="filter-error-heading mb-2">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-12 w-12 mx-auto mb-3"
@@ -1432,23 +1412,23 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         </svg>
         {error?.includes("索引文件") ? "索引数据错误" : "加载失败"}
       </div>
-      <p className="text-gray-600 dark:text-gray-400">{error}</p>
+      <p className="filter-error-message">{error}</p>
       <div className="mt-4 flex justify-center">
-        <div className="bg-gray-100 dark:bg-gray-700 rounded-lg px-4 py-3 text-sm text-left text-gray-700 dark:text-gray-300 max-w-lg">
+        <div className="filter-error-panel px-4 py-3 text-sm text-left max-w-lg">
           <p className="font-medium">需要重新构建索引</p>
           <p className="mt-2">请手动执行以下步骤：</p>
           <ol className="list-decimal list-inside mt-2 space-y-1">
             <li>在命令行中进入项目根目录</li>
             <li>
               运行索引构建命令：
-              <code className="bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded">
+              <code className="filter-inline-code px-2 py-0.5">
                 npm run build
               </code>
             </li>
             <li>等待索引构建完成</li>
             <li>刷新此页面</li>
           </ol>
-          <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          <p className="filter-error-note mt-3 text-xs">
             注意：索引构建可能需要一些时间，取决于您的文章数量
           </p>
         </div>
@@ -1547,14 +1527,14 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     };
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
+      <div className="filter-panel mb-6">
         {/* 筛选控件 */}
-        <div className="p-4 dark:border-gray-700">
+        <div className="filter-panel-header p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center">
+            <h2 className="filter-panel-title text-lg font-semibold flex items-center">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-2 text-primary-500"
+                className="filter-panel-title-icon h-5 w-5 mr-2"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1569,7 +1549,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               文章筛选
             </h2>
             <button
-              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 focus:outline-none hover:translate-x-0.5 hover:scale-105 flex items-center"
+              className="filter-reset-button text-sm focus:outline-none flex items-center"
               onClick={resetAllFilters}
             >
               <span>重置所有筛选</span>
@@ -1592,10 +1572,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* 时间筛选 */}
-            <div className="filter-group w-full">
+            <div className="filter-field w-full">
               <label
                 htmlFor="articleFilterDateRange"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                className="filter-label block text-sm font-medium mb-1.5"
               >
                 发布时间范围
               </label>
@@ -1641,11 +1621,11 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
             </div>
 
             {/* 排序方式 */}
-            <div className="filter-group w-full">
+            <div className="filter-field w-full">
               <label
                 id="sort-label"
                 htmlFor="sort-button"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                className="filter-label block text-sm font-medium mb-1.5"
               >
                 排序方式
               </label>
@@ -1660,16 +1640,16 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                     aria-haspopup="listbox"
                     aria-labelledby="sort-label"
                     id="sort-button"
-                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 focus:outline-none text-left flex justify-between items-center"
+                    className="filter-control w-full py-2 px-3 focus:outline-none text-left flex justify-between items-center"
                   >
-                    <span className="truncate">
+                    <span className="filter-control-value truncate">
                       {activeFilters.sort === "newest" && "最新发布"}
                       {activeFilters.sort === "oldest" && "最早发布"}
                       {activeFilters.sort === "title_asc" && "标题 A-Z"}
                       {activeFilters.sort === "title_desc" && "标题 Z-A"}
                     </span>
                     <svg
-                      className="w-4 h-4 ml-2 shrink-0"
+                      className="filter-control-icon w-4 h-4 ml-2 shrink-0"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -1688,7 +1668,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                   {/* 下拉选项列表 */}
                   {isSortDropdownOpen && (
                     <div
-                      className="absolute z-20 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg overflow-hidden"
+                      className="filter-popover absolute z-20 mt-2 w-full overflow-hidden"
                       ref={sortDropdownRef}
                       role="listbox"
                       aria-labelledby="sort-label"
@@ -1703,10 +1683,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                           <button
                             key={option.value}
                             type="button"
-                            className={`w-full text-left px-4 py-2 text-sm ${
+                            className={`filter-option w-full text-left px-4 py-2 text-sm ${
                               activeFilters.sort === option.value
-                                ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
-                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                ? "is-active"
+                                : ""
                             }`}
                             onClick={() => {
                               handleSortOptionSelect(option.value);
@@ -1726,10 +1706,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
             </div>
 
             {/* 标签筛选器 */}
-            <div className="filter-group w-full">
+            <div className="filter-field w-full">
               <label
                 htmlFor="tagSelectorButton"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                className="filter-label block text-sm font-medium mb-1.5"
               >
                 文章标签
               </label>
@@ -1737,22 +1717,22 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                 <button
                   ref={tagSelectorButtonRef}
                   id="tagSelectorButton"
-                  className="w-full text-left flex justify-between items-center bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 focus:outline-none"
+                  className="filter-control w-full text-left flex justify-between items-center py-2 px-3 focus:outline-none"
                   onClick={toggleTagDropdown}
                   aria-expanded={isTagDropdownOpen}
                   aria-haspopup="true"
                 >
                   <span
-                    className={`truncate ${
+                    className={`filter-control-value truncate ${
                       activeFilters.tags.length > 0
-                        ? "text-primary-600 dark:text-primary-400"
+                        ? "has-value"
                         : ""
                     }`}
                   >
                     {getTagSelectorText()}
                   </span>
                   <svg
-                    className="w-4 h-4 shrink-0"
+                    className="filter-control-icon w-4 h-4 shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1771,9 +1751,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                 {isTagDropdownOpen && (
                   <div
                     ref={tagDropdownRef}
-                    className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-80 overflow-hidden flex flex-col"
+                    className="filter-popover absolute z-20 mt-1 w-full max-h-80 overflow-hidden flex flex-col"
                   >
-                    <div className="sticky top-0 bg-white dark:bg-gray-800 p-2 border-b border-gray-200 dark:border-gray-700 z-10">
+                    <div className="filter-popover-surface sticky top-0 p-2 z-10">
                       <div className="relative">
                         <label
                           htmlFor="tagSearchInput"
@@ -1787,14 +1767,14 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                           placeholder={getTagSearchPlaceholder()}
                           value={tagSearchInput}
                           onChange={(e) => setTagSearchInput(e.target.value)}
-                          className={`w-full py-2 pl-9 pr-8 text-sm border ${
+                          className={`filter-search-input w-full py-2 pl-9 pr-8 text-sm ${
                             error
-                              ? "border-red-300 dark:border-red-600"
-                              : "border-gray-300 dark:border-gray-600"
-                          } rounded-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:border-primary-500 focus:ring-primary-500/50`}
+                              ? "has-error"
+                              : ""
+                          } focus:outline-none`}
                         />
                         <svg
-                          className="w-5 h-5 absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400"
+                          className="filter-search-icon w-5 h-5 absolute left-2.5 top-1/2 transform -translate-y-1/2"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1815,7 +1795,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                             className="absolute right-2.5 top-1/2 transform -translate-y-1/2"
                             aria-label="正在加载标签"
                           >
-                            <div className="w-4 h-4 rounded-full bg-yellow-400 animate-pulse"></div>
+                            <div className="filter-status-dot is-loading w-4 h-4 animate-pulse"></div>
                           </div>
                         )}
 
@@ -1825,7 +1805,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                             className="absolute right-2.5 top-1/2 transform -translate-y-1/2"
                             aria-label="加载标签出错"
                           >
-                            <div className="w-4 h-4 rounded-full bg-red-500"></div>
+                            <div className="filter-status-dot is-error w-4 h-4"></div>
                           </div>
                         )}
                       </div>
@@ -1841,9 +1821,9 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                                 /\s+/g,
                                 "-",
                               )}`}
-                              className={`flex items-center p-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md cursor-pointer ${
+                              className={`filter-option flex items-center p-2.5 cursor-pointer ${
                                 activeFilters.tags.includes(tag)
-                                  ? "bg-primary-50 dark:bg-primary-900/20"
+                                  ? "is-active"
                                   : ""
                               }`}
                             >
@@ -1854,17 +1834,17 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                                     "-",
                                   )}`}
                                   type="checkbox"
-                                  className="w-4 h-4 text-primary-600 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:bg-gray-700"
+                                  className="filter-checkbox w-4 h-4"
                                   checked={activeFilters.tags.includes(tag)}
                                   onChange={() => handleTagSelection(tag)}
                                 />
-                                <span className="ml-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 truncate max-w-45">
+                                <span className="filter-option-label ml-2.5 text-sm font-medium truncate max-w-45">
                                   {tag}
                                 </span>
                               </div>
                               {activeFilters.tags.includes(tag) && (
                                 <span
-                                  className="ml-auto text-primary-500 dark:text-primary-400 shrink-0"
+                                  className="filter-option-check ml-auto shrink-0"
                                   aria-hidden="true"
                                 >
                                   <svg
@@ -1885,10 +1865,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                           ))}
                         </div>
                       ) : (
-                        <div className="py-10 text-center">
+                        <div className="filter-popover-empty py-10 text-center">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-3"
+                            className="filter-popover-empty-icon h-12 w-12 mx-auto mb-3"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -1900,19 +1880,19 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                               d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
                             />
                           </svg>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                          <p className="filter-popover-empty-title text-sm font-medium">
                             没有找到匹配的标签
                           </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          <p className="filter-popover-empty-note text-xs mt-1">
                             尝试其他搜索关键词
                           </p>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex justify-between p-2 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-800 shadow-md z-10">
+                    <div className="filter-popover-actions filter-popover-surface flex justify-between p-2 sticky bottom-0 z-10">
                       <button
-                        className="text-xs text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 font-medium flex items-center"
+                        className="filter-text-button text-xs font-medium flex items-center"
                         onClick={clearAllTags}
                       >
                         <svg
@@ -1932,7 +1912,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                         清除选择
                       </button>
                       <button
-                        className="px-3 py-1.5 text-xs bg-primary-600 hover:bg-primary-700 text-white rounded-md shadow-sm"
+                        className="filter-action-button px-3 py-1.5 text-xs"
                         onClick={() => setIsTagDropdownOpen(false)}
                       >
                         完成
@@ -1946,17 +1926,17 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         </div>
 
         {/* 显示已选标签 */}
-        <div className="px-4 py-3 border border-gray-200 dark:border-gray-700 flex flex-wrap gap-2 min-h-8 max-h-24 overflow-y-auto">
+        <div className="filter-tag-list px-4 py-3 flex flex-wrap gap-2 min-h-8 max-h-24 overflow-y-auto">
           {activeFilters.tags.length > 0 ? (
             <>
               {activeFilters.tags.map((tag) => (
                 <div
                   key={tag}
-                  className="inline-flex items-center px-3 py-1.5 rounded-full text-sm bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 border border-primary-100 dark:border-primary-800/50 shadow-sm hover:bg-primary-100 dark:hover:bg-primary-800/40 group"
+                  className="filter-tag inline-flex items-center px-3 py-1.5 text-sm group"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-3.5 w-3.5 mr-1.5 text-primary-500 dark:text-primary-400"
+                    className="filter-tag-icon h-3.5 w-3.5 mr-1.5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -1970,7 +1950,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                   </svg>
                   <span className="truncate max-w-37.5 font-medium">{tag}</span>
                   <button
-                    className="ml-1.5 text-primary-400 group-hover:text-primary-700 dark:text-primary-400 dark:group-hover:text-primary-300 focus:outline-none p-0.5 rounded-full hover:bg-primary-200/50 dark:hover:bg-primary-800/50 opacity-70 group-hover:opacity-100"
+                    className="filter-tag-remove ml-1.5 focus:outline-none p-0.5"
                     onClick={() => removeTag(tag)}
                     title="移除此标签"
                   >
@@ -1990,7 +1970,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               ))}
               <button
                 onClick={clearAllTags}
-                className="inline-flex items-center px-3 py-1.5 rounded-full text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm"
+                className="filter-tag filter-tag-clear inline-flex items-center px-3 py-1.5 text-sm"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -2010,15 +1990,15 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               </button>
             </>
           ) : (
-            <div className="w-full text-center py-2 text-sm text-gray-500 dark:text-gray-400">
+            <div className="filter-tag-empty w-full text-center py-2 text-sm">
               尚未选择任何标签，点击上方"选择标签"按钮进行筛选
             </div>
           )}
         </div>
 
         {/* 筛选结果统计 */}
-        <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 rounded-b-xl flex flex-wrap justify-between items-center gap-y-2">
-          <div className="text-sm text-gray-600 dark:text-gray-400 w-full sm:w-auto mb-1 sm:mb-0">
+        <div className="filter-footer px-4 py-3 flex flex-wrap justify-between items-center gap-y-2">
+          <div className="filter-footer-count text-sm w-full sm:w-auto mb-1 sm:mb-0">
             {totalArticles > 0
               ? `共找到 ${totalArticles} 篇文章，当前显示第 ${Math.min(
                   (activeFilters.currentPage - 1) * activeFilters.pageSize + 1,
@@ -2035,7 +2015,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
             <label
               id="page-size-label"
               htmlFor="pageSizeButton"
-              className="text-sm text-gray-600 dark:text-gray-400 mr-2"
+              className="filter-label text-sm mr-2"
             >
               每页显示:
             </label>
@@ -2050,11 +2030,11 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                 aria-expanded={isPageSizeDropdownOpen}
                 aria-haspopup="listbox"
                 aria-labelledby="page-size-label"
-                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-1 px-2 text-sm rounded-lg focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 focus:outline-none text-left flex justify-between items-center"
+                className="filter-control filter-control-compact w-full py-1 px-2 text-sm focus:outline-none text-left flex justify-between items-center"
               >
-                <span className="truncate">{activeFilters.pageSize} 篇</span>
+                <span className="filter-control-value truncate">{activeFilters.pageSize} 篇</span>
                 <svg
-                  className="w-3 h-3 ml-2 shrink-0"
+                  className="filter-control-icon w-3 h-3 ml-2 shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -2073,7 +2053,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               {isPageSizeDropdownOpen && (
                 <div
                   ref={pageSizeDropdownRef}
-                  className="absolute right-0 z-20 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg overflow-hidden"
+                  className="filter-popover absolute right-0 z-20 mt-2 w-full overflow-hidden"
                   role="listbox"
                   aria-labelledby="page-size-label"
                 >
@@ -2082,10 +2062,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                       <button
                         key={option}
                         type="button"
-                        className={`w-full text-left px-3 py-2 text-sm ${
+                        className={`filter-option w-full text-left px-3 py-2 text-sm ${
                           activeFilters.pageSize === option
-                            ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            ? "is-active"
+                            : ""
                         }`}
                         onClick={() => {
                           handlePageSizeChange(option);
@@ -2162,8 +2142,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   const renderArticleList = () => {
     if (filteredArticles.length === 0) {
       return (
-        <div className="text-center py-16">
-          <div className="text-gray-400 dark:text-gray-500 mb-3">
+        <div className="filter-empty text-center py-16">
+          <div className="filter-empty-icon mb-3">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-16 w-16 mx-auto"
@@ -2179,15 +2159,15 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">
+          <h3 className="filter-empty-title text-lg font-medium">
             没有找到符合条件的文章
           </h3>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 max-w-md mx-auto">
+          <p className="filter-empty-note mt-1 max-w-md mx-auto">
             尝试调整筛选条件或者清除所有筛选以查看更多文章
           </p>
           <button
             onClick={resetAllFilters}
-            className="mt-4 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg inline-flex items-center"
+            className="filter-action-button filter-empty-action mt-4 px-4 py-2 inline-flex items-center"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -2222,30 +2202,38 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               data-astro-prefetch="viewport"
             >
               <div className="article-card-content">
-                <div className="article-card-icon">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                    />
-                  </svg>
-                </div>
                 <div className="article-card-body">
-                  <h3 className="article-card-title">
-                    {article.title || "无标题"}
-                  </h3>
+                  <div className="article-card-title-row">
+                    <span className="article-card-icon">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+                        />
+                      </svg>
+                    </span>
+                    <h3 className="article-card-title">
+                      {article.title || "无标题"}
+                    </h3>
+                  </div>
 
-                  {article.summary && (
-                    <p className="article-card-summary">{article.summary}</p>
-                  )}
+                  <p
+                    className={
+                      article.summary
+                        ? "article-card-summary"
+                        : "article-card-summary article-card-summary-empty"
+                    }
+                  >
+                    {article.summary}
+                  </p>
 
                   <div className="article-card-footer">
                     <time
@@ -2331,9 +2319,6 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
         currentPage: page,
       }));
 
-      // 滚动到顶部
-      window.scrollTo({ top: 0, behavior: "smooth" });
-
       // 直接传递新的页码状态给筛选函数，并更新URL
       applyFilters({
         currentPage: page,
@@ -2344,15 +2329,15 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
     return (
       <div className="flex justify-center mt-8">
-        <div className="flex rounded-lg shadow-sm">
+        <div className="filter-pagination flex">
           {/* 上一页按钮 */}
           <button
             onClick={() => handlePageChange(activeFilters.currentPage - 1)}
             disabled={activeFilters.currentPage === 1}
-            className={`px-3 py-2 border-r border-gray-200 dark:border-gray-700 rounded-l-lg flex items-center ${
+            className={`filter-page-button px-3 py-2 flex items-center ${
               activeFilters.currentPage === 1
-                ? "text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
-                : "text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                ? "is-disabled cursor-not-allowed"
+                : ""
             }`}
           >
             <svg
@@ -2377,14 +2362,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               <button
                 key={`page-${page}`}
                 onClick={() => handlePageChange(page)}
-                className={`px-4 py-2 ${
-                  i === pageNumbers.length - 1
-                    ? "border-r border-gray-200 dark:border-gray-700"
-                    : ""
-                } ${
+                className={`filter-page-button px-4 py-2 ${
                   page === activeFilters.currentPage
-                    ? "bg-primary-600 text-white"
-                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    ? "is-active"
+                    : ""
                 } ${i === 0 ? "" : "border-l-0"}`}
               >
                 {page}
@@ -2392,7 +2373,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
             ) : (
               <span
                 key={`ellipsis-${i}`}
-                className="px-4 py-2 border-l-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+                className="filter-page-ellipsis px-4 py-2 border-l-0"
               >
                 {page}
               </span>
@@ -2403,10 +2384,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
           <button
             onClick={() => handlePageChange(activeFilters.currentPage + 1)}
             disabled={activeFilters.currentPage === totalPages}
-            className={`px-3 py-2 rounded-r-lg flex items-center ${
+            className={`filter-page-button px-3 py-2 flex items-center ${
               activeFilters.currentPage === totalPages
-                ? "text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
-                : "text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                ? "is-disabled cursor-not-allowed"
+                : ""
             }`}
           >
             <svg
@@ -2486,8 +2467,8 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
       {/* 文章列表区域 - 修改加载显示方式 */}
       {showFilterLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <div className="filter-loading flex items-center justify-center py-12">
+          <div className="filter-loading-spinner animate-spin h-8 w-8"></div>
         </div>
       ) : (
         <>

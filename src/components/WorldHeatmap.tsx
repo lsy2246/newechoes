@@ -43,6 +43,23 @@ interface WorldHeatmapProps {
   visitedPlaces: string[];
 }
 
+const EARTH_RADIUS = 2.0;
+const CAMERA_FOV_DEGREES = 45;
+const GLOBE_FRAMING_MARGIN = 1.04;
+
+const getSafeGlobeMinDistance = (
+  cameraFovDegrees: number,
+  aspectRatio: number,
+) => {
+  const verticalHalfFov = (cameraFovDegrees * Math.PI) / 360;
+  const horizontalHalfFov = Math.atan(
+    Math.tan(verticalHalfFov) * Math.max(aspectRatio, 0.1),
+  );
+  const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
+
+  return (EARTH_RADIUS / Math.sin(limitingHalfFov)) * GLOBE_FRAMING_MARGIN;
+};
+
 const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
@@ -423,7 +440,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         };
 
         // 创建地球几何体
-        const earthGeometry = new ThreeSphereGeometry(2.0, 64, 64);
+        const earthGeometry = new ThreeSphereGeometry(EARTH_RADIUS, 64, 64);
         const earthMaterial = createMaterial(
           colors.earthBase,
           ThreeFrontSide,
@@ -449,7 +466,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
 
         // 创建相机
         const camera = new ThreePerspectiveCamera(
-          45,
+          CAMERA_FOV_DEGREES,
           containerRef.current.clientWidth / containerRef.current.clientHeight,
           0.1,
           1000,
@@ -491,8 +508,11 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         controls.rotateSpeed = 0.2;
         controls.autoRotate = true;
         controls.autoRotateSpeed = 0.3;
-        controls.minDistance = 5;
-        controls.maxDistance = 15;
+        controls.minDistance = getSafeGlobeMinDistance(
+          camera.fov,
+          camera.aspect,
+        );
+        controls.maxDistance = Math.max(15, controls.minDistance + 1);
 
         controls.minPolarAngle = Math.PI * 0.1;
         controls.maxPolarAngle = Math.PI * 0.9;
@@ -924,6 +944,15 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
 
           camera.aspect = width / height;
           camera.updateProjectionMatrix();
+          controls.minDistance = getSafeGlobeMinDistance(
+            camera.fov,
+            camera.aspect,
+          );
+          controls.maxDistance = Math.max(15, controls.minDistance + 1);
+          if (camera.position.length() < controls.minDistance) {
+            camera.position.setLength(controls.minDistance);
+            controls.update();
+          }
           renderer.setSize(width, height);
           labelRenderer.setSize(width, height);
 

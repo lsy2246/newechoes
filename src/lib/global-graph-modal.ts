@@ -18,42 +18,69 @@ type GraphPayload = {
   links: GraphLink[];
 };
 
-type ThreeModule = typeof import("three");
-type ForceModule = typeof import("d3-force-3d");
-type OrbitControlsModule = typeof import(
-  "three/examples/jsm/controls/OrbitControls.js"
-);
-type Css2dModule = typeof import("three/examples/jsm/renderers/CSS2DRenderer.js");
-
 type RuntimeNode = GraphNode & {
   degree: number;
   neighbors: Set<string>;
-  position: import("three").Vector3;
-  baseRadius: number;
-  mesh: import("three").Mesh;
-  halo: import("three").Mesh;
-  labelElement: HTMLDivElement;
-  labelObject: InstanceType<Css2dModule["CSS2DObject"]>;
   clusterKey: string;
-  clusterColor: string;
+  radius: number;
+  labelElement: HTMLDivElement;
+  anchorX: number;
+  anchorY: number;
   x?: number;
   y?: number;
-  z?: number;
   vx?: number;
   vy?: number;
-  vz?: number;
-  fx?: number;
-  fy?: number;
-  fz?: number;
+  fx?: number | null;
+  fy?: number | null;
   index?: number;
 };
 
 type RuntimeLink = GraphLink & {
   source: RuntimeNode;
   target: RuntimeNode;
-  line: import("three").Line;
-  material: import("three").LineBasicMaterial;
-  baseColor: string;
+};
+
+type ForceModule = {
+  forceSimulation: (nodes: RuntimeNode[], dimensions?: number) => ForceSimulation;
+  forceLink: (links: RuntimeLink[]) => ForceLink;
+  forceManyBody: () => ForceManyBody;
+  forceCollide: (radius: (node: RuntimeNode) => number) => ForceCollide;
+  forceCenter: (x: number, y: number) => Force;
+};
+
+type Force = {
+  initialize?: (nodes: RuntimeNode[]) => void;
+  (alpha: number): void;
+};
+
+type ForceLink = Force & {
+  id: (accessor: (node: RuntimeNode) => string) => ForceLink;
+  distance: (accessor: (link: RuntimeLink) => number) => ForceLink;
+  strength: (accessor: (link: RuntimeLink) => number) => ForceLink;
+  iterations: (count: number) => ForceLink;
+};
+
+type ForceManyBody = Force & {
+  strength: (accessor: (node: RuntimeNode) => number) => ForceManyBody;
+  distanceMin: (value: number) => ForceManyBody;
+  distanceMax: (value: number) => ForceManyBody;
+};
+
+type ForceCollide = Force & {
+  strength: (value: number) => ForceCollide;
+  iterations: (count: number) => ForceCollide;
+};
+
+type ForceSimulation = {
+  alpha: (value: number) => ForceSimulation;
+  alphaDecay: (value: number) => ForceSimulation;
+  alphaMin: (value: number) => ForceSimulation;
+  alphaTarget: (value: number) => ForceSimulation;
+  velocityDecay: (value: number) => ForceSimulation;
+  force: (name: string, force: Force | ForceLink | ForceManyBody | ForceCollide | null) => ForceSimulation;
+  restart: () => ForceSimulation;
+  stop: () => ForceSimulation;
+  tick: (iterations?: number) => ForceSimulation;
 };
 
 type ThemePalette = {
@@ -64,6 +91,20 @@ type ThemePalette = {
   structureActive: string;
   reference: string;
   text: string;
+  textSoft: string;
+  bg: string;
+  labelBg: string;
+};
+
+type ViewState = {
+  width: number;
+  height: number;
+  pixelRatio: number;
+  zoom: number;
+  viewOffset: {
+    x: number;
+    y: number;
+  };
 };
 
 type GraphRuntime = {
@@ -77,25 +118,7 @@ type GraphRuntime = {
   updateTheme: () => void;
 };
 
-const GRAPH_MODULES = () =>
-  Promise.all([
-    import("three"),
-    import("d3-force-3d"),
-    import("three/examples/jsm/controls/OrbitControls.js"),
-    import("three/examples/jsm/renderers/CSS2DRenderer.js"),
-  ]);
-
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-const CLUSTER_SWATCHES = [
-  "#22d3ee",
-  "#38bdf8",
-  "#6366f1",
-  "#f43f5e",
-  "#f59e0b",
-  "#84cc16",
-  "#a855f7",
-  "#14b8a6",
-];
 
 function seededNoise(seed: number) {
   const raw = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
@@ -120,44 +143,17 @@ function getThemePalette(): ThemePalette {
     styles.getPropertyValue(token).trim() || fallback;
 
   return {
-    root: read("--color-secondary-900", isDark ? "#e2e8f0" : "#0f172a"),
-    section: read("--color-primary-500", "#3b82f6"),
-    article: read("--color-primary-400", "#38bdf8"),
-    structure: isDark ? "rgba(148, 163, 184, 0.34)" : "rgba(100, 116, 139, 0.28)",
-    structureActive: isDark
-      ? "rgba(148, 197, 255, 0.62)"
-      : "rgba(59, 130, 246, 0.56)",
-    reference: isDark ? "rgba(56, 189, 248, 0.54)" : "rgba(14, 165, 233, 0.48)",
-    text: isDark ? "#f8fafc" : "#0f172a",
+    root: read("--site-ink", isDark ? "#aaa5aa" : "#050505"),
+    section: read("--site-ink", isDark ? "#aaa5aa" : "#050505"),
+    article: read("--site-muted", isDark ? "rgba(170, 165, 170, 0.68)" : "rgba(5, 5, 5, 0.58)"),
+    structure: isDark ? "rgba(170, 165, 170, 0.2)" : "rgba(5, 5, 5, 0.18)",
+    structureActive: isDark ? "rgba(170, 165, 170, 0.64)" : "rgba(5, 5, 5, 0.58)",
+    reference: isDark ? "rgba(170, 165, 170, 0.32)" : "rgba(5, 5, 5, 0.28)",
+    text: read("--site-ink", isDark ? "#aaa5aa" : "#050505"),
+    textSoft: read("--site-muted", isDark ? "rgba(170, 165, 170, 0.68)" : "rgba(5, 5, 5, 0.58)"),
+    bg: read("--site-bg", isDark ? "#000000" : "#ffffff"),
+    labelBg: isDark ? "rgba(0, 0, 0, 0.82)" : "rgba(255, 255, 255, 0.82)",
   };
-}
-
-function fibonacciSpherePoint(
-  three: ThreeModule,
-  index: number,
-  total: number,
-  radius: number,
-  phase = 0,
-) {
-  const safeTotal = Math.max(total, 1);
-  const y = 1 - ((index + 0.5) / safeTotal) * 2;
-  const ringRadius = Math.sqrt(Math.max(0, 1 - y * y));
-  const theta = GOLDEN_ANGLE * (index + phase * safeTotal);
-
-  return new three.Vector3(
-    Math.cos(theta) * ringRadius * radius,
-    y * radius,
-    Math.sin(theta) * ringRadius * radius,
-  );
-}
-
-function fibonacciDirection(
-  three: ThreeModule,
-  index: number,
-  total: number,
-  phase = 0,
-) {
-  return fibonacciSpherePoint(three, index, total, 1, phase).normalize();
 }
 
 function getClusterKey(node: GraphNode) {
@@ -165,266 +161,10 @@ function getClusterKey(node: GraphNode) {
   return node.topSectionPath || node.sectionPath || node.id;
 }
 
-function clampNumber(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function tintColor(
-  three: ThreeModule,
-  colorValue: string,
-  saturationShift: number,
-  lightnessShift: number,
-) {
-  const color = new three.Color(colorValue);
-  const hsl = { h: 0, s: 0, l: 0 };
-  color.getHSL(hsl);
-  color.setHSL(
-    hsl.h,
-    clampNumber(hsl.s + saturationShift, 0, 1),
-    clampNumber(hsl.l + lightnessShift, 0, 1),
-  );
-  return `#${color.getHexString()}`;
-}
-
-function createClusterColorMap(nodes: GraphNode[]) {
-  const clusterKeys = Array.from(
-    new Set(
-      nodes
-        .filter((node) => node.type !== "root")
-        .map((node) => getClusterKey(node)),
-    ),
-  ).sort((left, right) => left.localeCompare(right, "zh-Hans-CN"));
-
-  return new Map(
-    clusterKeys.map((key, index) => [
-      key,
-      CLUSTER_SWATCHES[index % CLUSTER_SWATCHES.length],
-    ]),
-  );
-}
-
-function seedForcePositions(three: ThreeModule, nodes: RuntimeNode[]) {
-  const clusterKeys = Array.from(
-    new Set(
-      nodes
-        .filter((node) => node.type !== "root")
-        .map((node) => node.clusterKey),
-    ),
-  );
-  const clusterAnchors = new Map<string, import("three").Vector3>();
-
-  clusterKeys.forEach((key, index) => {
-    const anchor = fibonacciSpherePoint(three, index, clusterKeys.length, 8.6, 0.12);
-    anchor.y *= clusterKeys.length <= 5 ? 0.72 : 0.82;
-    anchor.z *= 1.08;
-    clusterAnchors.set(key, anchor);
-  });
-
-  const groupedNodes = new Map<string, RuntimeNode[]>();
-  nodes
-    .filter((node) => node.type !== "root")
-    .forEach((node) => {
-      const list = groupedNodes.get(node.clusterKey);
-      if (list) {
-        list.push(node);
-      } else {
-        groupedNodes.set(node.clusterKey, [node]);
-      }
-    });
-
-  nodes.forEach((node) => {
-    if (node.type === "root") {
-      node.x = 0;
-      node.y = 0;
-      node.z = 0;
-      node.fx = 0;
-      node.fy = 0;
-      node.fz = 0;
-      return;
-    }
-
-    const group = groupedNodes.get(node.clusterKey) || [node];
-    const index = group.indexOf(node);
-    const anchor = clusterAnchors.get(node.clusterKey) || new three.Vector3();
-    const spread = node.type === "section" ? 1.35 : 2.2;
-    const orbit = fibonacciSpherePoint(three, index, group.length, spread, 0.31);
-    orbit.y *= 0.84;
-    orbit.z *= 1.14;
-
-    node.x =
-      anchor.x +
-      orbit.x * (node.type === "section" ? 0.5 : 0.82) +
-      (seededNoise(index * 7.1 + group.length) - 0.5) * 0.6;
-    node.y =
-      anchor.y +
-      orbit.y * (node.type === "section" ? 0.44 : 0.72) +
-      (seededNoise(index * 8.3 + group.length * 0.7) - 0.5) * 0.46;
-    node.z =
-      anchor.z +
-      orbit.z * (node.type === "section" ? 0.68 : 1.08) +
-      (seededNoise(index * 10.7 + group.length * 0.33) - 0.5) * 0.86;
-    node.vx = 0;
-    node.vy = 0;
-    node.vz = 0;
-    node.fx = undefined;
-    node.fy = undefined;
-    node.fz = undefined;
-  });
-}
-
-function createClusterForce(strength = 0.22) {
-  let nodes: RuntimeNode[] = [];
-
-  const force = (alpha: number) => {
-    const centers = new Map<
-      string,
-      { x: number; y: number; z: number; count: number }
-    >();
-
-    nodes.forEach((node) => {
-      if (node.type === "root") return;
-      const key = node.clusterKey;
-      const center = centers.get(key) || { x: 0, y: 0, z: 0, count: 0 };
-      center.x += node.x ?? 0;
-      center.y += node.y ?? 0;
-      center.z += node.z ?? 0;
-      center.count += 1;
-      centers.set(key, center);
-    });
-
-    centers.forEach((center) => {
-      center.x = (center.x / center.count) * 0.92;
-      center.y = (center.y / center.count) * 0.92;
-      center.z = (center.z / center.count) * 0.92;
-    });
-
-    nodes.forEach((node) => {
-      if (node.type === "root") return;
-      const center = centers.get(node.clusterKey);
-      if (!center) return;
-
-      const localStrength =
-        strength *
-        alpha *
-        (node.type === "section" ? 1.18 : 0.92) *
-        (node.degree > 5 ? 0.9 : 1);
-
-      node.vx = (node.vx ?? 0) + (center.x - (node.x ?? 0)) * localStrength;
-      node.vy = (node.vy ?? 0) + (center.y - (node.y ?? 0)) * localStrength;
-      node.vz = (node.vz ?? 0) + (center.z - (node.z ?? 0)) * localStrength;
-    });
-  };
-
-  force.initialize = (_nodes: RuntimeNode[]) => {
-    nodes = _nodes;
-  };
-
-  return force;
-}
-
-function applyForceLayout(
-  three: ThreeModule,
-  forceModule: ForceModule,
-  nodes: RuntimeNode[],
-  links: RuntimeLink[],
-) {
-  seedForcePositions(three, nodes);
-
-  const simulation = forceModule.forceSimulation(nodes, 3).stop();
-  simulation
-    .alpha(0.96)
-    .alphaDecay(0.032)
-    .velocityDecay(0.24)
-    .force(
-      "link",
-      forceModule
-        .forceLink(links)
-        .id((node: RuntimeNode) => node.id)
-        .iterations(2)
-        .distance((link: RuntimeLink) => {
-          if (link.kind === "reference") {
-            return link.source.clusterKey === link.target.clusterKey ? 2.8 : 4.2;
-          }
-          if (link.source.type === "root" || link.target.type === "root") {
-            return 4.6;
-          }
-          return link.source.type === "section" && link.target.type === "article"
-            ? 2.2
-            : 3.1;
-        })
-        .strength((link: RuntimeLink) => {
-          if (link.kind === "reference") {
-            return link.source.clusterKey === link.target.clusterKey ? 0.24 : 0.11;
-          }
-          if (link.source.type === "root" || link.target.type === "root") {
-            return 0.2;
-          }
-          return 0.7;
-        }),
-    )
-    .force(
-      "charge",
-      forceModule
-        .forceManyBody()
-        .strength((node: RuntimeNode) => {
-          if (node.type === "root") return -220;
-          if (node.type === "section") return -185 - node.degree * 6;
-          return -44 - node.degree * 1.6;
-        })
-        .distanceMin(1.3)
-        .distanceMax(18),
-    )
-    .force(
-      "collide",
-      forceModule
-        .forceCollide((node: RuntimeNode) =>
-          node.type === "root" ? 2.2 : node.type === "section" ? 1.28 : 0.72,
-        )
-        .strength(0.95)
-        .iterations(2),
-    )
-    .force("center", forceModule.forceCenter(0, 0, 0).strength(0.08))
-    .force("cluster", createClusterForce(0.22));
-
-  simulation.tick(360);
-
-  const activeNodes = nodes.filter((node) => node.type !== "root");
-  const center = activeNodes.reduce(
-    (accumulator, node) =>
-      accumulator.add(
-        new three.Vector3(node.x ?? 0, node.y ?? 0, node.z ?? 0),
-      ),
-    new three.Vector3(),
-  );
-
-  if (activeNodes.length > 0) {
-    center.multiplyScalar(1 / activeNodes.length);
-  }
-
-  const maxDistance = Math.max(
-    1,
-    ...activeNodes.map((node) =>
-      new three.Vector3(
-        (node.x ?? 0) - center.x,
-        (node.y ?? 0) - center.y,
-        (node.z ?? 0) - center.z,
-      ).length(),
-    ),
-  );
-  const scale = 8.6 / maxDistance;
-
-  nodes.forEach((node) => {
-    if (node.type === "root") {
-      node.position.set(0, 0, 0);
-      return;
-    }
-
-    node.position.set(
-      ((node.x ?? 0) - center.x) * scale,
-      ((node.y ?? 0) - center.y) * scale * 0.92,
-      ((node.z ?? 0) - center.z) * scale * 1.12,
-    );
-  });
+function getNodeRadius(node: GraphNode, degree = 0) {
+  if (node.type === "root") return 7.8;
+  if (node.type === "section") return Math.min(7.2, 4.8 + degree * 0.24);
+  return Math.min(4.2, 2.6 + degree * 0.12);
 }
 
 function determineCurrentNode(
@@ -473,50 +213,106 @@ function getNodeTargetByRoute(nodes: GraphNode[], route: string) {
   return determineCurrentNode(nodes, route);
 }
 
-async function createGraphRuntime(options: {
-  stage: HTMLElement;
-  mount: HTMLElement;
-  tooltip: HTMLElement;
-  status: HTMLElement | null;
-  payload: GraphPayload;
-  getCurrentNodeId: () => string;
-  navigateTo: (route: string) => void;
-}) {
-  const [THREE, forceModule, controlsModule, css2dModule] = await GRAPH_MODULES();
-  const { OrbitControls } = controlsModule as OrbitControlsModule;
-  const { CSS2DRenderer, CSS2DObject } = css2dModule as Css2dModule;
-  const palette = getThemePalette();
-  const { stage, mount, tooltip, status, payload, getCurrentNodeId, navigateTo } =
-    options;
-  const clusterColorMap = createClusterColorMap(payload.nodes);
+function createClusterAnchors(nodes: RuntimeNode[], width = 860, height = 540) {
+  const clusterKeys = Array.from(
+    new Set(
+      nodes
+        .filter((node) => node.type !== "root")
+        .map((node) => node.clusterKey),
+    ),
+  ).sort((left, right) => left.localeCompare(right, "zh-Hans-CN"));
 
+  const radiusX = Math.min(width * 0.28, 300);
+  const radiusY = Math.min(height * 0.22, 170);
+  const anchors = new Map<string, { x: number; y: number }>();
+
+  clusterKeys.forEach((key, index) => {
+    const angle = index * GOLDEN_ANGLE;
+    const ring = 0.54 + 0.46 * seededNoise(index + 1.7);
+    anchors.set(key, {
+      x: Math.cos(angle) * radiusX * ring,
+      y: Math.sin(angle) * radiusY * ring,
+    });
+  });
+
+  anchors.set("__root__", { x: 0, y: 0 });
+  return anchors;
+}
+
+function seedForcePositions(nodes: RuntimeNode[]) {
+  const anchors = createClusterAnchors(nodes);
+  const groupedNodes = new Map<string, RuntimeNode[]>();
+
+  nodes.forEach((node) => {
+    const list = groupedNodes.get(node.clusterKey);
+    if (list) {
+      list.push(node);
+    } else {
+      groupedNodes.set(node.clusterKey, [node]);
+    }
+  });
+
+  nodes.forEach((node, nodeIndex) => {
+    const anchor = anchors.get(node.clusterKey) || { x: 0, y: 0 };
+
+    if (node.type === "root") {
+      node.x = 0;
+      node.y = 0;
+      node.vx = 0;
+      node.vy = 0;
+      node.anchorX = 0;
+      node.anchorY = 0;
+      return;
+    }
+
+    const group = groupedNodes.get(node.clusterKey) || [node];
+    const index = Math.max(group.indexOf(node), 0);
+    const row = index - (group.length - 1) / 2;
+    const sway = (seededNoise(nodeIndex + 9.3) - 0.5) * 44;
+    const tier = node.type === "section" ? 0.38 : 1;
+
+    node.anchorX = anchor.x + sway * tier;
+    node.anchorY = anchor.y + row * 19 * tier + (seededNoise(nodeIndex + 11.7) - 0.5) * 18;
+    node.x = node.anchorX + (seededNoise(nodeIndex + 3.1) - 0.5) * 56;
+    node.y = node.anchorY + (seededNoise(nodeIndex + 4.6) - 0.5) * 44;
+    node.vx = 0;
+    node.vy = 0;
+  });
+}
+
+function createClusterForce(strength = 0.035): Force {
+  let nodes: RuntimeNode[] = [];
+
+  const force = (alpha: number) => {
+    nodes.forEach((node) => {
+      if (node.type === "root") return;
+      const localStrength =
+        strength * alpha * (node.type === "section" ? 1.2 : 0.72);
+      node.vx = (node.vx ?? 0) + (node.anchorX - (node.x ?? 0)) * localStrength;
+      node.vy = (node.vy ?? 0) + (node.anchorY - (node.y ?? 0)) * localStrength;
+    });
+  };
+
+  force.initialize = (initializedNodes: RuntimeNode[]) => {
+    nodes = initializedNodes;
+  };
+
+  return force;
+}
+
+function createRuntimeGraph(payload: GraphPayload) {
   const nodeMap = new Map<string, RuntimeNode>();
   const runtimeNodes = payload.nodes.map((node) => {
-    const baseRadius =
-      node.type === "root" ? 0.34 : node.type === "section" ? 0.24 : 0.13;
-    const clusterKey = getClusterKey(node);
-    const baseClusterColor = clusterColorMap.get(clusterKey) || palette.section;
-    const clusterColor =
-      node.type === "root"
-        ? palette.root
-        : node.type === "section"
-          ? tintColor(THREE, baseClusterColor, 0.06, -0.02)
-          : tintColor(THREE, baseClusterColor, -0.03, 0.08);
-
-    const runtimeNode = {
+    const runtimeNode: RuntimeNode = {
       ...node,
       degree: 0,
       neighbors: new Set<string>(),
-      position: new THREE.Vector3(),
-      baseRadius,
-      mesh: null as unknown as import("three").Mesh,
-      halo: null as unknown as import("three").Mesh,
+      clusterKey: getClusterKey(node),
+      radius: getNodeRadius(node),
       labelElement: document.createElement("div"),
-      labelObject: null as unknown as InstanceType<Css2dModule["CSS2DObject"]>,
-      clusterKey,
-      clusterColor,
+      anchorX: 0,
+      anchorY: 0,
     };
-
     nodeMap.set(node.id, runtimeNode);
     return runtimeNode;
   });
@@ -536,395 +332,439 @@ async function createGraphRuntime(options: {
         ...link,
         source,
         target,
-        line: null as unknown as import("three").Line,
-        material: null as unknown as import("three").LineBasicMaterial,
-        baseColor:
-          link.kind === "reference"
-            ? tintColor(THREE, source.clusterColor, 0, 0.02)
-            : tintColor(
-                THREE,
-                source.type === "root" ? target.clusterColor : source.clusterColor,
-                0.02,
-                -0.02,
-              ),
       };
     })
     .filter(Boolean) as RuntimeLink[];
 
-  applyForceLayout(THREE, forceModule as ForceModule, runtimeNodes, runtimeLinks);
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    powerPreference: "high-performance",
+  runtimeNodes.forEach((node) => {
+    node.radius = getNodeRadius(node, node.degree);
   });
+  seedForcePositions(runtimeNodes);
 
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setClearColor(0x000000, 0);
-  renderer.domElement.setAttribute("aria-hidden", "true");
-  mount.appendChild(renderer.domElement);
-
-  const labelRenderer = new CSS2DRenderer();
-  labelRenderer.domElement.classList.add("global-graph-label-layer");
-  mount.appendChild(labelRenderer.domElement);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.enablePan = false;
-  controls.rotateSpeed = 0.5;
-  controls.zoomSpeed = 0.82;
-  controls.minDistance = 16;
-  controls.maxDistance = 34;
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
-  const domeLight = new THREE.HemisphereLight(0xffffff, 0xd7e3f4, 0.18);
-  domeLight.position.set(0, 1, 0);
-  scene.add(ambientLight, domeLight);
-
-  const graphGroup = new THREE.Group();
-  const linkGroup = new THREE.Group();
-  const nodeGroup = new THREE.Group();
-  graphGroup.add(linkGroup, nodeGroup);
-  scene.add(graphGroup);
-
-  const materialsByType = {
-    root: new THREE.MeshStandardMaterial({
-      color: palette.root,
-      emissive: palette.root,
-      emissiveIntensity: 0.1,
-      metalness: 0.02,
-      roughness: 0.42,
-      transparent: true,
-      opacity: 0.98,
-    }),
-    section: new THREE.MeshStandardMaterial({
-      color: palette.section,
-      emissive: palette.section,
-      emissiveIntensity: 0.13,
-      metalness: 0.02,
-      roughness: 0.52,
-      transparent: true,
-      opacity: 0.94,
-    }),
-    article: new THREE.MeshStandardMaterial({
-      color: palette.article,
-      emissive: palette.article,
-      emissiveIntensity: 0.08,
-      metalness: 0,
-      roughness: 0.58,
-      transparent: true,
-      opacity: 0.92,
-    }),
+  return {
+    nodeMap,
+    runtimeNodes,
+    runtimeLinks,
   };
+}
 
-  const haloMaterialsByType = {
-    root: new THREE.MeshBasicMaterial({
-      color: palette.root,
-      transparent: true,
-      opacity: 0.1,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-    section: new THREE.MeshBasicMaterial({
-      color: palette.section,
-      transparent: true,
-      opacity: 0.09,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-    article: new THREE.MeshBasicMaterial({
-      color: palette.article,
-      transparent: true,
-      opacity: 0.08,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
+function getFocusSets(
+  focusNode: RuntimeNode | undefined,
+  links: RuntimeLink[],
+) {
+  const focusSet = focusNode
+    ? new Set([focusNode.id, ...focusNode.neighbors])
+    : new Set<string>();
+  const childLabelSet = new Set<string>();
+  const relatedLabelSet = new Set<string>();
+
+  if (focusNode && focusNode.type !== "article") {
+    links.forEach((link) => {
+      if (link.kind === "structure" && link.source.id === focusNode.id) {
+        childLabelSet.add(link.target.id);
+      }
+    });
+  }
+
+  if (focusNode?.type === "article") {
+    links.forEach((link) => {
+      if (link.kind !== "reference") return;
+      if (link.source.id === focusNode.id && link.target.type === "article") {
+        relatedLabelSet.add(link.target.id);
+      }
+      if (link.target.id === focusNode.id && link.source.type === "article") {
+        relatedLabelSet.add(link.source.id);
+      }
+    });
+  }
+
+  return {
+    focusSet,
+    childLabelSet,
+    relatedLabelSet,
   };
+}
+
+async function createGraphRuntime(options: {
+  stage: HTMLElement;
+  mount: HTMLElement;
+  tooltip: HTMLElement;
+  status: HTMLElement | null;
+  payload: GraphPayload;
+  getCurrentNodeId: () => string;
+  navigateTo: (route: string) => void;
+}) {
+  const forceModule = (await import("d3-force-3d")) as ForceModule;
+  const palette = getThemePalette();
+  const { stage, mount, tooltip, status, payload, getCurrentNodeId, navigateTo } =
+    options;
+  const { nodeMap, runtimeNodes, runtimeLinks } = createRuntimeGraph(payload);
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "global-graph-canvas-surface";
+  canvas.setAttribute("aria-hidden", "true");
+  mount.appendChild(canvas);
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas 2D context is unavailable.");
+  }
+
+  const labelLayer = document.createElement("div");
+  labelLayer.className = "global-graph-label-layer";
+  mount.appendChild(labelLayer);
 
   runtimeNodes.forEach((node) => {
-    const geometry = new THREE.SphereGeometry(node.baseRadius, 24, 24);
-    const mesh = new THREE.Mesh(
-      geometry,
-      materialsByType[node.type].clone(),
-    );
-    mesh.position.copy(node.position);
-    mesh.userData.nodeId = node.id;
-    mesh.userData.route = node.route;
-
-    const halo = new THREE.Mesh(
-      geometry,
-      haloMaterialsByType[node.type].clone(),
-    );
-    halo.visible = false;
-    halo.scale.setScalar(node.type === "root" ? 1.32 : 1.46);
-    mesh.add(halo);
-
-    const labelElement = document.createElement("div");
-    labelElement.className = `global-graph-label global-graph-label-${node.type}`;
-    labelElement.textContent = node.label;
-    labelElement.style.setProperty("--node-accent", node.clusterColor);
-    const labelObject = new CSS2DObject(labelElement);
-    labelObject.position.set(0, node.baseRadius + 0.38, 0);
-    labelObject.visible = true;
-    mesh.add(labelObject);
-
-    node.mesh = mesh;
-    node.halo = halo;
-    node.labelElement = labelElement;
-    node.labelObject = labelObject;
-    nodeGroup.add(mesh);
+    const label = document.createElement("div");
+    label.className = `global-graph-label global-graph-label-${node.type}`;
+    label.textContent = node.label;
+    labelLayer.appendChild(label);
+    node.labelElement = label;
   });
 
-  runtimeLinks.forEach((link) => {
-    const material = new THREE.LineBasicMaterial({
-      color: link.baseColor,
-      transparent: true,
-      opacity: link.kind === "reference" ? 0.18 : 0.2,
-      depthWrite: false,
-    });
+  const simulation = forceModule.forceSimulation(runtimeNodes, 2).stop();
+  simulation
+    .alpha(0.9)
+    .alphaMin(0.001)
+    .alphaDecay(0.028)
+    .alphaTarget(0.012)
+    .velocityDecay(0.32)
+    .force(
+      "link",
+      forceModule
+        .forceLink(runtimeLinks)
+        .id((node: RuntimeNode) => node.id)
+        .iterations(2)
+        .distance((link: RuntimeLink) => {
+          if (link.kind === "reference") {
+            return link.source.clusterKey === link.target.clusterKey ? 58 : 96;
+          }
+          if (link.source.type === "root" || link.target.type === "root") {
+            return 112;
+          }
+          return link.source.type === "section" && link.target.type === "article"
+            ? 42
+            : 68;
+        })
+        .strength((link: RuntimeLink) => {
+          if (link.kind === "reference") {
+            return link.source.clusterKey === link.target.clusterKey ? 0.18 : 0.08;
+          }
+          if (link.source.type === "root" || link.target.type === "root") {
+            return 0.16;
+          }
+          return 0.62;
+        }),
+    )
+    .force(
+      "charge",
+      forceModule
+        .forceManyBody()
+        .strength((node: RuntimeNode) => {
+          if (node.type === "root") return -420;
+          if (node.type === "section") return -180 - node.degree * 8;
+          return -42 - node.degree * 1.8;
+        })
+        .distanceMin(14)
+        .distanceMax(280),
+    )
+    .force(
+      "collide",
+      forceModule
+        .forceCollide((node: RuntimeNode) => node.radius + 9)
+        .strength(0.86)
+        .iterations(2),
+    )
+    .force("center", forceModule.forceCenter(0, 0))
+    .force("cluster", createClusterForce(0.04));
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setFromPoints([
-      link.source.position.clone(),
-      link.target.position.clone(),
-    ]);
+  simulation.tick(260);
 
-    const line = new THREE.Line(geometry, material);
-    link.material = material;
-    link.line = line;
-    linkGroup.add(line);
-  });
+  const view: ViewState = {
+    width: 1,
+    height: 1,
+    pixelRatio: 1,
+    zoom: 1,
+    viewOffset: {
+      x: 0,
+      y: 0,
+    },
+  };
 
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-  const frontVector = new THREE.Vector3(0, 0, 1);
-  const targetQuaternion = new THREE.Quaternion();
-  const yTiltAxis = new THREE.Vector3(0, 1, 0);
   let hoverNodeId: string | null = null;
   let previewNodeId: string | null = null;
   let currentNodeId = getCurrentNodeId();
   let animationId: number | null = null;
   let isRunning = false;
   let disposed = false;
+  let dragNode: RuntimeNode | null = null;
+  let pointerMode: "node" | "pan" | null = null;
   let pointerDownState: {
     x: number;
     y: number;
+    worldX: number;
+    worldY: number;
     nodeId: string | null;
   } | null = null;
-
-  function getNodeColor(node: RuntimeNode) {
-    if (node.type === "root") return palette.root;
-    return node.clusterColor;
-  }
-
-  function updateTooltip() {
-    tooltip.hidden = true;
-  }
+  let lastPointer: { x: number; y: number; worldX: number; worldY: number } | null =
+    null;
 
   function getFocusNodeId() {
     return previewNodeId || hoverNodeId || currentNodeId || "root";
   }
 
-  function updateVisualState() {
-    const focusNode = nodeMap.get(getFocusNodeId()) ?? nodeMap.get("root");
-    const focusSet = focusNode
-      ? new Set([focusNode.id, ...focusNode.neighbors])
-      : new Set<string>();
-    const childLabelSet = new Set<string>();
-    const relatedLabelSet = new Set<string>();
+  function worldToScreen(x = 0, y = 0) {
+    return {
+      x: view.width / 2 + view.viewOffset.x + x * view.zoom,
+      y: view.height / 2 + view.viewOffset.y + y * view.zoom,
+    };
+  }
 
-    if (focusNode && focusNode.type !== "article") {
-      runtimeLinks.forEach((link) => {
-        if (link.kind === "structure" && link.source.id === focusNode.id) {
-          childLabelSet.add(link.target.id);
-        }
-      });
-    }
+  function screenToWorld(x: number, y: number) {
+    return {
+      x: (x - view.width / 2 - view.viewOffset.x) / view.zoom,
+      y: (y - view.height / 2 - view.viewOffset.y) / view.zoom,
+    };
+  }
 
-    if (focusNode?.type === "article") {
-      runtimeLinks.forEach((link) => {
-        if (link.kind !== "reference") return;
-        if (link.source.id === focusNode.id && link.target.type === "article") {
-          relatedLabelSet.add(link.target.id);
-        }
-        if (link.target.id === focusNode.id && link.source.type === "article") {
-          relatedLabelSet.add(link.source.id);
-        }
-      });
-    }
+  function getPointer(event: PointerEvent | WheelEvent) {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const world = screenToWorld(x, y);
+    return {
+      x,
+      y,
+      worldX: world.x,
+      worldY: world.y,
+    };
+  }
 
-    runtimeLinks.forEach((link) => {
-      const isFocused =
-        focusSet.has(link.source.id) && focusSet.has(link.target.id);
-      const isCurrentLink =
-        link.source.id === currentNodeId || link.target.id === currentNodeId;
-
-      link.material.color.set(
-        isCurrentLink ? palette.structureActive : link.baseColor,
-      );
-      link.material.opacity =
-        link.kind === "reference"
-          ? isFocused
-            ? 0.5
-            : 0.05
-          : isFocused
-            ? isCurrentLink
-              ? 0.62
-              : 0.34
-            : 0.09;
-    });
+  function getNodeAtPoint(x: number, y: number) {
+    let bestNode: RuntimeNode | null = null;
+    let bestDistance = Infinity;
 
     runtimeNodes.forEach((node) => {
-      const material = node.mesh.material as import("three").MeshStandardMaterial;
-      const haloMaterial = node.halo.material as import("three").MeshBasicMaterial;
+      const point = worldToScreen(node.x, node.y);
+      const radius = Math.max(8, node.radius * view.zoom + 5);
+      const distance = Math.hypot(point.x - x, point.y - y);
+      if (distance <= radius && distance < bestDistance) {
+        bestNode = node;
+        bestDistance = distance;
+      }
+    });
+
+    return bestNode;
+  }
+
+  function centerOnNode(nodeId: string, force = false) {
+    const node = nodeMap.get(nodeId) ?? nodeMap.get("root");
+    if (!node) return;
+
+    const targetX = -(node.x ?? 0) * view.zoom;
+    const targetY = -(node.y ?? 0) * view.zoom;
+    if (force) {
+      view.viewOffset.x = targetX;
+      view.viewOffset.y = targetY;
+    } else {
+      view.viewOffset.x += (targetX - view.viewOffset.x) * 0.42;
+      view.viewOffset.y += (targetY - view.viewOffset.y) * 0.42;
+    }
+  }
+
+  function fitGraph() {
+    const visibleNodes = runtimeNodes.filter((node) => node.type !== "root");
+    const nodes = visibleNodes.length > 0 ? visibleNodes : runtimeNodes;
+    const minX = Math.min(...nodes.map((node) => node.x ?? 0));
+    const maxX = Math.max(...nodes.map((node) => node.x ?? 0));
+    const minY = Math.min(...nodes.map((node) => node.y ?? 0));
+    const maxY = Math.max(...nodes.map((node) => node.y ?? 0));
+    const graphWidth = Math.max(1, maxX - minX);
+    const graphHeight = Math.max(1, maxY - minY);
+    const fitZoom = Math.min(
+      view.width / (graphWidth + 170),
+      view.height / (graphHeight + 140),
+    );
+    view.zoom = Math.min(1.32, Math.max(0.72, fitZoom));
+    view.viewOffset.x = -((minX + maxX) / 2) * view.zoom;
+    view.viewOffset.y = -((minY + maxY) / 2) * view.zoom;
+  }
+
+  function setCanvasSize() {
+    view.width = Math.max(stage.clientWidth, 1);
+    view.height = Math.max(stage.clientHeight, 1);
+    view.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(view.width * view.pixelRatio);
+    canvas.height = Math.round(view.height * view.pixelRatio);
+    canvas.style.width = `${view.width}px`;
+    canvas.style.height = `${view.height}px`;
+    ctx.setTransform(view.pixelRatio, 0, 0, view.pixelRatio, 0, 0);
+  }
+
+  function drawLinks(focusSet: Set<string>) {
+    runtimeLinks.forEach((link) => {
+      const source = worldToScreen(link.source.x, link.source.y);
+      const target = worldToScreen(link.target.x, link.target.y);
+      const isFocused = focusSet.has(link.source.id) && focusSet.has(link.target.id);
+      const isCurrent =
+        link.source.id === currentNodeId || link.target.id === currentNodeId;
+
+      ctx.save();
+      ctx.strokeStyle =
+        isCurrent || isFocused
+          ? palette.structureActive
+          : link.kind === "reference"
+            ? palette.reference
+            : palette.structure;
+      ctx.globalAlpha =
+        link.kind === "reference"
+          ? isFocused
+            ? 0.72
+            : 0.2
+          : isFocused
+            ? 0.82
+            : 0.26;
+      ctx.lineWidth = (isCurrent ? 1.35 : link.kind === "reference" ? 0.7 : 0.9) * Math.sqrt(view.zoom);
+      ctx.beginPath();
+      ctx.moveTo(source.x, source.y);
+      const midX = (source.x + target.x) / 2;
+      const midY = (source.y + target.y) / 2;
+      const curve = link.kind === "reference" ? 12 : 4;
+      ctx.quadraticCurveTo(midX, midY - curve, target.x, target.y);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawNodes(focusSet: Set<string>) {
+    runtimeNodes.forEach((node) => {
+      const point = worldToScreen(node.x, node.y);
       const isCurrent = node.id === currentNodeId;
-      const isPreview = node.id === previewNodeId;
-      const isHover = node.id === hoverNodeId;
+      const isInteractive = node.id === hoverNodeId || node.id === previewNodeId;
       const isFocusMember = focusSet.has(node.id);
-      const emphasis = isCurrent
-        ? node.type === "root"
-          ? 1.22
-          : 1.54
-        : isPreview || isHover
-          ? node.type === "root"
-            ? 1.14
-            : 1.34
-          : isFocusMember
-            ? 1.12
-            : 0.9;
+      const baseRadius = node.radius * view.zoom;
+      const radius =
+        baseRadius *
+        (isCurrent ? 1.7 : isInteractive ? 1.42 : node.type === "root" ? 1.18 : 1);
 
-      material.color.set(getNodeColor(node));
-      material.emissive.set(getNodeColor(node));
-      material.opacity = isFocusMember ? 0.94 : 0.32;
-      material.emissiveIntensity = isCurrent
-        ? 0.24
-        : isPreview || isHover
-          ? 0.17
-          : isFocusMember
-            ? 0.1
-            : 0.03;
-      node.mesh.scale.setScalar(emphasis);
+      ctx.save();
+      if (isCurrent || isInteractive) {
+        ctx.strokeStyle = palette.structureActive;
+        ctx.globalAlpha = isCurrent ? 0.46 : 0.28;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius + 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
-      node.halo.visible = isCurrent || isPreview || isHover;
-      haloMaterial.color.set(getNodeColor(node));
-      haloMaterial.opacity = isCurrent ? 0.09 : 0.05;
-      node.halo.scale.setScalar(
-        isCurrent ? (node.type === "root" ? 1.58 : 1.94) : 1.44,
-      );
+      ctx.globalAlpha =
+        isCurrent || isInteractive || isFocusMember
+          ? 1
+          : node.type === "article"
+            ? 0.46
+            : 0.72;
+      ctx.fillStyle =
+        node.type === "article"
+          ? palette.article
+          : node.type === "section"
+            ? palette.section
+            : palette.root;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, Math.max(1.8, radius), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
 
+  function updateLabels(
+    focusNode: RuntimeNode | undefined,
+    childLabelSet: Set<string>,
+    relatedLabelSet: Set<string>,
+    focusSet: Set<string>,
+  ) {
+    runtimeNodes.forEach((node) => {
+      const point = worldToScreen(node.x, node.y);
+      const isCurrent = node.id === currentNodeId;
+      const isHover = node.id === hoverNodeId || node.id === previewNodeId;
       const showLabel =
         isCurrent ||
-        isPreview ||
         isHover ||
         node.type === "root" ||
         childLabelSet.has(node.id) ||
         relatedLabelSet.has(node.id) ||
-        (isFocusMember && node.type === "section" && focusNode?.type !== "root");
+        (focusSet.has(node.id) && node.type === "section" && focusNode?.type !== "root");
+
       node.labelElement.classList.toggle("is-visible", showLabel);
       node.labelElement.classList.toggle("is-current", isCurrent);
-      node.labelElement.classList.toggle("is-hover", isPreview || isHover);
+      node.labelElement.classList.toggle("is-hover", isHover);
       node.labelElement.classList.toggle(
         "is-child",
-        childLabelSet.has(node.id) && !isCurrent && !isPreview && !isHover,
+        childLabelSet.has(node.id) && !isCurrent && !isHover,
       );
       node.labelElement.classList.toggle(
         "is-related",
-        relatedLabelSet.has(node.id) && !isCurrent && !isPreview && !isHover,
+        relatedLabelSet.has(node.id) && !isCurrent && !isHover,
       );
-      node.labelElement.classList.toggle("is-dimmed", !showLabel);
+      node.labelElement.style.transform = `translate(${point.x}px, ${point.y - node.radius * view.zoom - 12}px) translate(-50%, -100%)`;
     });
   }
 
-  function syncCameraDistance() {
-    const distance = window.innerWidth <= 640 ? 22 : 19.5;
-    camera.position.set(0, 0, distance);
-    controls.target.set(0, 0, 0);
-    controls.update();
-  }
-
-  function centerOnNode(nodeId: string, force = false) {
-    const focusNode = nodeMap.get(nodeId) ?? nodeMap.get("root");
-    if (!focusNode) return;
-
-    syncCameraDistance();
-
-    if (focusNode.position.lengthSq() < 0.001) {
-      targetQuaternion.identity();
-    } else {
-      targetQuaternion.setFromUnitVectors(
-        focusNode.position.clone().normalize(),
-        frontVector,
-      );
-      targetQuaternion.multiply(
-        new THREE.Quaternion().setFromAxisAngle(
-          yTiltAxis,
-          focusNode.type === "article" ? 0.04 : 0.08,
-        ),
-      );
+  function updateTooltip() {
+    const node = hoverNodeId ? nodeMap.get(hoverNodeId) : null;
+    if (!node || !lastPointer) {
+      tooltip.hidden = true;
+      return;
     }
 
-    if (force) {
-      graphGroup.quaternion.copy(targetQuaternion);
-    } else {
-      graphGroup.quaternion.copy(targetQuaternion);
-    }
-    updateVisualState();
+    tooltip.hidden = false;
+    tooltip.textContent = node.label;
+    tooltip.style.transform = `translate(${lastPointer.x + 14}px, ${lastPointer.y + 14}px)`;
   }
 
   function render() {
-    renderer.render(scene, camera);
-    labelRenderer.render(scene, camera);
-  }
+    const focusNode = nodeMap.get(getFocusNodeId()) ?? nodeMap.get("root");
+    const { focusSet, childLabelSet, relatedLabelSet } = getFocusSets(
+      focusNode,
+      runtimeLinks,
+    );
 
-  function loop() {
-    if (!isRunning || disposed) return;
-    animationId = window.requestAnimationFrame(loop);
-    controls.update();
-    render();
-  }
-
-  function resize() {
-    const width = Math.max(stage.clientWidth, 1);
-    const height = Math.max(stage.clientHeight, 1);
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-    renderer.setSize(width, height);
-    labelRenderer.setSize(width, height);
-    render();
-  }
-
-  function getIntersectedNode(clientX: number, clientY: number) {
-    const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-
-    const intersect = raycaster.intersectObjects(
-      runtimeNodes.map((node) => node.mesh),
-      false,
-    )[0];
-    const nodeId = intersect?.object?.userData?.nodeId;
-    return nodeId ? nodeMap.get(nodeId) ?? null : null;
+    ctx.clearRect(0, 0, view.width, view.height);
+    drawLinks(focusSet);
+    drawNodes(focusSet);
+    updateLabels(focusNode, childLabelSet, relatedLabelSet, focusSet);
+    updateTooltip();
   }
 
   function setHoverNode(nodeId: string | null) {
     hoverNodeId = nodeId;
-    updateVisualState();
+    render();
   }
 
   function setPreviewNode(nodeId: string | null) {
     previewNodeId = nodeId;
-    updateVisualState();
+    render();
+  }
+
+  function resize() {
+    const previousWidth = view.width;
+    const previousHeight = view.height;
+    setCanvasSize();
+    if (previousWidth <= 1 || previousHeight <= 1) {
+      fitGraph();
+    }
+    render();
   }
 
   function updateTheme() {
-    const nextPalette = getThemePalette();
-    Object.assign(palette, nextPalette);
-    updateVisualState();
+    Object.assign(palette, getThemePalette());
     render();
+  }
+
+  function loop() {
+    if (!isRunning || disposed) return;
+    simulation.tick(1);
+    render();
+    animationId = window.requestAnimationFrame(loop);
   }
 
   function start() {
@@ -934,12 +774,13 @@ async function createGraphRuntime(options: {
     stage.classList.add("is-ready");
     if (status) status.hidden = true;
     resize();
-    updateVisualState();
+    simulation.alphaTarget(0.012).restart();
     loop();
   }
 
   function stop() {
     isRunning = false;
+    simulation.stop();
     if (animationId != null) {
       window.cancelAnimationFrame(animationId);
       animationId = null;
@@ -950,95 +791,140 @@ async function createGraphRuntime(options: {
     if (disposed) return;
     disposed = true;
     stop();
-    controls.dispose();
-    runtimeLinks.forEach((link) => {
-      link.line.geometry.dispose();
-      link.material.dispose();
-    });
-    runtimeNodes.forEach((node) => {
-      node.mesh.geometry.dispose();
-      (node.mesh.material as import("three").Material).dispose();
-      (node.halo.material as import("three").Material).dispose();
-      node.labelObject.removeFromParent();
-    });
-    renderer.dispose();
-    renderer.forceContextLoss();
-    renderer.domElement.remove();
-    labelRenderer.domElement.remove();
-    scene.clear();
+    canvas.remove();
+    labelLayer.remove();
   }
 
-  controls.addEventListener("start", () => {
-    mount.classList.add("is-dragging");
-  });
-  controls.addEventListener("end", () => {
-    mount.classList.remove("is-dragging");
-  });
-
-  renderer.domElement.addEventListener(
+  canvas.addEventListener(
     "pointermove",
     (event) => {
-      const node = getIntersectedNode(event.clientX, event.clientY);
-      renderer.domElement.style.cursor = node ? "pointer" : "grab";
-      setHoverNode(node?.id ?? null);
-      updateTooltip();
-      render();
-    },
-    { passive: true },
-  );
+      const pointer = getPointer(event);
+      const node = getNodeAtPoint(pointer.x, pointer.y);
+      lastPointer = pointer;
 
-  renderer.domElement.addEventListener(
-    "pointerleave",
-    () => {
-      renderer.domElement.style.cursor = "grab";
-      setHoverNode(null);
-      updateTooltip();
-      render();
-    },
-    { passive: true },
-  );
+      if (dragNode && pointerDownState) {
+        const dx = pointer.worldX - pointerDownState.worldX;
+        const dy = pointer.worldY - pointerDownState.worldY;
+        dragNode.fx = pointer.worldX;
+        dragNode.fy = pointer.worldY;
 
-  renderer.domElement.addEventListener(
-    "pointerdown",
-    (event) => {
-      const node = getIntersectedNode(event.clientX, event.clientY);
-      pointerDownState = {
-        x: event.clientX,
-        y: event.clientY,
-        nodeId: node?.id ?? null,
-      };
-    },
-    { passive: true },
-  );
+        runtimeNodes.forEach((candidate) => {
+          if (candidate.id === dragNode?.id) return;
+          const sameCluster = candidate.clusterKey === dragNode?.clusterKey;
+          const neighbor = dragNode?.neighbors.has(candidate.id);
+          if (!sameCluster && !neighbor) return;
+          const pull = neighbor ? 0.18 : 0.045;
+          candidate.vx = (candidate.vx ?? 0) + dx * pull;
+          candidate.vy = (candidate.vy ?? 0) + dy * pull;
+        });
 
-  renderer.domElement.addEventListener(
-    "pointerup",
-    (event) => {
-      const node = getIntersectedNode(event.clientX, event.clientY);
-      const movedDistance = pointerDownState
-        ? Math.hypot(
-            event.clientX - pointerDownState.x,
-            event.clientY - pointerDownState.y,
-          )
-        : Infinity;
-
-      if (
-        pointerDownState &&
-        movedDistance < 8 &&
-        pointerDownState.nodeId &&
-        pointerDownState.nodeId === node?.id
-      ) {
-        navigateTo(node.route);
+        pointerDownState.worldX = pointer.worldX;
+        pointerDownState.worldY = pointer.worldY;
+        simulation.alpha(0.22).restart();
+        render();
+        return;
       }
 
-      pointerDownState = null;
+      if (pointerMode === "pan" && pointerDownState) {
+        view.viewOffset.x += pointer.x - pointerDownState.x;
+        view.viewOffset.y += pointer.y - pointerDownState.y;
+        pointerDownState.x = pointer.x;
+        pointerDownState.y = pointer.y;
+        render();
+        return;
+      }
+
+      canvas.style.cursor = node ? "pointer" : "grab";
+      setHoverNode(node?.id ?? null);
     },
     { passive: true },
+  );
+
+  canvas.addEventListener(
+    "pointerleave",
+    () => {
+      if (!dragNode && pointerMode !== "pan") {
+        canvas.style.cursor = "grab";
+        setHoverNode(null);
+      }
+      tooltip.hidden = true;
+    },
+    { passive: true },
+  );
+
+  canvas.addEventListener("pointerdown", (event) => {
+    const pointer = getPointer(event);
+    const node = getNodeAtPoint(pointer.x, pointer.y);
+    pointerDownState = {
+      ...pointer,
+      nodeId: node?.id ?? null,
+    };
+    lastPointer = pointer;
+    pointerMode = node ? "node" : "pan";
+    dragNode = node;
+    mount.classList.add("is-dragging");
+    canvas.style.cursor = "grabbing";
+    canvas.setPointerCapture(event.pointerId);
+
+    if (dragNode) {
+      dragNode.fx = dragNode.x ?? pointer.worldX;
+      dragNode.fy = dragNode.y ?? pointer.worldY;
+      simulation.alphaTarget(0.18).restart();
+    }
+  });
+
+  canvas.addEventListener("pointerup", (event) => {
+    const pointer = getPointer(event);
+    const node = getNodeAtPoint(pointer.x, pointer.y);
+    const movedDistance = pointerDownState
+      ? Math.hypot(pointer.x - pointerDownState.x, pointer.y - pointerDownState.y)
+      : Infinity;
+
+    if (
+      pointerDownState &&
+      movedDistance < 7 &&
+      pointerDownState.nodeId &&
+      pointerDownState.nodeId === node?.id
+    ) {
+      navigateTo(node.route);
+    }
+
+    if (dragNode) {
+      dragNode.fx = null;
+      dragNode.fy = null;
+    }
+
+    dragNode = null;
+    pointerMode = null;
+    pointerDownState = null;
+    mount.classList.remove("is-dragging");
+    canvas.style.cursor = node ? "pointer" : "grab";
+    simulation.alphaTarget(0.012).restart();
+
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+  });
+
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      const pointer = getPointer(event);
+      const before = screenToWorld(pointer.x, pointer.y);
+      const zoomDelta = Math.exp(-event.deltaY * 0.0012);
+      view.zoom = Math.min(2.6, Math.max(0.46, view.zoom * zoomDelta));
+      const after = screenToWorld(pointer.x, pointer.y);
+      view.viewOffset.x += (after.x - before.x) * view.zoom;
+      view.viewOffset.y += (after.y - before.y) * view.zoom;
+      render();
+    },
+    { passive: false },
   );
 
   currentNodeId = getCurrentNodeId();
-  centerOnNode(currentNodeId, true);
   resize();
+  centerOnNode(currentNodeId, true);
   render();
 
   return {
@@ -1263,7 +1149,7 @@ export function initGlobalGraphModal() {
 
     if (statusEl) {
       statusEl.hidden = false;
-      statusEl.textContent = "正在加载 3D 知识图谱...";
+      statusEl.textContent = "正在加载 2D 点群图谱...";
     }
 
     graphRuntimePromise = createGraphRuntime({
@@ -1281,16 +1167,10 @@ export function initGlobalGraphModal() {
         return runtime;
       })
       .catch((error) => {
-        console.error("3D 图谱加载失败:", error);
+        console.error("2D 图谱加载失败:", error);
         if (statusEl) {
           statusEl.hidden = false;
-          statusEl.textContent =
-            error instanceof Error &&
-            /Failed to fetch dynamically imported module|Outdated Optimize Dep/i.test(
-              error.message,
-            )
-              ? "开发服务器的 three 依赖缓存已过期，请刷新页面；如果还不行，重启 npm run dev。"
-              : "3D 图谱初始化失败，请稍后刷新重试。";
+          statusEl.textContent = "2D 图谱初始化失败，请稍后刷新重试。";
         }
         graphRuntimePromise = null;
         throw error;

@@ -347,15 +347,15 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
 
   // 渲染加载状态
   const renderLoading = () => (
-    <div className="flex justify-center items-center p-8">
+    <div className="git-project-loading flex justify-center items-center p-8">
       <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-      <p className="ml-2 text-gray-600 dark:text-gray-400">加载中...</p>
+      <p className="git-project-muted ml-2">加载中...</p>
     </div>
   );
 
   // 渲染错误状态
   const renderError = () => (
-    <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg border border-red-200 dark:border-red-800">
+    <div className="git-project-error p-4">
       <div className="flex items-center">
         <svg
           className="w-5 h-5 mr-2"
@@ -374,7 +374,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
       </div>
       <button
         onClick={() => fetchData(pagination.current)}
-        className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-800/50 text-red-700 dark:text-red-300 rounded"
+        className="git-project-page-button mt-3 px-4 py-2"
       >
         重试
       </button>
@@ -383,7 +383,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
 
   // 渲染无数据状态
   const renderEmpty = () => (
-    <div className="text-secondary-500 dark:text-secondary-400 p-4 text-center">
+    <div className="git-project-muted p-4 text-center">
       {platform === GitPlatform.GITEE
         ? "无法获取 Gitee 项目数据，可能需要配置访问令牌。"
         : "没有找到项目数据。"}
@@ -392,15 +392,15 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
 
   return (
     <div className={`git-project-collection w-full ${className}`}>
-      <h2 className="text-2xl font-bold mb-6 text-primary-700 dark:text-primary-400">
+      <h2 className="git-project-title text-2xl font-bold mb-6">
         {displayTitle}
         {username && (
-          <span className="ml-2 text-secondary-500 dark:text-secondary-400">
+          <span className="git-project-title-meta ml-2">
             (@{username})
           </span>
         )}
         {organization && (
-          <span className="ml-2 text-secondary-500 dark:text-secondary-400">
+          <span className="git-project-title-meta ml-2">
             (组织: {organization})
           </span>
         )}
@@ -419,7 +419,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
           {loading && projects.length > 0 && (
             <div className="flex justify-center items-center py-2 mb-4">
               <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-              <p className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+              <p className="git-project-muted ml-2 text-xs">
                 更新中...
               </p>
             </div>
@@ -433,7 +433,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
             {sortedProjects.map((project) => (
               <div
                 key={project.url}
-                className="mb-4 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-xl hover:-translate-y-1 shadow-lg"
+                className="git-project-card mb-4 overflow-hidden"
               >
                 <a
                   href={project.url}
@@ -442,7 +442,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
                   className="block p-5"
                 >
                   <div className="flex items-start">
-                    <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 group-hover:bg-primary-200 dark:group-hover:bg-primary-800/50">
+                    <div className="git-project-platform-icon w-10 h-10 shrink-0 flex items-center justify-center">
                       {getPlatformIcon(project.platform as GitPlatform)}
                     </div>
                     <div className="ml-3 flex-1">
@@ -458,22 +458,22 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
                             target.src = "https://via.placeholder.com/40";
                           }}
                         />
-                        <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                        <span className="git-project-owner text-sm truncate">
                           {project.owner}
                         </span>
                       </div>
 
-                      <h3 className="font-bold text-base text-gray-800 dark:text-gray-100 group-hover:text-primary-700 dark:group-hover:text-primary-300 line-clamp-1 mt-2">
+                      <h3 className="git-project-name font-bold text-base line-clamp-1 mt-2">
                         {project.name}
                       </h3>
 
                       <div className="h-12 mb-3">
                         {project.description ? (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                          <p className="git-project-description text-sm line-clamp-2">
                             {project.description}
                           </p>
                         ) : (
-                          <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+                          <p className="git-project-muted text-sm italic">
                             暂无描述
                           </p>
                         )}
@@ -495,7 +495,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
                                   marginRight: "0.375rem",
                                 }}
                               ></span>
-                              <span className="text-gray-600 dark:text-gray-400 truncate max-w-30">
+                              <span className="git-project-meta-text truncate max-w-30">
                                 {project.language}
                               </span>
                             </div>
@@ -503,7 +503,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
 
                           <div className="flex items-center shrink-0">
                             <svg
-                              className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400"
+                              className="git-project-meta-icon w-4 h-4 mr-1.5"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -516,14 +516,14 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
                                 d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
                               />
                             </svg>
-                            <span className="text-gray-600 dark:text-gray-400">
+                            <span className="git-project-meta-text">
                               {project.stars}
                             </span>
                           </div>
 
                           <div className="flex items-center shrink-0">
                             <svg
-                              className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400"
+                              className="git-project-meta-icon w-4 h-4 mr-1.5"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -536,7 +536,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
                                 d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
                               />
                             </svg>
-                            <span className="text-gray-600 dark:text-gray-400">
+                            <span className="git-project-meta-text">
                               {project.forks}
                             </span>
                           </div>
@@ -545,7 +545,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
                         {/* 第二行：更新时间（右对齐） */}
                         <div className="flex items-center justify-end">
                           <svg
-                            className="w-4 h-4 mr-1.5 text-gray-500 dark:text-gray-400"
+                            className="git-project-meta-icon w-4 h-4 mr-1.5"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -558,7 +558,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
                               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
-                          <span className="text-gray-500 dark:text-gray-400">
+                          <span className="git-project-meta-text">
                             {new Date(project.updatedAt).toLocaleDateString(
                               "zh-CN",
                             )}
@@ -575,23 +575,23 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
       )}
 
       {pagination.total > 1 && (
-        <div className="flex justify-center mt-8 space-x-2">
+        <div className="git-project-pagination flex justify-center mt-8 space-x-2">
           <button
             onClick={() => handlePageChange(pagination.current - 1)}
             disabled={
               !pagination.hasPrev || pagination.current <= 1 || isPageChanging
             }
-            className={`px-4 py-2 rounded ${
+            className={`git-project-page-button px-4 py-2 ${
               !pagination.hasPrev || pagination.current <= 1 || isPageChanging
-                ? "bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed"
-                : "bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600"
+                ? "is-disabled cursor-not-allowed"
+                : "is-primary"
             }`}
             aria-label="上一页"
           >
             {isPageChanging ? (
               <span className="flex items-center">
                 <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  className="animate-spin -ml-1 mr-2 h-4 w-4"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -618,7 +618,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
             )}
           </button>
 
-          <span className="px-4 py-2 bg-secondary-100 dark:bg-secondary-800 rounded">
+          <span className="git-project-page-status px-4 py-2">
             {pagination.current} / {pagination.total}
           </span>
 
@@ -629,19 +629,19 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
               pagination.current >= pagination.total ||
               isPageChanging
             }
-            className={`px-4 py-2 rounded ${
+            className={`git-project-page-button px-4 py-2 ${
               !pagination.hasNext ||
               pagination.current >= pagination.total ||
               isPageChanging
-                ? "bg-secondary-200 dark:bg-secondary-700 text-secondary-500 dark:text-secondary-500 cursor-not-allowed"
-                : "bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600"
+                ? "is-disabled cursor-not-allowed"
+                : "is-primary"
             }`}
             aria-label="下一页"
           >
             {isPageChanging ? (
               <span className="flex items-center">
                 <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  className="animate-spin -ml-1 mr-2 h-4 w-4"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"

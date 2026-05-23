@@ -1185,7 +1185,7 @@ const Search: React.FC<SearchProps> = ({
         {/* 只渲染非根节点的标题 */}
         {node.level > 0 && (
           <div
-            className={`text-xs font-medium text-primary-600 dark:text-primary-400 mb-1 ${
+            className={`search-heading-label text-xs font-medium mb-1 ${
               depth > 0 ? "mt-2" : ""
             } wrap-break-word [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800`}
           >
@@ -1195,7 +1195,7 @@ const Search: React.FC<SearchProps> = ({
 
         {/* 渲染当前节点的匹配内容 */}
         {shouldShowContent && (
-          <div className="border-l-2 border-primary-500 pl-2 py-1 mb-2">
+          <div className="search-match-block border-l-2 pl-2 py-1 mb-2">
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-1 [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800 wrap-break-word">
               <div
                 dangerouslySetInnerHTML={{
@@ -1255,7 +1255,7 @@ const Search: React.FC<SearchProps> = ({
                 >
                   <a
                     href={item.url}
-                    className="group block hover:bg-primary-200/80 dark:hover:bg-primary-800/20 hover:shadow-md rounded-lg transition-all duration-200 ease-in-out p-2 -m-2 border border-transparent hover:border-primary-300/60 dark:hover:border-primary-700/30"
+                    className="search-result-link group block rounded-lg transition-all duration-200 ease-in-out p-2 -m-2 border"
                     data-astro-prefetch="hover"
                     onClick={(e) => {
                       // 防止默认行为，由我们自己处理导航
@@ -1267,7 +1267,7 @@ const Search: React.FC<SearchProps> = ({
                   >
                     <div className="flex items-start">
                       <div className="grow min-w-0">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200 wrap-break-word [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800">
+                        <h3 className="search-result-title text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200 wrap-break-word [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800">
                           <span
                             dangerouslySetInnerHTML={{ __html: item.title }}
                           />
@@ -1305,7 +1305,7 @@ const Search: React.FC<SearchProps> = ({
             >
               {isLoadingMore ? (
                 <div className="flex justify-center items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-600 border-t-transparent"></div>
+                  <div className="search-loading-spinner animate-spin rounded-full h-4 w-4 border-2 border-t-transparent"></div>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     加载更多结果...
                   </span>
@@ -1317,7 +1317,7 @@ const Search: React.FC<SearchProps> = ({
                     loadMoreResults();
                   }}
                 >
-                  <span className="text-xs text-gray-400 cursor-pointer hover:text-primary-500">
+                  <span className="search-load-more text-xs cursor-pointer">
                     加载更多
                   </span>
                 </div> // 占位元素，用于触发交叉观察器，添加可点击功能
@@ -1403,7 +1403,7 @@ const Search: React.FC<SearchProps> = ({
             onSelect={updateCaretPosition}
             onFocus={handleInputFocus}
             placeholder={getCurrentPlaceholder()}
-            className="w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg md:rounded-lg lg:rounded-xl text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-transparent focus:shadow-md transition-all duration-200 relative z-10"
+            className="search-input-control w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base bg-white dark:bg-gray-800 border rounded-lg md:rounded-lg lg:rounded-xl text-gray-800 dark:text-gray-200 focus:outline-none transition-all duration-200 relative z-10"
             disabled={isLoadingIndex || !isIndexLoaded}
             style={{ backgroundColor: "transparent" }} // 确保背景是透明的，这样可以看到下面的建议
           />
@@ -1501,13 +1501,13 @@ const Search: React.FC<SearchProps> = ({
           {/* 加载指示器或清除按钮 */}
           <div className="absolute right-3.5 md:right-2.5 lg:right-3.5 top-1/2 transform -translate-y-1/2 z-20 flex items-center">
             {isLoading ? (
-              <div className="animate-spin rounded-full h-5 w-5 md:h-3.5 md:w-3.5 lg:h-4.5 lg:w-4.5 border-2 border-primary-600 border-t-transparent"></div>
+              <div className="search-loading-spinner animate-spin rounded-full h-5 w-5 md:h-3.5 md:w-3.5 lg:h-4.5 lg:w-4.5 border-2 border-t-transparent"></div>
             ) : query ? (
               <>
                 <button
                   ref={clearButtonRef}
                   type="button"
-                  className="text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center p-2 -m-1 clear-search-button"
+                  className="search-icon-action focus:outline-none flex items-center justify-center p-2 -m-1 clear-search-button"
                   title="清除搜索"
                   style={{ touchAction: "none" }}
                   onClick={(e) => {
@@ -1546,7 +1546,7 @@ const Search: React.FC<SearchProps> = ({
                 {inlineSuggestion.visible && inlineSuggestion.text && (
                   <div
                     ref={tabButtonRef}
-                    className={`text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 active:text-primary-600 dark:active:text-primary-300 flex items-center justify-center cursor-pointer p-1 ml-1 tab-completion-button ${
+                    className={`search-icon-action flex items-center justify-center cursor-pointer p-1 ml-1 tab-completion-button ${
                       inlineSuggestion.type === "correction"
                         ? "animate-pulse"
                         : ""

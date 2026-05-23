@@ -1,149 +1,64 @@
-/* 基础Mermaid样式覆盖 */
+/* Mermaid diagrams follow the article monochrome reading palette. */
+.mermaid {
+  color: var(--article-ink);
+}
+
 .mermaid * {
   background-color: transparent !important;
 }
 
-/* Mermaid文本颜色统一 */
-.mermaid :is(text, span, div,span,p) {
-  color: var(--color-secondary-800) !important;
-  fill: var(--color-secondary-800) !important;
+.mermaid :is(text, span, div, p, .label, .messageText, .loopText, .noteText, .taskText, .classLabel .label),
+.mermaid :is(.edgeLabel, .edgeLabel p, .edgeLabel div, .edgeLabel span) {
+  color: var(--article-ink) !important;
+  fill: var(--article-ink) !important;
   font-family: inherit !important;
 }
 
-/* 添加edgeLabel文本颜色样式 */
-.mermaid :is(.edgeLabel, .edgeLabel p, .edgeLabel div, .edgeLabel span) {
-  color: var(--color-secondary-800) !important;
-  fill: var(--color-secondary-800) !important;
+.mermaid :is(.node rect, .node circle, .node ellipse, .node polygon, .node path, .actor) {
+  fill: var(--article-bg) !important;
+  stroke: var(--article-line-strong) !important;
+  stroke-width: 1.2px !important;
 }
 
-/* 节点样式设置 */
-.mermaid :is(.node rect, .node circle, .node ellipse, .node polygon, .node path) {
-  fill: var(--color-gray-100) !important;
-  stroke: var(--color-gray-400) !important;
-  stroke-width: 1px !important;
-}
-
-/* 连接线样式 */
 .mermaid :is(.edgePath .path, .flowchart-link, line, .messageLine0, .messageLine1) {
-  stroke: var(--color-gray-600) !important;
-  stroke-width: 1px !important;
-  fill: none !important; /* 确保线条没有填充 */
-}
-
-/* 箭头填充 */
-.mermaid :is(.arrowheadPath, marker path) {
-  fill: var(--color-gray-600) !important;
-  stroke: none !important;
-}
-
-/* 文本标签背景 */
-.mermaid :is(.edgeLabel rect, .labelBox) {
-  fill: white !important;
-  background-color: white !important;
-}
-
-/* 标题样式 */
-.mermaid :is(.titleText, .classTitle, .cluster-label text) {
-  fill: var(--color-secondary-900) !important;
-  color: var(--color-secondary-900) !important;
-  font-weight: bold !important;
-}
-
-/* 集群/子图样式 */
-.mermaid :is(.cluster rect, .cluster polygon) {
-  fill: var(--color-gray-50) !important;
-  stroke: var(--color-gray-400) !important;
-  stroke-width: 1px !important;
-  opacity: 0.8 !important;
-}
-
-/* 序列图特殊样式 */
-.mermaid .actor {
-  fill: var(--color-gray-100) !important;
-  stroke: var(--color-gray-400) !important;
-  stroke-width: 1px !important;
-}
-
-.mermaid .note {
-  fill: var(--color-primary-500) !important;
-  opacity: 0.7 !important;
-}
-
-/* 甘特图特殊样式 */
-.mermaid :is(.section0, .section2) {
-  fill: var(--color-gray-50) !important;
-  opacity: 0.5 !important;
-}
-
-.mermaid :is(.section1, .section3) {
-  fill: var(--color-gray-100) !important;
-  opacity: 0.4 !important;
-}
-
-.mermaid :is(.task0, .task1, .task2, .task3) {
-  fill: var(--color-primary-600) !important;
-  stroke: var(--color-gray-400) !important;
-}
-
-/* 类图特殊样式 */
-.mermaid .classLabel .label {
-  fill: var(--color-secondary-800) !important;
-  color: var(--color-secondary-800) !important;
-}
-
-/* 暗色模式样式 */
-[data-theme='dark'] .mermaid :is(.label, text, span, .messageText, .loopText, .noteText, .taskText, .classLabel .label) {
-  color: var(--color-secondary-300) !important;
-  fill: var(--color-secondary-300) !important;
-}
-
-/* 暗色模式edgeLabel文本颜色样式 */
-[data-theme='dark'] .mermaid :is(.edgeLabel, .edgeLabel p, .edgeLabel span) {
-  color: var(--color-secondary-300) !important;
-  fill: var(--color-secondary-300) !important;
-}
-
-[data-theme='dark'] .mermaid :is(.node rect, .node circle, .node ellipse, .node polygon, .node path, .actor) {
-  fill: var(--color-dark-hover) !important;
-  stroke: var(--color-gray-600) !important;
-}
-
-/* 暗色模式连接线样式 */
-[data-theme='dark'] .mermaid :is(.edgePath .path, .flowchart-link, line, .messageLine0, .messageLine1) {
-  stroke: var(--color-gray-400) !important;
+  stroke: color-mix(in oklab, var(--article-ink) 72%, transparent) !important;
+  stroke-width: 1.2px !important;
   fill: none !important;
 }
 
-/* 暗色模式箭头样式 */
-[data-theme='dark'] .mermaid :is(.arrowheadPath, marker path) {
-  fill: var(--color-gray-400) !important;
+.mermaid :is(.arrowheadPath, marker path) {
+  fill: color-mix(in oklab, var(--article-ink) 72%, transparent) !important;
   stroke: none !important;
 }
 
-[data-theme='dark'] .mermaid :is(.edgeLabel rect, .labelBox) {
-  fill: var(--color-dark-surface) !important;
-  background-color: var(--color-dark-surface) !important;
+.mermaid :is(.edgeLabel rect, .labelBox) {
+  fill: var(--article-bg) !important;
+  background-color: var(--article-bg) !important;
 }
 
-[data-theme='dark'] .mermaid :is(.titleText, .classTitle, .cluster-label text) {
-  fill: var(--color-secondary-100) !important;
-  color: var(--color-secondary-100) !important;
+.mermaid :is(.titleText, .classTitle, .cluster-label text) {
+  fill: var(--article-ink) !important;
+  color: var(--article-ink) !important;
+  font-weight: 650 !important;
 }
 
-[data-theme='dark'] .mermaid :is(.cluster rect, .cluster polygon, .section0, .section2) {
-  fill: var(--color-dark-card) !important;
-  stroke: var(--color-gray-600) !important;
+.mermaid :is(.cluster rect, .cluster polygon) {
+  fill: transparent !important;
+  stroke: var(--article-line) !important;
+  stroke-width: 1px !important;
 }
 
-[data-theme='dark'] .mermaid :is(.section1, .section3) {
-  fill: var(--color-dark-hover) !important;
+.mermaid .note,
+.mermaid :is(.task0, .task1, .task2, .task3),
+.mermaid :is(.section0, .section1, .section2, .section3) {
+  fill: var(--article-bg) !important;
+  stroke: var(--article-line-strong) !important;
 }
 
-[data-theme='dark'] .mermaid .note {
-  fill: var(--color-primary-300) !important;
-}
-
-[data-theme='dark'] .mermaid :is(.task0, .task1, .task2, .task3) {
-  fill: var(--color-primary-400) !important;
-  stroke: var(--color-gray-600) !important;
+[data-theme="dark"] .mermaid :is(.node rect, .node circle, .node ellipse, .node polygon, .node path, .actor),
+[data-theme="dark"] .mermaid .note,
+[data-theme="dark"] .mermaid :is(.task0, .task1, .task2, .task3),
+[data-theme="dark"] .mermaid :is(.section0, .section1, .section2, .section3) {
+  fill: var(--article-bg) !important;
+  stroke: var(--article-line-strong) !important;
 }
