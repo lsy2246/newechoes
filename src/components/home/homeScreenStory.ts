@@ -487,31 +487,42 @@ const drawMobileStory = (
     ctx.restore();
   };
 
-  const introHeroY = height * 0.43;
-  const introSlotTop = safe.y + 82 * unit;
+  const introHeroX = width * 0.5;
+  const introHeroY = height * 0.46;
+  const introHeroW = Math.min(width * 0.48, 210 * unit);
+  const introHeroH = 142 * unit;
+  const introFlowMotion = input.motion ?? progress;
   const introSlotGap = 18 * unit;
   const introSlotW = (safe.w - introSlotGap) / 2;
+  const introSingleW = Math.min(safe.w * 0.48, introHeroW * 0.9);
   const introSlotH = 52 * unit;
-  const introSlotRowGap = 118 * unit;
-  const mobileIntroSlots = [
-    { x: safe.x, y: introSlotTop, w: introSlotW, h: introSlotH },
-    { x: safe.x + introSlotW + introSlotGap, y: introSlotTop + 12 * unit, w: introSlotW, h: introSlotH },
-    { x: safe.x, y: introSlotTop + introSlotRowGap, w: introSlotW, h: introSlotH },
-    { x: safe.x + introSlotW + introSlotGap, y: introSlotTop + introSlotRowGap + 12 * unit, w: introSlotW, h: introSlotH },
-    { x: safe.x, y: introSlotTop + introSlotRowGap * 2, w: introSlotW, h: introSlotH },
-    { x: safe.x + introSlotW + introSlotGap, y: introSlotTop + introSlotRowGap * 2 + 12 * unit, w: introSlotW, h: introSlotH },
+  const introTopPairY = introHeroY - introHeroH * 1.62;
+  const introTopSingleY = introHeroY - introHeroH * 1.04;
+  const introBottomSingleY = introHeroY + introHeroH * 0.84;
+  const introBottomPairY = introHeroY + introHeroH * 1.46;
+  const introLabelRects = [
+    { x: safe.x, y: introTopPairY, w: introSlotW, h: introSlotH },
+    { x: safe.x + introSlotW + introSlotGap, y: introTopPairY + 16 * unit, w: introSlotW, h: introSlotH },
+    { x: introHeroX - introSingleW / 2, y: introTopSingleY, w: introSingleW, h: introSlotH },
+    { x: introHeroX - introSingleW / 2, y: introBottomSingleY, w: introSingleW, h: introSlotH },
+    { x: safe.x, y: introBottomPairY, w: introSlotW, h: introSlotH },
+    { x: safe.x + introSlotW + introSlotGap, y: introBottomPairY + 16 * unit, w: introSlotW, h: introSlotH },
   ];
+  const mobileIntroSlots = introLabelRects.map((rect) => ({ ...rect }));
 
   const drawMobileChapterTitle = (chapter: string, amount: number) => {
     const heroSize = width * 0.25;
     const titleFont = "'Fraunces', 'Noto Serif SC', serif";
-    const startX = width / 2 - measure("lsy", heroSize, titleFont, 500) / 2;
+    const startX = introHeroX - measure("lsy", heroSize, titleFont, 500) / 2;
     const startY = introHeroY;
     const endX = safe.x;
     const endY = safe.y;
-    const size = lerp(heroSize, smallSize * 1.08, amount);
-    const x = lerp(startX, endX, amount);
-    const y = lerp(startY, endY, amount);
+    const titleXTravel = phase(amount, 0.02, 0.48);
+    const titleYTravel = phase(amount, 0.24, 1);
+    const titleSizeTravel = phase(amount, 0, 0.58);
+    const size = lerp(heroSize, smallSize * 1.08, titleSizeTravel);
+    const x = lerp(startX, endX, titleXTravel);
+    const y = lerp(startY, endY, titleYTravel);
     const chapterSize = smallSize * 1.08;
     const label = ` / ${chapter}`;
     const labelX = x + measure("lsy", size, titleFont, 500) + 8 * unit;
@@ -524,32 +535,126 @@ const drawMobileStory = (
     });
   };
 
+  const drawMobileIntroRule = (rect: Rect, item: (typeof STORY_MATERIALS)[number], amount: number) => {
+    const introRuleColor = item.active ? palette.aiAccent : palette.muted;
+    const introRuleW = 60 * unit;
+    const introRuleDotGap = 10 * unit;
+
+    withAlpha(ctx, amount * 0.9, () => {
+      ctx.save();
+      ctx.strokeStyle = introRuleColor;
+      ctx.fillStyle = introRuleColor;
+      ctx.lineWidth = 1.35 * unit;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(rect.x, rect.y + 2 * unit);
+      ctx.lineTo(rect.x + introRuleW, rect.y + 2 * unit);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(rect.x + introRuleW + introRuleDotGap, rect.y + 2 * unit, 3.2 * unit, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  };
+
+  const drawMobileIntroFlow = (rect: Rect, item: (typeof STORY_MATERIALS)[number], toward: 1 | -1, amount: number, index: number) => {
+    const introFlowGap = 18 * unit;
+    const startX = rect.x + rect.w / 2;
+    const introLabelTopY = rect.y + 2 * unit;
+    const introLabelBottomY = rect.y + 39 * unit;
+    const startY = toward === 1 ? introLabelBottomY + introFlowGap : introLabelTopY - introFlowGap;
+    const targetY = toward === 1 ? introHeroY - introHeroH * 0.28 : introHeroY + introHeroH * 0.26;
+    const targetX = introHeroX + (startX - introHeroX) * 0.12;
+    const controlY = (startY + targetY) / 2;
+    const isCenterIntroFlow = index === 2 || index === 3;
+    const side = startX < introHeroX ? -1 : 1;
+    const outerX = clamp(startX + side * 58 * unit, safe.x + 18 * unit, safe.x + safe.w - 18 * unit);
+    const outerPushY = toward === 1 ? 18 * unit : -18 * unit;
+    const targetPullY = toward === 1 ? 52 * unit : -52 * unit;
+    const flowColor = item.active ? palette.aiAccent : palette.muted;
+
+    withAlpha(ctx, amount * (item.active ? 0.86 : 0.66), () => {
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      const drawIntroFlowPath = () => {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        if (isCenterIntroFlow) {
+          ctx.bezierCurveTo(startX, controlY, targetX, controlY, targetX, targetY);
+        } else {
+          ctx.bezierCurveTo(outerX, startY + outerPushY, outerX, targetY - targetPullY, targetX, targetY);
+        }
+      };
+
+      ctx.strokeStyle = flowColor;
+      ctx.globalAlpha *= item.active ? 0.62 : 0.58;
+      ctx.lineWidth = 1.65 * unit;
+      ctx.setLineDash([7 * unit, 8 * unit]);
+      ctx.lineDashOffset = -introFlowMotion * 72 * unit;
+      drawIntroFlowPath();
+      ctx.stroke();
+
+      ctx.strokeStyle = flowColor;
+      ctx.globalAlpha *= item.active ? 0.9 : 0.84;
+      ctx.lineWidth = item.active ? 2.25 * unit : 1.9 * unit;
+      ctx.setLineDash([5 * unit, 14 * unit]);
+      ctx.lineDashOffset = -introFlowMotion * 118 * unit;
+      drawIntroFlowPath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
+      ctx.restore();
+    });
+  };
+
   const drawMobileIntroMaterial = (rect: Rect, item: (typeof STORY_MATERIALS)[number], index: number, amount: number) => {
-    const pad = lerp(0, 10 * unit, amount);
-    const ruleY = rect.y + lerp(2 * unit, 8 * unit, amount);
-    const ruleW = lerp(44 * unit, Math.min(rect.w * 0.34, 70 * unit), amount);
-    const numberW = lerp(0, 42 * unit, phase(amount, 0.28, 0.62));
-    const titleSize = fitSize(item.tag, rect.w - pad * 2 - numberW, lerp(13 * unit, bodySize * 0.72, amount), 11 * unit, "'JetBrains Mono', monospace", 700);
-    const bodyReveal = phase(amount, 0.52, 0.9);
+    const materialMorph = phase(amount, 0.16, 0.84);
+    const flowAmount = 1 - phase(materialMorph, 0.18, 0.62);
+    const numberAlpha = phase(materialMorph, 0.28, 0.62);
+    const detailAmount = phase(materialMorph, 0.52, 0.9);
+    const pad = lerp(0, 10 * unit, materialMorph);
+    const ruleY = lerp(rect.y + 2 * unit, rect.y + 8 * unit, materialMorph);
+    const ruleW = lerp(60 * unit, Math.min(rect.w * 0.34, 70 * unit), materialMorph);
+    const ruleDotGap = 10 * unit;
+    const ruleStroke = item.active ? palette.aiAccent : palette.line;
+    const ruleLineWidth = lerp(1.35 * unit, item.active ? 1.4 * unit : 1 * unit, materialMorph);
+    const ruleDotRadius = lerp(3.2 * unit, item.active ? 3.8 * unit : 3.2 * unit, materialMorph);
+    const numberW = lerp(0, 42 * unit, numberAlpha);
+    const titleSize = fitSize(item.tag, rect.w - pad * 2 - numberW, lerp(13 * unit, bodySize * 0.72, materialMorph), 11 * unit, "'JetBrains Mono', monospace", 700);
+
+    if (flowAmount > 0.01) {
+      drawMobileIntroFlow(rect, item, index < 3 ? 1 : -1, flowAmount, index);
+    }
 
     clipRect({ x: rect.x - 3 * unit, y: rect.y - 6 * unit, w: rect.w + 6 * unit, h: rect.h + 12 * unit }, () => {
-      drawMobileRule(rect.x + pad, ruleY, ruleW, item.active, item.active);
-      if (item.active) {
+      withAlpha(ctx, 1, () => {
         ctx.save();
-        ctx.fillStyle = palette.aiAccent;
+        ctx.strokeStyle = ruleStroke;
+        ctx.fillStyle = ruleStroke;
+        ctx.lineCap = "round";
+        ctx.lineWidth = ruleLineWidth;
+        ctx.globalAlpha *= lerp(0.88, item.active ? 0.78 : 0.62, materialMorph);
         ctx.beginPath();
-        ctx.arc(rect.x + pad + ruleW + 10 * unit, ruleY, 3.6 * unit, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(rect.x + pad, ruleY);
+        ctx.lineTo(rect.x + pad + ruleW, ruleY);
+        ctx.stroke();
+        if (item.active) {
+          ctx.beginPath();
+          ctx.arc(rect.x + pad + ruleW + ruleDotGap, ruleY, ruleDotRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
-      }
 
-      if (amount > 0.2) {
-        text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 34 * unit, smallSize * 0.56, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
-      }
-      textFit(item.tag, rect.x + pad + numberW, rect.y + lerp(34 * unit, 35 * unit, amount), titleSize, rect.w - pad * 2 - numberW, item.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700, 10.5 * unit);
+        if (numberAlpha > 0.2) {
+          text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 34 * unit, smallSize * 0.56, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+        }
+        textFit(item.tag, rect.x + pad + numberW, rect.y + lerp(32 * unit, 35 * unit, materialMorph), titleSize, rect.w - pad * 2 - numberW, item.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700, 10.5 * unit);
+      });
 
-      if (bodyReveal > 0.01) {
-        clipRect({ x: rect.x, y: rect.y + rect.h - 26 * unit, w: rect.w, h: 20 * unit * bodyReveal }, () => {
+      if (detailAmount > 0.01) {
+        clipRect({ x: rect.x, y: rect.y + rect.h - 26 * unit, w: rect.w, h: 20 * unit * detailAmount }, () => {
           wrapText(item.body, rect.w - pad * 2, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
             text(line, rect.x + pad, rect.y + rect.h - 14 * unit, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
           });
@@ -574,6 +679,7 @@ const drawMobileStory = (
   ) => {
     const pad = lerp(10 * unit, 4 * unit, toMethod);
     const maxWidth = rect.w - pad * 2;
+    const ruleW = lerp(Math.min(rect.w * 0.34, 70 * unit), 56 * unit, toMethod);
     const indexText = String(index + 1).padStart(2, "0");
     const clip: Rect = {
       x: rect.x - 8 * unit,
@@ -583,26 +689,26 @@ const drawMobileStory = (
     };
 
     clipRect(clip, () => {
-      drawMobileRule(rect.x + pad, rect.y + 8 * unit, lerp(34 * unit, 56 * unit, toMethod), item.active, item.active);
+      drawMobileRule(rect.x + pad, rect.y + 8 * unit, ruleW, item.active, item.active);
       if (item.active) {
         ctx.save();
         ctx.fillStyle = palette.aiAccent;
         ctx.beginPath();
-        ctx.arc(rect.x + pad + 46 * unit, rect.y + 8 * unit, 3.8 * unit, 0, Math.PI * 2);
+        ctx.arc(rect.x + pad + ruleW + 10 * unit, rect.y + 8 * unit, 3.8 * unit, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
 
-      text(indexText, rect.x + pad, rect.y + 33 * unit, smallSize * 0.56, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+      text(indexText, rect.x + pad, rect.y + 34 * unit, smallSize * 0.56, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
       textFit(
         item.title,
         rect.x + pad + 42 * unit,
-        rect.y + 34 * unit,
+        rect.y + 35 * unit,
         lerp(bodySize * 0.72, bodySize * 0.58, toMethod),
         maxWidth - 42 * unit,
         item.active ? palette.aiAccent : palette.text,
-        "'Fraunces', 'Noto Serif SC', serif",
-        600,
+        "'JetBrains Mono', monospace",
+        700,
         bodySize * 0.48,
       );
 
@@ -842,7 +948,7 @@ const drawMobileStory = (
   };
 
   const introToInput = phase(progress, 0.12, 0.38);
-  const titleMorph = phase(progress, 0.08, 0.3);
+  const titleMorph = phase(progress, 0.14, 0.36);
   const toMethod = phase(progress, 0.42, 0.58);
   const inputSceneHold = 1 - phase(toMethod, 0.12, 0.34);
   const classifySceneReveal = phase(toMethod, 0.34, 0.58);

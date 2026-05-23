@@ -110,12 +110,12 @@ html {
   --color-dark-text-secondary: #94a3b8;
 
   /* 滚动条颜色变量 */
-  --scrollbar-track: #f1f5f9;
-  --scrollbar-thumb: #94a3b8;
-  --scrollbar-thumb-hover: #64748b;
-  --scrollbar-dark-track: #1e293b;
-  --scrollbar-dark-thumb: #475569;
-  --scrollbar-dark-thumb-hover: #64748b;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in oklab, var(--site-ink) 26%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--site-ink) 42%, transparent);
+  --scrollbar-dark-track: transparent;
+  --scrollbar-dark-thumb: color-mix(in oklab, var(--site-ink) 28%, transparent);
+  --scrollbar-dark-thumb-hover: color-mix(in oklab, var(--site-ink) 46%, transparent);
 }
 
 /* 深色模式样式 */
@@ -165,6 +165,8 @@ html[data-theme="dark"],
   --starry-sky-low: #000107;
   background-color: var(--starry-sky-base);
   background-image:
+    linear-gradient(90deg, rgba(0, 1, 7, 0.38) 0%, transparent 20%, transparent 80%, rgba(0, 1, 7, 0.48) 100%),
+    radial-gradient(ellipse at 50% 36%, rgba(39, 65, 124, 0.22) 0%, rgba(20, 31, 68, 0.1) 34%, transparent 70%),
     linear-gradient(180deg, rgba(2, 5, 17, 0.12) 0%, rgba(0, 1, 7, 0.36) 100%),
     url("/images/starfield-bg.jpg");
   background-attachment: fixed;
@@ -173,49 +175,23 @@ html[data-theme="dark"],
   background-size: cover;
 }
 
-[data-theme="dark"] body.layout-bg-starry {
-  position: relative;
-  isolation: isolate;
-  overflow-x: hidden;
-}
-
-[data-theme="dark"] body.layout-bg-starry::before,
-[data-theme="dark"] body.layout-bg-starry::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-}
-
-[data-theme="dark"] body.layout-bg-starry > header,
-[data-theme="dark"] body.layout-bg-starry > main,
-[data-theme="dark"] body.layout-bg-starry > footer {
-  position: relative;
-  z-index: 1;
-}
-
-[data-theme="dark"] body.layout-bg-starry::before {
-  opacity: 0.72;
-  background-image:
-    radial-gradient(ellipse at 50% 36%, rgba(39, 65, 124, 0.22) 0%, rgba(20, 31, 68, 0.1) 34%, transparent 70%),
-    linear-gradient(90deg, rgba(0, 1, 7, 0.38) 0%, transparent 20%, transparent 80%, rgba(0, 1, 7, 0.48) 100%);
-  background-repeat: no-repeat;
-}
-
-[data-theme="dark"] body.layout-bg-starry::after {
-  opacity: 0.34;
-  background-image:
-    linear-gradient(180deg, rgba(0, 1, 7, 0.08) 0%, transparent 28%, rgba(0, 1, 7, 0.3) 100%);
-  background-repeat: no-repeat;
-}
-
 [data-theme="dark"] body.layout-bg-starry #main-header {
   --nav-panel: transparent;
   --nav-panel-strong: transparent;
   --nav-soft: rgba(255, 255, 255, 0.09);
   --nav-line: rgba(255, 255, 255, 0.16);
   --nav-line-strong: rgba(255, 255, 255, 0.34);
+}
+
+[data-theme="dark"] body.layout-bg-starry > #main-header {
+  position: fixed;
+  z-index: 50;
+}
+
+[data-theme="dark"] body.layout-bg-starry > main,
+[data-theme="dark"] body.layout-bg-starry > footer {
+  position: static;
+  z-index: auto;
 }
 
 [data-theme="dark"] body.layout-bg-starry #header-bg,
@@ -227,16 +203,16 @@ html[data-theme="dark"],
 }
 
 [data-theme="dark"] body.layout-bg-starry .search-input-control {
-  background: rgba(0, 0, 0, 0.18);
-  border-color: rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.92);
+  background: transparent;
+  border-color: var(--site-line);
+  color: var(--site-ink);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
 
 [data-theme="dark"] body.layout-bg-starry .search-input-control:focus {
-  border-color: rgba(255, 255, 255, 0.34);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  border-color: var(--site-line-strong);
+  box-shadow: inset 0 0 0 1px var(--site-line-strong);
 }
 
 [data-theme="dark"] .layout-bg-starry main {
@@ -1080,7 +1056,8 @@ html[data-theme="dark"],
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 8px;
-  border: 2px solid var(--scrollbar-track);
+  border: 2px solid transparent;
+  background-clip: content-box;
   transition: background-color 0.2s ease;
 }
 
@@ -1101,7 +1078,8 @@ html[data-theme="dark"],
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-dark-thumb);
-  border: 2px solid var(--scrollbar-dark-track);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
@@ -1124,12 +1102,23 @@ html[data-theme="dark"],
 
 /* 搜索组件滚动条优化 */
 .search-results-container {
+  background: var(--site-bg);
+  border-color: var(--site-line);
+  color: var(--site-ink);
+  box-shadow: none;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch; /* iOS 滚动优化 */
 }
 
+[data-theme="dark"] .search-results-container {
+  background: var(--site-bg);
+  border-color: var(--site-line);
+  box-shadow: none;
+}
+
 .search-input-control {
+  background: transparent;
   border-color: var(--site-line);
   color: var(--site-ink);
   transition:
@@ -1145,6 +1134,8 @@ html[data-theme="dark"],
 
 .search-heading-label,
 .search-result-title,
+.search-result-meta,
+.search-inline-suggestion,
 .search-load-more,
 .search-icon-action {
   color: var(--site-muted);
@@ -1154,8 +1145,18 @@ html[data-theme="dark"],
   color: var(--site-ink);
 }
 
+.search-results-header,
+.search-result-item {
+  border-color: var(--site-line);
+}
+
 .search-match-block {
   border-color: var(--site-line-strong);
+}
+
+.search-mark-scope mark {
+  background: var(--site-soft-strong);
+  color: var(--site-ink);
 }
 
 .search-result-link {

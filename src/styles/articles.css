@@ -577,7 +577,7 @@
 }
 
 #toc-content::-webkit-scrollbar-thumb {
-  background-color: var(--color-primary-200);
+  background-color: var(--article-line-strong);
   border-radius: 4px;
 }
 

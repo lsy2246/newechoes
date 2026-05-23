@@ -117,17 +117,17 @@ function isHomePath() {
   return path === '/' || path === '';
 }
 
-function syncHomeBodyClasses() {
-  const isHome = isHomePath();
-  document.body.classList.toggle('layout-overlay-header', isHome);
-  document.body.classList.toggle('layout-full-bleed', isHome);
+function readLayoutFlag(element, attribute, fallback = false) {
+  const value = element?.getAttribute(attribute);
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return fallback;
 }
 
-function syncLayoutFooterVisibility() {
+function syncLayoutFooterVisibility(hideFooter = false) {
   const footer = document.querySelector('[data-layout-footer]');
   if (!footer) return;
 
-  const hideFooter = isHomePath();
   footer.hidden = hideFooter;
   footer.classList.toggle('hidden', hideFooter);
   footer.setAttribute('data-layout-footer-hidden', hideFooter ? 'true' : 'false');
@@ -138,9 +138,33 @@ function syncLayoutFooterVisibility() {
 function syncLayoutBodyClasses() {
   const mainElement = document.querySelector('main[data-layout-background]');
   const backgroundMode = mainElement?.getAttribute('data-layout-background') || 'default';
-  syncHomeBodyClasses();
-  syncLayoutFooterVisibility();
+  const headerMode = mainElement?.getAttribute('data-layout-header-mode') || (isHomePath() ? 'overlay' : 'default');
+  const pageType = mainElement?.getAttribute('data-layout-page-type') || 'page';
+  const isCardPreview = readLayoutFlag(mainElement, 'data-layout-card-preview');
+  const isFullBleed = readLayoutFlag(mainElement, 'data-layout-full-bleed', isHomePath());
+  const hideFooter = readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomePath());
+  const useOverlayHeader = headerMode === 'overlay';
+
+  document.body.classList.toggle('article-card-preview-body', isCardPreview);
+  document.body.classList.toggle('site-monochrome-page', !useOverlayHeader && !isCardPreview);
+  document.body.classList.toggle('layout-article-page', pageType === 'article');
+  document.body.classList.toggle('layout-directory-page', pageType === 'directory');
+  document.body.classList.toggle('layout-overlay-header', useOverlayHeader);
+  document.body.classList.toggle('layout-full-bleed', isFullBleed);
   document.body.classList.toggle('layout-bg-starry', backgroundMode === 'starry');
+  syncLayoutFooterVisibility(hideFooter);
+}
+
+function preserveViteDevStylesForHeadSync(visit) {
+  const viteStyleSelector = 'style[data-vite-dev-id]';
+
+  document.querySelectorAll(viteStyleSelector).forEach((style) => {
+    style.setAttribute('data-swup-theme', '');
+  });
+
+  visit?.to?.document?.head
+    ?.querySelectorAll(viteStyleSelector)
+    .forEach((style) => style.remove());
 }
 
 // 检查是否是文章相关页面
@@ -289,11 +313,15 @@ document.addEventListener('DOMContentLoaded', () => {
     preloadInitialPage: true
   });
   swup.use(preloadPlugin);
+
+  swup.hooks.before('content:replace', preserveViteDevStylesForHeadSync, {
+    priority: -100
+  });
   
   // 创建并注册Head插件，用于解决CSS丢失问题
   const headPlugin = new SwupHeadPlugin({
-    persistTags: 'link[rel="stylesheet"], style, meta',  // 保留所有样式表和相关标签
-    persistAssets: true, // 保留已加载的资源
+    persistTags: false,
+    persistAssets: false,
     keepScrollOnReload: true, // 保持滚动位置
     awaitAssets: true // 等待资源加载完成再显示页面
   });

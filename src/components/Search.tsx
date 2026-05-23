@@ -1187,7 +1187,7 @@ const Search: React.FC<SearchProps> = ({
           <div
             className={`search-heading-label text-xs font-medium mb-1 ${
               depth > 0 ? "mt-2" : ""
-            } wrap-break-word [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800`}
+            } wrap-break-word`}
           >
             <span dangerouslySetInnerHTML={{ __html: node.text }} />
           </div>
@@ -1196,7 +1196,7 @@ const Search: React.FC<SearchProps> = ({
         {/* 渲染当前节点的匹配内容 */}
         {shouldShowContent && (
           <div className="search-match-block border-l-2 pl-2 py-1 mb-2">
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1 [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800 wrap-break-word">
+            <div className="search-result-meta text-sm mb-1 wrap-break-word">
               <div
                 dangerouslySetInnerHTML={{
                   __html: node.content || "",
@@ -1233,15 +1233,15 @@ const Search: React.FC<SearchProps> = ({
     return (
       <div
         ref={searchResultsRef}
-        className="absolute z-40 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-96 overflow-y-auto scroll-smooth search-results-container"
+        className="absolute z-40 w-full mt-1 border rounded-lg max-h-96 overflow-y-auto scroll-smooth search-results-container"
         style={{
           scrollbarGutter: "stable", // 防止滚动条出现时布局跳动
           overscrollBehavior: "contain", // 防止滚动条回弹
         }}
       >
         <div className="p-4">
-          <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="search-results-header flex justify-between items-center mb-3 pb-2 border-b">
+            <div className="search-result-meta text-sm">
               找到 {total} 条结果 ({time_ms / 1000} 秒)
             </div>
           </div>
@@ -1251,7 +1251,7 @@ const Search: React.FC<SearchProps> = ({
               {allItems.map((item, index) => (
                 <li
                   key={item.id}
-                  className="border-b border-gray-200/70 dark:border-gray-700/40 pb-4 last:border-0 last:pb-0"
+                  className="search-result-item border-b pb-4 last:border-0 last:pb-0"
                 >
                   <a
                     href={item.url}
@@ -1267,7 +1267,7 @@ const Search: React.FC<SearchProps> = ({
                   >
                     <div className="flex items-start">
                       <div className="grow min-w-0">
-                        <h3 className="search-result-title text-base font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200 wrap-break-word [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800">
+                        <h3 className="search-result-title text-base font-medium transition-colors duration-200 wrap-break-word">
                           <span
                             dangerouslySetInnerHTML={{ __html: item.title }}
                           />
@@ -1278,7 +1278,7 @@ const Search: React.FC<SearchProps> = ({
                           {item.heading_tree ? (
                             renderHeadingTree(item.heading_tree, index)
                           ) : (
-                            <div className="text-sm text-gray-600 dark:text-gray-400 wrap-break-word">
+                            <div className="search-result-meta text-sm wrap-break-word">
                               {item.summary}
                             </div>
                           )}
@@ -1291,7 +1291,7 @@ const Search: React.FC<SearchProps> = ({
             </ul>
           ) : (
             <div className="text-center py-4">
-              <p className="text-gray-500 dark:text-gray-400">
+              <p className="search-result-meta">
                 没有找到相关结果
               </p>
             </div>
@@ -1306,7 +1306,7 @@ const Search: React.FC<SearchProps> = ({
               {isLoadingMore ? (
                 <div className="flex justify-center items-center space-x-2">
                   <div className="search-loading-spinner animate-spin rounded-full h-4 w-4 border-2 border-t-transparent"></div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                  <span className="search-result-meta text-sm">
                     加载更多结果...
                   </span>
                 </div>
@@ -1328,7 +1328,7 @@ const Search: React.FC<SearchProps> = ({
           {/* 已加载所有结果的提示 */}
           {hasLoadedAllResults && (
             <div className="text-center py-2 mt-2">
-              <span className="text-xs text-gray-400">已加载全部结果</span>
+              <span className="search-result-meta text-xs">已加载全部结果</span>
             </div>
           )}
         </div>
@@ -1383,7 +1383,7 @@ const Search: React.FC<SearchProps> = ({
   const returnBlock = (
     <div
       ref={containerRef}
-      className="relative [&_mark]:bg-yellow-200 dark:[&_mark]:bg-yellow-800"
+      className="relative search-mark-scope"
     >
       <form
         onSubmit={handleSubmit}
@@ -1403,7 +1403,7 @@ const Search: React.FC<SearchProps> = ({
             onSelect={updateCaretPosition}
             onFocus={handleInputFocus}
             placeholder={getCurrentPlaceholder()}
-            className="search-input-control w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base bg-white dark:bg-gray-800 border rounded-lg md:rounded-lg lg:rounded-xl text-gray-800 dark:text-gray-200 focus:outline-none transition-all duration-200 relative z-10"
+            className="search-input-control w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base border rounded-lg md:rounded-lg lg:rounded-xl focus:outline-none transition-all duration-200 relative z-10"
             disabled={isLoadingIndex || !isIndexLoaded}
             style={{ backgroundColor: "transparent" }} // 确保背景是透明的，这样可以看到下面的建议
           />
@@ -1446,7 +1446,7 @@ const Search: React.FC<SearchProps> = ({
                           // 对纠正建议使用ellipsis确保文本不会溢出
                           inlineSuggestion.type === "correction"
                             ? "text-amber-500/80 dark:text-amber-400/80 ml-1 block truncate"
-                            : "text-gray-400/70 dark:text-gray-500/70"
+                            : "search-inline-suggestion"
                         }`}
                         style={{
                           fontWeight:
@@ -1483,7 +1483,7 @@ const Search: React.FC<SearchProps> = ({
           {/* 搜索图标 */}
           <div className="absolute left-3.5 md:left-2.5 lg:left-3.5 top-1/2 transform -translate-y-1/2 z-20">
             <svg
-              className="h-5 w-5 md:h-3.5 md:w-3.5 lg:h-4.5 lg:w-4.5 text-gray-500 dark:text-gray-400"
+              className="search-icon-action h-5 w-5 md:h-3.5 md:w-3.5 lg:h-4.5 lg:w-4.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

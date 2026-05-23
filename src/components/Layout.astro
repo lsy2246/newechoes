@@ -375,6 +375,11 @@ const canonicalHref = rssLink || canonicalURL.toString();
     {!isCardPreview && <Header />}
     <main
       data-layout-background={backgroundMode}
+      data-layout-page-type={pageType}
+      data-layout-full-bleed={fullBleed ? "true" : "false"}
+      data-layout-header-mode={headerMode}
+      data-layout-card-preview={isCardPreview ? "true" : "false"}
+      data-layout-hide-footer={hideFooter ? "true" : "false"}
       class:list={[
         "grow w-full",
         isCardPreview
