@@ -119,6 +119,20 @@ type GraphRuntime = {
 };
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+const GRAPH_CLICK_THRESHOLD_PX = 4;
+const GRAPH_DRAG_THRESHOLD_PX = 5;
+const GRAPH_LINK_ALPHA = {
+  structure: 0.46,
+  reference: 0.34,
+  focusStructure: 0.9,
+  focusReference: 0.82,
+  current: 0.95,
+} as const;
+const GRAPH_LINK_WIDTH = {
+  structure: 1.35,
+  reference: 1.1,
+  current: 2.15,
+} as const;
 
 function seededNoise(seed: number) {
   const raw = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
@@ -143,16 +157,16 @@ function getThemePalette(): ThemePalette {
     styles.getPropertyValue(token).trim() || fallback;
 
   return {
-    root: read("--site-ink", isDark ? "#aaa5aa" : "#050505"),
-    section: read("--site-ink", isDark ? "#aaa5aa" : "#050505"),
-    article: read("--site-muted", isDark ? "rgba(170, 165, 170, 0.68)" : "rgba(5, 5, 5, 0.58)"),
-    structure: isDark ? "rgba(170, 165, 170, 0.2)" : "rgba(5, 5, 5, 0.18)",
-    structureActive: isDark ? "rgba(170, 165, 170, 0.64)" : "rgba(5, 5, 5, 0.58)",
-    reference: isDark ? "rgba(170, 165, 170, 0.32)" : "rgba(5, 5, 5, 0.28)",
-    text: read("--site-ink", isDark ? "#aaa5aa" : "#050505"),
-    textSoft: read("--site-muted", isDark ? "rgba(170, 165, 170, 0.68)" : "rgba(5, 5, 5, 0.58)"),
-    bg: read("--site-bg", isDark ? "#000000" : "#ffffff"),
-    labelBg: isDark ? "rgba(0, 0, 0, 0.82)" : "rgba(255, 255, 255, 0.82)",
+    root: read("--site-ink", isDark ? "#f5f7fa" : "#101010"),
+    section: read("--site-ink", isDark ? "#f5f7fa" : "#101010"),
+    article: read("--site-muted", isDark ? "#bdc5cf" : "#3f3f3f"),
+    structure: isDark ? "rgba(143, 154, 167, 0.72)" : "rgba(16, 16, 16, 0.72)",
+    structureActive: isDark ? "rgba(238, 242, 246, 0.9)" : "rgba(16, 16, 16, 0.9)",
+    reference: isDark ? "rgba(143, 154, 167, 0.64)" : "rgba(16, 16, 16, 0.64)",
+    text: read("--site-ink", isDark ? "#f5f7fa" : "#101010"),
+    textSoft: read("--site-muted", isDark ? "#bdc5cf" : "#3f3f3f"),
+    bg: read("--site-bg", isDark ? "#111315" : "#ffffff"),
+    labelBg: isDark ? "rgba(17, 19, 21, 0.82)" : "rgba(255, 255, 255, 0.82)",
   };
 }
 
@@ -300,6 +314,40 @@ function createClusterForce(strength = 0.035): Force {
   return force;
 }
 
+function createAmbientDriftForce(
+  getQuietNodeIds: () => Set<string>,
+  strength = 0.0035,
+): Force {
+  let nodes: RuntimeNode[] = [];
+  let frame = 0;
+
+  const force = (alpha: number) => {
+    frame += 1;
+    const quietNodeIds = getQuietNodeIds();
+
+    nodes.forEach((node, index) => {
+      if (node.type === "root" || node.fx != null || node.fy != null) return;
+
+      const seed = (node.index ?? index) + 1;
+      const phase = frame * 0.018 + seededNoise(seed + 23.4) * Math.PI * 2;
+      const quietFactor = quietNodeIds.has(node.id) ? 0.28 : 1;
+      const typeFactor = node.type === "section" ? 0.62 : 1;
+      const localStrength = strength * alpha * quietFactor * typeFactor;
+
+      node.vx = (node.vx ?? 0) + Math.cos(phase) * localStrength;
+      node.vy =
+        (node.vy ?? 0) +
+        Math.sin(phase * 0.83 + seededNoise(seed + 7.9)) * localStrength;
+    });
+  };
+
+  force.initialize = (initializedNodes: RuntimeNode[]) => {
+    nodes = initializedNodes;
+  };
+
+  return force;
+}
+
 function createRuntimeGraph(payload: GraphPayload) {
   const nodeMap = new Map<string, RuntimeNode>();
   const runtimeNodes = payload.nodes.map((node) => {
@@ -422,6 +470,27 @@ async function createGraphRuntime(options: {
     node.labelElement = label;
   });
 
+  let hoverNodeId: string | null = null;
+  let previewNodeId: string | null = null;
+  let currentNodeId = getCurrentNodeId();
+  let animationId: number | null = null;
+  let isRunning = false;
+  let disposed = false;
+  let dragNode: RuntimeNode | null = null;
+  let pointerMode: "node" | "pan" | null = null;
+  let pointerDownState: {
+    x: number;
+    y: number;
+    originX: number;
+    originY: number;
+    worldX: number;
+    worldY: number;
+    nodeId: string | null;
+    hasDragged: boolean;
+  } | null = null;
+  let lastPointer: { x: number; y: number; worldX: number; worldY: number } | null =
+    null;
+
   const simulation = forceModule.forceSimulation(runtimeNodes, 2).stop();
   simulation
     .alpha(0.9)
@@ -476,7 +545,18 @@ async function createGraphRuntime(options: {
         .iterations(2),
     )
     .force("center", forceModule.forceCenter(0, 0))
-    .force("cluster", createClusterForce(0.04));
+    .force("cluster", createClusterForce(0.04))
+    .force(
+      "ambientDrift",
+      createAmbientDriftForce(
+        () =>
+          new Set(
+            [currentNodeId, hoverNodeId, previewNodeId].filter(
+              (nodeId): nodeId is string => Boolean(nodeId),
+            ),
+          ),
+      ),
+    );
 
   simulation.tick(260);
 
@@ -490,24 +570,6 @@ async function createGraphRuntime(options: {
       y: 0,
     },
   };
-
-  let hoverNodeId: string | null = null;
-  let previewNodeId: string | null = null;
-  let currentNodeId = getCurrentNodeId();
-  let animationId: number | null = null;
-  let isRunning = false;
-  let disposed = false;
-  let dragNode: RuntimeNode | null = null;
-  let pointerMode: "node" | "pan" | null = null;
-  let pointerDownState: {
-    x: number;
-    y: number;
-    worldX: number;
-    worldY: number;
-    nodeId: string | null;
-  } | null = null;
-  let lastPointer: { x: number; y: number; worldX: number; worldY: number } | null =
-    null;
 
   function getFocusNodeId() {
     return previewNodeId || hoverNodeId || currentNodeId || "root";
@@ -608,6 +670,7 @@ async function createGraphRuntime(options: {
       const isFocused = focusSet.has(link.source.id) && focusSet.has(link.target.id);
       const isCurrent =
         link.source.id === currentNodeId || link.target.id === currentNodeId;
+      const zoomLineScale = Math.max(1, Math.sqrt(view.zoom));
 
       ctx.save();
       ctx.strokeStyle =
@@ -617,14 +680,21 @@ async function createGraphRuntime(options: {
             ? palette.reference
             : palette.structure;
       ctx.globalAlpha =
-        link.kind === "reference"
-          ? isFocused
-            ? 0.72
-            : 0.2
-          : isFocused
-            ? 0.82
-            : 0.26;
-      ctx.lineWidth = (isCurrent ? 1.35 : link.kind === "reference" ? 0.7 : 0.9) * Math.sqrt(view.zoom);
+        isCurrent
+          ? GRAPH_LINK_ALPHA.current
+          : link.kind === "reference"
+            ? isFocused
+              ? GRAPH_LINK_ALPHA.focusReference
+              : GRAPH_LINK_ALPHA.reference
+            : isFocused
+              ? GRAPH_LINK_ALPHA.focusStructure
+              : GRAPH_LINK_ALPHA.structure;
+      ctx.lineWidth =
+        (isCurrent
+          ? GRAPH_LINK_WIDTH.current
+          : link.kind === "reference"
+            ? GRAPH_LINK_WIDTH.reference
+            : GRAPH_LINK_WIDTH.structure) * zoomLineScale;
       ctx.beginPath();
       ctx.moveTo(source.x, source.y);
       const midX = (source.x + target.x) / 2;
@@ -803,6 +873,14 @@ async function createGraphRuntime(options: {
       lastPointer = pointer;
 
       if (dragNode && pointerDownState) {
+        const totalDistance = Math.hypot(
+          pointer.x - pointerDownState.originX,
+          pointer.y - pointerDownState.originY,
+        );
+        if (totalDistance >= GRAPH_DRAG_THRESHOLD_PX) {
+          pointerDownState.hasDragged = true;
+        }
+
         const dx = pointer.worldX - pointerDownState.worldX;
         const dy = pointer.worldY - pointerDownState.worldY;
         dragNode.fx = pointer.worldX;
@@ -857,7 +935,10 @@ async function createGraphRuntime(options: {
     const node = getNodeAtPoint(pointer.x, pointer.y);
     pointerDownState = {
       ...pointer,
+      originX: pointer.x,
+      originY: pointer.y,
       nodeId: node?.id ?? null,
+      hasDragged: false,
     };
     lastPointer = pointer;
     pointerMode = node ? "node" : "pan";
@@ -877,12 +958,16 @@ async function createGraphRuntime(options: {
     const pointer = getPointer(event);
     const node = getNodeAtPoint(pointer.x, pointer.y);
     const movedDistance = pointerDownState
-      ? Math.hypot(pointer.x - pointerDownState.x, pointer.y - pointerDownState.y)
+      ? Math.hypot(
+          pointer.x - pointerDownState.originX,
+          pointer.y - pointerDownState.originY,
+        )
       : Infinity;
 
     if (
       pointerDownState &&
-      movedDistance < 7 &&
+      !pointerDownState.hasDragged &&
+      movedDistance <= GRAPH_CLICK_THRESHOLD_PX &&
       pointerDownState.nodeId &&
       pointerDownState.nodeId === node?.id
     ) {
@@ -1273,8 +1358,8 @@ export function initGlobalGraphModal() {
   });
   addListener(document, "astro:after-swap", syncAfterNavigation);
   addListener(document, "astro:page-load", syncAfterNavigation);
-  addListener(document, "swup:contentReplaced", syncAfterNavigation);
-  addListener(document, "swup:fragmentReplaced", syncAfterNavigation);
+  addListener(document, "swup:content:replace", syncAfterNavigation);
+  addListener(document, "swup:page:view", syncAfterNavigation);
   addListener(window, "popstate", syncAfterNavigation);
 
   const cleanup = () => {

@@ -253,18 +253,6 @@ const canonicalHref = rssLink || canonicalURL.toString();
             });
           });
 
-          // SPA框架可能使用的事件 - 特殊处理
-          if (typeof document.addEventListener === "function") {
-            document.addEventListener("swup:willReplaceContent", cleanup, {
-              once: true,
-            });
-            cleanupListeners.push({
-              element: document,
-              eventType: "swup:willReplaceContent",
-              handler: cleanup,
-              options: { once: true },
-            });
-          }
         }
 
         try {

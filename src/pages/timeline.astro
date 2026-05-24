@@ -1,0 +1,266 @@
+---
+import { getCollection } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import Layout from "@/components/Layout.astro";
+import { getSpecialPath } from "@/content.config";
+
+export const prerender = true;
+
+type ArticleEntry = CollectionEntry<"articles">;
+
+const articles = (await getCollection("articles"))
+  .filter((article: ArticleEntry) => !article.data.draft)
+  .sort(
+    (a: ArticleEntry, b: ArticleEntry) =>
+      b.data.date.getTime() - a.data.date.getTime(),
+  );
+
+const monthNames = [
+  "一月",
+  "二月",
+  "三月",
+  "四月",
+  "五月",
+  "六月",
+  "七月",
+  "八月",
+  "九月",
+  "十月",
+  "十一月",
+  "十二月",
+];
+
+function getArticleUrl(articleId: string) {
+  return `/articles/${getSpecialPath(articleId)}`;
+}
+
+function getSummary(article: ArticleEntry) {
+  if (article.data.summary) {
+    return article.data.summary;
+  }
+
+  const plainText = article.body
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/!\[.*?\]\(.*?\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[#*`~>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return plainText.length > 84 ? `${plainText.slice(0, 84)}...` : plainText;
+}
+
+const grouped = new Map<string, Map<number, ArticleEntry[]>>();
+
+for (const article of articles) {
+  const year = String(article.data.date.getFullYear());
+  const month = article.data.date.getMonth();
+
+  if (!grouped.has(year)) {
+    grouped.set(year, new Map());
+  }
+
+  const yearGroup = grouped.get(year)!;
+  if (!yearGroup.has(month)) {
+    yearGroup.set(month, []);
+  }
+
+  yearGroup.get(month)!.push(article);
+}
+
+const years = Array.from(grouped.keys());
+const activeYear = years[0] || String(new Date().getFullYear());
+
+function getYearCount(year: string) {
+  return Array.from(grouped.get(year)!.values()).reduce(
+    (total, monthArticles) => total + monthArticles.length,
+    0,
+  );
+}
+---
+
+<Layout
+  title="文章时间线"
+  pageType="directory"
+  description="按发布时间浏览文章"
+  skipSrTitle={false}
+>
+  <div class="article-index-shell">
+    <section class="timeline-layout" aria-label="文章时间线">
+      <nav
+        class="year-index timeline-year-index timeline-year-strip"
+        aria-label="年份索引"
+      >
+        <span class="timeline-strip-label">年份</span>
+        <div class="timeline-year-links">
+          {years.map((year) => (
+            <a
+              class={year === activeYear ? "active" : ""}
+              href={`#year-${year}`}
+              aria-current={year === activeYear ? "true" : undefined}
+              data-timeline-year-link={year}
+            >
+              <span>{year}</span>
+              <small>{getYearCount(year)}</small>
+            </a>
+          ))}
+        </div>
+      </nav>
+
+      <div class="timeline-main timeline-river">
+        {years.map((year) => {
+          const months = Array.from(grouped.get(year)!.keys()).sort((a, b) => b - a);
+
+          return (
+            <section
+              id={`year-${year}`}
+              class="timeline-year-section"
+              data-timeline-year-section={year}
+              aria-label={`${year} 年文章`}
+            >
+              <div class="timeline-year-heading">
+                <p>{year}</p>
+                <span>{getYearCount(year)} 篇记录</span>
+              </div>
+
+              {months.map((month) => (
+                <div class="month-group">
+                  <div class="month-label">
+                    <span>{monthNames[month]}</span>
+                    <small>
+                      {grouped.get(year)!.get(month)!.length} 篇
+                    </small>
+                  </div>
+                  <div class="timeline-list">
+                    {grouped.get(year)!.get(month)!.map((article) => (
+                      <a
+                        class="timeline-item"
+                        href={getArticleUrl(article.id)}
+                        data-astro-prefetch="viewport"
+                      >
+                        <svg
+                          class="timeline-icon"
+                          viewBox="0 0 40 44"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <path d="M9 4h15l7 7v29H9V4Z" stroke="currentColor" stroke-width="1.5" />
+                          <path d="M24 4v8h7" stroke="currentColor" stroke-width="1.5" />
+                          <path d="M14 20h12M14 26h12M14 32h7" stroke="currentColor" stroke-width="1.5" />
+                        </svg>
+                        <span class="timeline-copy">
+                          <strong>{article.data.title}</strong>
+                          <span>{getSummary(article)}</span>
+                        </span>
+                        <time
+                          class="timeline-date"
+                          datetime={article.data.date.toISOString()}
+                        >
+                          <span>
+                            {article.data.date.toLocaleDateString("zh-CN", {
+                              month: "2-digit",
+                              day: "2-digit",
+                            })}
+                          </span>
+                        </time>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </section>
+          );
+        })}
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const cleanupKey = "__echoesTimelineYearSpyCleanup";
+      window[cleanupKey]?.();
+
+      const links = Array.from(
+        document.querySelectorAll("[data-timeline-year-link]"),
+      );
+      const sections = Array.from(
+        document.querySelectorAll("[data-timeline-year-section]"),
+      );
+
+      if (links.length === 0 || sections.length === 0) {
+        return;
+      }
+
+      const setActiveYear = (year) => {
+        links.forEach((link) => {
+          const isActive = link.dataset.timelineYearLink === year;
+          link.classList.toggle("active", isActive);
+
+          if (isActive) {
+            link.setAttribute("aria-current", "true");
+            link.scrollIntoView({
+              behavior: "smooth",
+              block: "nearest",
+              inline: "center",
+            });
+          } else {
+            link.removeAttribute("aria-current");
+          }
+        });
+      };
+
+      const getCurrentYear = () => {
+        const readingLine = window.innerHeight * 0.26;
+        let currentYear =
+          sections[0]?.getAttribute("data-timeline-year-section") || "";
+
+        for (const section of sections) {
+          const rect = section.getBoundingClientRect();
+          if (rect.top <= readingLine) {
+            currentYear = section.getAttribute("data-timeline-year-section") || currentYear;
+          } else {
+            break;
+          }
+        }
+
+        return currentYear;
+      };
+
+      let ticking = false;
+      const updateActiveYear = () => {
+        ticking = false;
+        setActiveYear(getCurrentYear());
+      };
+
+      const requestUpdate = () => {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(updateActiveYear);
+      };
+
+      const observer = new IntersectionObserver(requestUpdate, {
+        root: null,
+        rootMargin: "-18% 0px -64% 0px",
+        threshold: [0, 0.2, 0.6, 1],
+      });
+
+      sections.forEach((section) => observer.observe(section));
+      window.addEventListener("scroll", requestUpdate, { passive: true });
+      window.addEventListener("resize", requestUpdate);
+      updateActiveYear();
+
+      const cleanup = () => {
+        observer.disconnect();
+        window.removeEventListener("scroll", requestUpdate);
+        window.removeEventListener("resize", requestUpdate);
+        document.removeEventListener("astro:before-swap", cleanup);
+        document.removeEventListener("page-transition", cleanup);
+        delete window[cleanupKey];
+      };
+
+      window[cleanupKey] = cleanup;
+      document.addEventListener("astro:before-swap", cleanup, { once: true });
+      document.addEventListener("page-transition", cleanup, { once: true });
+    })();
+  </script>
+</Layout>

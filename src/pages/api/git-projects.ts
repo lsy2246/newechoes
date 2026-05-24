@@ -277,6 +277,24 @@ function parseGithubPagination(linkHeader: string | undefined, currentPage: numb
   return { hasNext, totalPages };
 }
 
+async function fetchGithubPrimaryLanguage(octokit: Octokit, owner: string, repo: string) {
+  try {
+    const { data: languages } = await octokit.request('GET /repos/{owner}/{repo}/languages', {
+      owner,
+      repo
+    });
+
+    const [primaryLanguage] = Object.entries(languages)
+      .sort((left, right) => Number(right[1]) - Number(left[1]))
+      .map(([language]) => language);
+
+    return primaryLanguage || '';
+  } catch (error) {
+    console.error(`获取 GitHub 仓库语言失败: ${owner}/${repo}`, error);
+    return '';
+  }
+}
+
 async function fetchGithubProjects(username: string, organization: string, page: number, config: any) {
   const maxRetries = 3;
   let retryCount = 0;
@@ -329,18 +347,18 @@ async function fetchGithubProjects(username: string, organization: string, page:
       const hasPrev = page > 1;
       const { hasNext, totalPages } = parseGithubPagination(linkHeader, page);
       
-      const projects = repos.map((repo: any) => ({
+      const projects = await Promise.all(repos.map(async (repo: any) => ({
         name: repo.name,
         description: repo.description,
         url: repo.html_url,
         stars: repo.stargazers_count,
         forks: repo.forks_count,
-        language: repo.language,
+        language: repo.language || await fetchGithubPrimaryLanguage(octokit, repo.owner.login, repo.name),
         updatedAt: repo.updated_at,
         owner: repo.owner.login,
         avatarUrl: repo.owner.avatar_url,
         platform: GitPlatform.GITHUB
-      }));
+      })));
       
       return {
         projects,

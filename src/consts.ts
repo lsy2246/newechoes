@@ -9,7 +9,8 @@ export const NAV_STRUCTURE = [
         text: '文章',
         items: [
             { id: 'path', text: '网格', href: '/articles' },
-            { id: 'filter', text: '筛选', href: '/filtered' }
+            { id: 'filter', text: '筛选', href: '/filtered' },
+            { id: 'timeline', text: '时间轴', href: '/timeline' },
         ]
     },
     {

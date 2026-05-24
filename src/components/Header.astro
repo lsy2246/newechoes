@@ -1470,14 +1470,14 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const hasSwup = typeof window.swup !== 'undefined';
     if (hasSwup) {
       // 页面内容替换后重新初始化
-      addListener(document, 'swup:contentReplaced', () => {
+      addListener(document, 'swup:content:replace', () => {
         setTimeout(() => {
           initActiveState();
         }, 50);
       });
       
       // 视图转换结束
-      addListener(document, 'swup:animationInDone', () => {
+      addListener(document, 'swup:animation:in:end', () => {
         // 再次调用初始化
         initActiveState();
         // 确保高亮背景位置正确

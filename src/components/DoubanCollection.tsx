@@ -389,26 +389,28 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
           items.map((item) => (
             <div
               key={item.link}
-              className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl"
+              className="cover-card"
             >
-              <div className="relative pb-[150%] overflow-hidden">
+              <div className="cover-card-poster">
                 <img
                   src={`/api/douban?imageUrl=${encodeURIComponent(item.imageUrl)}`}
                   alt={item.title}
-                  className="absolute top-0 left-0 w-full h-full object-cover hover:scale-105"
+                  className="cover-card-image"
                   loading="lazy"
                 />
-                <div className="absolute bottom-0 left-0 right-0 p-3 bg-linear-to-t from-black/80 to-transparent">
-                  <h3 className="font-bold text-white text-sm line-clamp-2">
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-blue-300"
-                    >
-                      {item.title}
-                    </a>
-                  </h3>
+                <div className="cover-card-overlay">
+                  <div className="cover-card-textStack">
+                    <h3 className="cover-card-titleBadge">
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="cover-card-titleLink"
+                      >
+                        {item.title}
+                      </a>
+                    </h3>
+                  </div>
                 </div>
               </div>
             </div>

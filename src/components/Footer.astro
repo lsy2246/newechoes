@@ -14,7 +14,7 @@ const currentYear = new Date().getFullYear();
   hidden={isHidden}
   aria-hidden={isHidden ? "true" : "false"}
   class:list={[
-    "w-full py-6 px-4 bg-white dark:bg-black mt-auto",
+    "site-footer w-full py-6 px-4 mt-auto",
     {
       "hidden": isHidden,
     },
@@ -24,11 +24,10 @@ const currentYear = new Date().getFullYear();
     class="max-w-7xl mx-auto flex flex-col items-center justify-center space-y-4"
   >
     <div
-      class="text-sm text-black/45 dark:text-white/45 font-light flex flex-wrap items-center justify-center gap-2"
+      class="site-footer__links text-sm font-light flex flex-wrap items-center justify-center gap-2"
     >
       <a
         href="https://blog.lsy22.com"
-        class="hover:text-black dark:hover:text-white"
       >
         © {currentYear} New Echoes. All rights reserved.
       </a>
@@ -41,7 +40,6 @@ const currentYear = new Date().getFullYear();
         href="/sitemap.xml"
         target="_blank"
         rel="noopener noreferrer"
-        class="hover:text-black dark:hover:text-white"
         aria-label="网站地图"
       >
         Sitemap
@@ -55,7 +53,6 @@ const currentYear = new Date().getFullYear();
         href="/rss.xml"
         target="_blank"
         rel="noopener noreferrer"
-        class="hover:text-black dark:hover:text-white"
         aria-label="RSS订阅"
       >
         RSS

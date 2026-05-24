@@ -1,25 +1,11 @@
 ---
 import Layout from "@/components/Layout.astro";
-import Breadcrumb from "@/components/Breadcrumb.astro";
 import ArticleFilter from "@/components/ArticleFilter";
-
-// 获取当前URL的查询参数
 const searchParams = Astro.url.searchParams;
 ---
 
 <Layout title="文章筛选" pageType="directory" description="文章筛选页面" skipSrTitle={false}>
-  <div class="w-full">
-    <!-- 导航栏/面包屑 - 不参与视图切换 -->
-    <div class="article-index-pathbar mb-4">
-      <div class="px-4 py-3">
-        <Breadcrumb
-          pageType="filter"
-          searchParams={searchParams}
-        />
-      </div>
-    </div>
-
-    <!-- 内容区域 - 只有这部分参与视图切换 -->
+  <div class="article-index-shell">
     <div id="article-content">
       <ArticleFilter
         searchParams={searchParams}

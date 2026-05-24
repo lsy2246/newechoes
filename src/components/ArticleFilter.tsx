@@ -1,17 +1,16 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  initFilterIndex,
   filterArticles as workerFilterArticles,
   getAllTags as workerGetAllTags,
+  initFilterIndex,
 } from "@/lib/wasmWorkerClient";
 
-// 类型定义
 interface FilterState {
   tags: string[];
   sort: string;
   pageSize: number;
   currentPage: number;
-  date: string; // 使用格式 "startDate,endDate" 或空字符串表示所有时间
+  date: string;
 }
 
 interface Article {
@@ -34,8 +33,6 @@ interface ArticleFilterProps {
   searchParams?: Record<string, string> | URLSearchParams;
 }
 
-type FilterLoadingMode = "immediate" | "delayed";
-
 const DEFAULT_FILTERS: FilterState = {
   tags: [],
   sort: "newest",
@@ -44,2439 +41,647 @@ const DEFAULT_FILTERS: FilterState = {
   date: "all",
 };
 
-// 自定义日期选择器组件
-const DateRangePicker: React.FC<{
-  startDate: string | null;
-  endDate: string | null;
-  onChange: (dates: [string | null, string | null]) => void;
-  placeholder?: string;
-  id?: string;
-}> = ({
-  startDate,
-  endDate,
-  onChange,
-  placeholder = "选择日期范围",
-  id = "dateRangeButton",
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedStartDate, setSelectedStartDate] = useState<string | null>(
-    startDate,
-  );
-  const [selectedEndDate, setSelectedEndDate] = useState<string | null>(
-    endDate,
-  );
-  const [tempStartDate, setTempStartDate] = useState<string | null>(startDate);
-  const [tempEndDate, setTempEndDate] = useState<string | null>(endDate);
-  const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
-  const [yearInput, setYearInput] = useState<string>(() =>
-    currentMonth.getFullYear().toString(),
-  );
-  const [monthInput, setMonthInput] = useState<string>(() =>
-    (currentMonth.getMonth() + 1).toString(),
-  );
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // 关闭日期选择器的函数
-  const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-    if (
-      dropdownRef.current &&
-      !dropdownRef.current.contains(event.target as Node)
-    ) {
-      setIsOpen(false);
-    }
-  };
-
-  // 添加点击外部区域关闭的事件监听
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside, {
-        passive: true,
-      });
-      document.addEventListener("touchstart", handleClickOutside, {
-        passive: true,
-      });
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [isOpen]);
-
-  // 更新临时日期值
-  useEffect(() => {
-    setTempStartDate(startDate);
-    setTempEndDate(endDate);
-    setSelectedStartDate(startDate);
-    setSelectedEndDate(endDate);
-  }, [startDate, endDate]);
-
-  // 获取当月的天数
-  const getDaysInMonth = useCallback((year: number, month: number) => {
-    return new Date(year, month + 1, 0).getDate();
-  }, []);
-
-  // 获取当月的第一天是星期几
-  const getFirstDayOfMonth = useCallback((year: number, month: number) => {
-    return new Date(year, month, 1).getDay();
-  }, []);
-
-  // 处理日期点击事件
-  const handleDateClick = useCallback(
-    (dateStr: string) => {
-      if (
-        !tempStartDate ||
-        (tempStartDate && tempEndDate) ||
-        dateStr < tempStartDate
-      ) {
-        // 设置开始日期
-        setTempStartDate(dateStr);
-        setTempEndDate(null);
-      } else {
-        // 设置结束日期
-        setTempEndDate(dateStr);
-      }
-    },
-    [tempStartDate, tempEndDate],
-  );
-
-  // 渲染日历
-  const renderCalendar = useCallback(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDay = getFirstDayOfMonth(year, month);
-    const days = [];
-
-    // 添加空白格子填充日历前面的部分
-    for (let i = 0; i < firstDay; i++) {
-      days.push(
-        <div
-          key={`empty-${i}`}
-          className="h-8 w-8"
-          role="gridcell"
-          aria-hidden="true"
-        ></div>,
-      );
-    }
-
-    // 添加日期格子
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(
-        day,
-      ).padStart(2, "0")}`;
-      const isStartDate = dateStr === tempStartDate;
-      const isEndDate = dateStr === tempEndDate;
-      const isInRange =
-        tempStartDate &&
-        tempEndDate &&
-        dateStr >= tempStartDate &&
-        dateStr <= tempEndDate;
-      const isToday = dateStr === new Date().toISOString().split("T")[0];
-
-      // 计算按钮的ARIA标签
-      let ariaLabel = `${year}年${month + 1}月${day}日`;
-      if (isStartDate && isEndDate) {
-        ariaLabel += "，已选择为开始和结束日期";
-      } else if (isStartDate) {
-        ariaLabel += "，已选择为开始日期";
-      } else if (isEndDate) {
-        ariaLabel += "，已选择为结束日期";
-      } else if (isInRange) {
-        ariaLabel += "，在选定的日期范围内";
-      }
-      if (isToday) {
-        ariaLabel += "，今天";
-      }
-
-      // 确定aria-pressed属性值
-      const ariaPressed =
-        isStartDate || isEndDate || isInRange ? true : undefined;
-
-      days.push(
-        <button
-          key={dateStr}
-          type="button"
-          onClick={() => handleDateClick(dateStr)}
-          className={`filter-calendar-day ${
-            isStartDate || isEndDate ? "is-selected" : ""
-          } ${
-            isInRange && !isStartDate && !isEndDate ? "is-in-range" : ""
-          } ${
-            isToday && !isStartDate && !isEndDate && !isInRange
-              ? "is-today"
-              : ""
-          }`}
-          aria-label={ariaLabel}
-          aria-pressed={ariaPressed}
-          role="gridcell"
-        >
-          {day}
-        </button>,
-      );
-    }
-
-    return days;
-  }, [
-    currentMonth,
-    tempStartDate,
-    tempEndDate,
-    getDaysInMonth,
-    getFirstDayOfMonth,
-    handleDateClick,
-  ]);
-
-  // 清除日期选择
-  const clearDates = useCallback(() => {
-    setTempStartDate(null);
-    setTempEndDate(null);
-  }, []);
-
-  // 应用选择的日期
-  const applyDates = useCallback(() => {
-    setSelectedStartDate(tempStartDate);
-    setSelectedEndDate(tempEndDate);
-    onChange([tempStartDate, tempEndDate]);
-    setIsOpen(false);
-  }, [tempStartDate, tempEndDate, onChange]);
-
-  // 获取显示的月份名称
-  const getMonthName = useCallback((month: number) => {
-    const monthNames = [
-      "一月",
-      "二月",
-      "三月",
-      "四月",
-      "五月",
-      "六月",
-      "七月",
-      "八月",
-      "九月",
-      "十月",
-      "十一月",
-      "十二月",
-    ];
-    return monthNames[month];
-  }, []);
-
-  // 设置月份
-  const setMonth = useCallback((month: number) => {
-    setCurrentMonth((prev) => {
-      const newDate = new Date(prev);
-      newDate.setMonth(month);
-      return newDate;
-    });
-  }, []);
-
-  // 切换到上个月
-  const prevMonth = useCallback(() => {
-    setCurrentMonth((prev) => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() - 1);
-      return newDate;
-    });
-  }, []);
-
-  // 切换到下个月
-  const nextMonth = useCallback(() => {
-    setCurrentMonth((prev) => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() + 1);
-      return newDate;
-    });
-  }, []);
-
-  // 设置年份
-  const setYear = useCallback((year: number) => {
-    setCurrentMonth((prev) => {
-      const newDate = new Date(prev);
-      newDate.setFullYear(year);
-      return newDate;
-    });
-  }, []);
-
-  // 获取输入框显示的文本
-  const getDisplayText = useCallback(() => {
-    if (selectedStartDate && selectedEndDate) {
-      return `${selectedStartDate} 至 ${selectedEndDate}`;
-    } else if (selectedStartDate) {
-      return `${selectedStartDate} 至 今天`;
-    }
-    return placeholder;
-  }, [selectedStartDate, selectedEndDate, placeholder]);
-
-  // 格式化日期显示
-  const formatDisplayDate = useCallback((dateStr: string | null) => {
-    if (!dateStr) return null;
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("zh-CN", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  }, []);
-
-  // 处理年份输入变化
-  const handleYearInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      // 只允许输入数字
-      if (/^\d*$/.test(value)) {
-        setYearInput(value);
-      }
-    },
-    [],
-  );
-
-  // 处理月份输入变化
-  const handleMonthInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      // 只允许输入1-12的数字
-      if (
-        /^\d*$/.test(value) &&
-        (value === "" || (parseInt(value) >= 1 && parseInt(value) <= 12))
-      ) {
-        setMonthInput(value);
-      }
-    },
-    [],
-  );
-
-  // 应用年份输入
-  const applyYearInput = useCallback(() => {
-    const year = parseInt(yearInput);
-    // 验证年份在合理范围内（比如1900-2100）
-    if (!isNaN(year) && year >= 1900 && year <= 2100) {
-      setYear(year);
-    } else {
-      // 如果输入无效，重置为当前值
-      setYearInput(currentMonth.getFullYear().toString());
-    }
-  }, [yearInput, currentMonth, setYear]);
-
-  // 应用月份输入
-  const applyMonthInput = useCallback(() => {
-    const month = parseInt(monthInput);
-    // 验证月份在1-12范围内
-    if (!isNaN(month) && month >= 1 && month <= 12) {
-      // 月份从0开始，所以需要减1
-      setMonth(month - 1);
-    } else {
-      // 如果输入无效，重置为当前值
-      setMonthInput((currentMonth.getMonth() + 1).toString());
-    }
-  }, [monthInput, currentMonth, setMonth]);
-
-  // 处理按键事件，按回车键应用输入
-  const handleYearKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        applyYearInput();
-      }
-    },
-    [applyYearInput],
-  );
-
-  // 处理按键事件，按回车键应用输入
-  const handleMonthKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        applyMonthInput();
-      }
-    },
-    [applyMonthInput],
-  );
-
-  // 更新年份输入框的值
-  useEffect(() => {
-    setYearInput(currentMonth.getFullYear().toString());
-  }, [currentMonth]);
-
-  // 更新月份输入框的值
-  useEffect(() => {
-    setMonthInput((currentMonth.getMonth() + 1).toString());
-  }, [currentMonth]);
-
-  return (
-    <div className="relative w-full">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="filter-control filter-date-trigger"
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-        id={id}
-      >
-        <div className="flex justify-between items-center">
-          <span
-            className={`filter-control-value ${
-              !selectedStartDate && !selectedEndDate ? "is-placeholder" : ""
-            }`}
-          >
-            {getDisplayText()}
-          </span>
-          <svg
-            className="filter-control-icon"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            ></path>
-          </svg>
-        </div>
-      </button>
-
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className="filter-popover filter-date-popover absolute z-40 mt-1"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={`${id}-calendar-heading`}
-        >
-          <div className="mb-2">
-            <div className="filter-calendar-header">
-              <button
-                type="button"
-                onClick={prevMonth}
-                className="filter-icon-button shrink-0"
-                aria-label="上个月"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-
-              <div className="filter-calendar-inputs">
-                <h3
-                  id={`${id}-calendar-heading`}
-                  className="sr-only"
-                >
-                  日期选择器 - {currentMonth.getFullYear()}年
-                  {currentMonth.getMonth() + 1}月
-                </h3>
-                {/* 年份输入框 */}
-                <div className="filter-calendar-jump">
-                  <label
-                    htmlFor={`${id}-yearInput`}
-                    className="filter-mini-label"
-                  >
-                    年份:
-                  </label>
-                  <input
-                    id={`${id}-yearInput`}
-                    type="text"
-                    value={yearInput}
-                    onChange={handleYearInputChange}
-                    onBlur={applyYearInput}
-                    onKeyDown={handleYearKeyDown}
-                    className="filter-compact-input filter-year-input"
-                    maxLength={4}
-                    aria-label="年份输入框"
-                  />
-                </div>
-
-                {/* 月份输入框 */}
-                <div className="filter-calendar-jump">
-                  <label
-                    htmlFor={`${id}-monthInput`}
-                    className="filter-mini-label"
-                  >
-                    月份:
-                  </label>
-                  <input
-                    id={`${id}-monthInput`}
-                    type="text"
-                    value={monthInput}
-                    onChange={handleMonthInputChange}
-                    onBlur={applyMonthInput}
-                    onKeyDown={handleMonthKeyDown}
-                    className="filter-compact-input filter-month-input"
-                    maxLength={2}
-                    aria-label="月份输入框"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={nextMonth}
-                className="filter-icon-button shrink-0"
-                aria-label="下个月"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 gap-1 mb-1">
-              {["日", "一", "二", "三", "四", "五", "六"].map((day) => (
-                <div
-                  key={day}
-                  className="filter-calendar-weekday"
-                  aria-hidden="true"
-                >
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            <div
-              className="grid grid-cols-7 gap-1"
-              role="grid"
-              aria-label="日历"
-            >
-              {renderCalendar()}
-            </div>
-          </div>
-
-          {/* 添加常见时间范围快捷选项 */}
-          <div className="filter-popover-section">
-            <div className="filter-mini-label mb-1.5">
-              常用时间范围:
-            </div>
-            <div
-              className="flex flex-wrap gap-1.5"
-              role="group"
-              aria-labelledby={`${id}-shortcut-heading`}
-            >
-              <div
-                id={`${id}-shortcut-heading`}
-                className="sr-only"
-              >
-                日期范围快捷选项
-              </div>
-              <button
-                type="button"
-                id={`${id}-last-month`}
-                onClick={() => {
-                  const today = new Date();
-                  const lastMonth = new Date(today);
-                  lastMonth.setMonth(today.getMonth() - 1);
-                  const todayStr = today.toISOString().split("T")[0];
-                  const lastMonthStr = lastMonth.toISOString().split("T")[0];
-                  setTempStartDate(lastMonthStr);
-                  setTempEndDate(todayStr);
-                }}
-                className="filter-chip filter-chip-quiet"
-                aria-label="选择最近一个月的日期范围"
-              >
-                最近一月
-              </button>
-              <button
-                type="button"
-                id={`${id}-last-year`}
-                onClick={() => {
-                  const today = new Date();
-                  const lastYear = new Date(today);
-                  lastYear.setFullYear(today.getFullYear() - 1);
-                  const todayStr = today.toISOString().split("T")[0];
-                  const lastYearStr = lastYear.toISOString().split("T")[0];
-                  setTempStartDate(lastYearStr);
-                  setTempEndDate(todayStr);
-                }}
-                className="filter-chip filter-chip-quiet"
-                aria-label="选择最近一年的日期范围"
-              >
-                最近一年
-              </button>
-              <button
-                type="button"
-                id={`${id}-this-year`}
-                onClick={() => {
-                  const today = new Date();
-                  const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-                  const todayStr = today.toISOString().split("T")[0];
-                  const firstDayStr = firstDayOfYear
-                    .toISOString()
-                    .split("T")[0];
-                  setTempStartDate(firstDayStr);
-                  setTempEndDate(todayStr);
-                }}
-                className="filter-chip filter-chip-quiet"
-                aria-label="选择今年内的日期范围"
-              >
-                今年内
-              </button>
-            </div>
-          </div>
-
-          <div className="filter-popover-actions">
-            <button
-              type="button"
-              id={`${id}-clear-btn`}
-              onClick={clearDates}
-              className="filter-text-button"
-              aria-label="清除所有已选日期"
-            >
-              清除
-            </button>
-
-            <button
-              type="button"
-              id={`${id}-apply-btn`}
-              onClick={applyDates}
-              className="filter-action-button"
-              aria-label="应用已选日期范围"
-            >
-              应用
-            </button>
-          </div>
-
-          {tempStartDate && (
-            <div
-              className="filter-selection-note"
-              id={`${id}-selected-info`}
-              aria-live="polite"
-            >
-              已选择: {formatDisplayDate(tempStartDate) || tempStartDate}
-              {tempEndDate
-                ? ` 至 ${formatDisplayDate(tempEndDate) || tempEndDate}`
-                : ""}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 显示已选日期范围或添加清除按钮 */}
-      {(selectedStartDate || selectedEndDate) && (
-        <div
-          className="filter-selection-note"
-          aria-live="polite"
-          aria-atomic="true"
-          id={`${id}-display-selection`}
-        >
-          <span className="truncate">
-            {formatDisplayDate(selectedStartDate) || "无开始日期"} 至{" "}
-            {formatDisplayDate(selectedEndDate) || "今天"}
-          </span>
-          <button
-            type="button"
-            id={`${id}-clear-selection`}
-            onClick={() => {
-              onChange([null, null]);
-              setSelectedStartDate(null);
-              setSelectedEndDate(null);
-            }}
-            className="filter-text-button ml-2"
-            aria-label="清除已选日期范围"
-          >
-            清除
-          </button>
-        </div>
-      )}
-    </div>
-  );
+const sortLabels: Record<string, string> = {
+  newest: "最新发布",
+  oldest: "最早发布",
+  title_asc: "标题 A-Z",
+  title_desc: "标题 Z-A",
 };
 
-const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
-  // 添加客户端标记变量，确保只在客户端渲染某些组件
-  const [isClient, setIsClient] = useState(false);
+const pageSizeOptions = [12, 24, 36, 48];
 
-  // 组件挂载状态引用
-  const isMountedRef = useRef<boolean>(true);
-  const filterLoadingTimerRef = useRef<number | null>(null);
+const datePresets = [
+  { value: "all", label: "全部" },
+  { value: "last-7", label: "最近 7 天" },
+  { value: "last-30", label: "最近 30 天" },
+  { value: "last-90", label: "最近 90 天" },
+  { value: "this-year", label: "今年" },
+  { value: "last-year", label: "去年" },
+  { value: "last-365", label: "最近一年" },
+];
 
-  // 组件挂载时设置客户端标记
-  useEffect(() => {
-    setIsClient(true);
+const YEAR_OPTION_COUNT = 8;
+const MONTH_OPTION_COUNT = 12;
 
-    // 组件卸载时的清理
-    return () => {
-      isMountedRef.current = false;
-      if (filterLoadingTimerRef.current !== null) {
-        window.clearTimeout(filterLoadingTimerRef.current);
-        filterLoadingTimerRef.current = null;
-      }
-
-    };
-  }, []);
-
-  // 处理searchParams，确保我们有正确的参数格式
-  const getParamValue = useCallback(
-    (key: string, defaultValue: string = ""): string => {
-      // 服务端渲染时，我们不能访问window对象，所以需要特殊处理
-
-      // 检查searchParams是否为空对象
-      const isEmptySearchParams =
-        searchParams instanceof URLSearchParams
-          ? !searchParams.toString()
-          : Object.keys(searchParams).length === 0;
-
-      // 如果在客户端且searchParams为空，直接从URL获取参数
-      if (isClient && isEmptySearchParams) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const value = urlParams.get(key);
-        return value !== null ? value : defaultValue;
-      }
-
-      // 否则，从传入的searchParams获取
-      if (searchParams instanceof URLSearchParams) {
-        return searchParams.get(key) || defaultValue;
-      }
-      return (searchParams as Record<string, string>)[key] || defaultValue;
-    },
-    [searchParams, isClient],
-  );
-
-  const getParamArrayValue = useCallback(
-    (key: string): string[] => {
-      const value = getParamValue(key);
-      return value ? value.split(",").filter(Boolean) : [];
-    },
-    [getParamValue],
-  );
-
-  // 状态管理 - 使用延迟初始化确保服务端和客户端状态一致
-  const [activeFilters, setActiveFilters] = useState<FilterState>(() => ({
-    ...DEFAULT_FILTERS,
-  }));
-  const activeFiltersRef = useRef<FilterState>({ ...DEFAULT_FILTERS });
-
-  // 添加一个专门处理return_filter的函数
-  const processReturnFilter = useCallback(() => {
-    if (!isClient) return null;
-
-    // 获取URL中的return_filter参数
-    const urlParams = new URLSearchParams(window.location.search);
-    const returnFilter = urlParams.get("return_filter");
-
-    if (!returnFilter) return null;
-
-    try {
-      // 解析 Base64 编码的 JSON 参数
-      const jsonStr = decodeURIComponent(atob(returnFilter));
-      const paramsObj = JSON.parse(jsonStr);
-
-      // 从解析后的对象中提取筛选条件
-      const tagsParam = paramsObj["tags"] ? paramsObj["tags"].split(",") : [];
-      const sortParam = paramsObj["sort"] || "newest";
-      const pageSizeParam = parseInt(paramsObj["limit"] || "12");
-      const currentPageParam = parseInt(paramsObj["page"] || "1");
-
-      // 处理日期参数
-      let startDateParam = "";
-      let endDateParam = "";
-
-      if (paramsObj["date"] && paramsObj["date"] !== "all") {
-        const [start, end] = paramsObj["date"].split(",");
-        startDateParam = start || "";
-        endDateParam = end || "";
-      }
-
-      // 构造日期字符串
-      const finalDateParam =
-        startDateParam || endDateParam
-          ? `${startDateParam},${endDateParam}`
-          : "all";
-
-      // 修改当前URL，移除return_filter参数但保留筛选参数
-      const newParams = new URLSearchParams();
-      if (tagsParam.length > 0) newParams.set("tags", tagsParam.join(","));
-      if (sortParam !== "newest") newParams.set("sort", sortParam);
-      if (pageSizeParam !== 12)
-        newParams.set("limit", pageSizeParam.toString());
-      if (currentPageParam !== 1)
-        newParams.set("page", currentPageParam.toString());
-
-      // 使用单独的 startDate 和 endDate 参数
-      if (startDateParam) newParams.set("startDate", startDateParam);
-      if (endDateParam) newParams.set("endDate", endDateParam);
-
-      // 更新URL
-      const newUrl = `${window.location.pathname}${
-        newParams.toString() ? `?${newParams.toString()}` : ""
-      }`;
-      window.history.replaceState({}, "", newUrl);
-
-      // 返回提取的参数
-      return {
-        tags: tagsParam,
-        sort: sortParam,
-        pageSize: pageSizeParam,
-        currentPage: currentPageParam,
-        date: finalDateParam,
-      };
-    } catch (error) {
-      console.error("解析return_filter参数出错:", error);
-      return null;
-    }
-  }, [isClient]);
-
-  // 在客户端加载后应用URL参数
-  useEffect(() => {
-    if (isClient) {
-      try {
-        // 首先尝试处理return_filter参数
-        const returnFilterParams = processReturnFilter();
-
-        if (returnFilterParams) {
-          // 如果成功提取了return_filter参数，直接应用
-          setActiveFilters(returnFilterParams);
-        } else {
-          // 否则，使用普通URL参数
-          const tagsParam = getParamArrayValue("tags");
-          const sortParam = getParamValue("sort", "newest");
-          const pageSizeParam = parseInt(getParamValue("limit", "12"));
-          const currentPageParam = parseInt(getParamValue("page", "1"));
-
-          // 获取日期参数
-          const startDateParam = getParamValue("startDate", "");
-          const endDateParam = getParamValue("endDate", "");
-
-          // 构造日期字符串
-          const dateParam =
-            startDateParam || endDateParam
-              ? `${startDateParam},${endDateParam}`
-              : "all";
-
-          // 一次性设置所有筛选参数
-          setActiveFilters({
-            tags: tagsParam,
-            sort: sortParam,
-            pageSize: isNaN(pageSizeParam) ? 12 : pageSizeParam,
-            currentPage: isNaN(currentPageParam) ? 1 : currentPageParam,
-            date: dateParam,
-          });
-        }
-      } catch (error) {
-        console.error("解析URL参数出错:", error);
-      }
-    }
-  }, [isClient, getParamValue, getParamArrayValue, processReturnFilter]);
-
-  const [allAvailableTags, setAllAvailableTags] = useState<string[]>([]);
-  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
-  const [totalArticles, setTotalArticles] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [showFilterLoading, setShowFilterLoading] = useState(true);
-  const [isTagLoading, setIsTagLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false); // 添加排序下拉框状态
-  const [isPageSizeDropdownOpen, setIsPageSizeDropdownOpen] = useState(false);
-  const [tagSearchInput, setTagSearchInput] = useState("");
-  const [isFilterReady, setIsFilterReady] = useState(false);
-  const [isArticlesLoaded, setIsArticlesLoaded] = useState(false);
-
-  const filterLoadingDelayMs = 160;
-
-  useEffect(() => {
-    activeFiltersRef.current = activeFilters;
-  }, [activeFilters]);
-
-  // refs
-  const tagDropdownRef = useRef<HTMLDivElement>(null);
-  const tagSelectorButtonRef = useRef<HTMLButtonElement>(null);
-  const sortDropdownRef = useRef<HTMLDivElement>(null); // 添加排序下拉框引用
-  const sortSelectorButtonRef = useRef<HTMLButtonElement>(null); // 添加排序按钮引用
-  const pageSizeDropdownRef = useRef<HTMLDivElement>(null);
-  const pageSizeSelectorButtonRef = useRef<HTMLButtonElement>(null);
-
-  const startFilterLoading = useCallback(
-    (mode: FilterLoadingMode = "immediate") => {
-      if (filterLoadingTimerRef.current !== null) {
-        window.clearTimeout(filterLoadingTimerRef.current);
-        filterLoadingTimerRef.current = null;
-      }
-
-      if (mode === "immediate") {
-        setShowFilterLoading(true);
-        return;
-      }
-
-      setShowFilterLoading(false);
-      filterLoadingTimerRef.current = window.setTimeout(() => {
-        if (isMountedRef.current) {
-          setShowFilterLoading(true);
-        }
-      }, filterLoadingDelayMs);
-    },
-    [filterLoadingDelayMs],
-  );
-
-  const stopFilterLoading = useCallback(() => {
-    if (filterLoadingTimerRef.current !== null) {
-      window.clearTimeout(filterLoadingTimerRef.current);
-      filterLoadingTimerRef.current = null;
-    }
-    if (isMountedRef.current) {
-      setShowFilterLoading(false);
-    }
-  }, []);
-
-  // 将过滤器应用到文章列表，并更新URL
-  const applyFilters = (
-    newFilters: Partial<FilterState> = {},
-    options: { loadingMode?: FilterLoadingMode } = {},
-  ) => {
-    const loadingMode = options.loadingMode ?? "immediate";
-
-    // 合并当前过滤器和新过滤器
-    const currentFilters = activeFiltersRef.current;
-    const updatedFilters = { ...currentFilters, ...newFilters };
-
-    // 如果修改了过滤条件（而不是仅仅翻页），重置到第一页
-    if (
-      newFilters.tags !== undefined ||
-      newFilters.sort !== undefined ||
-      newFilters.date !== undefined ||
-      newFilters.pageSize !== undefined
-    ) {
-      updatedFilters.currentPage = 1;
-    }
-
-    // 应用过滤器
-    activeFiltersRef.current = updatedFilters;
-    setActiveFilters(updatedFilters);
-
-    // 构建URL参数 - 只在客户端执行
+function getInitialFilters(searchParams: ArticleFilterProps["searchParams"]) {
+  const readParam = (key: string) => {
     if (typeof window !== "undefined") {
-      const params = new URLSearchParams();
-
-      // 添加所有需要的参数
-      if (updatedFilters.tags && updatedFilters.tags.length > 0)
-        params.set("tags", updatedFilters.tags.join(","));
-      if (updatedFilters.sort && updatedFilters.sort !== "newest")
-        params.set("sort", updatedFilters.sort);
-
-      // 日期参数处理 - 始终使用 startDate 和 endDate 参数
-      if (updatedFilters.date && updatedFilters.date !== "all") {
-        const [startDate, endDate] = updatedFilters.date.split(",");
-        if (startDate) params.set("startDate", startDate);
-        if (endDate) params.set("endDate", endDate);
-      }
-
-      if (updatedFilters.pageSize && updatedFilters.pageSize !== 12)
-        params.set("limit", updatedFilters.pageSize.toString());
-      if (updatedFilters.currentPage > 1)
-        params.set("page", updatedFilters.currentPage.toString());
-
-      // 构建新的URL
-      const newUrl = `${window.location.pathname}${
-        params.toString() ? `?${params.toString()}` : ""
-      }`;
-
-      // 更新浏览器URL而不刷新页面
-      window.history.pushState({ path: newUrl }, "", newUrl);
-
-      // 如果WASM模块已加载，立即执行筛选逻辑
-      if (isFilterReady && isArticlesLoaded) {
-        applyFilteringLogic(updatedFilters, loadingMode);
-      }
+      const params = new URLSearchParams(window.location.search);
+      return params.get(key) || "";
     }
+
+    if (searchParams instanceof URLSearchParams) {
+      return searchParams.get(key) || "";
+    }
+
+    return searchParams?.[key] || "";
   };
 
-  // 添加文章筛选逻辑函数
-  const applyFilteringLogic = useCallback(
-    async (
-      filters: FilterState,
-      loadingMode: FilterLoadingMode = "immediate",
-    ) => {
-      if (!isFilterReady) {
-        console.error("筛选模块未初始化");
-        return;
-      }
+  const tags = readParam("tags").split(",").filter(Boolean);
+  const sort = readParam("sort") || DEFAULT_FILTERS.sort;
+  const pageSize = Number.parseInt(readParam("limit"), 10) || DEFAULT_FILTERS.pageSize;
+  const currentPage = Number.parseInt(readParam("page"), 10) || DEFAULT_FILTERS.currentPage;
+  const startDate = readParam("startDate");
+  const endDate = readParam("endDate");
 
-      startFilterLoading(loadingMode);
+  return {
+    tags,
+    sort,
+    pageSize,
+    currentPage,
+    date: startDate || endDate ? `${startDate},${endDate}` : DEFAULT_FILTERS.date,
+  };
+}
 
-      try {
-        // 构建筛选参数
-        const filterParams: Record<string, any> = {
-          tags: filters.tags,
-          sort: filters.sort,
-          date: filters.date,
-          page: filters.currentPage,
-          limit: filters.pageSize,
-        };
+function formatDate(date: string) {
+  if (!date) return "无日期";
 
-        // 调用 Worker 筛选方法
-        const result = (await workerFilterArticles(
-          filterParams,
-        )) as FilterResult;
+  return new Date(date).toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
 
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
+function getDateRange(date: string): [string, string] {
+  if (!date || date === "all") return ["", ""];
+  const [startDate = "", endDate = ""] = date.split(",");
+  return [startDate, endDate];
+}
 
-        // 处理结果
-        if (!result || typeof result !== "object") {
-          console.error("WASM返回结果格式错误");
-          throw new Error("筛选结果格式错误");
-        }
+function formatDateInput(date: Date) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
 
-        // 确保有一个文章数组
-        let articles: Article[] = [];
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
 
-        if (result.articles) {
-          if (Array.isArray(result.articles)) {
-            articles = result.articles;
-          } else {
-            console.error("返回的articles不是数组");
-            // 尝试修复格式问题
-            try {
-              if (typeof result.articles === "string") {
-                // 如果是JSON字符串，尝试解析
-                const parsed = JSON.parse(result.articles);
-                if (Array.isArray(parsed)) {
-                  articles = parsed;
-                }
-              }
-            } catch (e) {
-              console.error("尝试修复articles格式失败");
-            }
-          }
-        }
+function getDatePresetRange(preset: string): [string, string] {
+  const today = new Date();
+  const endDate = formatDateInput(today);
 
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
+  if (preset === "all") return ["", ""];
+  if (preset === "last-7") return [formatDateInput(addDays(today, -6)), endDate];
+  if (preset === "last-30") return [formatDateInput(addDays(today, -29)), endDate];
+  if (preset === "last-90") return [formatDateInput(addDays(today, -89)), endDate];
 
-        // 检查并修复总数
-        const total =
-          typeof result.total === "number" ? result.total : articles.length;
-        const totalPages =
-          typeof result.total_pages === "number"
-            ? result.total_pages
-            : Math.ceil(total / filters.pageSize);
+  if (preset === "this-year") {
+    return [`${today.getFullYear()}-01-01`, endDate];
+  }
 
-        // 更新状态时提供明确的默认值
-        setFilteredArticles(articles);
-        setTotalArticles(total);
-        setTotalPages(totalPages || 1);
-      } catch (error) {
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
+  if (preset === "last-year") {
+    const lastYear = today.getFullYear() - 1;
+    return [`${lastYear}-01-01`, `${lastYear}-12-31`];
+  }
 
-        console.error("应用筛选逻辑出错:", error);
-        setError("筛选文章时出错，请刷新页面重试");
-      } finally {
-        // 检查组件是否仍然挂载
-        if (isMountedRef.current) {
-          stopFilterLoading();
-        }
-      }
-    },
-    [isFilterReady, startFilterLoading, stopFilterLoading],
+  if (preset === "last-365") {
+    const startDate = new Date(today);
+    startDate.setFullYear(startDate.getFullYear() - 1);
+    return [formatDateInput(startDate), endDate];
+  }
+
+  return ["", ""];
+}
+
+function makeDateFilterValue(startDate: string, endDate: string) {
+  return startDate || endDate ? `${startDate},${endDate}` : "all";
+}
+
+function getYearRange(year: number): [string, string] {
+  return [`${year}-01-01`, `${year}-12-31`];
+}
+
+function getMonthRange(year: number, month: number): [string, string] {
+  const monthLabel = String(month + 1).padStart(2, "0");
+  const endDay = String(new Date(year, month + 1, 0).getDate()).padStart(2, "0");
+
+  return [`${year}-${monthLabel}-01`, `${year}-${monthLabel}-${endDay}`];
+}
+
+function getMonthLabel(year: number, month: number) {
+  return `${year}.${String(month + 1).padStart(2, "0")}`;
+}
+
+function getDateLabel(date: string) {
+  const [startDate, endDate] = getDateRange(date);
+
+  if (!startDate && !endDate) {
+    return "全部";
+  }
+
+  const activePreset = datePresets.find((preset) => {
+    const [presetStart, presetEnd] = getDatePresetRange(preset.value);
+    return presetStart === startDate && presetEnd === endDate;
+  });
+
+  if (activePreset) {
+    return activePreset.label;
+  }
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  if (
+    startDate &&
+    endDate &&
+    startDate === `${start.getFullYear()}-01-01` &&
+    endDate === `${start.getFullYear()}-12-31`
+  ) {
+    return `${start.getFullYear()} 年`;
+  }
+
+  if (
+    startDate &&
+    endDate &&
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    startDate.endsWith("-01") &&
+    endDate === getMonthRange(start.getFullYear(), start.getMonth())[1]
+  ) {
+    return getMonthLabel(start.getFullYear(), start.getMonth());
+  }
+
+  if (startDate && endDate) {
+    return `${startDate} / ${endDate}`;
+  }
+
+  return startDate ? `${startDate} 之后` : `${endDate} 之前`;
+}
+
+function buildFilterUrl(filters: FilterState) {
+  const params = new URLSearchParams();
+
+  if (filters.tags.length > 0) {
+    params.set("tags", filters.tags.join(","));
+  }
+
+  if (filters.sort !== DEFAULT_FILTERS.sort) {
+    params.set("sort", filters.sort);
+  }
+
+  const [startDate, endDate] = getDateRange(filters.date);
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+
+  if (filters.pageSize !== DEFAULT_FILTERS.pageSize) {
+    params.set("limit", String(filters.pageSize));
+  }
+
+  if (filters.currentPage > 1) {
+    params.set("page", String(filters.currentPage));
+  }
+
+  return params.toString();
+}
+
+function articleLinkWithReturnFilter(articleUrl: string) {
+  if (typeof window === "undefined" || !window.location.search) {
+    return articleUrl;
+  }
+
+  const connector = articleUrl.includes("?") ? "&" : "?";
+  return `${articleUrl}${connector}return_filter=${btoa(
+    encodeURIComponent(JSON.stringify(Object.fromEntries(new URLSearchParams(window.location.search)))),
+  )}`;
+}
+
+const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
+  const [filters, setFilters] = useState<FilterState>(() =>
+    getInitialFilters(searchParams),
   );
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [tagSearch, setTagSearch] = useState("");
+  const [totalArticles, setTotalArticles] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const isReadyRef = useRef(false);
 
-  // 初始化 Worker 并加载索引数据
-  useEffect(() => {
-    const loadIndexData = async () => {
-      try {
-        setIsTagLoading(true);
-        startFilterLoading("immediate");
-        await initFilterIndex("/index/filter_index.bin");
+  const runFilter = useCallback(async (nextFilters: FilterState) => {
+    if (!isReadyRef.current) return;
 
-        if (!isMountedRef.current) return;
-        setIsFilterReady(true);
+    setIsLoading(true);
+    setError(null);
 
-        const tags = (await workerGetAllTags()) as string[];
-        if (!isMountedRef.current) return;
-        setAllAvailableTags(Array.isArray(tags) ? tags : []);
-        setIsTagLoading(false);
+    try {
+      const result = (await workerFilterArticles({
+        tags: nextFilters.tags,
+        sort: nextFilters.sort,
+        date: nextFilters.date,
+        page: nextFilters.currentPage,
+        limit: nextFilters.pageSize,
+      })) as FilterResult;
 
-        // 初始加载时不依赖applyFilters函数，而是直接执行筛选逻辑
-        await initialLoadArticles();
+      const nextArticles = Array.isArray(result?.articles)
+        ? result.articles
+        : [];
 
-        if (!isMountedRef.current) return;
-        setIsArticlesLoaded(true);
-      } catch (fetchError) {
-        if (!isMountedRef.current) return;
-
-        console.error("获取索引数据失败:", fetchError);
-        setError("索引文件缺失或无法读取，请重新构建索引");
-      } finally {
-        if (isMountedRef.current) {
-          setIsTagLoading(false);
-          stopFilterLoading();
-        }
-      }
-    };
-
-    // 初始加载文章的内部函数，避免循环依赖
-    const initialLoadArticles = async (skipUrlUpdate: boolean = true) => {
-      try {
-        // 获取当前的筛选状态
-        const currentFilters = { ...activeFiltersRef.current };
-
-        // 构建筛选参数
-        const filterParams: Record<string, any> = {
-          tags: currentFilters.tags,
-          sort: currentFilters.sort,
-          date: currentFilters.date,
-          page: currentFilters.currentPage,
-          limit: currentFilters.pageSize,
-        };
-
-        try {
-          const result = (await workerFilterArticles(
-            filterParams,
-          )) as FilterResult;
-
-          // 检查组件是否仍然挂载
-          if (!isMountedRef.current) return;
-
-          // 检查结果格式
-          if (!result || typeof result !== "object") {
-            console.error("WASM返回结果格式错误");
-            throw new Error("筛选结果格式错误");
-          }
-
-          // 修复可能的格式问题 - 确保有一个文章数组
-          let articles: Article[] = [];
-
-          if (result.articles) {
-            if (Array.isArray(result.articles)) {
-              articles = result.articles;
-            } else {
-              console.error("返回的articles不是数组");
-              // 尝试修复格式问题
-              try {
-                if (typeof result.articles === "string") {
-                  // 如果是JSON字符串，尝试解析
-                  const parsed = JSON.parse(result.articles);
-                  if (Array.isArray(parsed)) {
-                    articles = parsed;
-                  }
-                }
-              } catch (e) {
-                console.error("尝试修复articles格式失败");
-              }
-            }
-          }
-
-          // 检查组件是否仍然挂载
-          if (!isMountedRef.current) return;
-
-          // 检查并修复总数
-          const total =
-            typeof result.total === "number" ? result.total : articles.length;
-          const totalPages =
-            typeof result.total_pages === "number"
-              ? result.total_pages
-              : Math.ceil(total / activeFilters.pageSize);
-
-          // 更新状态时提供明确的默认值
-          setFilteredArticles(articles);
-          setTotalArticles(total);
-          setTotalPages(totalPages || 1);
-
-          // 只有在非初始加载时才更新URL参数
-          if (!skipUrlUpdate && typeof window !== "undefined") {
-            // 初始化URL参数
-            const params = new URLSearchParams();
-
-            // 添加标签筛选
-            if (currentFilters.tags.length > 0) {
-              params.set("tags", currentFilters.tags.join(","));
-            }
-
-            // 添加排序方式
-            if (currentFilters.sort !== "newest") {
-              params.set("sort", currentFilters.sort);
-            }
-
-            // 添加日期筛选
-            if (currentFilters.date !== "all") {
-              const [startDate, endDate] = currentFilters.date.split(",");
-              if (startDate) params.set("startDate", startDate);
-              if (endDate) params.set("endDate", endDate);
-            }
-
-            // 添加分页信息
-            if (currentFilters.currentPage !== 1) {
-              params.set("page", currentFilters.currentPage.toString());
-            }
-
-            // 添加每页显示数量
-            if (currentFilters.pageSize !== 12) {
-              params.set("limit", currentFilters.pageSize.toString());
-            }
-
-            // 构建新的URL
-            const newUrl =
-              window.location.pathname +
-              (params.toString() ? "?" + params.toString() : "");
-
-            // 使用history API更新URL，不刷新页面
-            window.history.pushState({}, "", newUrl);
-          }
-
-          return result;
-        } catch (wasmError) {
-          // 检查组件是否仍然挂载
-          if (!isMountedRef.current) return;
-
-          console.error("Worker执行失败", wasmError);
-          throw new Error(`Worker执行失败: ${wasmError}`);
-        }
-      } catch (error) {
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current) return;
-
-        console.error("初始加载文章出错", error);
-        setError("加载文章时出错，请刷新页面重试");
-        return {
-          articles: [],
-          total: 0,
-          page: 1,
-          limit: activeFilters.pageSize,
-          total_pages: 0,
-        };
-      } finally {
-        // 检查组件是否仍然挂载
-        if (isMountedRef.current) {
-          stopFilterLoading();
-        }
-      }
-    };
-
-    loadIndexData();
-
-    return () => {};
+      setArticles(nextArticles);
+      setTotalArticles(typeof result?.total === "number" ? result.total : nextArticles.length);
+      setTotalPages(
+        typeof result?.total_pages === "number" && result.total_pages > 0
+          ? result.total_pages
+          : Math.max(1, Math.ceil(nextArticles.length / nextFilters.pageSize)),
+      );
+    } catch (filterError) {
+      console.error("[ArticleFilter] 筛选失败:", filterError);
+      setError("筛选文章时出错，请刷新页面重试");
+      setArticles([]);
+      setTotalArticles(0);
+      setTotalPages(1);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  // 当文章加载完成后，按URL参数应用一次筛选
-  const hasAppliedUrlFiltersRef = useRef(false);
-  useEffect(() => {
-    if (hasAppliedUrlFiltersRef.current) return;
-    if (!isArticlesLoaded || !isFilterReady) return;
+  const updateFilters = useCallback(
+    (patch: Partial<FilterState>, options: { resetPage?: boolean } = {}) => {
+      setFilters((current) => {
+        const nextFilters = {
+          ...current,
+          ...patch,
+          currentPage: options.resetPage
+            ? 1
+            : patch.currentPage ?? current.currentPage,
+        };
 
-    // 检查URL中是否有筛选参数
-    const hasFilterParams = window.location.search.length > 0;
-    if (hasFilterParams) {
-      applyFilteringLogic(activeFiltersRef.current, "immediate");
-    }
+        if (typeof window !== "undefined") {
+          const query = buildFilterUrl(nextFilters);
+          window.history.pushState(
+            {},
+            "",
+            `${window.location.pathname}${query ? `?${query}` : ""}`,
+          );
+        }
 
-    hasAppliedUrlFiltersRef.current = true;
-  }, [isArticlesLoaded, isFilterReady]);
-
-  // 点击外部关闭标签下拉菜单
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent | TouchEvent) {
-      if (
-        isTagDropdownOpen &&
-        tagDropdownRef.current &&
-        !tagDropdownRef.current.contains(event.target as Node) &&
-        tagSelectorButtonRef.current &&
-        !tagSelectorButtonRef.current.contains(event.target as Node)
-      ) {
-        setIsTagDropdownOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside, {
-      passive: true,
-    });
-    document.addEventListener("touchstart", handleClickOutside, {
-      passive: true,
-    });
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [isTagDropdownOpen]);
-
-  // 点击外部关闭排序下拉菜单
-  useEffect(() => {
-    function handleSortDropdownClickOutside(event: MouseEvent | TouchEvent) {
-      if (
-        isSortDropdownOpen &&
-        sortDropdownRef.current &&
-        !sortDropdownRef.current.contains(event.target as Node) &&
-        sortSelectorButtonRef.current &&
-        !sortSelectorButtonRef.current.contains(event.target as Node)
-      ) {
-        setIsSortDropdownOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleSortDropdownClickOutside, {
-      passive: true,
-    });
-    document.addEventListener("touchstart", handleSortDropdownClickOutside, {
-      passive: true,
-    });
-    return () => {
-      document.removeEventListener("mousedown", handleSortDropdownClickOutside);
-      document.removeEventListener(
-        "touchstart",
-        handleSortDropdownClickOutside,
-      );
-    };
-  }, [isSortDropdownOpen]);
-
-  // 点击外部关闭每页数量下拉菜单
-  useEffect(() => {
-    function handlePageSizeDropdownClickOutside(
-      event: MouseEvent | TouchEvent,
-    ) {
-      if (
-        isPageSizeDropdownOpen &&
-        pageSizeDropdownRef.current &&
-        !pageSizeDropdownRef.current.contains(event.target as Node) &&
-        pageSizeSelectorButtonRef.current &&
-        !pageSizeSelectorButtonRef.current.contains(event.target as Node)
-      ) {
-        setIsPageSizeDropdownOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePageSizeDropdownClickOutside, {
-      passive: true,
-    });
-    document.addEventListener("touchstart", handlePageSizeDropdownClickOutside, {
-      passive: true,
-    });
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handlePageSizeDropdownClickOutside,
-      );
-      document.removeEventListener(
-        "touchstart",
-        handlePageSizeDropdownClickOutside,
-      );
-    };
-  }, [isPageSizeDropdownOpen]);
-
-  // 清除所有筛选条件
-  const resetAllFilters = useCallback(() => {
-    const defaultFilters = { ...DEFAULT_FILTERS };
-
-    // 先更新UI状态
-    activeFiltersRef.current = defaultFilters;
-    setActiveFilters(defaultFilters);
-
-    // 清除URL参数
-    if (typeof window !== "undefined") {
-      window.history.pushState({}, "", window.location.pathname);
-    }
-
-    // 如果筛选模块已加载，直接调用筛选逻辑以确保实际应用
-    if (isFilterReady && isArticlesLoaded) {
-      applyFilteringLogic(defaultFilters, "immediate");
-    }
-  }, [applyFilteringLogic, isFilterReady, isArticlesLoaded]);
-
-  // 渲染错误信息
-  const renderError = () => (
-    <div className="filter-error col-span-3 text-center py-8">
-      <div className="filter-error-heading mb-2">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-12 w-12 mx-auto mb-3"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
-        {error?.includes("索引文件") ? "索引数据错误" : "加载失败"}
-      </div>
-      <p className="filter-error-message">{error}</p>
-      <div className="mt-4 flex justify-center">
-        <div className="filter-error-panel px-4 py-3 text-sm text-left max-w-lg">
-          <p className="font-medium">需要重新构建索引</p>
-          <p className="mt-2">请手动执行以下步骤：</p>
-          <ol className="list-decimal list-inside mt-2 space-y-1">
-            <li>在命令行中进入项目根目录</li>
-            <li>
-              运行索引构建命令：
-              <code className="filter-inline-code px-2 py-0.5">
-                npm run build
-              </code>
-            </li>
-            <li>等待索引构建完成</li>
-            <li>刷新此页面</li>
-          </ol>
-          <p className="filter-error-note mt-3 text-xs">
-            注意：索引构建可能需要一些时间，取决于您的文章数量
-          </p>
-        </div>
-      </div>
-    </div>
+        void runFilter(nextFilters);
+        return nextFilters;
+      });
+    },
+    [runFilter],
   );
 
-  // 渲染筛选控件
-  const renderFilterControls = () => {
-    // 筛选标签
-    const getFilteredTags = () => {
-      const searchTerm = tagSearchInput.toLowerCase().trim();
-      if (!searchTerm) {
-        return allAvailableTags;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootFilter() {
+      try {
+        setIsLoading(true);
+        await initFilterIndex("/index/filter_index.bin");
+        if (cancelled) return;
+
+        isReadyRef.current = true;
+        const tags = (await workerGetAllTags()) as string[];
+        if (cancelled) return;
+
+        setAllTags(Array.isArray(tags) ? tags : []);
+        await runFilter(filters);
+      } catch (bootError) {
+        console.error("[ArticleFilter] 初始化失败:", bootError);
+        if (!cancelled) {
+          setError("索引文件缺失或无法读取，请重新构建索引");
+          setIsLoading(false);
+        }
       }
-      return allAvailableTags.filter((tag) =>
-        tag.toLowerCase().includes(searchTerm),
-      );
+    }
+
+    void bootFilter();
+
+    return () => {
+      cancelled = true;
     };
+  }, []);
 
-    // 更新标签按钮文本
-    const getTagSelectorText = () => {
-      if (activeFilters.tags.length > 0) {
-        return `已选 ${activeFilters.tags.length} 个标签`;
-      }
-      return "选择标签";
+  const [startDate, endDate] = getDateRange(filters.date);
+  const dateRangeLabel = getDateLabel(filters.date);
+  const today = new Date();
+  const selectableYears = Array.from(
+    { length: YEAR_OPTION_COUNT },
+    (_, index) => today.getFullYear() - index,
+  );
+  const selectableMonths = Array.from({ length: MONTH_OPTION_COUNT }, (_, index) => {
+    const monthDate = new Date(today.getFullYear(), today.getMonth() - index, 1);
+
+    return {
+      label: getMonthLabel(monthDate.getFullYear(), monthDate.getMonth()),
+      month: monthDate.getMonth(),
+      year: monthDate.getFullYear(),
     };
+  });
+  const visibleSelectedTags = filters.tags.slice(0, 3);
+  const hiddenSelectedTagCount = Math.max(0, filters.tags.length - visibleSelectedTags.length);
+  const selectedTagSummary =
+    filters.tags.length > 0
+      ? `${visibleSelectedTags.map((tag) => `#${tag}`).join(" ")}${hiddenSelectedTagCount > 0 ? ` +${hiddenSelectedTagCount}` : ""}`
+      : "全部标签";
+  const normalizedTagSearch = tagSearch.trim().toLowerCase();
+  const selectedTagSet = new Set(filters.tags);
+  const filteredTags = allTags
+    .filter((tag) => tag.toLowerCase().includes(normalizedTagSearch))
+    .sort((firstTag, secondTag) => {
+      const firstSelected = selectedTagSet.has(firstTag);
+      const secondSelected = selectedTagSet.has(secondTag);
 
-    // 处理每页数量变更
-    const pageSizeOptions = [12, 24, 36, 48];
-
-    const handlePageSizeChange = (value: number) => {
-      // 先更新UI状态
-      setActiveFilters((prev) => ({
-        ...prev,
-        pageSize: value,
-        currentPage: 1, // 重置为第一页
-      }));
-
-      // 直接传递新的每页数量状态给筛选函数，并更新URL
-      applyFilters({
-        pageSize: value,
-        currentPage: 1,
-      });
-    };
-
-    // 处理标签选择变更
-    const handleTagSelection = (tag: string) => {
-      const currentTags = activeFiltersRef.current.tags;
-      const isRemove = currentTags.includes(tag);
-      let newTags: string[];
-
-      if (isRemove) {
-        // 如果标签已选中，则移除
-        newTags = currentTags.filter((t) => t !== tag);
-      } else {
-        // 如果标签未选中，则添加
-        newTags = [...currentTags, tag];
-      }
-
-      applyFilters({ tags: newTags, currentPage: 1 }, { loadingMode: "immediate" });
-    };
-
-    // 删除单个标签
-    const removeTag = (tag: string) => {
-      const currentTags = activeFiltersRef.current.tags;
-      const newTags = currentTags.filter((t) => t !== tag);
-
-      applyFilters({ tags: newTags, currentPage: 1 }, { loadingMode: "immediate" });
-    };
-
-    // 切换标签下拉菜单
-    const toggleTagDropdown = () => {
-      const newState = !isTagDropdownOpen;
-
-      setIsTagDropdownOpen(newState);
-    };
-
-    // 清除所有标签
-    const clearAllTags = () => {
-      if (activeFiltersRef.current.tags.length === 0) {
-        return;
+      if (firstSelected !== secondSelected) {
+        return firstSelected ? -1 : 1;
       }
 
-      applyFilters({ tags: [], currentPage: 1 }, { loadingMode: "immediate" });
-    };
+      return firstTag.localeCompare(secondTag, "zh-CN");
+    });
+  const resultStart =
+    totalArticles === 0
+      ? 0
+      : (filters.currentPage - 1) * filters.pageSize + 1;
+  const resultEnd = Math.min(filters.currentPage * filters.pageSize, totalArticles);
+  const viewLabel = `${sortLabels[filters.sort] || sortLabels.newest} · 每页 ${filters.pageSize}`;
 
-    // 根据加载状态获取标签搜索框的占位文本
-    const getTagSearchPlaceholder = () => {
-      if (isTagLoading) {
-        return "正在加载标签...";
-      } else if (error) {
-        return "加载标签失败";
-      }
-      return "搜索标签...";
-    };
+  const updateDateRange = (nextStartDate: string, nextEndDate: string) => {
+    updateFilters(
+      { date: makeDateFilterValue(nextStartDate, nextEndDate) },
+      { resetPage: true },
+    );
+  };
 
-    return (
-      <div className="filter-panel mb-6">
-        {/* 筛选控件 */}
-        <div className="filter-panel-header p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="filter-panel-title text-lg font-semibold flex items-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="filter-panel-title-icon h-5 w-5 mr-2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                />
-              </svg>
-              文章筛选
-            </h2>
-            <button
-              className="filter-reset-button text-sm focus:outline-none flex items-center"
-              onClick={resetAllFilters}
-            >
-              <span>重置所有筛选</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3.5 w-3.5 ml-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-            </button>
-          </div>
+  const applyDatePreset = (preset: string) => {
+    const [nextStartDate, nextEndDate] = getDatePresetRange(preset);
+    updateDateRange(nextStartDate, nextEndDate);
+  };
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* 时间筛选 */}
-            <div className="filter-field w-full">
-              <label
-                htmlFor="articleFilterDateRange"
-                className="filter-label block text-sm font-medium mb-1.5"
-              >
-                发布时间范围
-              </label>
-              <div className="relative w-full">
-                <DateRangePicker
-                  id="articleFilterDateRange"
-                  startDate={
-                    activeFilters.date !== "all"
-                      ? activeFilters.date.split(",")[0]
-                      : null
-                  }
-                  endDate={
-                    activeFilters.date !== "all" &&
-                    activeFilters.date.split(",")[1]
-                      ? activeFilters.date.split(",")[1]
-                      : null
-                  }
-                  onChange={(dates) => {
-                    const [startDate, endDate] = dates;
-                    // 如果开始或结束日期有一个不为空，则组合成 "startDate,endDate" 格式
-                    // 如果都为空，则设为 "all"
-                    const dateValue =
-                      startDate || endDate
-                        ? `${startDate || ""},${endDate || ""}`
-                        : "all";
+  const toggleTag = (tag: string) => {
+    const isActive = selectedTagSet.has(tag);
+    updateFilters(
+      {
+        tags: isActive
+          ? filters.tags.filter((item) => item !== tag)
+          : [...filters.tags, tag],
+      },
+      { resetPage: true },
+    );
+  };
 
-                    // 更新组件状态
-                    setActiveFilters((prev) => ({
-                      ...prev,
-                      date: dateValue,
-                      currentPage: 1,
-                    }));
-
-                    // 应用筛选
-                    applyFilters({
-                      date: dateValue,
-                      currentPage: 1,
-                    });
-                  }}
-                  placeholder="选择日期范围"
-                />
-              </div>
-            </div>
-
-            {/* 排序方式 */}
-            <div className="filter-field w-full">
-              <label
-                id="sort-label"
-                htmlFor="sort-button"
-                className="filter-label block text-sm font-medium mb-1.5"
-              >
-                排序方式
-              </label>
-              <div className="relative w-full">
-                {/* 替换原生select为自定义下拉菜单 */}
-                <div className="relative w-full">
+  return (
+    <section className="filter-layout" aria-label="文章筛选">
+      <aside className="filter-rail">
+        <div className="filter-row">
+          <label>标签</label>
+          <details className="filter-disclosure filter-tag-disclosure">
+            <summary className="line-select">
+              <span className="filter-tag-summary">{selectedTagSummary}</span>
+              <span className="filter-chevron" aria-hidden="true">∨</span>
+            </summary>
+            <div className="filter-drawer filter-tag-index">
+              <input
+                id="filter-tag-search"
+                className="filter-tag-search"
+                type="search"
+                placeholder="搜索标签"
+                value={tagSearch}
+                onChange={(event) => setTagSearch(event.target.value)}
+                aria-label="搜索标签"
+              />
+              {filters.tags.length > 0 && (
+                <div className="filter-tags" aria-label="已选择标签">
+                  {filters.tags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      className="filter-tag is-active"
+                      onClick={() => toggleTag(tag)}
+                    >
+                      #{tag} ×
+                    </button>
+                  ))}
                   <button
-                    ref={sortSelectorButtonRef}
                     type="button"
-                    onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
-                    aria-expanded={isSortDropdownOpen}
-                    aria-haspopup="listbox"
-                    aria-labelledby="sort-label"
-                    id="sort-button"
-                    className="filter-control w-full py-2 px-3 focus:outline-none text-left flex justify-between items-center"
+                    className="filter-clear-inline"
+                    onClick={() => updateFilters({ tags: [] }, { resetPage: true })}
                   >
-                    <span className="filter-control-value truncate">
-                      {activeFilters.sort === "newest" && "最新发布"}
-                      {activeFilters.sort === "oldest" && "最早发布"}
-                      {activeFilters.sort === "title_asc" && "标题 A-Z"}
-                      {activeFilters.sort === "title_desc" && "标题 Z-A"}
-                    </span>
-                    <svg
-                      className="filter-control-icon w-4 h-4 ml-2 shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
+                    清除全部
                   </button>
-
-                  {/* 下拉选项列表 */}
-                  {isSortDropdownOpen && (
-                    <div
-                      className="filter-popover absolute z-20 mt-2 w-full overflow-hidden"
-                      ref={sortDropdownRef}
-                      role="listbox"
-                      aria-labelledby="sort-label"
-                    >
-                      <div>
-                        {[
-                          { value: "newest", label: "最新发布" },
-                          { value: "oldest", label: "最早发布" },
-                          { value: "title_asc", label: "标题 A-Z" },
-                          { value: "title_desc", label: "标题 Z-A" },
-                        ].map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            className={`filter-option w-full text-left px-4 py-2 text-sm ${
-                              activeFilters.sort === option.value
-                                ? "is-active"
-                                : ""
-                            }`}
-                            onClick={() => {
-                              handleSortOptionSelect(option.value);
-                              setIsSortDropdownOpen(false);
-                            }}
-                            role="option"
-                            aria-selected={activeFilters.sort === option.value}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
-            </div>
+              )}
+              <div className="filter-tag-options" role="listbox" aria-label="标签列表">
+                {filteredTags.length > 0 ? (
+                  filteredTags.map((tag) => {
+                    const isActive = selectedTagSet.has(tag);
 
-            {/* 标签筛选器 */}
-            <div className="filter-field w-full">
-              <label
-                htmlFor="tagSelectorButton"
-                className="filter-label block text-sm font-medium mb-1.5"
-              >
-                文章标签
-              </label>
-              <div className="relative w-full">
-                <button
-                  ref={tagSelectorButtonRef}
-                  id="tagSelectorButton"
-                  className="filter-control w-full text-left flex justify-between items-center py-2 px-3 focus:outline-none"
-                  onClick={toggleTagDropdown}
-                  aria-expanded={isTagDropdownOpen}
-                  aria-haspopup="true"
-                >
-                  <span
-                    className={`filter-control-value truncate ${
-                      activeFilters.tags.length > 0
-                        ? "has-value"
-                        : ""
-                    }`}
-                  >
-                    {getTagSelectorText()}
-                  </span>
-                  <svg
-                    className="filter-control-icon w-4 h-4 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-
-                {isTagDropdownOpen && (
-                  <div
-                    ref={tagDropdownRef}
-                    className="filter-popover absolute z-20 mt-1 w-full max-h-80 overflow-hidden flex flex-col"
-                  >
-                    <div className="filter-popover-surface sticky top-0 p-2 z-10">
-                      <div className="relative">
-                        <label
-                          htmlFor="tagSearchInput"
-                          className="sr-only"
-                        >
-                          搜索标签
-                        </label>
-                        <input
-                          id="tagSearchInput"
-                          type="text"
-                          placeholder={getTagSearchPlaceholder()}
-                          value={tagSearchInput}
-                          onChange={(e) => setTagSearchInput(e.target.value)}
-                          className={`filter-search-input w-full py-2 pl-9 pr-8 text-sm ${
-                            error
-                              ? "has-error"
-                              : ""
-                          } focus:outline-none`}
-                        />
-                        <svg
-                          className="filter-search-icon w-5 h-5 absolute left-2.5 top-1/2 transform -translate-y-1/2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                          aria-hidden="true"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                          />
-                        </svg>
-
-                        {/* 加载状态指示器 */}
-                        {isTagLoading && (
-                          <div
-                            className="absolute right-2.5 top-1/2 transform -translate-y-1/2"
-                            aria-label="正在加载标签"
-                          >
-                            <div className="filter-status-dot is-loading w-4 h-4 animate-pulse"></div>
-                          </div>
-                        )}
-
-                        {/* 错误状态指示器 */}
-                        {error && (
-                          <div
-                            className="absolute right-2.5 top-1/2 transform -translate-y-1/2"
-                            aria-label="加载标签出错"
-                          >
-                            <div className="filter-status-dot is-error w-4 h-4"></div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-2 overflow-y-auto grow">
-                      {getFilteredTags().length > 0 ? (
-                        <div className="grid grid-cols-1 gap-1.5">
-                          {getFilteredTags().map((tag) => (
-                            <label
-                              key={tag}
-                              htmlFor={`tag-checkbox-${tag.replace(
-                                /\s+/g,
-                                "-",
-                              )}`}
-                              className={`filter-option flex items-center p-2.5 cursor-pointer ${
-                                activeFilters.tags.includes(tag)
-                                  ? "is-active"
-                                  : ""
-                              }`}
-                            >
-                              <div className="flex items-center min-w-0 flex-1">
-                                <input
-                                  id={`tag-checkbox-${tag.replace(
-                                    /\s+/g,
-                                    "-",
-                                  )}`}
-                                  type="checkbox"
-                                  className="filter-checkbox w-4 h-4"
-                                  checked={activeFilters.tags.includes(tag)}
-                                  onChange={() => handleTagSelection(tag)}
-                                />
-                                <span className="filter-option-label ml-2.5 text-sm font-medium truncate max-w-45">
-                                  {tag}
-                                </span>
-                              </div>
-                              {activeFilters.tags.includes(tag) && (
-                                <span
-                                  className="filter-option-check ml-auto shrink-0"
-                                  aria-hidden="true"
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-4.5 w-4.5"
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </span>
-                              )}
-                            </label>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="filter-popover-empty py-10 text-center">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="filter-popover-empty-icon h-12 w-12 mx-auto mb-3"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="1.5"
-                              d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
-                            />
-                          </svg>
-                          <p className="filter-popover-empty-title text-sm font-medium">
-                            没有找到匹配的标签
-                          </p>
-                          <p className="filter-popover-empty-note text-xs mt-1">
-                            尝试其他搜索关键词
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="filter-popover-actions filter-popover-surface flex justify-between p-2 sticky bottom-0 z-10">
+                    return (
                       <button
-                        className="filter-text-button text-xs font-medium flex items-center"
-                        onClick={clearAllTags}
+                        key={tag}
+                        type="button"
+                        className={isActive ? "filter-tag-option is-active" : "filter-tag-option"}
+                        onClick={() => toggleTag(tag)}
+                        aria-pressed={isActive}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-3.5 w-3.5 mr-1"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                        清除选择
+                        <span>#{tag}</span>
+                        <span className="filter-tag-state">{isActive ? "已选" : "选择"}</span>
                       </button>
-                      <button
-                        className="filter-action-button px-3 py-1.5 text-xs"
-                        onClick={() => setIsTagDropdownOpen(false)}
-                      >
-                        完成
-                      </button>
-                    </div>
-                  </div>
+                    );
+                  })
+                ) : (
+                  <p className="filter-tag-empty">没有匹配标签</p>
                 )}
               </div>
             </div>
-          </div>
+          </details>
         </div>
 
-        {/* 显示已选标签 */}
-        <div className="filter-tag-list px-4 py-3 flex flex-wrap gap-2 min-h-8 max-h-24 overflow-y-auto">
-          {activeFilters.tags.length > 0 ? (
-            <>
-              {activeFilters.tags.map((tag) => (
-                <div
-                  key={tag}
-                  className="filter-tag inline-flex items-center px-3 py-1.5 text-sm group"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="filter-tag-icon h-3.5 w-3.5 mr-1.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
-                    />
-                  </svg>
-                  <span className="truncate max-w-37.5 font-medium">{tag}</span>
-                  <button
-                    className="filter-tag-remove ml-1.5 focus:outline-none p-0.5"
-                    onClick={() => removeTag(tag)}
-                    title="移除此标签"
-                  >
-                    <svg
-                      className="h-3.5 w-3.5"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={clearAllTags}
-                className="filter-tag filter-tag-clear inline-flex items-center px-3 py-1.5 text-sm"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-3.5 w-3.5 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-                清除全部
-              </button>
-            </>
-          ) : (
-            <div className="filter-tag-empty w-full text-center py-2 text-sm">
-              尚未选择任何标签，点击上方"选择标签"按钮进行筛选
-            </div>
-          )}
-        </div>
+        <div className="filter-row">
+          <label>时间</label>
+          <details className="filter-disclosure">
+            <summary className="line-select">
+              <span>{dateRangeLabel}</span>
+              <span className="filter-chevron" aria-hidden="true">∨</span>
+            </summary>
+            <div className="filter-drawer filter-date-groups">
+              <div className="filter-date-group">
+                <span className="filter-group-label">常用</span>
+                <div className="filter-option-grid filter-date-presets" aria-label="时间预设">
+                  {datePresets.map((preset) => {
+                    const [presetStart, presetEnd] = getDatePresetRange(preset.value);
+                    const isActive = presetStart === startDate && presetEnd === endDate;
 
-        {/* 筛选结果统计 */}
-        <div className="filter-footer px-4 py-3 flex flex-wrap justify-between items-center gap-y-2">
-          <div className="filter-footer-count text-sm w-full sm:w-auto mb-1 sm:mb-0">
-            {totalArticles > 0
-              ? `共找到 ${totalArticles} 篇文章，当前显示第 ${Math.min(
-                  (activeFilters.currentPage - 1) * activeFilters.pageSize + 1,
-                  totalArticles,
-                )}-${Math.min(
-                  activeFilters.currentPage * activeFilters.pageSize,
-                  totalArticles,
-                )} 篇`
-              : "没有找到符合条件的文章"}
-          </div>
-
-          {/* 每页显示数量 */}
-          <div className="flex items-center">
-            <label
-              id="page-size-label"
-              htmlFor="pageSizeButton"
-              className="filter-label text-sm mr-2"
-            >
-              每页显示:
-            </label>
-            <div className="relative inline-block w-24">
-              <button
-                ref={pageSizeSelectorButtonRef}
-                type="button"
-                id="pageSizeButton"
-                onClick={() =>
-                  setIsPageSizeDropdownOpen(!isPageSizeDropdownOpen)
-                }
-                aria-expanded={isPageSizeDropdownOpen}
-                aria-haspopup="listbox"
-                aria-labelledby="page-size-label"
-                className="filter-control filter-control-compact w-full py-1 px-2 text-sm focus:outline-none text-left flex justify-between items-center"
-              >
-                <span className="filter-control-value truncate">{activeFilters.pageSize} 篇</span>
-                <svg
-                  className="filter-control-icon w-3 h-3 ml-2 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-
-              {isPageSizeDropdownOpen && (
-                <div
-                  ref={pageSizeDropdownRef}
-                  className="filter-popover absolute right-0 z-20 mt-2 w-full overflow-hidden"
-                  role="listbox"
-                  aria-labelledby="page-size-label"
-                >
-                  <div>
-                    {pageSizeOptions.map((option) => (
+                    return (
                       <button
-                        key={option}
+                        key={preset.value}
                         type="button"
-                        className={`filter-option w-full text-left px-3 py-2 text-sm ${
-                          activeFilters.pageSize === option
-                            ? "is-active"
-                            : ""
-                        }`}
-                        onClick={() => {
-                          handlePageSizeChange(option);
-                          setIsPageSizeDropdownOpen(false);
-                        }}
-                        role="option"
-                        aria-selected={activeFilters.pageSize === option}
+                        className={isActive ? "filter-text-option is-active" : "filter-text-option"}
+                        onClick={() => applyDatePreset(preset.value)}
                       >
-                        {option} 篇
+                        {preset.label}
                       </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // 在 ArticleFilter 组件中添加一个新函数，用于生成带有查询参数的链接
-  const generateArticleLink = useCallback((articleUrl: string) => {
-    // 只在客户端执行
-    if (typeof window === "undefined") return articleUrl;
-
-    // 获取当前URL的查询参数
-    const currentParams = new URLSearchParams(window.location.search);
-
-    // 如果没有查询参数，直接返回原始URL
-    if (!currentParams.toString()) return articleUrl;
-
-    // 创建一个参数对象
-    const paramsObj: Record<string, string> = {};
-
-    // 提取日期参数
-    let startDate = currentParams.get("startDate") || "";
-    let endDate = currentParams.get("endDate") || "";
-
-    // 添加其他参数
-    for (const [key, value] of currentParams.entries()) {
-      // 跳过 return_filter, startDate, endDate 参数
-      if (key === "return_filter" || key === "startDate" || key === "endDate")
-        continue;
-
-      // 添加其他所有参数
-      paramsObj[key] = value;
-    }
-
-    // 如果有日期参数，添加 date 字段
-    if (startDate || endDate) {
-      paramsObj["date"] = `${startDate},${endDate}`;
-    }
-
-    // 将参数对象转换为JSON字符串
-    const paramsJson = JSON.stringify(paramsObj);
-
-    // 检查文章URL是否已经包含查询参数
-    const hasQueryParams = articleUrl.includes("?");
-
-    // 如果已包含参数，使用&连接，否则使用?开始
-    const connector = hasQueryParams ? "&" : "?";
-
-    // 附加处理后的查询参数，使用 Base64 编码
-    // 修改: 先使用 encodeURIComponent 处理 JSON 字符串，再使用 btoa 进行 Base64 编码
-    // 这样可以处理中文等非ASCII字符
-    const base64Params = btoa(encodeURIComponent(paramsJson));
-
-    // 返回最终链接
-    return `${articleUrl}${connector}return_filter=${base64Params}`;
-  }, []);
-
-  // 渲染文章列表
-  const renderArticleList = () => {
-    if (filteredArticles.length === 0) {
-      return (
-        <div className="filter-empty text-center py-16">
-          <div className="filter-empty-icon mb-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-16 w-16 mx-auto"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-              />
-            </svg>
-          </div>
-          <h3 className="filter-empty-title text-lg font-medium">
-            没有找到符合条件的文章
-          </h3>
-          <p className="filter-empty-note mt-1 max-w-md mx-auto">
-            尝试调整筛选条件或者清除所有筛选以查看更多文章
-          </p>
-          <button
-            onClick={resetAllFilters}
-            className="filter-action-button filter-empty-action mt-4 px-4 py-2 inline-flex items-center"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 mr-1.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            重置所有筛选条件
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredArticles.map((article) => (
-          <div
-            key={article.url}
-            className="article-card"
-          >
-            <a
-              href={generateArticleLink(article.url)}
-              className="article-card-link"
-              data-astro-prefetch="viewport"
-            >
-              <div className="article-card-content">
-                <div className="article-card-body">
-                  <div className="article-card-title-row">
-                    <span className="article-card-icon">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                        />
-                      </svg>
-                    </span>
-                    <h3 className="article-card-title">
-                      {article.title || "无标题"}
-                    </h3>
-                  </div>
-
-                  <p
-                    className={
-                      article.summary
-                        ? "article-card-summary"
-                        : "article-card-summary article-card-summary-empty"
-                    }
-                  >
-                    {article.summary}
-                  </p>
-
-                  <div className="article-card-footer">
-                    <time
-                      dateTime={article.date}
-                      className="article-card-date"
-                    >
-                      {article.date
-                        ? new Date(article.date).toLocaleDateString("zh-CN", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        : "无日期"}
-                    </time>
-                    <span className="article-card-read-more">阅读全文</span>
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
-            </a>
+              <div className="filter-date-group">
+                <span className="filter-group-label">年份</span>
+                <div className="filter-option-grid filter-date-years" aria-label="按年份筛选">
+                  {selectableYears.map((year) => {
+                    const [yearStart, yearEnd] = getYearRange(year);
+                    const isActive = yearStart === startDate && yearEnd === endDate;
+
+                    return (
+                      <button
+                        key={year}
+                        type="button"
+                        className={isActive ? "filter-text-option is-active" : "filter-text-option"}
+                        onClick={() => updateDateRange(yearStart, yearEnd)}
+                      >
+                        {year}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="filter-date-group">
+                <span className="filter-group-label">月份</span>
+                <div className="filter-option-grid filter-date-months" aria-label="按月份筛选">
+                  {selectableMonths.map(({ year, month, label }) => {
+                    const [monthStart, monthEnd] = getMonthRange(year, month);
+                    const isActive = monthStart === startDate && monthEnd === endDate;
+
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        className={isActive ? "filter-text-option is-active" : "filter-text-option"}
+                        onClick={() => updateDateRange(monthStart, monthEnd)}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div className="filter-row">
+          <label>视图</label>
+          <details className="filter-disclosure filter-view-disclosure">
+            <summary className="line-select">
+              <span>{viewLabel}</span>
+              <span className="filter-chevron" aria-hidden="true">∨</span>
+            </summary>
+            <div className="filter-drawer filter-view-options">
+              <div className="filter-view-group">
+                <span className="filter-group-label">排序</span>
+                <div className="filter-option-grid" aria-label="排序方式">
+                  {Object.entries(sortLabels).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={filters.sort === value ? "filter-text-option is-active" : "filter-text-option"}
+                      onClick={() => updateFilters({ sort: value }, { resetPage: true })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="filter-view-group">
+                <span className="filter-group-label">每页</span>
+                <div className="filter-option-grid" aria-label="每页显示">
+                  {pageSizeOptions.map((pageSize) => (
+                    <button
+                      key={pageSize}
+                      type="button"
+                      className={filters.pageSize === pageSize ? "filter-text-option is-active" : "filter-text-option"}
+                      onClick={() => updateFilters({ pageSize }, { resetPage: true })}
+                    >
+                      {pageSize}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+      </aside>
+
+      <section className="filter-results-panel" aria-live="polite">
+        <p className="filter-status" role="status">
+          {error
+            ? error
+            : isLoading
+              ? "正在加载文章"
+              : totalArticles > 0
+                ? `共找到 ${totalArticles} 篇文章，第 ${resultStart}-${resultEnd} 篇`
+                : "没有找到符合条件的文章"}
+        </p>
+
+        {articles.length > 0 ? (
+          <div className="explorer-grid">
+            {articles.map((article) => {
+              const hasSummary = Boolean(article.summary);
+              const firstTag = article.tags?.[0];
+
+              return (
+                <a
+                  key={article.url}
+                  href={articleLinkWithReturnFilter(article.url)}
+                  className={hasSummary ? "node" : "node no-summary"}
+                  data-astro-prefetch="viewport"
+                >
+                  <span className="node-kind">md</span>
+                  <span className="node-icon" aria-hidden="true">
+                    <svg viewBox="0 0 40 44" fill="none">
+                      <path d="M9 4h15l7 7v29H9V4Z" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M24 4v8h7" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M14 20h12M14 26h12M14 32h7" stroke="currentColor" strokeWidth="1.5" />
+                    </svg>
+                  </span>
+                  <div>
+                    <h2 className="node-title">{article.title || "无标题"}</h2>
+                    <p className="node-summary" aria-hidden={!hasSummary}>
+                      {article.summary || "占位"}
+                    </p>
+                    <div className="node-meta">
+                      <time dateTime={article.date}>{formatDate(article.date)}</time>
+                      <span>{firstTag ? `#${firstTag}` : "#note"}</span>
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
           </div>
-        ))}
-      </div>
-    );
-  };
+        ) : (
+          <div className="article-index-empty">
+            <h3>{isLoading ? "正在读取索引" : "没有找到符合条件的文章"}</h3>
+            <p>{error || "尝试调整筛选条件，或者清除标签后重新查看。"}</p>
+          </div>
+        )}
 
-  // 渲染分页控件
-  const renderPagination = () => {
-    if (totalPages <= 1 || filteredArticles.length === 0) {
-      return null;
-    }
-
-    // 计算要显示的页码
-    const getPageNumbers = () => {
-      const currentPage = activeFilters.currentPage;
-      const totalPages = Math.ceil(totalArticles / activeFilters.pageSize);
-
-      if (totalPages <= 7) {
-        // 如果总页数小于等于7，则全部显示
-        return Array.from({ length: totalPages }, (_, i) => i + 1);
-      }
-
-      // 否则显示当前页附近的页码
-      const pages = [];
-
-      // 始终显示第一页
-      pages.push(1);
-
-      if (currentPage > 3) {
-        // 如果当前页大于3，显示省略号
-        pages.push("...");
-      }
-
-      // 计算要显示的中间页码
-      const middleStart = Math.max(2, currentPage - 1);
-      const middleEnd = Math.min(totalPages - 1, currentPage + 1);
-
-      for (let i = middleStart; i <= middleEnd; i++) {
-        pages.push(i);
-      }
-
-      if (currentPage < totalPages - 2) {
-        // 如果当前页小于倒数第三页，显示省略号
-        pages.push("...");
-      }
-
-      // 始终显示最后一页
-      if (totalPages > 1) {
-        pages.push(totalPages);
-      }
-
-      return pages;
-    };
-
-    // 处理页面变更
-    const handlePageChange = (page: number) => {
-      if (page < 1 || page > totalPages || page === activeFilters.currentPage) {
-        return;
-      }
-
-      // 先更新UI状态
-      setActiveFilters((prev) => ({
-        ...prev,
-        currentPage: page,
-      }));
-
-      // 直接传递新的页码状态给筛选函数，并更新URL
-      applyFilters({
-        currentPage: page,
-      });
-    };
-
-    const pageNumbers = getPageNumbers();
-
-    return (
-      <div className="flex justify-center mt-8">
-        <div className="filter-pagination flex">
-          {/* 上一页按钮 */}
-          <button
-            onClick={() => handlePageChange(activeFilters.currentPage - 1)}
-            disabled={activeFilters.currentPage === 1}
-            className={`filter-page-button px-3 py-2 flex items-center ${
-              activeFilters.currentPage === 1
-                ? "is-disabled cursor-not-allowed"
-                : ""
-            }`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+        {totalPages > 1 && (
+          <nav className="filter-pagination" aria-label="筛选结果分页">
+            <button
+              type="button"
+              disabled={filters.currentPage <= 1}
+              onClick={() => updateFilters({ currentPage: filters.currentPage - 1 })}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-
-          {/* 页码按钮 */}
-          {pageNumbers.map((page, i) =>
-            typeof page === "number" ? (
-              <button
-                key={`page-${page}`}
-                onClick={() => handlePageChange(page)}
-                className={`filter-page-button px-4 py-2 ${
-                  page === activeFilters.currentPage
-                    ? "is-active"
-                    : ""
-                } ${i === 0 ? "" : "border-l-0"}`}
-              >
-                {page}
-              </button>
-            ) : (
-              <span
-                key={`ellipsis-${i}`}
-                className="filter-page-ellipsis px-4 py-2 border-l-0"
-              >
-                {page}
-              </span>
-            ),
-          )}
-
-          {/* 下一页按钮 */}
-          <button
-            onClick={() => handlePageChange(activeFilters.currentPage + 1)}
-            disabled={activeFilters.currentPage === totalPages}
-            className={`filter-page-button px-3 py-2 flex items-center ${
-              activeFilters.currentPage === totalPages
-                ? "is-disabled cursor-not-allowed"
-                : ""
-            }`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+              上一页
+            </button>
+            <span>
+              {filters.currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={filters.currentPage >= totalPages}
+              onClick={() => updateFilters({ currentPage: filters.currentPage + 1 })}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // 增加一个监听器来检查文章数据更新后的状态
-  useEffect(() => {
-    if (isArticlesLoaded) {
-      // 如果没有文章但应该有文章，尝试诊断问题
-      if (filteredArticles.length === 0 && totalArticles > 0) {
-        console.error("状态不一致：总数显示有文章但列表为空");
-      }
-
-      // 检查数据格式是否正确
-      if (filteredArticles.length > 0) {
-        const firstArticle = filteredArticles[0];
-
-        // 检查必要字段
-        const requiredFields = ["title", "url", "date"];
-        const missingFields = requiredFields.filter(
-          (field) => !firstArticle[field as keyof Article],
-        );
-
-        if (missingFields.length > 0) {
-          console.error("文章数据缺少必要字段:", missingFields);
-        }
-      }
-    }
-  }, [filteredArticles, totalArticles, isArticlesLoaded]);
-
-  // 添加错误记录效果
-  useEffect(() => {
-    if (error) {
-      // 记录错误到控制台而不是显示在界面上
-      console.error("[ArticleFilter] 加载错误:", error);
-    }
-  }, [error]);
-
-  // 处理排序选项选择
-  const handleSortOptionSelect = (sortValue: string) => {
-    // 更新UI状态
-    setActiveFilters((prev) => ({
-      ...prev,
-      sort: sortValue,
-      currentPage: 1, // 重置为第一页
-    }));
-
-    // 应用筛选
-    applyFilters({
-      sort: sortValue,
-      currentPage: 1,
-    });
-  };
-
-  // 修改组件返回的内容
-  return (
-    <div className="w-full">
-      {/* 始终显示筛选控件 */}
-      {renderFilterControls()}
-
-      {/* 文章列表区域 - 修改加载显示方式 */}
-      {showFilterLoading ? (
-        <div className="filter-loading flex items-center justify-center py-12">
-          <div className="filter-loading-spinner animate-spin h-8 w-8"></div>
-        </div>
-      ) : (
-        <>
-          {renderArticleList()}
-          {renderPagination()}
-        </>
-      )}
-    </div>
+              下一页
+            </button>
+          </nav>
+        )}
+      </section>
+    </section>
   );
 };
 

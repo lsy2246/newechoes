@@ -1,0 +1,757 @@
+---
+const palettePairs = [
+  {
+    id: "carbon",
+    label: "A",
+    name: "Carbon Editorial",
+    note: "最稳的中性方案。白天不刺眼，夜间也不落入纯黑，适合作为默认基准。",
+    light: {
+      name: "Light / Carbon",
+      bg: "#ffffff",
+      ink: "#111111",
+      body: "#343434",
+      muted: "#696969",
+      quiet: "#9a9a9a",
+      line: "#e8e8e8",
+      accent: "#111111",
+      mark: "#f4f4f4",
+    },
+    dark: {
+      name: "Dark / Soft Carbon",
+      bg: "#111315",
+      ink: "#f1f3f5",
+      body: "#c9ced6",
+      muted: "#8d96a3",
+      quiet: "#5e6672",
+      line: "#282d34",
+      accent: "#dfe5ec",
+      mark: "#181b1f",
+    },
+  },
+  {
+    id: "graphite",
+    label: "B",
+    name: "Cold Graphite",
+    note: "冷灰体系，边界感更清楚。适合文章、筛选、网格都保持理性和干净。",
+    light: {
+      name: "Light / Graphite",
+      bg: "#ffffff",
+      ink: "#18181b",
+      body: "#3f3f46",
+      muted: "#71717a",
+      quiet: "#a1a1aa",
+      line: "#e4e4e7",
+      accent: "#27272a",
+      mark: "#f4f4f5",
+    },
+    dark: {
+      name: "Dark / Graphite",
+      bg: "#131316",
+      ink: "#edeef1",
+      body: "#c5c7ce",
+      muted: "#8c9099",
+      quiet: "#5f636d",
+      line: "#2b2d33",
+      accent: "#f3f4f6",
+      mark: "#1a1b20",
+    },
+  },
+  {
+    id: "manuscript",
+    label: "C",
+    name: "Navy Manuscript",
+    note: "蓝黑墨水感，适合想保留一点识别度，但不希望页面变成蓝绿色。",
+    light: {
+      name: "Light / Ink Navy",
+      bg: "#ffffff",
+      ink: "#08111f",
+      body: "#263447",
+      muted: "#667386",
+      quiet: "#9aa5b4",
+      line: "#e2e7ee",
+      accent: "#123a63",
+      mark: "#f3f6f9",
+    },
+    dark: {
+      name: "Dark / Ink Navy",
+      bg: "#0d1119",
+      ink: "#eef3fb",
+      body: "#c4ccda",
+      muted: "#8490a3",
+      quiet: "#566174",
+      line: "#242b37",
+      accent: "#aebfda",
+      mark: "#141925",
+    },
+  },
+  {
+    id: "paper",
+    label: "D",
+    name: "Zinc Minimal",
+    note: "最接近线性编辑版。大量留白、少容器、少装饰，靠字号和灰度分层。",
+    light: {
+      name: "Light / Zinc",
+      bg: "#ffffff",
+      ink: "#151515",
+      body: "#3d3d3d",
+      muted: "#767676",
+      quiet: "#adadad",
+      line: "#ececec",
+      accent: "#202020",
+      mark: "#f7f7f7",
+    },
+    dark: {
+      name: "Dark / Zinc",
+      bg: "#151517",
+      ink: "#eeeeee",
+      body: "#c7c7cb",
+      muted: "#8e8e96",
+      quiet: "#606068",
+      line: "#2d2d31",
+      accent: "#f0f0f2",
+      mark: "#1d1d21",
+    },
+  },
+  {
+    id: "deepsea",
+    label: "E",
+    name: "Deep Sea Ink",
+    note: "更冷、更深一点的技术笔记气质。黑暗模式有深海感，但避免偏蓝绿。",
+    light: {
+      name: "Light / Deep Ink",
+      bg: "#ffffff",
+      ink: "#0b1220",
+      body: "#2b3648",
+      muted: "#687386",
+      quiet: "#a0a8b5",
+      line: "#e5e9ef",
+      accent: "#1e3a70",
+      mark: "#f5f7fa",
+    },
+    dark: {
+      name: "Dark / Deep Ink",
+      bg: "#0b0f17",
+      ink: "#f0f5ff",
+      body: "#c2cad8",
+      muted: "#838fa2",
+      quiet: "#515c6d",
+      line: "#222936",
+      accent: "#b7c7e4",
+      mark: "#111722",
+    },
+  },
+];
+
+const sampleTags = ["#设计系统", "#文章页面", "#白色模式", "#黑暗模式", "#长标签测试"];
+const modeNames = ["light", "dark"] as const;
+const toneRows = ["ink", "body", "muted", "quiet", "accent", "line"] as const;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>明暗模式字体配色预览</title>
+    <style>
+      :root {
+        color-scheme: light;
+        background: #ffffff;
+        font-family: "Aptos", "Noto Sans SC", "Source Han Sans SC", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #ffffff;
+        color: #111111;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page {
+        width: min(100%, 1320px);
+        margin: 0 auto;
+        padding: clamp(32px, 6vw, 72px) clamp(18px, 4vw, 46px) 84px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(260px, 0.55fr);
+        gap: clamp(28px, 7vw, 96px);
+        align-items: end;
+        padding-bottom: clamp(34px, 7vw, 72px);
+        border-bottom: 1px solid #e8e8e8;
+      }
+
+      .eyebrow {
+        margin: 0 0 14px;
+        color: #858585;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 850px;
+        margin: 0;
+        color: #101010;
+        font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+        font-size: clamp(42px, 8vw, 96px);
+        font-weight: 560;
+        letter-spacing: -0.07em;
+        line-height: 0.94;
+      }
+
+      .hero-copy {
+        margin: 0;
+        color: #5d5d5d;
+        font-size: clamp(14px, 1.5vw, 16px);
+        line-height: 1.9;
+      }
+
+      .hero-copy + .hero-copy {
+        margin-top: 12px;
+      }
+
+      .hero-copy strong {
+        color: #111111;
+      }
+
+      .palette-pair {
+        display: grid;
+        grid-template-columns: minmax(230px, 0.34fr) minmax(0, 1fr);
+        gap: clamp(24px, 5vw, 62px);
+        padding: clamp(34px, 6vw, 68px) 0;
+        border-bottom: 1px solid #ececec;
+      }
+
+      .palette-meta {
+        display: grid;
+        align-content: start;
+        gap: 18px;
+      }
+
+      .palette-kicker {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+
+      .palette-label {
+        color: #111111;
+        font-size: 46px;
+        font-weight: 620;
+        letter-spacing: -0.08em;
+        line-height: 1;
+      }
+
+      .palette-name {
+        color: #707070;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .palette-note {
+        max-width: 280px;
+        margin: 0;
+        color: #666666;
+        font-size: 13px;
+        line-height: 1.85;
+      }
+
+      .mode-index {
+        display: grid;
+        gap: 13px;
+        margin-top: 2px;
+      }
+
+      .mode-index-block {
+        display: grid;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid #eeeeee;
+      }
+
+      .mode-index-title {
+        color: #202020;
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .swatches {
+        display: grid;
+        gap: 7px;
+      }
+
+      .swatch {
+        display: grid;
+        grid-template-columns: 18px 56px minmax(0, 1fr);
+        gap: 9px;
+        align-items: center;
+        color: #777777;
+        font-family: "Cascadia Code", "JetBrains Mono", monospace;
+        font-size: 10.5px;
+        line-height: 1.2;
+      }
+
+      .dot {
+        width: 18px;
+        height: 18px;
+        border: 1px solid #dfdfdf;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .comparison {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        border: 1px solid #e7e7e7;
+        background: #ffffff;
+      }
+
+      .mode-sample {
+        --bg: #ffffff;
+        --ink: #111111;
+        --body: #333333;
+        --muted: #666666;
+        --quiet: #999999;
+        --line: #e6e6e6;
+        --accent: #111111;
+        --mark: #f5f5f5;
+        min-width: 0;
+        padding: clamp(24px, 4vw, 42px);
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      .mode-sample + .mode-sample {
+        border-left: 1px solid #e7e7e7;
+      }
+
+      .mode-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: clamp(34px, 5vw, 56px);
+        color: var(--quiet);
+        font-size: 11px;
+        font-weight: 760;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .mode-label span:last-child {
+        color: var(--muted);
+        font-family: "Cascadia Code", "JetBrains Mono", monospace;
+        font-weight: 500;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+
+      .sample-head {
+        display: grid;
+        gap: 18px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .title-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 20px;
+        align-items: start;
+      }
+
+      .sample-title {
+        max-width: 620px;
+        margin: 0;
+        color: var(--ink);
+        font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+        font-size: clamp(28px, 4.8vw, 54px);
+        font-weight: 560;
+        letter-spacing: -0.055em;
+        line-height: 1.04;
+      }
+
+      .sample-date {
+        color: var(--quiet);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+      }
+
+      .tag-row a {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+        text-decoration: none;
+      }
+
+      .sample-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(150px, 0.3fr);
+        gap: clamp(24px, 4vw, 48px);
+        padding-top: 24px;
+      }
+
+      .article-copy {
+        max-width: 680px;
+        color: var(--body);
+        font-size: clamp(15.5px, 1.55vw, 17px);
+        line-height: 1.95;
+      }
+
+      .article-copy p {
+        margin: 0 0 18px;
+      }
+
+      .article-copy a {
+        color: var(--accent);
+        text-decoration: underline;
+        text-decoration-color: color-mix(in oklab, var(--accent) 38%, transparent);
+        text-decoration-thickness: 0.08em;
+        text-underline-offset: 0.22em;
+      }
+
+      .note-line {
+        display: grid;
+        grid-template-columns: 82px minmax(0, 1fr);
+        gap: 18px;
+        margin-top: 24px;
+        padding-top: 11px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .note-line span:first-child {
+        color: var(--quiet);
+        font-family: "Cascadia Code", "JetBrains Mono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .side-text {
+        display: grid;
+        align-content: start;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .side-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+      }
+
+      .side-line strong {
+        color: var(--ink);
+        font-weight: 650;
+      }
+
+      .recommend {
+        display: grid;
+        gap: 12px;
+      }
+
+      .recommend a {
+        display: grid;
+        gap: 2px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+        color: var(--ink);
+        text-decoration: none;
+      }
+
+      .recommend small {
+        color: var(--quiet);
+        font-size: 11px;
+      }
+
+      .mode-foot {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 30px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+
+      .mode-foot div {
+        display: grid;
+        gap: 3px;
+      }
+
+      .mode-foot span {
+        color: var(--quiet);
+        font-family: "Cascadia Code", "JetBrains Mono", monospace;
+        font-size: 10.5px;
+      }
+
+      .mode-foot strong {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        padding-top: 34px;
+      }
+
+      .summary-item {
+        padding-top: 14px;
+        border-top: 1px solid #e8e8e8;
+      }
+
+      .summary-item h2 {
+        margin: 0 0 8px;
+        color: #111111;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .summary-item p {
+        margin: 0;
+        color: #666666;
+        font-size: 14px;
+        line-height: 1.8;
+      }
+
+      @media (max-width: 1060px) {
+        .palette-pair,
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .palette-note {
+          max-width: 640px;
+        }
+
+        .mode-index {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 860px) {
+        .comparison,
+        .sample-body,
+        .summary,
+        .mode-index {
+          grid-template-columns: 1fr;
+        }
+
+        .mode-sample + .mode-sample {
+          border-left: 0;
+          border-top: 1px solid #e7e7e7;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .title-row,
+        .mode-foot {
+          grid-template-columns: 1fr;
+        }
+
+        .sample-date {
+          white-space: normal;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Light / Dark typography palettes</p>
+          <h1>明暗模式字体配色对照</h1>
+        </div>
+        <div>
+          <p class="hero-copy">
+            每一组都是同一套气质的 <strong>明亮模式 + 黑暗模式</strong>。
+            明亮模式背景固定为 <strong>#FFFFFF</strong>；黑暗模式不使用纯黑，而是用更软的冷黑、石墨黑或蓝黑。
+          </p>
+          <p class="hero-copy">
+            这里仍然只是独立设计稿，不会影响真实文章页、网格页或筛选页。重点只看文字、标签、链接、线条和弱信息。
+          </p>
+        </div>
+      </section>
+
+      {
+        palettePairs.map((palette) => (
+          <section class="palette-pair" id={palette.id}>
+            <aside class="palette-meta">
+              <div class="palette-kicker">
+                <span class="palette-label">{palette.label}</span>
+                <span class="palette-name">{palette.name}</span>
+              </div>
+              <p class="palette-note">{palette.note}</p>
+              <div class="mode-index">
+                {modeNames.map((modeName) => {
+                  const tone = palette[modeName];
+                  return (
+                    <div class="mode-index-block">
+                      <span class="mode-index-title">{tone.name}</span>
+                      <div class="swatches" aria-label={`${tone.name} 色值`}>
+                        {toneRows.map((row) => (
+                          <div class="swatch">
+                            <span class="dot" style={`color: ${tone[row]}`} />
+                            <span>{row}</span>
+                            <span>{tone[row]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </aside>
+
+            <div class="comparison">
+              {modeNames.map((modeName) => {
+                const tone = palette[modeName];
+                const modeLabel = modeName === "light" ? "明亮模式" : "黑暗模式";
+                return (
+                  <article
+                    class="mode-sample"
+                    style={`
+                      --bg: ${tone.bg};
+                      --ink: ${tone.ink};
+                      --body: ${tone.body};
+                      --muted: ${tone.muted};
+                      --quiet: ${tone.quiet};
+                      --line: ${tone.line};
+                      --accent: ${tone.accent};
+                      --mark: ${tone.mark};
+                    `}
+                  >
+                    <div class="mode-label">
+                      <span>{modeLabel}</span>
+                      <span>{tone.bg}</span>
+                    </div>
+
+                    <header class="sample-head">
+                      <div class="title-row">
+                        <h2 class="sample-title">
+                          一个很长的文章标题，用来测试明暗模式下的标题重量和换行节奏
+                        </h2>
+                        <time class="sample-date" datetime="2026-05-24">2026.05.24</time>
+                      </div>
+                      <nav class="tag-row" aria-label="示例标签">
+                        {sampleTags.map((tag) => (
+                          <a href="#">{tag}</a>
+                        ))}
+                      </nav>
+                    </header>
+
+                    <div class="sample-body">
+                      <div class="article-copy">
+                        <p>
+                          这是一段正文示例。我们主要看标题、正文、辅助文字和链接之间的距离感：
+                          <a href="#">链接颜色</a>
+                          不能太跳，也不能弱到像普通正文。明暗模式要像同一套系统，而不是两个互不相干的页面。
+                        </p>
+                        <p>
+                          理想状态是标题清楚压住页面，正文稳定，日期、标签、目录、反链和推荐阅读安静地退到后面。
+                          黑暗模式需要避免纯黑压迫，白色模式需要避免灰度太浅导致发虚。
+                        </p>
+                        <div class="note-line">
+                          <span>Toc</span>
+                          <span>文章目录 / 章节标题 / 当前阅读位置</span>
+                        </div>
+                        <div class="note-line">
+                          <span>Back</span>
+                          <span>反向链接 12，只显示数字，不加圆形背景</span>
+                        </div>
+                      </div>
+
+                      <aside class="side-text">
+                        <div class="side-line">
+                          <span>目录</span>
+                          <strong>18</strong>
+                        </div>
+                        <div class="side-line">
+                          <span>反链</span>
+                          <strong>12</strong>
+                        </div>
+                        <div class="recommend">
+                          <a href="#">
+                            <span>推荐阅读文章标题</span>
+                            <small>同主题 · 2026.04.12</small>
+                          </a>
+                          <a href="#">
+                            <span>另一篇比较长的相关文章标题</span>
+                            <small>相关笔记 · 2025.11.03</small>
+                          </a>
+                        </div>
+                      </aside>
+                    </div>
+
+                    <div class="mode-foot">
+                      <div>
+                        <span>body</span>
+                        <strong>{tone.body}</strong>
+                      </div>
+                      <div>
+                        <span>muted</span>
+                        <strong>{tone.muted}</strong>
+                      </div>
+                      <div>
+                        <span>accent</span>
+                        <strong>{tone.accent}</strong>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ))
+      }
+
+      <section class="summary">
+        <div class="summary-item">
+          <h2>我会先看</h2>
+          <p>A 作为安全默认，D 作为最接近线性编辑版的方向，C/E 如果你想要一点蓝黑墨水感再考虑。</p>
+        </div>
+        <div class="summary-item">
+          <h2>避免方向</h2>
+          <p>明亮模式避免正文过浅；黑暗模式避免纯黑背景加纯白正文，那会显得硬、累、像终端。</p>
+        </div>
+        <div class="summary-item">
+          <h2>下一步</h2>
+          <p>你挑中一组后，我再单独做文章页、网格页、筛选页、时间线的明暗模式预览，不直接改真实页面。</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

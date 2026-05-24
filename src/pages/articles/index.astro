@@ -3,51 +3,35 @@ import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import { contentStructure } from "../../content.config";
 import Layout from "@/components/Layout.astro";
-import Breadcrumb from "@/components/Breadcrumb.astro";
 
-// 启用静态预渲染
 export const prerender = true;
 
-// 获取路径参数
+type ArticleEntry = CollectionEntry<"articles">;
+
 const path = Astro.props.path || "";
-const pathSegments = path ? path.split("/") : [];
-
-// 获取所有文章，并按日期排序
-const articles: CollectionEntry<"articles">[] = await getCollection("articles");
-
-// 获取内容结构
+const pathSegments = path ? path.split("/").filter(Boolean) : [];
+const articles: ArticleEntry[] = await getCollection("articles");
 const { sections } = contentStructure;
 
-// 根据路径获取当前目录
 function getCurrentSection(pathSegments: string[]) {
-  // 过滤掉空字符串
-  const filteredSegments = pathSegments.filter(
-    (segment) => segment.trim() !== "",
-  );
-
-  if (filteredSegments.length === 0) {
+  if (pathSegments.length === 0) {
     return { sections, articles: contentStructure.articles, currentPath: "" };
   }
 
   let currentSections = sections;
   let currentPath = "";
 
-  // 遍历路径段，逐级查找
-  for (let i = 0; i < filteredSegments.length; i++) {
-    const segment = filteredSegments[i];
-
-    // 查找当前段对应的目录
-    const foundSection = currentSections.find((s) => s.name === segment);
+  for (let i = 0; i < pathSegments.length; i++) {
+    const segment = pathSegments[i];
+    const foundSection = currentSections.find((section) => section.name === segment);
 
     if (!foundSection) {
       return { sections: [], articles: [], currentPath: "" };
     }
 
-    // 更新当前路径
     currentPath = currentPath ? `${currentPath}/${segment}` : segment;
 
-    // 如果是最后一个段，返回该目录的内容
-    if (i === filteredSegments.length - 1) {
+    if (i === pathSegments.length - 1) {
       return {
         sections: foundSection.sections,
         articles: foundSection.articles,
@@ -55,273 +39,204 @@ function getCurrentSection(pathSegments: string[]) {
       };
     }
 
-    // 否则继续向下查找
     currentSections = foundSection.sections;
   }
 
-  // 默认返回空
   return { sections: [], articles: [], currentPath: "" };
 }
 
-// 获取当前目录内容
+function formatDate(date: Date) {
+  return date.toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function getPrimaryTag(article: ArticleEntry) {
+  const tag = article.data.tags?.[0];
+  return tag ? `#${tag}` : "#note";
+}
+
+function getArticleHref(articleId: string) {
+  return `/articles/${articleId}`;
+}
+
 const {
   sections: currentSections,
   articles: currentArticles,
   currentPath,
 } = getCurrentSection(pathSegments);
 
-// 设置页面标题
-const pageTitle = currentPath ? currentPath : "文章列表";
+const pageTitle = currentPath || "文章列表";
+const parentPath = pathSegments.slice(0, -1).join("/");
+const parentHref = parentPath ? `/articles/${parentPath}/` : "/articles/";
 ---
 
 <Layout
-  title={`${pageTitle}`}
+  title={pageTitle}
   pageType="directory"
   description="文章列表"
   skipSrTitle={false}
 >
-  <!-- 传递head槽位 -->
-  <slot
-    name="head"
-    slot="head"
-  />
-
   <div class="article-index-shell">
-    <div class="article-index-pathbar">
-      <Breadcrumb
-        pageType="grid"
-        pathSegments={pathSegments}
-        path={currentPath}
-      />
-    </div>
+    <div class="browser">
+      <div class="pathbar">
+        <nav class="path" aria-label="文章路径">
+          <a href="/articles/" data-astro-prefetch="hover">文章</a>
+          {
+            pathSegments.map((segment, index) => {
+              const segmentPath = pathSegments.slice(0, index + 1).join("/");
 
-    <!-- 内容区域 - 只有这部分参与视图切换 -->
-    <div id="article-content">
-      <div class="article-index-entry-grid">
-          {/* 上一级目录卡片 - 仅在浏览目录时显示 */}
+              return (
+                <>
+                  <span aria-hidden="true">/</span>
+                  <a href={`/articles/${segmentPath}/`} data-astro-prefetch="hover">
+                    {segment}
+                  </a>
+                </>
+              );
+            })
+          }
+        </nav>
+      </div>
+
+      <div id="article-content">
+        <div class="explorer-grid">
           {
             pathSegments.length > 0 && (
               <a
-                href={`/articles/${pathSegments.length > 1 ? pathSegments.slice(0, -1).join("/") : ""}`}
-                class="article-index-entry-card article-index-directory-entry article-index-directory-entry-up"
+                href={parentHref}
+                class="node node-up no-summary"
                 data-astro-prefetch="hover"
               >
-                <div class="article-index-directory-body">
-                  <div class="article-index-directory-title-row">
-                    <span class="article-index-directory-icon">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M11 17l-5-5m0 0l5-5m-5 5h12"
-                        />
-                      </svg>
-                    </span>
-                    <div class="article-index-directory-title">
-                      返回上级目录
-                    </div>
+                <span class="node-kind">up</span>
+                <span class="node-icon" aria-hidden="true">
+                  <svg viewBox="0 0 48 40" fill="none">
+                    <path d="M7 13h34v21H7V13Z" stroke="currentColor" stroke-width="1.6" />
+                    <path d="M7 13l7-7h13l5 7" stroke="currentColor" stroke-width="1.6" />
+                    <path d="M24 26h-9m0 0 4-4m-4 4 4 4" stroke="currentColor" stroke-width="1.6" />
+                  </svg>
+                </span>
+                <div>
+                  <h2 class="node-title">返回上级</h2>
+                  <p class="node-summary" aria-hidden="true">占位</p>
+                  <div class="node-meta">
+                    <span>{parentPath || "articles"}</span>
+                    <span>上一级目录</span>
                   </div>
-                  <div class="article-index-directory-meta">返回上一级</div>
                 </div>
               </a>
             )
           }
 
-          {/* 目录卡片 */}
           {
             currentSections.map((section) => {
-              // 确保目录链接正确生成
               const dirLink = currentPath
                 ? `${currentPath}/${section.name}`
                 : section.name;
+              const meta = [
+                section.articles.length > 0 ? `${section.articles.length} 篇文章` : "",
+                section.sections.length > 0 ? `${section.sections.length} 个子目录` : "",
+              ].filter(Boolean);
 
               return (
                 <a
                   href={`/articles/${dirLink}/`}
-                  class="article-index-entry-card article-index-directory-entry"
+                  class="node node-folder no-summary"
                   data-astro-prefetch="viewport"
                 >
-                  <div class="article-index-directory-body">
-                    <div class="article-index-directory-title-row">
-                      <span class="article-index-directory-icon">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          class="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                      </span>
-                      <div class="article-index-directory-title">
-                        {section.name}
-                      </div>
-                    </div>
-                    <div class="article-index-directory-meta">
-                      {section.sections.length > 0 && (
-                        <span>{section.sections.length} 个子目录</span>
-                      )}
-                      {section.sections.length > 0 &&
-                        section.articles.length > 0 && <span>/</span>}
-                      {section.articles.length > 0 && (
-                        <span>{section.articles.length} 篇文章</span>
-                      )}
-                    </div>
-                  </div>
-                  <div class="article-index-directory-cue">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-4 w-4"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                        clip-rule="evenodd"
-                      />
+                  <span class="node-kind">dir</span>
+                  <span class="node-icon" aria-hidden="true">
+                    <svg viewBox="0 0 48 40" fill="none">
+                      <path d="M5 13h38v21H5V13Z" stroke="currentColor" stroke-width="1.6" />
+                      <path d="M5 13l7-7h13l5 7" stroke="currentColor" stroke-width="1.6" />
                     </svg>
+                  </span>
+                  <div>
+                    <h2 class="node-title">{section.name}</h2>
+                    <p class="node-summary" aria-hidden="true">占位</p>
+                    <div class="node-meta">
+                      {meta.map((item) => <span>{item}</span>)}
+                    </div>
                   </div>
                 </a>
               );
             })
           }
 
-          {/* 文章卡片 */}
           {
             currentArticles.map((articlePath) => {
-              // 获取文章ID - 不需要移除src/content前缀，因为contentStructure中已经是相对路径
-              const articleId = articlePath;
-
-              // 尝试匹配文章
-              const article = articles.find((a) => a.id === articleId);
+              const article = articles.find((entry) => entry.id === articlePath);
 
               if (!article) {
                 return (
                   <div class="article-index-missing-entry">
-                    <div class="article-index-missing-icon">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                        />
-                      </svg>
-                    </div>
                     <div class="article-index-missing-body">
                       <h3>文章不存在</h3>
                       <p>原始路径: {articlePath}</p>
-                      <p>文章ID: {articleId}</p>
-                      <p>当前目录: {currentPath}</p>
                     </div>
                   </div>
                 );
               }
 
+              const hasSummary = Boolean(article.data.summary);
+
               return (
-                <div class="article-card">
-                  <a
-                    href={`/articles/${article.id}`}
-                    class="article-card-link"
-                    data-astro-prefetch="viewport"
-                  >
-                    <div class="article-card-content">
-                      <div class="article-card-body">
-                        <div class="article-card-title-row">
-                          <span class="article-card-icon">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              class="h-5 w-5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                              />
-                            </svg>
-                          </span>
-                          <h3 class="article-card-title">
-                            {article.data.title}
-                          </h3>
-                        </div>
-                        <p
-                          class={article.data.summary ? "article-card-summary" : "article-card-summary article-card-summary-empty"}
-                        >
-                          {article.data.summary}
-                        </p>
-                        <div class="article-card-footer">
-                          <time
-                            datetime={article.data.date.toISOString()}
-                            class="article-card-date"
-                          >
-                            {article.data.date.toLocaleDateString("zh-CN", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
-                          </time>
-                          <span class="article-card-read-more">
-                            阅读全文
-                          </span>
-                        </div>
-                      </div>
+                <a
+                  href={getArticleHref(article.id)}
+                  class:list={["node", { "no-summary": !hasSummary }]}
+                  data-astro-prefetch="viewport"
+                >
+                  <span class="node-kind">md</span>
+                  <span class="node-icon" aria-hidden="true">
+                    <svg viewBox="0 0 40 44" fill="none">
+                      <path d="M9 4h15l7 7v29H9V4Z" stroke="currentColor" stroke-width="1.5" />
+                      <path d="M24 4v8h7" stroke="currentColor" stroke-width="1.5" />
+                      <path d="M14 20h12M14 26h12M14 32h7" stroke="currentColor" stroke-width="1.5" />
+                    </svg>
+                  </span>
+                  <div>
+                    <h2 class="node-title">{article.data.title}</h2>
+                    <p class="node-summary" aria-hidden={!hasSummary ? "true" : "false"}>
+                      {article.data.summary || "占位"}
+                    </p>
+                    <div class="node-meta">
+                      <time datetime={article.data.date.toISOString()}>
+                        {formatDate(article.data.date)}
+                      </time>
+                      <span>{getPrimaryTag(article)}</span>
                     </div>
-                  </a>
-                </div>
+                  </div>
+                </a>
               );
             })
           }
-      </div>
+        </div>
 
-      {/* 空内容提示 */}
-      {
-        currentSections.length === 0 && currentArticles.length === 0 && (
-          <div class="article-index-empty">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="article-index-empty-icon"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              />
-            </svg>
-            <h3>此目录为空</h3>
-            <p>
-              此目录下暂无内容，请浏览其他目录或返回上一级
-            </p>
-          </div>
-        )
-      }
+        {
+          currentSections.length === 0 && currentArticles.length === 0 && (
+            <div class="article-index-empty">
+              <svg
+                class="article-index-empty-icon"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                />
+              </svg>
+              <h3>此目录为空</h3>
+              <p>此目录下暂无内容，请浏览其他目录或返回上一级。</p>
+            </div>
+          )
+        }
+      </div>
     </div>
   </div>
 </Layout>

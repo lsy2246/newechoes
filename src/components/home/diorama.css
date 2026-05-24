@@ -65,6 +65,10 @@
   opacity: calc(0.14 - var(--home-progress) * 0.12);
 }
 
+.home-diorama[data-home-phase="room"] .home-diorama__veil {
+  opacity: 0;
+}
+
 [data-theme="dark"] .home-diorama__veil {
   background:
     radial-gradient(circle at 50% 24%, rgba(255, 241, 215, 0.05), transparent 30%),
@@ -85,7 +89,7 @@
 
 [data-theme="dark"] .home-story {
   color: #efe9dd;
-  background: #000000;
+  background: #111315;
 }
 
 .home-story__canvas {
@@ -400,7 +404,7 @@
 
 .story-material--terminal code::before {
   content: "> ";
-  color: #050505;
+  color: #101010;
 }
 
 .story-material--md {
@@ -429,8 +433,8 @@
 }
 
 .story-filetree span:first-child {
-  color: #050505;
-  background: rgba(5, 5, 5, 0.08);
+  color: #101010;
+  background: rgba(16, 16, 16, 0.07);
 }
 
 [data-theme="dark"] .story-filetree span {
@@ -439,8 +443,8 @@
 }
 
 [data-theme="dark"] .story-filetree span:first-child {
-  color: #d0ccd0;
-  background: rgba(208, 204, 208, 0.1);
+  color: #eef2f6;
+  background: rgba(238, 242, 246, 0.1);
 }
 
 .story-flow {

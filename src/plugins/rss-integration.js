@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
-import { readFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { SITE_URL, SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 import * as cheerio from 'cheerio';
+import { generateXmlViewStyles } from './xml-view-styles.js';
 
 // 转义XML特殊字符
 function escapeXml(unsafe) {
@@ -50,355 +51,8 @@ function generateRssXml(entries) {
 </rss>`;
 }
 
-// 生成RSS的XSLT样式表 - 根据内容类型返回不同样式
+// 生成RSS的XSLT样式表
 function generateRssXslt() {
-  // 共享的CSS样式
-  const sharedStyles = `
-    /* 基础样式 */
-    :root {
-      --background: #fff;
-      --text: #222;
-      --link: #0366d6;
-      --border: #eee;
-      --header-bg: #f8f9fa;
-      --article-bg: #fff;
-      --card-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      --code-bg: #f6f8fa;
-      --blockquote-border: #dfe2e5;
-    }
-    
-    /* 深色模式 */
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --background: #121212;
-        --text: #eee;
-        --link: #58a6ff;
-        --border: #333;
-        --header-bg: #222;
-        --article-bg: #1e1e1e;
-        --card-shadow: 0 1px 3px rgba(0,0,0,0.3);
-        --code-bg: #2d333b;
-        --blockquote-border: #444;
-      }
-    }
-    
-    /* 全局修复 */
-    * {
-      box-sizing: border-box;
-      max-width: 100%;
-    }
-    
-    img, svg, video, canvas, audio, iframe, embed, object {
-      display: block;
-      max-width: 100%;
-    }
-    
-    /* 正常样式 */
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--background);
-      color: var(--text);
-      margin: 0;
-      padding: 20px;
-      line-height: 1.6;
-      overflow-x: hidden;
-      width: 100%;
-    }
-    
-    .page-header {
-      background: var(--header-bg);
-      padding: 20px;
-      margin-bottom: 30px;
-      border-radius: 8px;
-      box-shadow: var(--card-shadow);
-      width: 100%;
-    }
-    
-    .page-header h1 {
-      margin: 0;
-      font-size: 24px;
-      color: var(--link);
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-    }
-    
-    a {
-      color: var(--link);
-      text-decoration: none;
-      word-break: break-word;
-      overflow-wrap: break-word;
-    }
-    
-    a:hover {
-      text-decoration: underline;
-    }
-    
-    .date-display {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 14px;
-      color: var(--text);
-      opacity: 0.7;
-    }
-    
-    /* 表格修复 */
-    table {
-      display: block;
-      overflow-x: auto;
-      width: 100%;
-      max-width: 100%;
-    }
-    
-    /* 代码块修复 */
-    pre {
-      overflow-x: auto;
-      max-width: 100%;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-    
-    code {
-      word-break: break-all;
-      word-wrap: break-word;
-      white-space: pre-wrap;
-    }
-    
-    /* 共享移动端适配 */
-    @media (max-width: 768px) {
-      body {
-        padding: 15px;
-        font-size: 15px;
-      }
-      
-      .page-header {
-        padding: 15px;
-        margin-bottom: 20px;
-      }
-      
-      .page-header h1 {
-        font-size: 20px;
-      }
-    }
-    
-    @media (max-width: 380px) {
-      body {
-        padding: 10px;
-        font-size: 14px;
-      }
-      
-      .page-header {
-        padding: 12px;
-        margin-bottom: 15px;
-        border-radius: 6px;
-      }
-      
-      .page-header h1 {
-        font-size: 18px;
-      }
-      
-      .date-display {
-        font-size: 12px;
-      }
-    }
-  `;
-
-  // 索引页特有样式
-  const indexStyles = `
-    body {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    .feed-info {
-      margin-bottom: 40px;
-    }
-    
-    .feed-info h2 {
-      margin: 0 0 15px 0;
-      color: var(--text);
-      font-size: 28px;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-    }
-    
-    .feed-info p {
-      margin: 10px 0;
-      color: var(--text);
-      opacity: 0.8;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-    }
-    
-    .articles {
-      list-style: none;
-      padding: 0;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 20px;
-    }
-    
-    .article {
-      background: var(--article-bg);
-      border: 1px solid var(--border);
-      margin-bottom: 5px;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: var(--card-shadow);
-      transition: transform 0.2s, box-shadow 0.2s;
-      overflow: hidden;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    
-    .article:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    
-    .article h3 {
-      margin: 0 0 15px 0;
-      font-size: 18px;
-      line-height: 1.4;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      width: 100%;
-    }
-    
-    .article h3 a {
-      word-break: break-word;
-    }
-    
-    .article-meta {
-      font-size: 14px;
-      color: var(--text);
-      opacity: 0.7;
-      margin-bottom: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 15px;
-      width: 100%;
-    }
-    
-    .article-description {
-      margin: 0;
-      font-size: 15px;
-      line-height: 1.5;
-      color: var(--text);
-      opacity: 0.9;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      width: 100%;
-      -webkit-hyphens: auto;
-      -ms-hyphens: auto;
-      hyphens: auto;
-      max-height: 4.5em;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      text-overflow: ellipsis;
-    }
-    
-    .rss-link {
-      display: inline-flex;
-      align-items: center;
-      margin-top: 5px;
-      font-size: 13px;
-      color: var(--link);
-      gap: 3px;
-      padding: 3px 8px;
-      border-radius: 4px;
-      background: rgba(0,102,204,0.08);
-    }
-    
-    .rss-link:hover {
-      background: rgba(0,102,204,0.15);
-    }
-
-    /* 移动端适配 */
-    @media (max-width: 768px) {
-      body {
-        padding: 15px;
-      }
-      
-      .feed-info {
-        margin-bottom: 25px;
-      }
-      
-      .feed-info h2 {
-        font-size: 22px;
-        line-height: 1.3;
-      }
-      
-      .articles {
-        grid-template-columns: 1fr;
-        gap: 15px;
-        width: 100%;
-      }
-
-      .article {
-        padding: 15px;
-        margin-bottom: 0;
-        width: auto;
-        max-width: 100%;
-      }
-
-      .article h3 {
-        font-size: 17px;
-        margin-bottom: 10px;
-      }
-      
-      .article-meta {
-        margin-bottom: 8px;
-        gap: 10px;
-      }
-
-      .article-description {
-        font-size: 14px;
-        -webkit-line-clamp: 2;
-        max-height: 3em;
-      }
-    }
-    
-    /* 超小屏幕设备适配 */
-    @media (max-width: 380px) {
-      body {
-        padding: 10px;
-        width: 100%;
-        box-sizing: border-box;
-        overflow-x: hidden;
-      }
-      
-      .feed-info h2 {
-        font-size: 20px;
-      }
-      
-      .article {
-        padding: 12px;
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-      }
-      
-      .article h3 {
-        font-size: 16px;
-        width: 100%;
-      }
-      
-      .article-meta {
-        font-size: 12px;
-        width: 100%;
-      }
-      
-      .article-description {
-        width: 100%;
-      }
-    }
-  `;
-
-  // 返回索引页模板
   return `<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0" 
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -412,46 +66,41 @@ function generateRssXslt() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
         <style>
-          ${sharedStyles}
-          ${indexStyles}
+          ${generateXmlViewStyles()}
         </style>
       </head>
       <body>
-        <div class="page-header">
-          <h1>RSS订阅</h1>
-        </div>
-        
-        <div class="feed-info">
-          <h2><xsl:value-of select="/rss/channel/title"/></h2>
-          <p><xsl:value-of select="/rss/channel/description"/></p>
-          <p>最后更新时间: <xsl:value-of select="/rss/channel/lastBuildDate"/></p>
-        </div>
-        
-        <ul class="articles">
-          <xsl:for-each select="/rss/channel/item">
-            <li class="article">
-              <h3>
-                <a href="{link}">
+        <div class="xml-page">
+          <header class="xml-header">
+            <div>
+              <p class="xml-kicker">rss.xml</p>
+              <h1 class="xml-title">RSS 订阅</h1>
+              <p class="xml-lede"><xsl:value-of select="/rss/channel/description"/></p>
+              <div class="xml-meta">
+                <span><xsl:value-of select="count(/rss/channel/item)" /> 篇文章</span>
+                <span>最后更新 <xsl:value-of select="/rss/channel/lastBuildDate"/></span>
+              </div>
+            </div>
+          </header>
+
+          <div class="xml-list">
+            <xsl:for-each select="/rss/channel/item">
+              <div class="xml-row rss-row">
+                <div class="xml-row-main">
+                  <a class="xml-row-title" href="{link}">
                   <xsl:value-of select="title"/>
-                </a>
-              </h3>
-              <div class="article-meta">
-                <span class="date-display">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                  </svg>
+                  </a>
+                  <div class="xml-summary">
+                    <xsl:value-of select="description" disable-output-escaping="yes"/>
+                  </div>
+                </div>
+                <div class="xml-row-meta">
                   <xsl:value-of select="substring-before(substring-after(pubDate, ', '), ' GMT')"/>
-                </span>
+                </div>
               </div>
-              <div class="article-description">
-                <xsl:value-of select="description" disable-output-escaping="yes"/>
-              </div>
-            </li>
-          </xsl:for-each>
-        </ul>
+            </xsl:for-each>
+          </div>
+        </div>
       </body>
     </html>
   </xsl:template>
@@ -629,4 +278,4 @@ export function rssIntegration() {
       }
     }
   };
-} 
+}

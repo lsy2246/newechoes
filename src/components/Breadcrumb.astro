@@ -583,7 +583,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
       });
       
       // 监听页面内容替换完成后更新面包屑
-      addListener(document, 'swup:contentReplaced', () => {
+      addListener(document, 'swup:content:replace', () => {
         if (state.isCleaningUp) return;
         setTimeout(() => {
           // 在DOM更新后，重新计算面包屑
@@ -784,7 +784,7 @@ const breadcrumbs: Breadcrumb[] = pathSegments
         }
         
         if (typeof window.swup !== 'undefined') {
-          addListener(document, 'swup:contentReplaced', pageLoadHandler);
+          addListener(document, 'swup:content:replace', pageLoadHandler);
         }
       }
     }

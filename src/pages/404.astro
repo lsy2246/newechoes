@@ -1,50 +1,37 @@
 ---
 import Layout from "@/components/Layout.astro";
+import NotFoundIllustration from "@/components/NotFoundIllustration.astro";
 ---
 
 <Layout
   title={`404 - 页面未找到`}
   description={`您访问的页面不存在或已被移动到其他位置`}
-  skipSrTitle={false}
+  hideFooter={true}
 >
   <section
     class="not-found-shell"
     aria-labelledby="not-found-title"
   >
-    <div class="not-found-entry">
-      <span
-        class="not-found-axis"
-        aria-hidden="true"
-      ></span>
-      <div class="not-found-content">
-        <p class="not-found-code">404</p>
-        <h2
-          id="not-found-title"
-          class="not-found-title"
-        >
-          页面未找到
-        </h2>
-        <p class="not-found-copy">
-          这个地址没有对应的页面，可能已经移动、删除，或者链接输入有误。
-        </p>
-        <nav
-          class="not-found-actions"
-          aria-label="404 页面操作"
-        >
-          <a
-            href="/"
-            class="not-found-action not-found-action-primary"
-          >
-            返回首页
-          </a>
-          <a
-            href="/articles/"
-            class="not-found-action"
-          >
-            浏览文章
-          </a>
-        </nav>
-      </div>
+    <div class="not-found-figure">
+      <NotFoundIllustration />
+    </div>
+
+    <div class="not-found-content">
+      <h1
+        id="not-found-title"
+        class="not-found-title"
+      >
+        404 Not Found
+      </h1>
+      <p class="not-found-copy">
+        你要找的页面不存在，或者已经被移动到别的地方。
+      </p>
+      <a
+        href="/"
+        class="not-found-action"
+      >
+        返回首页
+      </a>
     </div>
   </section>
 </Layout>

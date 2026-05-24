@@ -78,6 +78,5 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
 
   maybeInit();
   document.addEventListener("astro:page-load", maybeInit);
-  document.addEventListener("swup:contentReplaced", maybeInit);
   document.addEventListener("swup:page:view", maybeInit);
 </script>

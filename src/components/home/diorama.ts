@@ -104,9 +104,9 @@ const THEMES: Record<ThemeName, Theme> = {
     personHair: 0x241811,
     personCloth: 0x4a6a8a,
     screenBg: "#ffffff",
-    screenText: "#050505",
-    screenMuted: "#6f6a6f",
-    screenAccent: "#050505",
+    screenText: "#101010",
+    screenMuted: "#3f3f3f",
+    screenAccent: "#101010",
     keyTop: 0x2a2a30,
     windowFrame: 0x6b4a32,
     windowSill: 0xa27c54,
@@ -132,10 +132,10 @@ const THEMES: Record<ThemeName, Theme> = {
     personSkin: 0xa88060,
     personHair: 0x100a08,
     personCloth: 0x2a3a5a,
-    screenBg: "#000000",
-    screenText: "#d0ccd0",
-    screenMuted: "#aaa5aa",
-    screenAccent: "#d0ccd0",
+    screenBg: "#111315",
+    screenText: "#f5f7fa",
+    screenMuted: "#bdc5cf",
+    screenAccent: "#eef2f6",
     keyTop: 0x0e0e12,
     windowFrame: 0x2a1e14,
     windowSill: 0x3a2a1c,
@@ -1252,7 +1252,7 @@ export function initDiorama() {
     // radial dark bg (CRT feel)
     const bg = ctx.createRadialGradient(W / 2, H / 2, H * 0.1, W / 2, H / 2, H * 0.9);
     bg.addColorStop(0, "#2a2a2a");
-    bg.addColorStop(1, "#050505");
+    bg.addColorStop(1, "#111315");
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -2847,7 +2847,7 @@ export function initDiorama() {
 
   (window as unknown as Record<string, () => void>)[CLEANUP_KEY] = cleanup;
   document.addEventListener("astro:before-swap", cleanup, { once: true });
-  document.addEventListener("swup:willReplaceContent", cleanup, { once: true });
+  document.addEventListener("swup:visit:start", cleanup, { once: true });
 
   return cleanup;
 }

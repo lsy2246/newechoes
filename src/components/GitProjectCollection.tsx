@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { FC } from "react";
-import ReactMasonryCss from "react-masonry-css";
 
 // Git 平台类型枚举
 export enum GitPlatform {
@@ -327,12 +326,6 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
     return colors[colorIndex];
   };
 
-  const breakpointColumnsObj = {
-    default: 3,
-    1100: 2,
-    700: 1,
-  };
-
   const sortedProjects = useMemo(
     () => [...projects].sort(compareProjectsByStars),
     [projects],
@@ -425,152 +418,148 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
             </div>
           )}
 
-          <ReactMasonryCss
-            breakpointCols={breakpointColumnsObj}
-            className="flex -ml-4 w-auto"
-            columnClassName="pl-4 bg-clip-padding"
-          >
-            {sortedProjects.map((project) => (
-              <div
-                key={project.url}
-                className="git-project-card mb-4 overflow-hidden"
-              >
-                <a
-                  href={project.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block p-5"
+          <div className="git-project-grid">
+            {sortedProjects.map((project) => {
+              const displayLanguage = project.language?.trim() || "Unknown";
+
+              return (
+                <div
+                  key={project.url}
+                  className="git-project-card"
                 >
-                  <div className="flex items-start">
-                    <div className="git-project-platform-icon w-10 h-10 shrink-0 flex items-center justify-center">
-                      {getPlatformIcon(project.platform as GitPlatform)}
-                    </div>
-                    <div className="ml-3 flex-1">
-                      <div className="flex items-center">
-                        <img
-                          src={project.avatarUrl}
-                          alt={`${project.owner}'s avatar`}
-                          className="w-5 h-5 rounded-full mr-2"
-                          loading="lazy"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.onerror = null;
-                            target.src = "https://via.placeholder.com/40";
-                          }}
-                        />
-                        <span className="git-project-owner text-sm truncate">
-                          {project.owner}
-                        </span>
+                  <a
+                    href={project.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="git-project-card-link"
+                  >
+                    <div className="git-project-card-header">
+                      <div className="git-project-platform-icon">
+                        {getPlatformIcon(project.platform as GitPlatform)}
                       </div>
-
-                      <h3 className="git-project-name font-bold text-base line-clamp-1 mt-2">
-                        {project.name}
-                      </h3>
-
-                      <div className="h-12 mb-3">
-                        {project.description ? (
-                          <p className="git-project-description text-sm line-clamp-2">
-                            {project.description}
-                          </p>
-                        ) : (
-                          <p className="git-project-muted text-sm italic">
-                            暂无描述
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col gap-2 text-xs">
-                        {/* 第一行：语言、star、fork */}
-                        <div className="flex items-center gap-4 flex-wrap">
-                          {project.language && (
-                            <div className="flex items-center shrink-0">
-                              <span
-                                style={{
-                                  backgroundColor: getLanguageColor(
-                                    project.language,
-                                  ),
-                                  width: "0.75rem",
-                                  height: "0.75rem",
-                                  borderRadius: "9999px",
-                                  marginRight: "0.375rem",
-                                }}
-                              ></span>
-                              <span className="git-project-meta-text truncate max-w-30">
-                                {project.language}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex items-center shrink-0">
-                            <svg
-                              className="git-project-meta-icon w-4 h-4 mr-1.5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              aria-hidden="true"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-                              />
-                            </svg>
-                            <span className="git-project-meta-text">
-                              {project.stars}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center shrink-0">
-                            <svg
-                              className="git-project-meta-icon w-4 h-4 mr-1.5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              aria-hidden="true"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                              />
-                            </svg>
-                            <span className="git-project-meta-text">
-                              {project.forks}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* 第二行：更新时间（右对齐） */}
-                        <div className="flex items-center justify-end">
-                          <svg
-                            className="git-project-meta-icon w-4 h-4 mr-1.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          <span className="git-project-meta-text">
-                            {new Date(project.updatedAt).toLocaleDateString(
-                              "zh-CN",
-                            )}
+                      <div className="git-project-card-main">
+                        <div className="git-project-owner">
+                          <img
+                            src={project.avatarUrl}
+                            alt={`${project.owner}'s avatar`}
+                            className="git-project-avatar"
+                            loading="lazy"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.onerror = null;
+                              target.src = "https://via.placeholder.com/40";
+                            }}
+                          />
+                          <span>
+                            {project.owner}
                           </span>
                         </div>
+
+                        <h3 className="git-project-name">
+                          {project.name}
+                        </h3>
+
+                        <div className="git-project-description-wrap">
+                          {project.description ? (
+                            <p className="git-project-description">
+                              {project.description}
+                            </p>
+                          ) : (
+                            <p className="git-project-description git-project-description-empty">
+                              暂无描述
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="git-project-meta">
+                          {/* 第一行：语言、star、fork */}
+                          <div className="git-project-meta-row">
+                            <div className="git-project-language">
+                              <span
+                                className="git-project-language-dot"
+                                style={{
+                                  backgroundColor: getLanguageColor(displayLanguage),
+                                }}
+                              ></span>
+                              <span className="git-project-meta-text">
+                                {displayLanguage}
+                              </span>
+                            </div>
+
+                            <div className="git-project-stat">
+                              <svg
+                                className="git-project-meta-icon"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                                />
+                              </svg>
+                              <span className="git-project-meta-text">
+                                {project.stars}
+                              </span>
+                            </div>
+
+                            <div className="git-project-stat">
+                              <svg
+                                className="git-project-meta-icon"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                                />
+                              </svg>
+                              <span className="git-project-meta-text">
+                                {project.forks}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 第二行：更新时间（右对齐） */}
+                          <div className="git-project-date-row">
+                            <svg
+                              className="git-project-meta-icon"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              aria-hidden="true"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <time
+                              className="git-project-date"
+                              dateTime={project.updatedAt}
+                            >
+                              {new Date(project.updatedAt).toLocaleDateString(
+                                "zh-CN",
+                              )}
+                            </time>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </a>
-              </div>
-            ))}
-          </ReactMasonryCss>
+                  </a>
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
 

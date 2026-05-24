@@ -32,10 +32,13 @@ pnpm-debug.log*
 # vercel
 .vercel
 
-#helloagents
+# helloagents
 .helloagents/plan
 .helloagents/archive
 .helloagents/CHANGELOG.md
 
 # local temp files
 tmp/
+.superpowers/
+test-artifacts/
+diorama-checks/

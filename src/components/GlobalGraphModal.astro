@@ -259,7 +259,7 @@ const locationRoute = currentArticle
         <p class="global-graph-eyebrow">Site Index</p>
         <h2 id="global-graph-title">全站索引点群</h2>
         <p class="global-graph-subtitle">
-          左边按目录精确定位，右边用一组可拖拽的点呈现文章关系。拖动一个点时，相邻节点会被轻轻带动。
+          左边按文件树精确定位，右边用会轻微游动的点呈现文章关系。拖动节点时，相邻节点会被轻轻带动。
         </p>
       </div>
       <button
@@ -313,7 +313,7 @@ const locationRoute = currentArticle
         <div class="global-graph-panel-header">
           <div>
             <h3>2D 点群</h3>
-            <p>节点会按链接关系自然聚成簇。拖拽节点时，它会牵动相邻的一组点一起移动。</p>
+            <p>拖动画布浏览关系，拖动节点微调位置，点击节点进入文章。</p>
           </div>
           <span class="global-graph-drag-hint">Drag / Zoom</span>
         </div>
@@ -337,12 +337,6 @@ const locationRoute = currentArticle
             data-graph-tooltip
             hidden
           ></div>
-        </div>
-
-        <div class="global-graph-legend">
-          <span><i class="legend-dot legend-dot-root"></i> 入口</span>
-          <span><i class="legend-dot legend-dot-section"></i> 目录</span>
-          <span><i class="legend-dot legend-dot-article"></i> 文章</span>
         </div>
       </section>
     </div>

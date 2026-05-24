@@ -123,28 +123,31 @@ const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
             books.map((book) => (
               <div
                 key={book.link}
-                className="bg-white rounded-lg overflow-hidden shadow-md"
+                className="cover-card"
               >
-                <div className="relative pb-[150%] overflow-hidden">
+                <div className="cover-card-poster">
                   <img
                     src={book.imageUrl}
                     alt={book.title}
-                    className="absolute top-0 left-0 w-full h-full object-cover"
+                    className="cover-card-image"
                     loading="lazy"
                   />
-                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-linear-to-t from-black/80 to-transparent">
-                    <h3 className="font-bold text-white text-sm line-clamp-2">
-                      <a
-                        href={book.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {book.title}
-                      </a>
-                    </h3>
-                    <p className="text-white/80 text-xs mt-1 line-clamp-1">
-                      {book.author}
-                    </p>
+                  <div className="cover-card-overlay">
+                    <div className="cover-card-textStack">
+                      <h3 className="cover-card-titleBadge">
+                        <a
+                          href={book.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="cover-card-titleLink"
+                        >
+                          {book.title}
+                        </a>
+                      </h3>
+                      <p className="cover-card-meta">
+                        {book.author}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

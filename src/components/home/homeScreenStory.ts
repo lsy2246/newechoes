@@ -41,39 +41,39 @@ type Palette = {
 const PALETTES: Record<HomeScreenStoryTheme, Palette> = {
   light: {
     bg: "#ffffff",
-    bg2: "#fbfbfb",
-    paper: "rgba(5, 5, 5, 0.025)",
-    paperStrong: "rgba(5, 5, 5, 0.045)",
-    soft: "rgba(5, 5, 5, 0.035)",
-    text: "#050505",
-    muted: "rgba(5, 5, 5, 0.58)",
-    quiet: "rgba(5, 5, 5, 0.34)",
-    accent: "#050505",
-    accentSoft: "rgba(5, 5, 5, 0.07)",
+    bg2: "#ffffff",
+    paper: "rgba(16, 16, 16, 0.018)",
+    paperStrong: "rgba(16, 16, 16, 0.036)",
+    soft: "rgba(16, 16, 16, 0.026)",
+    text: "#101010",
+    muted: "#3f3f3f",
+    quiet: "#626262",
+    accent: "#101010",
+    accentSoft: "rgba(16, 16, 16, 0.06)",
     aiAccent: "#6f5fa6",
     aiAccentSoft: "rgba(111, 95, 166, 0.11)",
     aiLine: "rgba(111, 95, 166, 0.34)",
     aiFlow: "rgba(111, 95, 166, 0.58)",
-    line: "rgba(5, 5, 5, 0.14)",
-    shadow: "rgba(5, 5, 5, 0.06)",
+    line: "#dedede",
+    shadow: "rgba(16, 16, 16, 0.05)",
   },
   dark: {
-    bg: "#000000",
-    bg2: "#000000",
-    paper: "rgba(159, 154, 159, 0.045)",
-    paperStrong: "rgba(159, 154, 159, 0.075)",
-    soft: "rgba(159, 154, 159, 0.06)",
-    text: "#aaa5aa",
-    muted: "rgba(159, 154, 159, 0.68)",
-    quiet: "rgba(159, 154, 159, 0.48)",
-    accent: "#d0ccd0",
-    accentSoft: "rgba(208, 204, 208, 0.11)",
+    bg: "#111315",
+    bg2: "#111315",
+    paper: "rgba(245, 247, 250, 0.035)",
+    paperStrong: "rgba(245, 247, 250, 0.062)",
+    soft: "rgba(245, 247, 250, 0.048)",
+    text: "#f5f7fa",
+    muted: "#bdc5cf",
+    quiet: "#8f9aa7",
+    accent: "#eef2f6",
+    accentSoft: "rgba(238, 242, 246, 0.1)",
     aiAccent: "#b8aadf",
     aiAccentSoft: "rgba(184, 170, 223, 0.15)",
     aiLine: "rgba(184, 170, 223, 0.36)",
     aiFlow: "rgba(184, 170, 223, 0.62)",
-    line: "rgba(159, 154, 159, 0.18)",
-    shadow: "rgba(0, 0, 0, 0.32)",
+    line: "#30363d",
+    shadow: "rgba(17, 19, 21, 0.32)",
   },
 };
 
@@ -319,11 +319,11 @@ const drawConnector = (
 };
 
 const introTone = (theme: HomeScreenStoryTheme) => ({
-  bg: theme === "dark" ? "#000000" : "#ffffff",
-  ink: theme === "dark" ? "#aaa5aa" : "#050505",
-  muted: theme === "dark" ? "rgba(159, 154, 159, 0.62)" : "rgba(5, 5, 5, 0.52)",
-  quiet: theme === "dark" ? "rgba(159, 154, 159, 0.28)" : "rgba(5, 5, 5, 0.18)",
-  signal: theme === "dark" ? "#d0ccd0" : "#050505",
+  bg: theme === "dark" ? "#111315" : "#ffffff",
+  ink: theme === "dark" ? "#f5f7fa" : "#101010",
+  muted: theme === "dark" ? "#bdc5cf" : "#3f3f3f",
+  quiet: theme === "dark" ? "#8f9aa7" : "#626262",
+  signal: theme === "dark" ? "#eef2f6" : "#101010",
 });
 
 const drawIntroCover = (
@@ -386,6 +386,8 @@ const drawMobileStory = (
   const titleSize = clamp(width * 0.125, 140, 184);
   const bodySize = clamp(width * 0.045, 50, 68);
   const smallSize = clamp(width * 0.034, 38, 50);
+  const mobileInputNumberW = 34 * unit;
+  const mobileInputTitleMinSize = 9.2 * unit;
 
   const text = (
     value: string,
@@ -476,19 +478,26 @@ const drawMobileStory = (
   const activeInk = (active: boolean, aiSignal = false) => active ? (aiSignal ? palette.aiAccent : palette.accent) : palette.muted;
 
   const drawMobileRule = (x: number, y: number, w: number, active = false, aiSignal = false) => {
+    const ruleColor = active ? activeInk(true, aiSignal) : palette.muted;
+
     ctx.save();
-    ctx.strokeStyle = active ? activeInk(true, aiSignal) : palette.line;
-    ctx.globalAlpha *= active ? 0.78 : 0.62;
-    ctx.lineWidth = active ? 1.4 * unit : 1;
+    ctx.strokeStyle = ruleColor;
+    ctx.fillStyle = ruleColor;
+    ctx.globalAlpha *= active ? 0.78 : 0.58;
+    ctx.lineWidth = 1.35 * unit;
+    ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + w, y);
     ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + w + 10 * unit, y, 3.6 * unit, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   };
 
   const introHeroX = width * 0.5;
-  const introHeroY = height * 0.46;
+  const introHeroY = height * 0.49;
   const introHeroW = Math.min(width * 0.48, 210 * unit);
   const introHeroH = 142 * unit;
   const introFlowMotion = input.motion ?? progress;
@@ -496,10 +505,10 @@ const drawMobileStory = (
   const introSlotW = (safe.w - introSlotGap) / 2;
   const introSingleW = Math.min(safe.w * 0.48, introHeroW * 0.9);
   const introSlotH = 52 * unit;
-  const introTopPairY = introHeroY - introHeroH * 1.62;
-  const introTopSingleY = introHeroY - introHeroH * 1.04;
-  const introBottomSingleY = introHeroY + introHeroH * 0.84;
-  const introBottomPairY = introHeroY + introHeroH * 1.46;
+  const introTopPairY = introHeroY - introHeroH * 1.45;
+  const introTopSingleY = introHeroY - introHeroH * 0.9;
+  const introBottomSingleY = introHeroY + introHeroH * 0.74;
+  const introBottomPairY = introHeroY + introHeroH * 1.32;
   const introLabelRects = [
     { x: safe.x, y: introTopPairY, w: introSlotW, h: introSlotH },
     { x: safe.x + introSlotW + introSlotGap, y: introTopPairY + 16 * unit, w: introSlotW, h: introSlotH },
@@ -510,7 +519,7 @@ const drawMobileStory = (
   ];
   const mobileIntroSlots = introLabelRects.map((rect) => ({ ...rect }));
 
-  const drawMobileChapterTitle = (chapter: string, amount: number) => {
+  const drawMobileChapterTitle = (chapter: string, amount: number, nextChapter = chapter, nextAmount = 0) => {
     const heroSize = width * 0.25;
     const titleFont = "'Fraunces', 'Noto Serif SC', serif";
     const startX = introHeroX - measure("lsy", heroSize, titleFont, 500) / 2;
@@ -525,13 +534,32 @@ const drawMobileStory = (
     const y = lerp(startY, endY, titleYTravel);
     const chapterSize = smallSize * 1.08;
     const label = ` / ${chapter}`;
+    const nextLabel = ` / ${nextChapter}`;
     const labelX = x + measure("lsy", size, titleFont, 500) + 8 * unit;
     const labelReveal = phase(amount, 0.34, 0.72);
     const labelW = measure(label, chapterSize, "'JetBrains Mono', monospace", 700);
+    const nextLabelW = measure(nextLabel, chapterSize, "'JetBrains Mono', monospace", 700);
+    const handoff = nextChapter === chapter ? 0 : clamp(nextAmount);
 
     text("lsy", x, y, size, palette.text, titleFont, 500);
-    clipRect({ x: labelX, y: y - chapterSize * 1.2, w: labelW * labelReveal, h: chapterSize * 1.7 }, () => {
-      text(label, labelX, y, chapterSize, palette.accent, "'JetBrains Mono', monospace", 700);
+    if (handoff <= 0.001) {
+      clipRect({ x: labelX, y: y - chapterSize * 1.2, w: labelW * labelReveal, h: chapterSize * 1.7 }, () => {
+        text(label, labelX, y, chapterSize, palette.accent, "'JetBrains Mono', monospace", 700);
+      });
+      return;
+    }
+
+    const labelClipW = Math.max(labelW, nextLabelW) * labelReveal;
+    const currentLabelAlpha = 1 - phase(handoff, 0.16, 0.5);
+    const nextLabelAlpha = phase(handoff, 0.24, 0.58);
+
+    clipRect({ x: labelX, y: y - chapterSize * 1.2, w: labelClipW, h: chapterSize * 1.7 }, () => {
+      withAlpha(ctx, currentLabelAlpha, () => {
+        text(label, labelX, y, chapterSize, palette.accent, "'JetBrains Mono', monospace", 700);
+      });
+      withAlpha(ctx, nextLabelAlpha, () => {
+        text(nextLabel, labelX, y, chapterSize, palette.accent, "'JetBrains Mono', monospace", 700);
+      });
     });
   };
 
@@ -558,22 +586,22 @@ const drawMobileStory = (
   };
 
   const drawMobileIntroFlow = (rect: Rect, item: (typeof STORY_MATERIALS)[number], toward: 1 | -1, amount: number, index: number) => {
-    const introFlowGap = 18 * unit;
+    const introFlowGap = 10 * unit;
     const startX = rect.x + rect.w / 2;
     const introLabelTopY = rect.y + 2 * unit;
     const introLabelBottomY = rect.y + 39 * unit;
     const startY = toward === 1 ? introLabelBottomY + introFlowGap : introLabelTopY - introFlowGap;
-    const targetY = toward === 1 ? introHeroY - introHeroH * 0.28 : introHeroY + introHeroH * 0.26;
-    const targetX = introHeroX + (startX - introHeroX) * 0.12;
-    const controlY = (startY + targetY) / 2;
+    const targetY = toward === 1 ? introHeroY - introHeroH * 0.2 : introHeroY + introHeroH * 0.24;
+    const targetX = introHeroX + (startX - introHeroX) * 0.16;
     const isCenterIntroFlow = index === 2 || index === 3;
-    const side = startX < introHeroX ? -1 : 1;
-    const outerX = clamp(startX + side * 58 * unit, safe.x + 18 * unit, safe.x + safe.w - 18 * unit);
-    const outerPushY = toward === 1 ? 18 * unit : -18 * unit;
-    const targetPullY = toward === 1 ? 52 * unit : -52 * unit;
+    const side = Math.abs(startX - introHeroX) < 6 * unit ? index === 2 ? -1 : 1 : startX < introHeroX ? -1 : 1;
+    const introFlowBend = side * (isCenterIntroFlow ? 18 * unit : 30 * unit);
+    const firstControlX = startX + introFlowBend;
+    const secondControlX = targetX + introFlowBend * 0.45;
+    const travelY = targetY - startY;
     const flowColor = item.active ? palette.aiAccent : palette.muted;
 
-    withAlpha(ctx, amount * (item.active ? 0.86 : 0.66), () => {
+    withAlpha(ctx, amount * (item.active ? 0.8 : 0.38), () => {
       ctx.save();
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -581,25 +609,21 @@ const drawMobileStory = (
       const drawIntroFlowPath = () => {
         ctx.beginPath();
         ctx.moveTo(startX, startY);
-        if (isCenterIntroFlow) {
-          ctx.bezierCurveTo(startX, controlY, targetX, controlY, targetX, targetY);
-        } else {
-          ctx.bezierCurveTo(outerX, startY + outerPushY, outerX, targetY - targetPullY, targetX, targetY);
-        }
+        ctx.bezierCurveTo(firstControlX, startY + travelY * 0.28, secondControlX, startY + travelY * 0.74, targetX, targetY);
       };
 
       ctx.strokeStyle = flowColor;
-      ctx.globalAlpha *= item.active ? 0.62 : 0.58;
-      ctx.lineWidth = 1.65 * unit;
-      ctx.setLineDash([7 * unit, 8 * unit]);
+      ctx.globalAlpha *= item.active ? 0.5 : 0.34;
+      ctx.lineWidth = item.active ? 1.5 * unit : 1.15 * unit;
+      ctx.setLineDash([6 * unit, 10 * unit]);
       ctx.lineDashOffset = -introFlowMotion * 72 * unit;
       drawIntroFlowPath();
       ctx.stroke();
 
       ctx.strokeStyle = flowColor;
-      ctx.globalAlpha *= item.active ? 0.9 : 0.84;
-      ctx.lineWidth = item.active ? 2.25 * unit : 1.9 * unit;
-      ctx.setLineDash([5 * unit, 14 * unit]);
+      ctx.globalAlpha *= item.active ? 0.78 : 0.42;
+      ctx.lineWidth = item.active ? 2.05 * unit : 1.35 * unit;
+      ctx.setLineDash([5 * unit, 16 * unit]);
       ctx.lineDashOffset = -introFlowMotion * 118 * unit;
       drawIntroFlowPath();
       ctx.stroke();
@@ -610,19 +634,19 @@ const drawMobileStory = (
   };
 
   const drawMobileIntroMaterial = (rect: Rect, item: (typeof STORY_MATERIALS)[number], index: number, amount: number) => {
-    const materialMorph = phase(amount, 0.16, 0.84);
+    const materialMorph = phase(amount, 0.16, 0.52);
     const flowAmount = 1 - phase(materialMorph, 0.18, 0.62);
-    const numberAlpha = phase(materialMorph, 0.28, 0.62);
-    const detailAmount = phase(materialMorph, 0.52, 0.9);
+    const numberAlpha = phase(materialMorph, 0.18, 0.52);
+    const detailAmount = phase(materialMorph, 0.42, 0.88);
     const pad = lerp(0, 10 * unit, materialMorph);
     const ruleY = lerp(rect.y + 2 * unit, rect.y + 8 * unit, materialMorph);
     const ruleW = lerp(60 * unit, Math.min(rect.w * 0.34, 70 * unit), materialMorph);
     const ruleDotGap = 10 * unit;
-    const ruleStroke = item.active ? palette.aiAccent : palette.line;
+    const ruleStroke = item.active ? palette.aiAccent : palette.muted;
     const ruleLineWidth = lerp(1.35 * unit, item.active ? 1.4 * unit : 1 * unit, materialMorph);
     const ruleDotRadius = lerp(3.2 * unit, item.active ? 3.8 * unit : 3.2 * unit, materialMorph);
-    const numberW = lerp(0, 42 * unit, numberAlpha);
-    const titleSize = fitSize(item.tag, rect.w - pad * 2 - numberW, lerp(13 * unit, bodySize * 0.72, materialMorph), 11 * unit, "'JetBrains Mono', monospace", 700);
+    const numberW = lerp(0, mobileInputNumberW, numberAlpha);
+    const titleSize = fitSize(item.tag, rect.w - pad * 2 - numberW, lerp(13 * unit, bodySize * 0.72, materialMorph), mobileInputTitleMinSize, "'JetBrains Mono', monospace", 700);
 
     if (flowAmount > 0.01) {
       drawMobileIntroFlow(rect, item, index < 3 ? 1 : -1, flowAmount, index);
@@ -640,22 +664,20 @@ const drawMobileStory = (
         ctx.moveTo(rect.x + pad, ruleY);
         ctx.lineTo(rect.x + pad + ruleW, ruleY);
         ctx.stroke();
-        if (item.active) {
-          ctx.beginPath();
-          ctx.arc(rect.x + pad + ruleW + ruleDotGap, ruleY, ruleDotRadius, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        ctx.beginPath();
+        ctx.arc(rect.x + pad + ruleW + ruleDotGap, ruleY, ruleDotRadius, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
 
         if (numberAlpha > 0.2) {
           text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 34 * unit, smallSize * 0.56, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
         }
-        textFit(item.tag, rect.x + pad + numberW, rect.y + lerp(32 * unit, 35 * unit, materialMorph), titleSize, rect.w - pad * 2 - numberW, item.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700, 10.5 * unit);
+        textFit(item.tag, rect.x + pad + numberW, rect.y + lerp(32 * unit, 35 * unit, materialMorph), titleSize, rect.w - pad * 2 - numberW, item.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700, mobileInputTitleMinSize);
       });
 
       if (detailAmount > 0.01) {
         clipRect({ x: rect.x, y: rect.y + rect.h - 26 * unit, w: rect.w, h: 20 * unit * detailAmount }, () => {
-          wrapText(item.body, rect.w - pad * 2, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+          wrapText(item.body, mobileInputBodyWidth, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
             text(line, rect.x + pad, rect.y + rect.h - 14 * unit, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
           });
         });
@@ -680,7 +702,20 @@ const drawMobileStory = (
     const pad = lerp(10 * unit, 4 * unit, toMethod);
     const maxWidth = rect.w - pad * 2;
     const ruleW = lerp(Math.min(rect.w * 0.34, 70 * unit), 56 * unit, toMethod);
+    const ruleColor = item.active ? palette.aiAccent : palette.muted;
     const indexText = String(index + 1).padStart(2, "0");
+    const titleX = rect.x + pad + mobileInputNumberW;
+    const titleMaxWidth = Math.max(1, maxWidth - mobileInputNumberW);
+    const titleMinSize = mobileInputTitleMinSize;
+    const titleSize = fitSize(
+      item.title,
+      titleMaxWidth,
+      lerp(bodySize * 0.72, bodySize * 0.46, toMethod),
+      titleMinSize,
+      "'JetBrains Mono', monospace",
+      700,
+    );
+    const metaAlpha = 1 - phase(toMethod, 0.18, 0.64);
     const clip: Rect = {
       x: rect.x - 8 * unit,
       y: rect.y - 12 * unit,
@@ -689,33 +724,38 @@ const drawMobileStory = (
     };
 
     clipRect(clip, () => {
-      drawMobileRule(rect.x + pad, rect.y + 8 * unit, ruleW, item.active, item.active);
-      if (item.active) {
-        ctx.save();
-        ctx.fillStyle = palette.aiAccent;
-        ctx.beginPath();
-        ctx.arc(rect.x + pad + ruleW + 10 * unit, rect.y + 8 * unit, 3.8 * unit, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
+      ctx.save();
+      ctx.strokeStyle = ruleColor;
+      ctx.fillStyle = ruleColor;
+      ctx.lineCap = "round";
+      ctx.lineWidth = item.active ? 1.4 * unit : 1 * unit;
+      ctx.globalAlpha *= item.active ? 0.78 : 0.62;
+      ctx.beginPath();
+      ctx.moveTo(rect.x + pad, rect.y + 8 * unit);
+      ctx.lineTo(rect.x + pad + ruleW, rect.y + 8 * unit);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(rect.x + pad + ruleW + 10 * unit, rect.y + 8 * unit, 3.8 * unit, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
 
       text(indexText, rect.x + pad, rect.y + 34 * unit, smallSize * 0.56, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
-      textFit(
+      text(
         item.title,
-        rect.x + pad + 42 * unit,
+        titleX,
         rect.y + 35 * unit,
-        lerp(bodySize * 0.72, bodySize * 0.58, toMethod),
-        maxWidth - 42 * unit,
+        titleSize,
         item.active ? palette.aiAccent : palette.text,
         "'JetBrains Mono', monospace",
         700,
-        bodySize * 0.48,
       );
 
-      if (rect.h > 62 * unit) {
+      if (rect.h > 62 * unit && metaAlpha > 0.001) {
         const metaSize = smallSize * lerp(0.62, 0.54, toMethod);
-        wrapText(item.meta, maxWidth, metaSize, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
-          text(line, rect.x + pad, rect.y + rect.h - 14 * unit, metaSize, palette.muted, "'JetBrains Mono', monospace", 600);
+        withAlpha(ctx, metaAlpha, () => {
+          wrapText(item.meta, maxWidth, metaSize, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+            text(line, rect.x + pad, rect.y + rect.h - 14 * unit, metaSize, palette.muted, "'JetBrains Mono', monospace", 600);
+          });
         });
       }
     });
@@ -726,6 +766,7 @@ const drawMobileStory = (
     track: (typeof STORY_TRACKS)[number],
     index: number,
     amount: number,
+    textReveal = 1,
   ) => {
     const pad = 8 * unit;
     const maxWidth = rect.w - pad * 2;
@@ -733,11 +774,234 @@ const drawMobileStory = (
 
     clipRect({ x: rect.x - 8 * unit, y: rect.y - 10 * unit, w: rect.w + 16 * unit, h: revealH + 20 * unit }, () => {
       drawMobileRule(rect.x + pad, rect.y + 8 * unit, rect.w * 0.28, index === 1, index === 1);
-      text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 36 * unit, smallSize * 0.62, index === 1 ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
-      textFit(track.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, index === 1 ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
-      textFit(track.title, rect.x + pad, rect.y + 79 * unit, bodySize * 0.64, maxWidth, index === 1 ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.48);
+      withAlpha(ctx, textReveal, () => {
+        text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 36 * unit, smallSize * 0.62, index === 1 ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+        textFit(track.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, index === 1 ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+        textFit(track.title, rect.x + pad, rect.y + 79 * unit, bodySize * 0.64, maxWidth, index === 1 ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.48);
+        wrapText(track.note, maxWidth, smallSize * 0.54, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+          text(line, rect.x + pad, rect.y + 108 * unit, smallSize * 0.54, palette.muted, "'JetBrains Mono', monospace", 600);
+        });
+      });
+    });
+  };
+
+  type MobileClassifyMorphPair = {
+    sourceRect: Rect;
+    targetRect: Rect;
+    item: MobileInputCard;
+    material: (typeof STORY_MATERIALS)[number];
+    index: number;
+  };
+
+  const drawMobileClassifyMorphGroup = (
+    rect: Rect,
+    track: (typeof STORY_TRACKS)[number],
+    index: number,
+    amount: number,
+    pairs: MobileClassifyMorphPair[],
+  ) => {
+    const pad = 8 * unit;
+    const maxWidth = rect.w - pad * 2;
+    const pairTravel = phase(amount, 0.02, 0.56);
+    const pairFusion = phase(amount, 0.28, 0.66);
+    const titleExtract = phase(amount, 0.44, 0.82);
+    const noteRewrite = phase(amount, 0.76, 1);
+    const ruleBridgeAmount = fade(amount, 0.04, 0.24, 0.46, 0.68);
+    const groupRuleAmount = phase(amount, 0.2, 0.64);
+    const sourceIdentityAmount = 1 - phase(amount, 0.58, 0.86);
+    const ruleY = rect.y + 8 * unit;
+    const ruleColor = index === 1 ? palette.aiAccent : palette.muted;
+    const finalNumberY = rect.y + 36 * unit;
+    const finalTitleY = rect.y + 79 * unit;
+    const gatheredPairs = pairs.map((pair) => {
+      const travelRect = moveRect(pair.sourceRect, pair.targetRect, pairTravel);
+      const sourceRect = {
+        ...travelRect,
+        w: lerp(pair.sourceRect.w, pair.targetRect.w, pairFusion),
+        h: lerp(pair.sourceRect.h, pair.targetRect.h, pairFusion),
+      };
+      const pairPad = lerp(10 * unit, 4 * unit, pairFusion);
+      const pairRuleW = lerp(Math.min(sourceRect.w * 0.34, 70 * unit), 56 * unit, pairFusion);
+      const pairRuleColor = pair.item.active ? palette.aiAccent : palette.muted;
+      const titleX = sourceRect.x + pairPad + mobileInputNumberW;
+      const titleY = sourceRect.y + 35 * unit;
+      const titleMaxWidth = Math.max(1, sourceRect.w - pairPad * 2 - mobileInputNumberW);
+      const titleSize = fitSize(
+        pair.item.title,
+        titleMaxWidth,
+        lerp(bodySize * 0.72, bodySize * 0.44, pairFusion),
+        mobileInputTitleMinSize,
+        "'JetBrains Mono', monospace",
+        700,
+      );
+
+      return {
+        pair,
+        sourceRect,
+        pairPad,
+        pairRuleW,
+        pairRuleColor,
+        titleX,
+        titleY,
+        titleMaxWidth,
+        titleSize,
+      };
+    });
+    const firstHeaderX = gatheredPairs[0] ? gatheredPairs[0].sourceRect.x + gatheredPairs[0].pairPad : rect.x + pad;
+    const firstHeaderY = gatheredPairs[0] ? gatheredPairs[0].sourceRect.y + 34 * unit : finalNumberY;
+    const groupHeaderX = lerp(firstHeaderX, rect.x + pad, titleExtract);
+    const groupHeaderY = lerp(firstHeaderY, finalNumberY, titleExtract);
+    const groupTitleX = lerp(gatheredPairs[0]?.titleX ?? rect.x + pad, rect.x + pad, titleExtract);
+    const groupTitleY = lerp(gatheredPairs[0]?.titleY ?? finalTitleY, finalTitleY, titleExtract);
+    const groupTextWidth = maxWidth;
+    const groupHeaderAmount = phase(amount, 0.52, 0.86);
+    const groupNoteY = lerp(groupTitleY + 30 * unit, rect.y + 108 * unit, noteRewrite);
+    const titleFont = "'Fraunces', 'Noto Serif SC', serif";
+    const titleWords = track.title.split(" / ");
+    const finalTitleSize = fitSize(track.title, maxWidth, bodySize * 0.64, bodySize * 0.48, titleFont, 600);
+    const pairTitleFragments = gatheredPairs.map(({ pair, titleX, titleY, titleMaxWidth }, pairIndex) => {
+      const compactTitle = titleWords[pairIndex] ?? pair.item.title.split(" ")[0] ?? pair.item.title;
+      const compactWidth = measure(compactTitle, finalTitleSize, titleFont, 600);
+
+      return {
+        compactTitle,
+        compactWidth,
+        titleX,
+        titleY,
+        titleMaxWidth,
+        color: pair.item.active ? palette.aiAccent : palette.text,
+      };
+    });
+    const leftTitle = pairTitleFragments[0];
+    const rightTitle = pairTitleFragments[1];
+    const slashWidth = measure("/", finalTitleSize, titleFont, 600);
+    const slashGap = 8 * unit;
+    const slashX = groupTitleX + (leftTitle?.compactWidth ?? 0) + slashGap;
+    const rightTitleTargetX = slashX + slashWidth + slashGap;
+    const sourceTitleAmount = 1 - phase(titleExtract, 0.1, 0.5);
+    const compactTitleAmount = phase(titleExtract, 0.18, 0.62);
+    const slashAmount = phase(titleExtract, 0.38, 0.86);
+    const drawRuleBridgePath = (sourceRect: Rect, pairPad: number, pairRuleW: number, active: boolean, pairIndex: number) => {
+      if (ruleBridgeAmount <= 0.001) return;
+      const startX = sourceRect.x + pairPad + pairRuleW + 10 * unit;
+      const startY = sourceRect.y + 8 * unit;
+      const groupRuleW = lerp(rect.w * 0.18, rect.w * 0.28, pairFusion);
+      const endX = rect.x + pad + groupRuleW + 10 * unit;
+      const endY = ruleY;
+      const side = pairIndex % 2 === 0 ? -1 : 1;
+      const controlX = (startX + endX) / 2 + side * 16 * unit;
+      const controlY = (startY + endY) / 2 - 18 * unit;
+
+      withAlpha(ctx, ruleBridgeAmount * (active ? 0.62 : 0.42), () => {
+        ctx.save();
+        ctx.strokeStyle = active ? palette.aiAccent : palette.muted;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.lineWidth = active ? 1.7 * unit : 1.35 * unit;
+        ctx.setLineDash([5 * unit, 10 * unit]);
+        ctx.lineDashOffset = -introFlowMotion * 92 * unit;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo(controlX, controlY, endX, endY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.lineDashOffset = 0;
+        ctx.restore();
+      });
+    };
+
+    gatheredPairs.forEach(({ pair, sourceRect, pairPad, pairRuleW, pairRuleColor, titleX, titleY, titleMaxWidth, titleSize }) => {
+      const metaAmount = (1 - phase(pairFusion, 0.46, 0.9)) * sourceIdentityAmount;
+
+      if (sourceIdentityAmount > 0.001) {
+        ctx.save();
+        ctx.strokeStyle = pairRuleColor;
+        ctx.fillStyle = pairRuleColor;
+        ctx.lineCap = "round";
+        ctx.lineWidth = pair.item.active ? 1.4 * unit : 1 * unit;
+        ctx.globalAlpha *= (pair.item.active ? 0.78 : 0.62) * sourceIdentityAmount;
+        ctx.beginPath();
+        ctx.moveTo(sourceRect.x + pairPad, sourceRect.y + 8 * unit);
+        ctx.lineTo(sourceRect.x + pairPad + pairRuleW, sourceRect.y + 8 * unit);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(sourceRect.x + pairPad + pairRuleW + 10 * unit, sourceRect.y + 8 * unit, 3.8 * unit, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      drawRuleBridgePath(sourceRect, pairPad, pairRuleW, pair.item.active, pair.index);
+
+      if (sourceIdentityAmount > 0.001) {
+        withAlpha(ctx, sourceIdentityAmount, () => {
+          clipRect({ x: sourceRect.x + pairPad, y: sourceRect.y + 14 * unit, w: sourceRect.w - pairPad * 2, h: sourceRect.h }, () => {
+            text(String(pair.index + 1).padStart(2, "0"), sourceRect.x + pairPad, sourceRect.y + 34 * unit, smallSize * 0.56, pair.item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+          });
+        });
+      }
+      withAlpha(ctx, sourceTitleAmount * sourceIdentityAmount, () => {
+        clipRect({ x: titleX, y: titleY - bodySize, w: titleMaxWidth, h: bodySize * 1.5 }, () => {
+          text(pair.item.title, titleX, titleY, titleSize, pair.item.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700);
+        });
+      });
+
+      if (sourceRect.h > 62 * unit && metaAmount > 0.001) {
+        withAlpha(ctx, metaAmount, () => {
+          const metaSize = smallSize * lerp(0.56, 0.54, pairFusion);
+          wrapText(pair.item.meta, mobileInputBodyWidth, metaSize, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+            text(line, sourceRect.x + pairPad, sourceRect.y + sourceRect.h - 14 * unit, metaSize, palette.muted, "'JetBrains Mono', monospace", 600);
+          });
+        });
+      }
+    });
+
+    withAlpha(ctx, groupRuleAmount, () => {
+      ctx.save();
+      ctx.strokeStyle = ruleColor;
+      ctx.fillStyle = ruleColor;
+      ctx.lineCap = "round";
+      ctx.lineWidth = index === 1 ? 1.4 * unit : 1 * unit;
+      ctx.globalAlpha *= index === 1 ? 0.78 : 0.62;
+      ctx.beginPath();
+      ctx.moveTo(rect.x + pad, ruleY);
+      ctx.lineTo(rect.x + pad + lerp(rect.w * 0.18, rect.w * 0.28, pairFusion), ruleY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(rect.x + pad + lerp(rect.w * 0.18, rect.w * 0.28, pairFusion) + 10 * unit, ruleY, 3.8 * unit, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+
+    withAlpha(ctx, groupHeaderAmount, () => {
+      clipRect({ x: groupHeaderX, y: groupHeaderY - bodySize, w: groupTextWidth, h: bodySize * 1.5 }, () => {
+        text(String(index + 1).padStart(2, "0"), groupHeaderX, groupHeaderY, smallSize * 0.62, index === 1 ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+        textFit(track.label, groupHeaderX + 50 * unit, groupHeaderY, smallSize * 0.58, maxWidth - 50 * unit, index === 1 ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+      });
+    });
+    clipRect({ x: groupTitleX, y: groupTitleY - bodySize, w: groupTextWidth, h: bodySize * 1.6 }, () => {
+      if (leftTitle) {
+        const leftX = lerp(leftTitle.titleX, groupTitleX, titleExtract);
+        const leftY = lerp(leftTitle.titleY, groupTitleY, titleExtract);
+        const leftClipW = lerp(leftTitle.titleMaxWidth, leftTitle.compactWidth, titleExtract);
+        clipRect({ x: leftX, y: leftY - bodySize, w: leftClipW * compactTitleAmount, h: bodySize * 1.6 }, () => {
+          text(leftTitle.compactTitle, leftX, leftY, finalTitleSize, leftTitle.color, titleFont, 600);
+        });
+      }
+      if (rightTitle) {
+        const rightX = lerp(rightTitle.titleX, rightTitleTargetX, titleExtract);
+        const rightY = lerp(rightTitle.titleY, groupTitleY, titleExtract);
+        const rightClipW = lerp(rightTitle.titleMaxWidth, rightTitle.compactWidth, titleExtract);
+        clipRect({ x: rightX, y: rightY - bodySize, w: rightClipW * compactTitleAmount, h: bodySize * 1.6 }, () => {
+          text(rightTitle.compactTitle, rightX, rightY, finalTitleSize, rightTitle.color, titleFont, 600);
+        });
+      }
+      withAlpha(ctx, slashAmount, () => {
+        text("/", slashX, groupTitleY, finalTitleSize, index === 1 ? palette.aiAccent : palette.text, titleFont, 600);
+      });
+    });
+    withAlpha(ctx, noteRewrite, () => {
       wrapText(track.note, maxWidth, smallSize * 0.54, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
-        text(line, rect.x + pad, rect.y + 108 * unit, smallSize * 0.54, palette.muted, "'JetBrains Mono', monospace", 600);
+        text(line, groupTitleX, groupNoteY, smallSize * 0.54, palette.muted, "'JetBrains Mono', monospace", 600);
       });
     });
   };
@@ -749,12 +1013,20 @@ const drawMobileStory = (
     amount = 1,
     showSourceText = false,
     detailReveal = 1,
+    textReveal = amount,
   ) => {
     const pad = lerp(7 * unit, 8 * unit, amount);
     const maxWidth = rect.w - pad * 2;
     const sourceTrack = STORY_TRACKS[row.from];
-    const sourceTextClip = showSourceText ? 1 - phase(amount, 0.1, 0.3) : 0;
-    const workTextClip = showSourceText ? phase(amount, 0.42, 0.72) : phase(amount, 0.08, 0.42);
+    const textAmount = showSourceText ? amount : textReveal;
+    const sourceTextAlpha = showSourceText ? 1 - phase(amount, 0.14, 0.32) : 0;
+    const workTextAlpha = showSourceText ? phase(amount, 0.24, 0.52) : phase(textAmount, 0.08, 0.42);
+    const headerSourceAlpha = showSourceText ? 1 - phase(amount, 0.16, 0.34) : 0;
+    const headerWorkAlpha = showSourceText ? phase(amount, 0.38, 0.58) : 0;
+    const handoffHeaderAlpha = showSourceText ? fade(amount, 0.12, 0.18, 0.62, 0.78) : 0;
+    const headerNumberAlpha = Math.max(headerSourceAlpha, headerWorkAlpha, handoffHeaderAlpha);
+    const workTitleSize = bodySize * lerp(0.62, 0.68, amount);
+    const workBodyY = Math.min(rect.y + 132 * unit, rect.y + rect.h - 16 * unit);
     const clip: Rect = {
       x: rect.x - 8 * unit,
       y: rect.y - 10 * unit,
@@ -765,21 +1037,35 @@ const drawMobileStory = (
     clipRect(clip, () => {
       drawMobileRule(rect.x + pad, rect.y + 8 * unit, rect.w * 0.28, row.active, row.active);
 
-      clipRect({ x: rect.x, y: rect.y, w: rect.w * sourceTextClip, h: rect.h }, () => {
-        text(String(row.from + 1).padStart(2, "0"), rect.x + pad, rect.y + 36 * unit, smallSize * 0.62, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
-        textFit(sourceTrack.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, row.active ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+      if (showSourceText && headerNumberAlpha > 0.001) {
+        withAlpha(ctx, headerNumberAlpha, () => {
+          text(String(row.from + 1).padStart(2, "0"), rect.x + pad, rect.y + 36 * unit, smallSize * 0.62, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+        });
+        withAlpha(ctx, headerSourceAlpha, () => {
+          textFit(sourceTrack.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, row.active ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+        });
+        withAlpha(ctx, headerWorkAlpha, () => {
+          textFit(row.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+        });
+      }
+
+      withAlpha(ctx, sourceTextAlpha, () => {
         textFit(sourceTrack.title, rect.x + pad, rect.y + 79 * unit, bodySize * 0.64, maxWidth, row.active ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.48);
+        wrapText(sourceTrack.note, maxWidth, smallSize * 0.54, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+          text(line, rect.x + pad, rect.y + 108 * unit, smallSize * 0.54, palette.muted, "'JetBrains Mono', monospace", 600);
+        });
       });
 
-      clipRect({ x: rect.x, y: rect.y, w: rect.w * workTextClip, h: rect.h }, () => {
-        text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 36 * unit, smallSize * 0.62, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
-        textFit(row.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
-        textFit(row.title, rect.x + pad, rect.y + 79 * unit, bodySize * 0.72, maxWidth, row.active ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.54);
+      withAlpha(ctx, workTextAlpha, () => {
+        if (!showSourceText) {
+          text(String(index + 1).padStart(2, "0"), rect.x + pad, rect.y + 36 * unit, smallSize * 0.62, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+          textFit(row.label, rect.x + pad + 50 * unit, rect.y + 36 * unit, smallSize * 0.58, maxWidth - 50 * unit, palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
+        }
+        textFit(row.title, rect.x + pad, rect.y + 79 * unit, workTitleSize, maxWidth, row.active ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.54);
         if (rect.h > 92 * unit) {
-          const bodyY = Math.min(rect.y + 112 * unit, rect.y + rect.h - 32 * unit);
-          clipRect({ x: rect.x, y: bodyY - smallSize, w: rect.w, h: smallSize * 1.5 * detailReveal }, () => {
+          clipRect({ x: rect.x, y: workBodyY - smallSize, w: rect.w, h: smallSize * 1.5 * detailReveal }, () => {
             wrapText(row.body, maxWidth, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
-              text(line, rect.x + pad, bodyY, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
+              text(line, rect.x + pad, workBodyY, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
             });
           });
         }
@@ -792,6 +1078,45 @@ const drawMobileStory = (
         }
       });
     });
+  };
+
+  const drawMobileClassifyToWorkMorph = (amount: number) => {
+    const classifyHandoff = phase(amount, 0.08, 0.38);
+    const sideFold = classifyHandoff;
+    const sideFade = classifyHandoff;
+    const sideMove = classifyHandoff;
+    const centerRewrite = classifyHandoff;
+    const splitAmount = phase(amount, 0.2, 0.78);
+    const centerRect = moveRect(centerClassifyRect, workRects[1], amount);
+
+    STORY_TRACKS.forEach((track, index) => {
+      if (index === 1) return;
+      if (sideFold >= 0.999 && sideFade >= 0.999) return;
+      const sink = {
+        x: centerClassifyRect.x + centerClassifyRect.w * 0.5,
+        y: centerClassifyRect.y + centerClassifyRect.h * 0.5,
+        w: 2 * unit,
+        h: 2 * unit,
+      };
+      const trackRect = moveRect(mobileTrackRects[index], sink, sideMove);
+
+      withAlpha(ctx, 1 - sideFade, () => {
+        drawMobileClassifyMorphGroup(trackRect, track, index, 1, groupPairs[index]);
+      });
+    });
+
+    workRows.forEach((row, index) => {
+      if (index === 1) return;
+      const rowSplit = phase(splitAmount, index === 0 ? 0.06 : 0.14, index === 0 ? 0.82 : 0.9);
+      if (rowSplit <= 0.001) return;
+      const sourceRect = centerRect;
+      const rowRect = moveRect(sourceRect, workRects[index], rowSplit);
+      const rowTextReveal = phase(rowSplit, 0.46, 0.84);
+
+      drawMobileEditorialWork(rowRect, row, index, rowSplit, false, rowSplit, rowTextReveal);
+    });
+
+    drawMobileEditorialWork(centerRect, workRows[1], 1, centerRewrite, true, 1);
   };
 
   const drawMobileEditorialSnapshot = (rect: Rect, label: string, title: string, body: string, active = false) => {
@@ -821,6 +1146,7 @@ const drawMobileStory = (
 
   const gap = 18 * unit;
   const cardW = (safe.w - gap) / 2;
+  const mobileInputBodyWidth = cardW - 20 * unit;
   const cardH = clamp(safe.h * 0.13, 78 * unit, 96 * unit);
   const inputCards = STORY_MATERIALS.map((item) => ({
     label: STORY_TRACKS[item.group].label,
@@ -848,6 +1174,21 @@ const drawMobileStory = (
     w: safe.w - 4 * unit,
     h: mobileTrackH,
   }));
+  const mobileClassifyMaterialSlots = STORY_MATERIALS.map((item, index) => {
+    const track = mobileTrackRects[item.group];
+    const pairIndexes = STORY_MATERIALS.map((candidate, candidateIndex) => (candidate.group === item.group ? candidateIndex : -1)).filter((candidateIndex) => candidateIndex >= 0);
+    const pairIndex = Math.max(0, pairIndexes.indexOf(index));
+    const slotGap = 10 * unit;
+    const slotW = (track.w - slotGap - 16 * unit) / 2;
+    const slotH = Math.min(54 * unit, Math.max(44 * unit, track.h * 0.42));
+
+    return {
+      x: track.x + 8 * unit + pairIndex * (slotW + slotGap),
+      y: track.y + track.h - slotH - 8 * unit,
+      w: slotW,
+      h: slotH,
+    };
+  });
   const workGapY = 16 * unit;
   const rowH = Math.min(clamp(safe.h * 0.185, 126 * unit, 152 * unit), (safe.h - 112 * unit - workGapY * 2) / 3);
   const workRows = STORY_WORK_ROWS;
@@ -865,21 +1206,28 @@ const drawMobileStory = (
   };
   const todayPad = 26 * unit;
   const todayTop = todayRect.y + todayPad;
-  const todayStatusTop = todayRect.y + todayRect.h - 62 * unit;
-  const todayPanelGap = 9 * unit;
-  const todayBuildTop = todayTop + 228 * unit;
-  const todayBuildH = 66 * unit;
-  const todayPanelTop = todayBuildTop + todayBuildH + 34 * unit;
-  const todayPanelH = Math.min(68 * unit, Math.max(56 * unit, (todayStatusTop - todayPanelTop - todayPanelGap - 14 * unit) / 2));
+  const todayStatusTop = todayRect.y + todayRect.h - 52 * unit;
+  const todayHeroNameY = todayTop + 90 * unit;
+  const todayHeroRoleY = todayHeroNameY + 52 * unit;
+  const todayHeroSummaryY = todayHeroRoleY + 32 * unit;
+  const todayHeroSummarySize = smallSize * 0.54;
+  const todayBuildTop = Math.min(todayTop + 242 * unit, todayStatusTop - 220 * unit);
+  const todayBuildRowsTop = todayBuildTop + 39 * unit;
+  const todayBuildRowGap = 22 * unit;
+  const todayBuildH = todayBuildRowsTop - todayBuildTop + todayBuildRowGap * (workRows.length - 1) + 16 * unit;
+  const todayPanelGap = 14 * unit;
+  const todayPanelTop = todayBuildTop + todayBuildH + 35 * unit;
+  const todayPanelW = (todayRect.w - todayPad * 2 - todayPanelGap) / 2;
+  const todayPanelH = Math.min(84 * unit, Math.max(58 * unit, todayStatusTop - todayPanelTop - 20 * unit));
   const todayPanelRects = STORY_TODAY_PANELS.slice(1).map((_, index) => ({
-    x: todayRect.x + todayPad,
-    y: todayPanelTop + index * (todayPanelH + todayPanelGap),
-    w: todayRect.w - todayPad * 2,
+    x: todayRect.x + todayPad + index * (todayPanelW + todayPanelGap),
+    y: todayPanelTop,
+    w: todayPanelW,
     h: todayPanelH,
   }));
   const mobileBuildIndexRects = workRows.map((_, index) => ({
     x: todayRect.x + todayPad + 2 * unit,
-    y: todayBuildTop + 24 * unit + index * 18 * unit,
+    y: todayBuildRowsTop + index * todayBuildRowGap,
     w: todayRect.w - todayPad * 2 - 4 * unit,
     h: 14 * unit,
   }));
@@ -894,16 +1242,30 @@ const drawMobileStory = (
     const baseline = rect.y + lerp(36 * unit, 10 * unit, amount);
     const numberW = lerp(50 * unit, 28 * unit, amount);
     const ruleW = lerp(rect.w * 0.28, rect.w * 0.22, amount);
+    const ruleY = rect.y + lerp(8 * unit, 1 * unit, amount);
+    const compactRuleAlpha = 1 - phase(amount, 0.72, 0.98);
     const title = amount < 0.48 ? row.title : `${String(index + 1).padStart(2, "0")} ${row.title}`;
+    const fullDetailsAlpha = 1 - phase(amount, 0.24, 0.52);
+    const compactTitleAlpha = phase(amount, 0.38, 0.66);
+    const bodyY = Math.min(rect.y + 132 * unit, rect.y + rect.h - 16 * unit);
 
     clipRect({ x: rect.x - 4 * unit, y: rect.y - 5 * unit, w: rect.w + 8 * unit, h: rect.h + 48 * unit }, () => {
-      drawMobileRule(rect.x + pad, rect.y + 1 * unit, ruleW, row.active, row.active);
-      if (amount < 0.48) {
+      withAlpha(ctx, compactRuleAlpha, () => {
+        drawMobileRule(rect.x + pad, ruleY, ruleW, row.active, row.active);
+      });
+      withAlpha(ctx, fullDetailsAlpha, () => {
         text(String(index + 1).padStart(2, "0"), rect.x + pad, baseline, smallSize * 0.62, row.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
         textFit(row.label, rect.x + pad + numberW, baseline, smallSize * 0.58, rect.w - numberW, row.active ? palette.aiAccent : palette.muted, "'JetBrains Mono', monospace", 700, smallSize * 0.46);
-      } else {
+        textFit(row.title, rect.x + pad, rect.y + 79 * unit, bodySize * 0.68, rect.w - pad * 2, row.active ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.54);
+        if (rect.h > 92 * unit) {
+          wrapText(row.body, rect.w - pad * 2, smallSize * 0.56, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
+            text(line, rect.x + pad, bodyY, smallSize * 0.56, palette.muted, "'JetBrains Mono', monospace", 600);
+          });
+        }
+      });
+      withAlpha(ctx, compactTitleAlpha, () => {
         textFit(title, rect.x + pad, baseline, smallSize * 0.52, rect.w - pad * 2, row.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.42);
-      }
+      });
     });
   };
 
@@ -919,18 +1281,18 @@ const drawMobileStory = (
     clipRect(rect, () => {
       const revealH = rect.h * phase(amount, 0.04, 0.42);
       clipRect({ x: rect.x, y: rect.y, w: rect.w, h: revealH }, () => {
-        text("lsy", rect.x + todayPad, todayTop + 90 * unit, titleSize * 0.82, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-        textFit("full-stack & AI engineer", rect.x + todayPad, todayTop + 142 * unit, bodySize * 0.76, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, bodySize * 0.56);
-        wrapText("working with AI, writing, and the world outside the screen", rect.w - todayPad * 2, smallSize * 0.7, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
-          text(line, rect.x + todayPad, todayTop + 174 * unit + lineIndex * 24 * unit, smallSize * 0.7, palette.muted, "'JetBrains Mono', monospace", 600);
+        text("lsy", rect.x + todayPad, todayHeroNameY, titleSize * 0.82, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+        textFit("full-stack & AI engineer", rect.x + todayPad, todayHeroRoleY, smallSize * 0.62, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.46);
+        wrapText("working with AI, writing, and the world", rect.w - todayPad * 2, todayHeroSummarySize, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
+          text(line, rect.x + todayPad, todayHeroSummaryY + lineIndex * 19 * unit, todayHeroSummarySize, palette.muted, "'JetBrains Mono', monospace", 600);
         });
       });
 
       const statusReveal = phase(amount, 0.36, 0.82);
       clipRect({ x: rect.x, y: todayStatusTop - 14 * unit, w: rect.w, h: 76 * unit * statusReveal }, () => {
         drawMobileRule(rect.x + todayPad, todayStatusTop - 7 * unit, rect.w - todayPad * 2);
-        textFit(STORY_STATUS, rect.x + todayPad, todayStatusTop + 24 * unit, smallSize * 0.62, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.48);
-        textFit(input.contact || "lsy22@vip.qq.com", rect.x + todayPad, todayStatusTop + 50 * unit, smallSize * 0.58, rect.w - todayPad * 2, palette.muted, "'JetBrains Mono', monospace", 600, smallSize * 0.46);
+        textFit(STORY_STATUS, rect.x + todayPad, todayStatusTop + 24 * unit, smallSize * 0.56, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.38);
+        textFit(input.contact || "lsy22@vip.qq.com", rect.x + todayPad, todayStatusTop + 50 * unit, smallSize * 0.52, rect.w - todayPad * 2, palette.muted, "'JetBrains Mono', monospace", 600, smallSize * 0.38);
       });
     });
   };
@@ -941,77 +1303,68 @@ const drawMobileStory = (
     index: number,
     amount: number,
   ) => {
-    const panelReveal = phase(amount, 0.18 + index * 0.08, 0.56 + index * 0.08);
+    const panelReveal = phase(amount, 0.22 + index * 0.06, 0.56 + index * 0.06);
+    const [label, title] = panel;
+    const pad = 6 * unit;
+    const maxWidth = rect.w - pad * 2;
+    const panelTitleSize = fitSize(title, maxWidth, smallSize * 0.54, smallSize * 0.34, "'JetBrains Mono', monospace", 700);
+    const compactTitleLines = title.includes(" · ") && measure(title, panelTitleSize, "'JetBrains Mono', monospace", 700) > maxWidth
+      ? title.split(" · ")
+      : wrapText(title, maxWidth, panelTitleSize, "'JetBrains Mono', monospace", 700, 3);
+    const titleLines = compactTitleLines.slice(0, 3);
+    const panelTitleY = rect.y + 49 * unit;
+    const panelLineGap = titleLines.length > 2 ? 13 * unit : 16 * unit;
+
     clipRect({ x: rect.x, y: rect.y, w: rect.w, h: rect.h * panelReveal }, () => {
-      drawMobileEditorialSnapshot(rect, panel[0], panel[1], panel[2], index === 0);
+      drawMobileRule(rect.x + pad, rect.y + 5 * unit, rect.w * 0.34, index === 0);
+      text(label, rect.x + pad, rect.y + 27 * unit, smallSize * 0.6, index === 0 ? palette.accent : palette.muted, "'JetBrains Mono', monospace", 700);
+      titleLines.forEach((line, lineIndex) => {
+        text(line, rect.x + pad, panelTitleY + lineIndex * panelLineGap, panelTitleSize, palette.text, "'JetBrains Mono', monospace", 700);
+      });
     });
   };
 
   const introToInput = phase(progress, 0.12, 0.38);
   const titleMorph = phase(progress, 0.14, 0.36);
-  const toMethod = phase(progress, 0.42, 0.58);
-  const inputSceneHold = 1 - phase(toMethod, 0.12, 0.34);
-  const classifySceneReveal = phase(toMethod, 0.34, 0.58);
-  const makingFocus = phase(progress, 0.64, 0.76);
-  const workListReveal = phase(progress, 0.7, 0.82);
+  const inputToClassify = clamp((progress - 0.36) / 0.2);
+  const makingFocus = clamp((progress - 0.58) / 0.34);
+  const classifyToWork = makingFocus;
   const centerClassifyRect = mobileTrackRects[1];
-  const focusedMakingRect = moveRect(centerClassifyRect, workRects[1], makingFocus);
-  const classifyRetire = (group: number) => group === 1 ? phase(makingFocus, 0.18, 0.38) : phase(makingFocus, 0.22, 0.48);
   const buildBridge = phase(progress, 0.84, 0.92);
+  const buildBridgeActive = buildBridge > 0.001;
   const todayMorph = phase(progress, 0.88, 0.98);
-  const chapter = toMethod < 0.34 ? "input" : makingFocus < 0.18 ? "classify" : todayMorph < 0.08 ? "work" : "today";
+  const inputChapterHandoff = phase(inputToClassify, 0.66, 0.94);
+  const workChapterHandoff = phase(classifyToWork, 0.18, 0.58);
+  const chapter = inputToClassify < 0.94 ? "input" : todayMorph < 0.08 ? classifyToWork < 0.9 ? "classify" : "work" : "today";
+  const nextChapter = chapter === "input" ? "classify" : chapter === "classify" && classifyToWork > 0.08 ? "work" : chapter;
+  const chapterHandoff = chapter === "input" ? inputChapterHandoff : chapter === "classify" ? workChapterHandoff : 0;
+  const groupPairs = STORY_TRACKS.map((_, group) =>
+    STORY_MATERIALS.map((item, index) => {
+      if (item.group !== group) return null;
+      return {
+        sourceRect: moveRect(mobileIntroSlots[index], inputRects[index], introToInput),
+        targetRect: mobileClassifyMaterialSlots[index],
+        item: inputCards[index],
+        material: item,
+        index,
+      };
+    }).filter((pair): pair is MobileClassifyMorphPair => pair !== null)
+  );
 
-  if (inputSceneHold > 0.001) {
+  if (progress < 0.36) {
     STORY_MATERIALS.forEach((item, index) => {
       const rect = moveRect(mobileIntroSlots[index], inputRects[index], introToInput);
-      const retire = 1 - inputSceneHold;
-      const inputRect = {
-        ...rect,
-        y: rect.y - retire * 22 * unit,
-        h: rect.h * lerp(1, 0.72, retire),
-      };
-
-      if (toMethod < 0.01) {
-        drawMobileIntroMaterial(rect, item, index, introToInput);
-      } else {
-        clipRect({ x: rect.x - 8 * unit, y: rect.y - 12 * unit, w: rect.w + 16 * unit, h: (rect.h + 24 * unit) * inputSceneHold }, () => {
-          drawMobileEditorialInput(inputRect, inputCards[index], 0, index);
-        });
-      }
+      drawMobileIntroMaterial(rect, item, index, introToInput);
     });
-  }
-
-  if (classifySceneReveal > 0.001 && makingFocus < 0.18) {
-    STORY_TRACKS.forEach((track, index) => {
-      const retire = classifyRetire(index);
-      const sink = {
-        x: centerClassifyRect.x + centerClassifyRect.w * 0.5,
-        y: centerClassifyRect.y + centerClassifyRect.h * 0.5,
-        w: 2 * unit,
-        h: 2 * unit,
-      };
-      const trackRect = moveRect(mobileTrackRects[index], sink, retire);
-      const trackAmount = classifySceneReveal * (1 - retire);
-
-      if (trackAmount > 0.001) {
-        drawMobileClassifyTrack(trackRect, track, index, trackAmount);
-      }
-    });
-  }
-
-  const workSceneActive = makingFocus > 0.18 && buildBridge < 0.02;
-  if (workSceneActive) {
-    const listSourceRect = moveRect(focusedMakingRect, workRects[1], workListReveal);
-
-    workRows.forEach((row, index) => {
-      const rowInsert = index === 1 ? 1 : phase(workListReveal, index === 0 ? 0.16 : 0.24, index === 0 ? 0.72 : 0.82);
-      const rect = moveRect(listSourceRect, workRects[index], rowInsert);
-      const workAmount = index === 1 ? makingFocus : rowInsert;
-
-      if (index === 1 || rowInsert > 0.001) {
-        drawMobileEditorialWork(rect, row, index, workAmount, index === 1, 1);
-      }
-    });
+  } else if (!buildBridgeActive) {
+    if (classifyToWork > 0.001) {
+      drawMobileClassifyToWorkMorph(classifyToWork);
+    } else {
+      STORY_TRACKS.forEach((track, index) => {
+        const trackRect = mobileTrackRects[index];
+        drawMobileClassifyMorphGroup(trackRect, track, index, inputToClassify, groupPairs[index]);
+      });
+    }
   }
 
   if (buildBridge > 0.001) {
@@ -1032,7 +1385,7 @@ const drawMobileStory = (
     });
   }
 
-  drawMobileChapterTitle(chapter, titleMorph);
+  drawMobileChapterTitle(chapter, titleMorph, nextChapter, chapterHandoff);
 
 };
 

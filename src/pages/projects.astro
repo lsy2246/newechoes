@@ -7,16 +7,15 @@ import { GitPlatform } from "@/components/GitProjectCollection";
 <Layout
   title="项目"
   description="我的开源项目展示"
+  pageType="directory"
   skipSrTitle={false}
 >
-  <main class="container mx-auto px-4 py-8">
-    <div class="space-y-12">
-      <GitProjectCollection
-        platform={GitPlatform.GITHUB}
-        username="lsy2246"
-        title="个人项目"
-        client:load
-      />
-    </div>
-  </main>
+  <div class="projects-shell">
+    <GitProjectCollection
+      platform={GitPlatform.GITHUB}
+      username="lsy2246"
+      title="个人项目"
+      client:load
+    />
+  </div>
 </Layout>

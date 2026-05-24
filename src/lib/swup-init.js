@@ -134,6 +134,18 @@ function syncLayoutFooterVisibility(hideFooter = false) {
   footer.setAttribute('aria-hidden', hideFooter ? 'true' : 'false');
 }
 
+function clearHomePageState() {
+  if (isHomePath()) return;
+
+  const docEl = document.documentElement;
+  docEl.removeAttribute("data-home-header-phase");
+  docEl.style.removeProperty("--home-progress");
+  docEl.style.removeProperty("--scene-opacity");
+  docEl.style.removeProperty("--story-opacity");
+  docEl.style.removeProperty("--story-progress");
+  docEl.style.removeProperty("--story-local");
+}
+
 // Swup only replaces page containers, so body-level layout classes need syncing.
 function syncLayoutBodyClasses() {
   const mainElement = document.querySelector('main[data-layout-background]');
@@ -155,6 +167,11 @@ function syncLayoutBodyClasses() {
   syncLayoutFooterVisibility(hideFooter);
 }
 
+function syncPageShellState() {
+  syncLayoutBodyClasses();
+  clearHomePageState();
+}
+
 function preserveViteDevStylesForHeadSync(visit) {
   const viteStyleSelector = 'style[data-vite-dev-id]';
 
@@ -167,10 +184,31 @@ function preserveViteDevStylesForHeadSync(visit) {
     .forEach((style) => style.remove());
 }
 
+function getUrlPathname(url = window.location.pathname) {
+  try {
+    return new URL(url, window.location.origin).pathname;
+  } catch (error) {
+    return String(url).split('?')[0].split('#')[0];
+  }
+}
+
+function isArticlePageUrl(url = window.location.pathname) {
+  const path = getUrlPathname(url);
+  return path === '/articles' || path.startsWith('/articles/');
+}
+
+function isFilteredPageUrl(url = window.location.pathname) {
+  const path = getUrlPathname(url);
+  return path === '/filtered' || path.startsWith('/filtered/');
+}
+
+function isArticleShellPageUrl(url = window.location.pathname) {
+  return isArticlePageUrl(url) || isFilteredPageUrl(url);
+}
+
 // 检查是否是文章相关页面
 function isArticlePage() {
-  const path = window.location.pathname;
-  return path.includes('/articles') || path.includes('/filtered');
+  return isArticleShellPageUrl();
 }
 
 // 检查DOM中是否存在指定的容器
@@ -224,6 +262,8 @@ function getActiveElement() {
 
 // 在DOM加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.swup) return;
+
   // 应用过渡效果
   applyTransitions();
   
@@ -262,8 +302,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // 增加自定义容器解析，解决容器不匹配的问题
     resolveContainers: async function(visit) {
       // 根据URL路径动态决定要使用哪些容器
-      const isFromArticlePage = visit?.from?.url.includes('/articles') || visit?.from?.url.includes('/filtered');
-      const isToArticlePage = visit?.to?.url.includes('/articles') || visit?.to?.url.includes('/filtered');
+      const isFromFilterPage = isFilteredPageUrl(visit?.from?.url);
+      const isToFilterPage = isFilteredPageUrl(visit?.to?.url);
+      const isFromArticlePage = isArticlePageUrl(visit?.from?.url);
+      const isToArticlePage = isArticlePageUrl(visit?.to?.url);
+
+      // 筛选页的布局壳和文章页不同，必须完整替换 main，避免路径栏残留。
+      if (isFromFilterPage || isToFilterPage) {
+        return ['main'];
+      }
       
       // 当从文章页到非文章页，或从非文章页到文章页时
       if (isFromArticlePage !== isToArticlePage) {
@@ -280,6 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     plugins: [] // 手动添加插件以控制顺序
   });
+  window.swup = swup;
   
   // 发送页面转换事件 - 自定义全局事件
   function sendPageTransitionEvent() {
@@ -332,9 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 以下选项确定哪些脚本会被重新执行
     head: true,         // 重新执行head中的脚本
     body: true,         // 重新执行body中的脚本
-    optin: false,       // 是否只执行带有[data-swup-reload-script]属性的脚本
-    oprout: false,      // 是否排除带有[data-no-swup]属性的脚本
-    once: true         // 是否每个脚本只执行一次
+    optin: false        // 是否只执行带有[data-swup-reload-script]属性的脚本
   });
   swup.use(scriptsPlugin);
   
@@ -345,8 +391,8 @@ document.addEventListener('DOMContentLoaded', () => {
     rules: [
       {
         name: 'article-pages',
-        from: ['/articles', '/filtered'],
-        to: ['/articles', '/filtered'],
+        from: ['/articles'],
+        to: ['/articles'],
         containers: ['#article-content']
       }
     ],
@@ -386,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 初始化时设置
   setupTransition();
-  syncLayoutBodyClasses();
+  syncPageShellState();
 
   
   // 1. 访问开始 - 显示加载动画，准备页面退出
@@ -402,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showLoadingSpinner(spinner);
     
     // 检查目标URL是否为文章相关页面
-    const isTargetArticlePage = visit.to.url.includes('/articles') || visit.to.url.includes('/filtered');
+    const isTargetArticlePage = isArticleShellPageUrl(visit.to.url);
     const isCurrentArticlePage = isArticlePage();
     
     // 如果当前是文章页面，但目标不是，恢复main动画
@@ -427,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
   swup.hooks.on('page:load', (visit) => {
     contentReady = true;
     // 如果是载入文章页面但Fragment插件未加载，则加载它
-    if ((visit.to.url.includes('/articles') || visit.to.url.includes('/filtered')) && 
+    if (isArticleShellPageUrl(visit.to.url) &&
         !swup.findPlugin('fragment')) {
       swup.use(fragmentPlugin);
     }
@@ -451,7 +497,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   swup.hooks.on('content:replace', () => {
-    syncLayoutBodyClasses();
+    syncPageShellState();
+
+    const activeElement = getActiveElement();
+    if (activeElement) {
+      setElementOpacity(activeElement, 0);
+
+      if (isArticlePage() && activeElement.id === 'article-content') {
+        activeElement.classList.add('swup-transition-article');
+        setElementTransition(activeElement);
+      } else if (!isArticlePage() && activeElement.tagName.toLowerCase() === 'main') {
+        activeElement.classList.add('transition-fade');
+        setElementTransition(activeElement);
+      }
+
+      setTimeout(() => {
+        setElementOpacity(activeElement, 1);
+      }, 50);
+    }
 
     // 重新设置过渡样式，但不要立即隐藏加载动画
     setTimeout(() => {
@@ -489,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hideLoadingSpinner(spinner);
 
     // 同步 body 上的页面级 layout class —— swup 不会自动替换 body 属性
-    syncLayoutBodyClasses();
+    syncPageShellState();
   });
   
   // 加载失败处理
@@ -553,44 +616,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // 在页面内容替换后确保新内容动画正确显示
-  document.addEventListener('swup:contentReplaced', () => {
-    // 获取活跃元素
-    const activeElement = getActiveElement();
-    if (!activeElement) return;
-    
-    // 先设置透明
-    setElementOpacity(activeElement, 0);
-    
-    // 重新应用适当的类
-    if (isArticlePage() && activeElement.id === 'article-content') {
-      activeElement.classList.add('swup-transition-article');
-      setElementTransition(activeElement);
-    } else if (!isArticlePage() && activeElement.tagName.toLowerCase() === 'main') {
-      activeElement.classList.add('transition-fade');
-      setElementTransition(activeElement);
-    }
-    
-    // 延迟后淡入 - 但不要立刻隐藏加载动画
-    setTimeout(() => {
-      setElementOpacity(activeElement, 1);
-    }, 50);
-  });
-  
-  // 监听Fragment插件是否成功应用
-  document.addEventListener('swup:fragmentReplaced', () => {
-    // 确保新内容有正确的过渡样式
-    setTimeout(() => {
-      setupTransition();
-      
-      hideLoadingSpinner(spinner);
-    }, 10);
-  });
-
   // 在页面卸载和Astro视图转换时清理资源
+  let cleanedUp = false;
   const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+
     // 发送页面切换事件
     sendPageTransitionEvent();
+    window.console.error = originalErrorHandler;
     
     if (swup) {
       // 移除所有已使用的插件
@@ -601,6 +635,10 @@ document.addEventListener('DOMContentLoaded', () => {
       swup.unuse(preloadPlugin);
       swup.unuse(scriptsPlugin);
       swup.destroy();
+    }
+
+    if (window.swup === swup) {
+      delete window.swup;
     }
   };
 
