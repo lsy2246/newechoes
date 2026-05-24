@@ -74,4 +74,4 @@ upload_max_filesize
 
 文件: [https://lsy22.lanzouf.com/i9crn0u8anhe](https://lsy22.lanzouf.com/i9crn0u8anhe)
 
-相关：[搭建本地图床 API 可搭配 Chevereto 使用](/articles/notes/web/搭建本地图床api可搭配chevereto使用)
+相关：[搭建本地图床 API 可搭配 Chevereto 使用](/articles/server/搭建本地图床api可搭配chevereto使用)

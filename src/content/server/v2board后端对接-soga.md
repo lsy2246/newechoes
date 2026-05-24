@@ -6,7 +6,7 @@ tags: ["v2board"]
 
 确保 v2board 版本在 1.2.5 及以上。
 
-前端安装可先看 [搭建v2board前端](/articles/notes/web/v2board/搭建v2board前端)。
+前端安装可先看 [搭建v2board前端](/articles/server/搭建v2board前端)。
 
 ## 一、安装与更新
 
@@ -125,4 +125,4 @@ soga
 
 ## 六、相关方案
 
-- [v2board后端对接-XrayR-V2ray-ws-tls-cdn](/articles/notes/web/v2board/v2board后端对接-XrayR-V2ray-ws-tls-cdn)
+- [v2board后端对接-XrayR-V2ray-ws-tls-cdn](/articles/server/v2board后端对接-XrayR-V2ray-ws-tls-cdn)

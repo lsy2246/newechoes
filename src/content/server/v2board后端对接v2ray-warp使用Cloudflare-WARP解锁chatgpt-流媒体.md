@@ -4,7 +4,7 @@ date: 2023-05-13T22:48:00Z
 tags: ["v2board"]
 ---
 
-前端安装可先看 [搭建v2board前端](/articles/notes/web/v2board/搭建v2board前端)。
+前端安装可先看 [搭建v2board前端](/articles/server/搭建v2board前端)。
 
 ## 一、部署安装
 

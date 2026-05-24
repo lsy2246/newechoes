@@ -2,6 +2,6 @@
 
 **GitHub**：[lsy2246/newechoes](https://github.com/lsy2246/newechoes)
 
-**使用教程**：[点击查看](src/content/echoes博客使用说明.md)
+**使用教程**：[点击查看](src/content/misc/echoes博客使用说明.md)
 
 **在线演示**：[blog.lsy22.com](https://blog.lsy22.com/)

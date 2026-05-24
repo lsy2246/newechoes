@@ -42,25 +42,23 @@ pnpm new-post
 **也支持直接指定目录：**
 
 ```bash
-pnpm new-post "notes/web/文章标题"
+pnpm new-post "server/文章标题"
 ```
 
 > `create_post.sh` 已废弃，请使用 `pnpm new-post`。
-> 也支持直接创建到根目录，例如 `pnpm new-post "文章标题"`。
+> 也支持直接创建到根目录，例如 `pnpm new-post "文章标题"`，但建议优先放到下面的场景目录里。
 
 **内容目录结构：**
 
 ```text
 src/content/
-  echoes博客使用说明.md
-  常用软件.md
-  notes/
-    system/
-    web/
-    dev/
+  ai/
   creator/
+  dev/
   life/
-    travel/
+  misc/
+  server/
+  system/
 ```
 
 **手动创建：** 在合适的内容目录下创建 `.md` 文件

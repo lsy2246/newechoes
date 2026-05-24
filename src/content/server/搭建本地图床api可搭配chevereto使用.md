@@ -4,7 +4,7 @@ date: 2023-04-27T19:10:00+08:00
 tags: []
 ---
 
-相关：[搭建Chevereto中文版](/articles/notes/web/搭建chevereto中文版)
+相关：[搭建Chevereto中文版](/articles/server/搭建chevereto中文版)
 
 ## 1. 使用前提
 
