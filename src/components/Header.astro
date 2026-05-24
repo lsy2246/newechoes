@@ -31,6 +31,10 @@ const normalizedPath =
     : currentPath.endsWith("/")
       ? currentPath.slice(0, -1)
       : currentPath;
+const headerBgClass =
+  normalizedPath === "/"
+    ? "absolute inset-0"
+    : "header-bg-surface absolute inset-0";
 
 
 // 在服务器端预先查找激活项
@@ -76,7 +80,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   data-home-header
 >
   <div
-    class="header-bg-surface absolute inset-0"
+    class={headerBgClass}
     id="header-bg"
   >
   </div>

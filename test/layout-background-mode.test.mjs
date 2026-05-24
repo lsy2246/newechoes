@@ -4,6 +4,7 @@ import test from "node:test";
 
 const aboutPage = readFileSync("src/pages/about.astro", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
+const header = readFileSync("src/components/Header.astro", "utf8");
 const layout = readFileSync("src/components/Layout.astro", "utf8");
 const swupInit = readFileSync("src/lib/swup-init.js", "utf8");
 const swupLifecycleFiles = [
@@ -41,6 +42,14 @@ test("starry background does not reposition the body during theme changes", () =
   assert.equal(globalCss.includes("[data-theme=\"dark\"] body.layout-bg-starry {\n  position: relative;"), false);
   assert.equal(globalCss.includes("[data-theme=\"dark\"] body.layout-bg-starry::before"), false);
   assert.equal(globalCss.includes("[data-theme=\"dark\"] body.layout-bg-starry::after"), false);
+});
+
+test("home header does not opt into the shared frosted surface class", () => {
+  assert.ok(header.includes("const headerBgClass ="));
+  assert.ok(header.includes('normalizedPath === "/"'));
+  assert.ok(header.includes('? "absolute inset-0"'));
+  assert.ok(header.includes(': "header-bg-surface absolute inset-0";'));
+  assert.match(header, /class=\{headerBgClass\}/);
 });
 
 test("swup head sync does not persist generated style tags", () => {
