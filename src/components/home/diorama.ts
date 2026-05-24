@@ -9,6 +9,7 @@ import {
 } from "./homeScreenStory";
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
+const HOME_DIORAMA_PIXEL_RATIO_CAP = 2;
 
 type ThemeName = "light" | "dark";
 
@@ -277,7 +278,7 @@ export function initDiorama() {
     alpha: false,
     powerPreference: "high-performance",
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, useMobileCarrier ? 1.35 : 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, HOME_DIORAMA_PIXEL_RATIO_CAP));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1801,7 +1802,8 @@ export function initDiorama() {
   const STORY_FRAME_STEPS = useMobileCarrier ? 120 : 140;
   const SCREEN_REDRAW_STEP = 1 / STORY_FRAME_STEPS;
   const STORY_FRAME_CACHE_LIMIT = useMobileCarrier ? 3 : 5;
-  const STORY_CANVAS_DPR = useMobileCarrier ? 1.35 : 1.5;
+  const STORY_CANVAS_DPR = HOME_DIORAMA_PIXEL_RATIO_CAP;
+  const STORY_LAYOUT_DPR_CAP = useMobileCarrier ? 1.35 : 1.5;
   const STORY_FADE_START = 0.695;
   const STORY_FADE_END = 0.71;
   const SCENE_FADE_START = 0.708;
@@ -2000,17 +2002,25 @@ export function initDiorama() {
   let typerText = "";
   let typerLastTick = performance.now();
   let typerHoldUntil = 0;
+  let storyCanvasDpr = 1;
+  let storyLayoutDpr = 1;
 
   const resizeStoryCanvas = () => {
     if (!storyCanvasEl) return false;
     const rect = storyCanvasEl.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, STORY_CANVAS_DPR);
+    const layoutDpr = Math.min(window.devicePixelRatio || 1, STORY_LAYOUT_DPR_CAP);
+    const dprChanged = storyCanvasDpr !== dpr || storyLayoutDpr !== layoutDpr;
+    storyCanvasDpr = dpr;
+    storyLayoutDpr = layoutDpr;
     const nextW = Math.max(1, Math.round((rect.width || window.innerWidth) * dpr));
     const nextH = Math.max(1, Math.round((rect.height || window.innerHeight) * dpr));
     const changed = storyCanvasEl.width !== nextW || storyCanvasEl.height !== nextH;
     if (changed) {
       storyCanvasEl.width = nextW;
       storyCanvasEl.height = nextH;
+    }
+    if (changed || dprChanged) {
       storyFrameCache.clear();
       lastStoryOverlayKey = "";
     }
@@ -2028,8 +2038,18 @@ export function initDiorama() {
     const cachedProgress = frameIndex / STORY_FRAME_STEPS;
     const connectorMotionActive = storyInput.progress < 0.22 && !reduceMotion;
     const cacheMotionKey = connectorMotionActive ? storyInput.motion?.toFixed(2) : "static";
-    const sourceW = isWideOverlay ? screenCanvas.width : W;
-    const sourceH = isWideOverlay ? screenCanvas.height : H;
+    const overlaySourceAspect = screenCanvas.width / screenCanvas.height;
+    const overlayTargetAspect = W / H;
+    const sourceW = isWideOverlay
+      ? overlayTargetAspect >= overlaySourceAspect
+        ? Math.max(screenCanvas.width, W)
+        : Math.round(Math.max(screenCanvas.height, H) * overlaySourceAspect)
+      : W;
+    const sourceH = isWideOverlay
+      ? overlayTargetAspect >= overlaySourceAspect
+        ? Math.round(Math.max(screenCanvas.width, W) / overlaySourceAspect)
+        : Math.max(screenCanvas.height, H)
+      : H;
     const cacheKey = [
       overlayDevice,
       theme,
@@ -2037,6 +2057,7 @@ export function initDiorama() {
       cacheMotionKey,
       sourceW,
       sourceH,
+      storyLayoutDpr.toFixed(3),
       storyInput.now,
       storyInput.postsLabel,
       storyInput.stack,
@@ -2059,6 +2080,8 @@ export function initDiorama() {
         ...storyInput,
         device: overlayDevice,
         progress: cachedProgress,
+        pixelRatio: storyCanvasDpr,
+        layoutPixelRatio: storyLayoutDpr,
       });
       storyFrameCache.set(cacheKey, cachedFrame);
       while (storyFrameCache.size > STORY_FRAME_CACHE_LIMIT) {
@@ -2071,7 +2094,7 @@ export function initDiorama() {
     storyCtx.setTransform(1, 0, 0, 1, 0, 0);
     storyCtx.clearRect(0, 0, W, H);
     storyCtx.imageSmoothingEnabled = true;
-    storyCtx.imageSmoothingQuality = "medium";
+    storyCtx.imageSmoothingQuality = "high";
     if (isWideOverlay) {
       const scale = Math.max(W / cachedFrame.width, H / cachedFrame.height);
       const drawW = cachedFrame.width * scale;
@@ -2096,6 +2119,8 @@ export function initDiorama() {
       device: deviceClass,
       theme,
       progress: storyProgress,
+      pixelRatio: 1,
+      layoutPixelRatio: 1,
       motion: now * 0.001,
       now: formatNowBeijing(),
       stack: profileRows.stack ?? "Rust · TypeScript",

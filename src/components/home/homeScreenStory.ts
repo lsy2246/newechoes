@@ -5,6 +5,8 @@ type StoryInput = {
   device: HomeScreenStoryDevice;
   theme: HomeScreenStoryTheme;
   progress: number;
+  pixelRatio?: number;
+  layoutPixelRatio?: number;
   motion?: number;
   now: string;
   stack: string;
@@ -214,8 +216,9 @@ const drawEditorialGuide = (
   ctx: CanvasRenderingContext2D,
   palette: Palette,
   progress: number,
+  width = ctx.canvas.width,
+  height = ctx.canvas.height,
 ) => {
-  const { width, height } = ctx.canvas;
   const offset = progress * height * 0.018;
   const centerX = width * 0.5;
   const centerY = height * 0.5;
@@ -233,11 +236,16 @@ const drawEditorialGuide = (
   ctx.restore();
 };
 
-const drawBackground = (ctx: CanvasRenderingContext2D, palette: Palette, progress: number) => {
-  const { width, height } = ctx.canvas;
+const drawBackground = (
+  ctx: CanvasRenderingContext2D,
+  palette: Palette,
+  progress: number,
+  width = ctx.canvas.width,
+  height = ctx.canvas.height,
+) => {
   ctx.fillStyle = palette.bg;
   ctx.fillRect(0, 0, width, height);
-  drawEditorialGuide(ctx, palette, progress);
+  drawEditorialGuide(ctx, palette, progress, width, height);
 };
 
 const drawCard = (
@@ -330,8 +338,9 @@ const drawIntroCover = (
   ctx: CanvasRenderingContext2D,
   theme: HomeScreenStoryTheme,
   alpha: number,
+  width = ctx.canvas.width,
+  height = ctx.canvas.height,
 ) => {
-  const { width, height } = ctx.canvas;
   const tone = introTone(theme);
   withAlpha(ctx, alpha, () => {
     ctx.fillStyle = tone.bg;
@@ -344,12 +353,13 @@ const drawIntro = (
   progress: number,
   device: HomeScreenStoryDevice,
   theme: HomeScreenStoryTheme,
+  width = ctx.canvas.width,
+  height = ctx.canvas.height,
 ) => {
-  const { width, height } = ctx.canvas;
   const alpha = 1 - phase(progress, device === "mobile" ? 0.2 : 0.08, device === "mobile" ? 0.34 : 0.2);
   const settle = phase(progress, 0, device === "mobile" ? 0.24 : 0.18);
   const tone = introTone(theme);
-  drawIntroCover(ctx, theme, alpha);
+  drawIntroCover(ctx, theme, alpha, width, height);
 
   withAlpha(ctx, alpha, () => {
     const titleY = height * (device === "mobile" ? 0.34 : 0.48) - settle * height * (device === "mobile" ? 0.035 : 0.05);
@@ -374,8 +384,9 @@ const drawMobileStory = (
   input: StoryInput,
   palette: Palette,
   progress: number,
+  width = ctx.canvas.width,
+  height = ctx.canvas.height,
 ) => {
-  const { width, height } = ctx.canvas;
   const unit = Math.min(width / 390, height / 844);
   const safeTop = Math.max(height * 0.12, 118 * unit);
   const safeBottom = Math.max(height * 0.08, 72 * unit);
@@ -1807,8 +1818,9 @@ const drawDesktopStory = (
   input: StoryInput,
   palette: Palette,
   progress: number,
+  width = ctx.canvas.width,
+  height = ctx.canvas.height,
 ) => {
-  const { width, height } = ctx.canvas;
   const unit = clamp(Math.min(width / 1280, height / 760), 0.88, 1.2);
   const safeX = Math.max(180 * unit, width * 0.135);
   const safeRight = width - safeX;
@@ -2362,7 +2374,7 @@ const drawDesktopStory = (
   };
 
   withAlpha(ctx, fieldAlpha, () => {
-    drawIntro(ctx, progress, "desktop", input.theme);
+    drawIntro(ctx, progress, "desktop", input.theme, width, height);
 
     stageHeader("input / things I keep returning to", "cinema · travel · books · code · AI · writing", inputHeaderAlpha, height * 0.265, inputAreaX);
     stageHeader("classify / three inner lanes", "seeing · making · thinking", classifyAlpha, height * 0.265, trackX);
@@ -2431,14 +2443,21 @@ const drawDesktopStory = (
 export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryInput) => {
   const palette = PALETTES[input.theme];
   const progress = clamp(input.progress);
+  const pixelRatio = Math.max(1, input.pixelRatio ?? 1);
+  const layoutPixelRatio = Math.max(1, input.layoutPixelRatio ?? pixelRatio);
+  const layoutWidth = (ctx.canvas.width / pixelRatio) * layoutPixelRatio;
+  const layoutHeight = (ctx.canvas.height / pixelRatio) * layoutPixelRatio;
+  ctx.setTransform(pixelRatio / layoutPixelRatio, 0, 0, pixelRatio / layoutPixelRatio, 0, 0);
   if (input.device === "mobile") {
-    drawBackground(ctx, palette, progress);
-    drawMobileStory(ctx, input, palette, progress);
+    drawBackground(ctx, palette, progress, layoutWidth, layoutHeight);
+    drawMobileStory(ctx, input, palette, progress, layoutWidth, layoutHeight);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     return;
   }
 
-  drawBackground(ctx, palette, progress);
-  drawDesktopStory(ctx, input, palette, progress);
+  drawBackground(ctx, palette, progress, layoutWidth, layoutHeight);
+  drawDesktopStory(ctx, input, palette, progress, layoutWidth, layoutHeight);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 };
 
 export const drawHomeScreenBackdrop = (
