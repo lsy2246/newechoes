@@ -33,27 +33,68 @@ test("global graph tree uses compact file-sidebar styling", () => {
   assert.match(cssBlock(".graph-tree-link::before"), /width:\s*2px;/);
   assert.match(cssBlock(".graph-tree-link::before"), /background:\s*transparent;/);
   assert.match(cssBlock(".graph-tree-link:hover"), /box-shadow:\s*none;/);
-  assert.match(cssBlock(".graph-tree-link.is-current"), /background:\s*transparent;/);
-  assert.match(cssBlock(".graph-tree-link.is-current"), /box-shadow:\s*none;/);
-  assert.match(cssBlock(".graph-tree-link-section.is-current::before"), /background:\s*transparent;/);
+  assert.match(cssBlock(".graph-tree-link.is-current"), /background:\s*color-mix\(in srgb,\s*var\(--graph-text\) 10%,\s*transparent\);/);
+  assert.match(cssBlock(".graph-tree-link.is-current"), /outline:\s*1px solid color-mix\(in srgb,\s*var\(--graph-text\) 18%,\s*transparent\);/);
+  assert.match(cssBlock(".graph-tree-link-section.is-current::before"), /background:\s*var\(--graph-accent\);/);
   assert.match(cssBlock(".graph-tree-link-article.is-current::before"), /background:\s*var\(--graph-accent\);/);
   assert.match(cssBlock(".graph-tree-count"), /border-radius:\s*9999px;/);
 });
 
+test("global graph text index expands only the current path", () => {
+  assert.match(modal, /const open\s*=\s*isSectionActive\(section\.path\);/);
+  assert.match(modal, /\$\{open \? "open" : ""\}/);
+  assert.equal(modal.includes("const open = level === 0"), false);
+  assert.equal(modal.includes("active || level === 0"), false);
+  assert.match(modal, /class="graph-tree-link graph-tree-link-article\$\{isCurrent \? " is-current" : ""\}"/);
+  assert.match(modal, /class="graph-tree-link graph-tree-link-section\$\{isSectionCurrent \? " is-current" : ""\}"/);
+  assert.equal(modal.includes('${active ? " is-active" : ""}'), false);
+  assert.equal(runtime.includes('element.classList.toggle("is-active"'), false);
+  assert.equal(runtime.includes("element.open = active || !sectionPath.includes"), false);
+});
+
+test("global graph keeps the text index expanded after canvas navigation", () => {
+  assert.match(runtime, /function syncTreeOpenState/);
+  assert.match(runtime, /node\.sectionPath/);
+  assert.match(runtime, /openSectionPaths/);
+  assert.match(runtime, /details\.open\s*=\s*openSectionPaths\.has\(sectionPath\);/);
+  assert.match(runtime, /syncTreeOpenState\(currentNodeId\);/);
+  assert.match(runtime, /applyCurrentInfo\(getNodeTargetByRoute\(payload\.nodes,\s*normalizedRoute\)\)/);
+});
+
+test("global graph shows current location inside the text index and centers it", () => {
+  assert.equal(modal.includes("当前位置:"), false);
+  assert.equal(modal.includes("data-current-location"), false);
+  assert.equal(modal.includes("global-graph-current-link"), false);
+  assert.match(modal, /\$\{isCurrent \? " is-current" : ""\}/);
+  assert.match(modal, /\$\{isSectionCurrent \? " is-current" : ""\}/);
+  assert.match(runtime, /function syncTreeCurrentItem/);
+  assert.match(runtime, /link\.classList\.toggle\("is-current",\s*linkNodeId === nodeId\);/);
+  assert.match(runtime, /function centerTreeOnCurrentItem/);
+  assert.match(runtime, /treeShell\.scrollTo\(\{/);
+  assert.match(runtime, /behavior:\s*"smooth"/);
+  assert.match(runtime, /syncTreeCurrentItem\(currentNodeId\);/);
+  assert.match(runtime, /centerTreeOnCurrentItem\(\);/);
+});
+
 test("global graph runtime separates drag from click and adds subtle drift", () => {
-  assert.match(runtime, /const GRAPH_CLICK_THRESHOLD_PX\s*=\s*4;/);
+  assert.match(runtime, /const GRAPH_CLICK_THRESHOLD_PX\s*=\s*3;/);
   assert.match(runtime, /const GRAPH_DRAG_THRESHOLD_PX\s*=\s*5;/);
+  assert.match(runtime, /const GRAPH_NODE_HIT_PADDING_PX\s*=\s*12;/);
   assert.match(runtime, /hasDragged:\s*boolean;/);
+  assert.match(runtime, /dragOffsetX:\s*number;/);
+  assert.match(runtime, /dragOffsetY:\s*number;/);
   assert.match(runtime, /pointerDownState\.hasDragged\s*=\s*true;/);
   assert.match(runtime, /!pointerDownState\.hasDragged/);
+  assert.match(runtime, /dragNode\.fx\s*=\s*pointer\.worldX\s*-\s*pointerDownState\.dragOffsetX;/);
+  assert.match(runtime, /pointerMode\s*=\s*node\s*\?\s*"node"\s*:\s*"pan";/);
   assert.match(runtime, /createAmbientDriftForce/);
   assert.match(runtime, /\.force\(\s*"ambientDrift"/);
 });
 
 test("global graph runtime draws readable canvas links", () => {
   assert.match(runtime, /const GRAPH_LINK_ALPHA\s*=\s*\{/);
-  assert.match(runtime, /structure:\s*0\.46/);
-  assert.match(runtime, /reference:\s*0\.34/);
+  assert.match(runtime, /structure:\s*0\.38/);
+  assert.match(runtime, /reference:\s*0\.18/);
   assert.match(runtime, /focusStructure:\s*0\.9/);
   assert.match(runtime, /current:\s*0\.95/);
   assert.match(runtime, /const GRAPH_LINK_WIDTH\s*=\s*\{/);
@@ -61,4 +102,76 @@ test("global graph runtime draws readable canvas links", () => {
   assert.match(runtime, /reference:\s*1\.1/);
   assert.match(runtime, /current:\s*2\.15/);
   assert.match(runtime, /Math\.max\(1,\s*Math\.sqrt\(view\.zoom\)\)/);
+});
+
+test("global graph avoids decorative purple glow and pulse effects", () => {
+  assert.equal(runtime.includes("drawSignalLinks"), false);
+  assert.equal(runtime.includes("createLinearGradient"), false);
+  assert.equal(runtime.includes("setLineDash"), false);
+  assert.equal(runtime.includes("performance.now()"), false);
+  assert.equal(runtime.includes("accentGlow"), false);
+  assert.equal(runtime.includes("shadowBlur"), false);
+  assert.equal(headerCss.includes("radial-gradient(circle at 52% 48%"), false);
+  assert.equal(headerCss.includes("--graph-accent-glow"), false);
+  assert.equal(headerCss.includes("--graph-accent-soft"), false);
+});
+
+test("global graph runtime softens radial clusters into neural clouds", () => {
+  assert.match(runtime, /const GRAPH_CLUSTER_ROW_SPACING/);
+  assert.match(runtime, /const GRAPH_CLUSTER_CLOUD_JITTER/);
+  assert.match(runtime, /const GRAPH_LINK_CURVE/);
+  assert.match(runtime, /cloudAngle/);
+  assert.match(runtime, /childDistance/);
+  assert.match(runtime, /siblingOffset/);
+});
+
+test("global graph runtime supports arbitrary-depth recursive layout anchors", () => {
+  assert.match(runtime, /depth:\s*number;/);
+  assert.match(runtime, /parentId:\s*string\s*\|\s*null;/);
+  assert.match(runtime, /siblingIndex:\s*number;/);
+  assert.match(runtime, /siblingCount:\s*number;/);
+  assert.match(runtime, /const GRAPH_RECURSIVE_LAYOUT/);
+  assert.match(runtime, /assignRecursiveLayoutMetadata/);
+  assert.match(runtime, /createRecursiveAnchors/);
+  assert.match(runtime, /depthFalloff/);
+  assert.match(runtime, /minBranchDistance/);
+  assert.match(runtime, /childSpread/);
+});
+
+test("global graph force distances scale by recursive hierarchy instead of fixed tiers", () => {
+  assert.match(runtime, /getStructureLinkDistance/);
+  assert.match(runtime, /Math\.abs\(link\.source\.depth\s*-\s*link\.target\.depth\)/);
+  assert.match(runtime, /link\.target\.siblingCount/);
+  assert.equal(runtime.includes("link.source.type === \"root\" || link.target.type === \"root\""), false);
+});
+
+test("global graph keeps backlink references from tangling the structural layout", () => {
+  assert.match(runtime, /structureLinks:\s*runtimeLinks\.filter/);
+  assert.match(runtime, /referenceLinks:\s*runtimeLinks\.filter/);
+  assert.match(runtime, /forceLink\(structureLinks\)/);
+  assert.equal(runtime.includes("forceLink(runtimeLinks)"), false);
+  assert.match(runtime, /drawReferenceLinks/);
+  assert.match(runtime, /referenceLinks\.forEach/);
+  assert.match(runtime, /ctx\.strokeStyle\s*=\s*palette\.reference;/);
+});
+
+test("global graph offsets reciprocal backlink curves so they do not overlap", () => {
+  assert.match(runtime, /getReferencePairDirection/);
+  assert.match(runtime, /const pairKey/);
+  assert.match(runtime, /referencePairDirections/);
+  assert.match(runtime, /link\.kind === "reference"/);
+});
+
+test("global graph keeps backlink references visible as a subtle purple accent", () => {
+  assert.match(runtime, /reference:\s*isDark\s*\?\s*"rgba\(170,\s*138,\s*255,\s*0\.74\)"/);
+  assert.match(runtime, /reference:\s*0\.18/);
+  assert.match(runtime, /isCurrent\s*\?\s*GRAPH_LINK_ALPHA\.focusReference\s*:\s*isFocused\s*\?\s*GRAPH_LINK_ALPHA\.focusReference\s*:\s*GRAPH_LINK_ALPHA\.reference/);
+  assert.match(runtime, /ctx\.strokeStyle\s*=\s*palette\.reference;/);
+  assert.equal(runtime.includes("if (!isFocused && !isCurrent) return;"), false);
+});
+
+test("global graph styles keep the canvas neutral and non-glowy", () => {
+  assert.match(cssBlock(".global-graph-dialog"), /--graph-accent:\s*var\(--graph-text\);/);
+  assert.match(cssBlock("[data-theme=\"dark\"] .global-graph-dialog"), /--graph-accent:\s*var\(--graph-text\);/);
+  assert.match(cssBlock(".global-graph-stage-canvas"), /background:\s*transparent;/);
 });

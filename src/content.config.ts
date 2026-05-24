@@ -135,7 +135,6 @@ const articles = defineCollection({
     date: z.date(),
     tags: z.array(z.string()).optional(),
     summary: z.string().optional(),
-    draft: z.boolean().optional().default(false),
   }),
 });
 

@@ -398,7 +398,26 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
       ? 0
       : (filters.currentPage - 1) * filters.pageSize + 1;
   const resultEnd = Math.min(filters.currentPage * filters.pageSize, totalArticles);
-  const viewLabel = `${sortLabels[filters.sort] || sortLabels.newest} · 每页 ${filters.pageSize}`;
+  const currentSortLabel = sortLabels[filters.sort] || sortLabels.newest;
+  const viewLabel = `${currentSortLabel} · 每页 ${filters.pageSize}`;
+  const resultStatusText = error
+    ? error
+    : isLoading
+      ? "正在加载文章"
+      : totalArticles > 0
+        ? `共找到 ${totalArticles} 篇文章，第 ${resultStart}-${resultEnd} 篇`
+        : "没有找到符合条件的文章";
+  const hasActiveFilters =
+    filters.tags.length > 0 ||
+    filters.date !== DEFAULT_FILTERS.date ||
+    filters.sort !== DEFAULT_FILTERS.sort ||
+    filters.pageSize !== DEFAULT_FILTERS.pageSize;
+  const activeFilterChips = [
+    ...(filters.tags.length > 0 ? [{ key: "tags", label: selectedTagSummary }] : []),
+    ...(filters.date !== DEFAULT_FILTERS.date ? [{ key: "date", label: dateRangeLabel }] : []),
+    ...(filters.sort !== DEFAULT_FILTERS.sort ? [{ key: "sort", label: currentSortLabel }] : []),
+    ...(filters.pageSize !== DEFAULT_FILTERS.pageSize ? [{ key: "pageSize", label: `每页 ${filters.pageSize}` }] : []),
+  ];
 
   const updateDateRange = (nextStartDate: string, nextEndDate: string) => {
     updateFilters(
@@ -424,230 +443,255 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     );
   };
 
-  return (
-    <section className="filter-layout" aria-label="文章筛选">
-      <aside className="filter-rail">
-        <div className="filter-row">
-          <label>标签</label>
-          <details className="filter-disclosure filter-tag-disclosure">
-            <summary className="line-select">
-              <span className="filter-tag-summary">{selectedTagSummary}</span>
-              <span className="filter-chevron" aria-hidden="true">∨</span>
-            </summary>
-            <div className="filter-drawer filter-tag-index">
-              <input
-                id="filter-tag-search"
-                className="filter-tag-search"
-                type="search"
-                placeholder="搜索标签"
-                value={tagSearch}
-                onChange={(event) => setTagSearch(event.target.value)}
-                aria-label="搜索标签"
-              />
-              {filters.tags.length > 0 && (
-                <div className="filter-tags" aria-label="已选择标签">
-                  {filters.tags.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      className="filter-tag is-active"
-                      onClick={() => toggleTag(tag)}
-                    >
-                      #{tag} ×
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="filter-clear-inline"
-                    onClick={() => updateFilters({ tags: [] }, { resetPage: true })}
-                  >
-                    清除全部
-                  </button>
-                </div>
-              )}
-              <div className="filter-tag-options" role="listbox" aria-label="标签列表">
-                {filteredTags.length > 0 ? (
-                  filteredTags.map((tag) => {
-                    const isActive = selectedTagSet.has(tag);
+  const resetFilters = () => {
+    setTagSearch("");
+    updateFilters(DEFAULT_FILTERS);
+  };
 
-                    return (
+  return (
+    <section className="filter-console-layout" aria-label="文章筛选">
+      <div className="filter-console">
+        <div className="filter-console-head">
+          <div className="filter-console-copy">
+            <p className="filter-console-kicker">文章筛选</p>
+            <h1 className="filter-console-title">检索文章</h1>
+            <p className="filter-console-status">{resultStatusText}</p>
+          </div>
+          <button
+            type="button"
+            className="filter-reset-button"
+            onClick={resetFilters}
+            disabled={!hasActiveFilters && filters.currentPage <= 1}
+          >
+            重置筛选
+          </button>
+        </div>
+
+        <div className="filter-control-grid">
+          <div className="filter-control-cell">
+            <span className="filter-control-label">标签</span>
+            <details className="filter-disclosure filter-tag-disclosure">
+              <summary className="line-select filter-control">
+                <span className="filter-tag-summary">{selectedTagSummary}</span>
+                <span className="filter-chevron" aria-hidden="true">∨</span>
+              </summary>
+              <div className="filter-drawer filter-tag-index">
+                <input
+                  id="filter-tag-search"
+                  className="filter-tag-search"
+                  type="search"
+                  placeholder="搜索标签"
+                  value={tagSearch}
+                  onChange={(event) => setTagSearch(event.target.value)}
+                  aria-label="搜索标签"
+                />
+                {filters.tags.length > 0 && (
+                  <div className="filter-tags" aria-label="已选择标签">
+                    {filters.tags.map((tag) => (
                       <button
                         key={tag}
                         type="button"
-                        className={isActive ? "filter-tag-option is-active" : "filter-tag-option"}
+                        className="filter-tag is-active"
                         onClick={() => toggleTag(tag)}
-                        aria-pressed={isActive}
                       >
-                        <span>#{tag}</span>
-                        <span className="filter-tag-state">{isActive ? "已选" : "选择"}</span>
+                        #{tag} ×
                       </button>
-                    );
-                  })
-                ) : (
-                  <p className="filter-tag-empty">没有匹配标签</p>
+                    ))}
+                    <button
+                      type="button"
+                      className="filter-clear-inline"
+                      onClick={() => updateFilters({ tags: [] }, { resetPage: true })}
+                    >
+                      清除全部
+                    </button>
+                  </div>
                 )}
-              </div>
-            </div>
-          </details>
-        </div>
+                <div className="filter-tag-options" role="listbox" aria-label="标签列表">
+                  {filteredTags.length > 0 ? (
+                    filteredTags.map((tag) => {
+                      const isActive = selectedTagSet.has(tag);
 
-        <div className="filter-row">
-          <label>时间</label>
-          <details className="filter-disclosure">
-            <summary className="line-select">
-              <span>{dateRangeLabel}</span>
-              <span className="filter-chevron" aria-hidden="true">∨</span>
-            </summary>
-            <div className="filter-drawer filter-date-groups">
-              <div className="filter-date-group">
-                <span className="filter-group-label">常用</span>
-                <div className="filter-option-grid filter-date-presets" aria-label="时间预设">
-                  {datePresets.map((preset) => {
-                    const [presetStart, presetEnd] = getDatePresetRange(preset.value);
-                    const isActive = presetStart === startDate && presetEnd === endDate;
-
-                    return (
-                      <button
-                        key={preset.value}
-                        type="button"
-                        className={isActive ? "filter-text-option is-active" : "filter-text-option"}
-                        onClick={() => applyDatePreset(preset.value)}
-                      >
-                        {preset.label}
-                      </button>
-                    );
-                  })}
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          className={isActive ? "filter-tag-option is-active" : "filter-tag-option"}
+                          onClick={() => toggleTag(tag)}
+                          aria-pressed={isActive}
+                        >
+                          <span>#{tag}</span>
+                          <span className="filter-tag-state">{isActive ? "已选" : "选择"}</span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="filter-tag-empty">没有匹配标签</p>
+                  )}
                 </div>
               </div>
-              <div className="filter-date-group">
-                <span className="filter-group-label">年份</span>
-                <div className="filter-option-grid filter-date-years" aria-label="按年份筛选">
-                  {selectableYears.map((year) => {
-                    const [yearStart, yearEnd] = getYearRange(year);
-                    const isActive = yearStart === startDate && yearEnd === endDate;
+            </details>
+          </div>
 
-                    return (
-                      <button
-                        key={year}
-                        type="button"
-                        className={isActive ? "filter-text-option is-active" : "filter-text-option"}
-                        onClick={() => updateDateRange(yearStart, yearEnd)}
-                      >
-                        {year}
-                      </button>
-                    );
-                  })}
+          <div className="filter-control-cell">
+            <span className="filter-control-label">时间</span>
+            <details className="filter-disclosure">
+              <summary className="line-select filter-control">
+                <span>{dateRangeLabel}</span>
+                <span className="filter-chevron" aria-hidden="true">∨</span>
+              </summary>
+              <div className="filter-drawer filter-date-groups">
+                <div className="filter-date-group">
+                  <span className="filter-group-label">常用</span>
+                  <div className="filter-option-grid filter-date-presets" aria-label="时间预设">
+                    {datePresets.map((preset) => {
+                      const [presetStart, presetEnd] = getDatePresetRange(preset.value);
+                      const isActive = presetStart === startDate && presetEnd === endDate;
+
+                      return (
+                        <button
+                          key={preset.value}
+                          type="button"
+                          className={isActive ? "filter-text-option is-active" : "filter-text-option"}
+                          onClick={() => applyDatePreset(preset.value)}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="filter-date-group">
+                  <span className="filter-group-label">年份</span>
+                  <div className="filter-option-grid filter-date-years" aria-label="按年份筛选">
+                    {selectableYears.map((year) => {
+                      const [yearStart, yearEnd] = getYearRange(year);
+                      const isActive = yearStart === startDate && yearEnd === endDate;
+
+                      return (
+                        <button
+                          key={year}
+                          type="button"
+                          className={isActive ? "filter-text-option is-active" : "filter-text-option"}
+                          onClick={() => updateDateRange(yearStart, yearEnd)}
+                        >
+                          {year}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="filter-date-group">
+                  <span className="filter-group-label">月份</span>
+                  <div className="filter-option-grid filter-date-months" aria-label="按月份筛选">
+                    {selectableMonths.map(({ year, month, label }) => {
+                      const [monthStart, monthEnd] = getMonthRange(year, month);
+                      const isActive = monthStart === startDate && monthEnd === endDate;
+
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          className={isActive ? "filter-text-option is-active" : "filter-text-option"}
+                          onClick={() => updateDateRange(monthStart, monthEnd)}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-              <div className="filter-date-group">
-                <span className="filter-group-label">月份</span>
-                <div className="filter-option-grid filter-date-months" aria-label="按月份筛选">
-                  {selectableMonths.map(({ year, month, label }) => {
-                    const [monthStart, monthEnd] = getMonthRange(year, month);
-                    const isActive = monthStart === startDate && monthEnd === endDate;
+            </details>
+          </div>
 
-                    return (
+          <div className="filter-control-cell">
+            <span className="filter-control-label">排序</span>
+            <details className="filter-disclosure filter-view-disclosure">
+              <summary className="line-select filter-control">
+                <span>{viewLabel}</span>
+                <span className="filter-chevron" aria-hidden="true">∨</span>
+              </summary>
+              <div className="filter-drawer filter-view-options">
+                <div className="filter-view-group">
+                  <span className="filter-group-label">排序</span>
+                  <div className="filter-option-grid" aria-label="排序方式">
+                    {Object.entries(sortLabels).map(([value, label]) => (
                       <button
-                        key={label}
+                        key={value}
                         type="button"
-                        className={isActive ? "filter-text-option is-active" : "filter-text-option"}
-                        onClick={() => updateDateRange(monthStart, monthEnd)}
+                        className={filters.sort === value ? "filter-text-option is-active" : "filter-text-option"}
+                        onClick={() => updateFilters({ sort: value }, { resetPage: true })}
                       >
                         {label}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
+                </div>
+                <div className="filter-view-group">
+                  <span className="filter-group-label">每页</span>
+                  <div className="filter-option-grid" aria-label="每页显示">
+                    {pageSizeOptions.map((pageSize) => (
+                      <button
+                        key={pageSize}
+                        type="button"
+                        className={filters.pageSize === pageSize ? "filter-text-option is-active" : "filter-text-option"}
+                        onClick={() => updateFilters({ pageSize }, { resetPage: true })}
+                      >
+                        {pageSize}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </details>
+            </details>
+          </div>
         </div>
 
-        <div className="filter-row">
-          <label>视图</label>
-          <details className="filter-disclosure filter-view-disclosure">
-            <summary className="line-select">
-              <span>{viewLabel}</span>
-              <span className="filter-chevron" aria-hidden="true">∨</span>
-            </summary>
-            <div className="filter-drawer filter-view-options">
-              <div className="filter-view-group">
-                <span className="filter-group-label">排序</span>
-                <div className="filter-option-grid" aria-label="排序方式">
-                  {Object.entries(sortLabels).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={filters.sort === value ? "filter-text-option is-active" : "filter-text-option"}
-                      onClick={() => updateFilters({ sort: value }, { resetPage: true })}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="filter-view-group">
-                <span className="filter-group-label">每页</span>
-                <div className="filter-option-grid" aria-label="每页显示">
-                  {pageSizeOptions.map((pageSize) => (
-                    <button
-                      key={pageSize}
-                      type="button"
-                      className={filters.pageSize === pageSize ? "filter-text-option is-active" : "filter-text-option"}
-                      onClick={() => updateFilters({ pageSize }, { resetPage: true })}
-                    >
-                      {pageSize}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </details>
+        <div className="filter-active-strip" aria-label="当前筛选条件">
+          <span className="filter-active-label">当前条件</span>
+          {activeFilterChips.length > 0 ? (
+            activeFilterChips.map((chip) => (
+              <span key={chip.key} className="filter-active-chip">
+                {chip.label}
+              </span>
+            ))
+          ) : (
+            <span className="filter-active-chip is-empty">全部文章</span>
+          )}
         </div>
-      </aside>
+      </div>
 
       <section className="filter-results-panel" aria-live="polite">
         <p className="filter-status" role="status">
-          {error
-            ? error
-            : isLoading
-              ? "正在加载文章"
-              : totalArticles > 0
-                ? `共找到 ${totalArticles} 篇文章，第 ${resultStart}-${resultEnd} 篇`
-                : "没有找到符合条件的文章"}
+          {resultStatusText}
         </p>
 
         {articles.length > 0 ? (
-          <div className="explorer-grid">
+          <div className="filter-result-list">
             {articles.map((article) => {
               const hasSummary = Boolean(article.summary);
               const firstTag = article.tags?.[0];
+              const hiddenTagCount = Math.max(0, (article.tags?.length || 0) - 1);
 
               return (
                 <a
                   key={article.url}
                   href={articleLinkWithReturnFilter(article.url)}
-                  className={hasSummary ? "node" : "node no-summary"}
+                  className={hasSummary ? "filter-result-link" : "filter-result-link no-summary"}
                   data-astro-prefetch="viewport"
                 >
-                  <span className="node-kind">md</span>
-                  <span className="node-icon" aria-hidden="true">
-                    <svg viewBox="0 0 40 44" fill="none">
-                      <path d="M9 4h15l7 7v29H9V4Z" stroke="currentColor" strokeWidth="1.5" />
-                      <path d="M24 4v8h7" stroke="currentColor" strokeWidth="1.5" />
-                      <path d="M14 20h12M14 26h12M14 32h7" stroke="currentColor" strokeWidth="1.5" />
-                    </svg>
-                  </span>
-                  <div>
-                    <h2 className="node-title">{article.title || "无标题"}</h2>
-                    <p className="node-summary" aria-hidden={!hasSummary}>
-                      {article.summary || "占位"}
+                  <div className="filter-result-copy">
+                    <h2 className="filter-result-title">{article.title || "无标题"}</h2>
+                    <p className="filter-result-summary" aria-hidden={!hasSummary}>
+                      {article.summary || "暂无摘要"}
                     </p>
-                    <div className="node-meta">
+                    <div className="filter-result-meta">
                       <time dateTime={article.date}>{formatDate(article.date)}</time>
                       <span>{firstTag ? `#${firstTag}` : "#note"}</span>
+                      {hiddenTagCount > 0 && <span>+{hiddenTagCount}</span>}
                     </div>
                   </div>
+                  <span className="filter-result-cue" aria-hidden="true">阅读</span>
                 </a>
               );
             })}

@@ -46,6 +46,57 @@ interface WorldHeatmapProps {
 const EARTH_RADIUS = 2.0;
 const CAMERA_FOV_DEGREES = 45;
 const GLOBE_FRAMING_MARGIN = 1.04;
+const WORLD_HEATMAP_LIGHT_COLORS = {
+  earthBase: "#f1f7f8",
+  earthOpacity: 0.72,
+  unvisitedBorder: "#8fa0aa",
+  visitedBorder: "#111827",
+  chinaBorder: "#5f6f78",
+  labelText: "#101010",
+  hover: "#2563eb",
+};
+const WORLD_HEATMAP_DARK_COLORS = {
+  earthBase: "#16191d",
+  earthOpacity: 0.72,
+  unvisitedBorder: "#343a42",
+  visitedBorder: "#eef2f6",
+  chinaBorder: "#7f8b98",
+  labelText: "#f5f7fa",
+  hover: "#93c5fd",
+};
+
+const getWorldHeatmapColors = (theme: "light" | "dark") =>
+  theme === "dark" ? WORLD_HEATMAP_DARK_COLORS : WORLD_HEATMAP_LIGHT_COLORS;
+
+const getBoundaryLineStyle = (
+  regionName: string,
+  isVisited: boolean,
+  colors: typeof WORLD_HEATMAP_LIGHT_COLORS,
+) => {
+  const isChina = regionName === "中国" || regionName.startsWith("中国-");
+
+  if (isVisited) {
+    return {
+      color: colors.visitedBorder,
+      linewidth: 1.75,
+      opacity: 0.98,
+    };
+  }
+
+  if (isChina) {
+    return {
+      color: colors.chinaBorder,
+      linewidth: 1.2,
+      opacity: 0.82,
+    };
+  }
+
+  return {
+    color: colors.unvisitedBorder,
+    linewidth: 0.95,
+    opacity: 0.58,
+  };
+};
 
 const getSafeGlobeMinDistance = (
   cameraFovDegrees: number,
@@ -401,25 +452,9 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         // 如果组件已卸载，退出初始化
         if (!mounted || !containerRef.current) return;
 
-        // 检查当前是否为暗色模式
-        const isDarkMode =
-          document.documentElement.classList.contains("dark") ||
-          document.documentElement.getAttribute("data-theme") === "dark";
-
-        // 根据当前模式设置颜色
-        const getColors = () => {
-          return {
-            earthBase: isDarkMode ? "#111827" : "#2a4d69",
-            visited: isDarkMode ? "#065f46" : "#34d399",
-            border: isDarkMode ? "#6b7280" : "#e0e0e0",
-            visitedBorder: isDarkMode ? "#10b981" : "#0d9488",
-            chinaBorder: isDarkMode ? "#f87171" : "#ef4444",
-            text: isDarkMode ? "#f9fafb" : "#1f2937",
-            highlight: isDarkMode ? "#fcd34d" : "#60a5fa",
-          };
-        };
-
-        const colors = getColors();
+        // Keep the globe aligned with the site's editorial system:
+        // visited regions are persistent ink linework, hover is a clear site-blue focus color.
+        const colors = getWorldHeatmapColors(theme);
 
         // 创建场景
         const scene = new ThreeScene();
@@ -444,7 +479,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         const earthMaterial = createMaterial(
           colors.earthBase,
           ThreeFrontSide,
-          isDarkMode ? 0.9 : 0.9,
+          colors.earthOpacity,
         );
         const earth = new ThreeMesh(earthGeometry, earthMaterial);
         earth.renderOrder = 1;
@@ -453,13 +488,13 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         // 添加光源
         const ambientLight = new ThreeAmbientLight(
           0xffffff,
-          isDarkMode ? 0.7 : 0.85,
+          theme === "dark" ? 0.7 : 0.85,
         );
         scene.add(ambientLight);
 
         const directionalLight = new ThreeDirectionalLight(
-          isDarkMode ? 0xeeeeff : 0xffffff,
-          isDarkMode ? 0.6 : 0.65,
+          theme === "dark" ? 0xeeeeff : 0xffffff,
+          theme === "dark" ? 0.6 : 0.65,
         );
         directionalLight.position.set(5, 3, 5);
         scene.add(directionalLight);
@@ -562,35 +597,26 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
                 threePoints,
               );
 
-              // 确定线条颜色
-              const isChina =
-                region_name === "中国" || region_name.startsWith("中国-");
-              let borderColor;
-
-              if (is_visited) {
-                // 已访问的地区，包括中国城市，都使用绿色边界
-                borderColor = colors.visitedBorder;
-              } else if (isChina) {
-                // 未访问的中国和中国区域使用红色边界
-                borderColor = colors.chinaBorder;
-              } else {
-                // 其他未访问区域使用默认边界颜色
-                borderColor = colors.border;
-              }
+              const lineStyle = getBoundaryLineStyle(
+                region_name,
+                is_visited,
+                colors,
+              );
 
               const lineMaterial = new ThreeLineBasicMaterial({
-                color: borderColor,
-                linewidth: is_visited ? 1.8 : 1.2,
+                color: lineStyle.color,
+                linewidth: lineStyle.linewidth,
                 transparent: true,
-                opacity: is_visited ? 0.95 : 0.85,
+                opacity: lineStyle.opacity,
               });
 
               const line = new ThreeLine(lineGeometry, lineMaterial);
               line.userData = {
                 name: region_name,
                 isVisited: is_visited,
-                originalColor: borderColor,
-                highlightColor: colors.highlight,
+                originalColor: lineStyle.color,
+                originalOpacity: lineMaterial.opacity,
+                hoverColor: colors.hover,
               };
 
               // 设置渲染顺序
@@ -689,6 +715,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           for (const line of lines) {
             if (line.material instanceof ThreeLineBasicMaterial) {
               line.material.color.set(line.userData.originalColor);
+              line.material.opacity = line.userData.originalOpacity;
             }
           }
         };
@@ -699,7 +726,8 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           if (!lines) return;
           for (const line of lines) {
             if (line.material instanceof ThreeLineBasicMaterial) {
-              line.material.color.set(line.userData.highlightColor);
+              line.material.color.set(line.userData.hoverColor);
+              line.material.opacity = 1;
             }
           }
         };
@@ -709,6 +737,9 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           resetCountryHighlight(lastHighlightedCountry);
           applyCountryHighlight(countryName);
           lastHighlightedCountry = countryName;
+          if (sceneRef.current) {
+            sceneRef.current.lastHighlightedCountry = countryName;
+          }
         };
 
         // 简化的鼠标移动事件处理函数
@@ -880,31 +911,9 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           return null;
         };
 
-        // 优化的动画循环函数
+        // Standard RAF keeps auto-rotation smooth while the page is scrolling.
         const animate = () => {
           if (!sceneRef.current) return;
-
-          // 使用requestIdleCallback（如果可用）或setTimeout来限制更新频率
-          // 这样可以减少CPU使用率和提高性能
-          const scheduleNextFrame = () => {
-            if (typeof window.requestIdleCallback === "function") {
-              window.requestIdleCallback(
-                () => {
-                  if (sceneRef.current) {
-                    sceneRef.current.animationId =
-                      requestAnimationFrame(animate);
-                  }
-                },
-                { timeout: 100 },
-              );
-            } else {
-              setTimeout(() => {
-                if (sceneRef.current) {
-                  sceneRef.current.animationId = requestAnimationFrame(animate);
-                }
-              }, 16); // 约60fps的更新频率
-            }
-          };
 
           // 如果相机没有变化，可以降低渲染频率
           if (
@@ -916,7 +925,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
             ) < 0.001
           ) {
             // 相机位置没有明显变化，降低渲染频率
-            scheduleNextFrame();
+            sceneRef.current.animationId = requestAnimationFrame(animate);
             return;
           }
 
@@ -931,8 +940,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           renderer.render(scene, camera);
           labelRenderer.render(scene, camera);
 
-          // 安排下一帧，使用优化的调度方式
-          scheduleNextFrame();
+          sceneRef.current.animationId = requestAnimationFrame(animate);
         };
 
         // 处理窗口大小变化
@@ -1082,7 +1090,49 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         }
       }
     };
-  }, [visitedPlaces, theme, wasmReady, geoProcessor]);
+  }, [visitedPlaces, wasmReady, geoProcessor]);
+
+  useEffect(() => {
+    const applyThemeToScene = () => {
+      if (!sceneRef.current) return;
+
+      const colors = getWorldHeatmapColors(theme);
+      const earthMaterial = sceneRef.current.earth.material as any;
+      earthMaterial.color?.set(colors.earthBase);
+      earthMaterial.opacity = colors.earthOpacity;
+
+      for (const [regionName, lines] of sceneRef.current.countryToLines) {
+        const isHighlighted =
+          sceneRef.current.lastHighlightedCountry === regionName;
+
+        for (const line of lines) {
+          const lineMaterial = line.material as any;
+          const lineStyle = getBoundaryLineStyle(
+            regionName,
+            Boolean(line.userData.isVisited),
+            colors,
+          );
+
+          line.userData.originalColor = lineStyle.color;
+          line.userData.originalOpacity = lineStyle.opacity;
+          line.userData.hoverColor = colors.hover;
+          lineMaterial.color?.set(isHighlighted ? colors.hover : lineStyle.color);
+          lineMaterial.opacity = isHighlighted ? 1 : lineStyle.opacity;
+        }
+      }
+
+      sceneRef.current.renderer.render(
+        sceneRef.current.scene,
+        sceneRef.current.camera,
+      );
+      sceneRef.current.labelRenderer.render(
+        sceneRef.current.scene,
+        sceneRef.current.camera,
+      );
+    };
+
+    applyThemeToScene();
+  }, [theme]);
 
   return (
     <div className="relative">
@@ -1092,16 +1142,16 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       />
 
       {(wasmError || mapError) && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-800/80 z-20">
-          <div className="bg-red-50 dark:bg-red-900 p-4 rounded-lg shadow-lg max-w-md">
-            <h3 className="text-red-700 dark:text-red-300 font-bold text-lg mb-2">
+        <div className="world-heatmap-state-overlay absolute inset-0 flex items-center justify-center z-20">
+          <div className="world-heatmap-state-card world-heatmap-state-card-error p-4 max-w-md">
+            <h3 className="font-bold text-lg mb-2">
               地图加载错误
             </h3>
-            <p className="text-red-600 dark:text-red-400 text-sm">
+            <p className="text-sm">
               {wasmError || mapError}
             </p>
             <button
-              className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              className="world-heatmap-state-action mt-3 px-4 py-2 transition-colors"
               onClick={() => window.location.reload()}
             >
               重新加载
@@ -1111,10 +1161,10 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       )}
 
       {mapLoading && !mapError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-800/80 z-20">
+        <div className="world-heatmap-state-overlay absolute inset-0 flex items-center justify-center z-20">
           <div className="text-center">
-            <div className="inline-block w-12 h-12 border-4 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400 rounded-full animate-spin"></div>
-            <p className="mt-3 text-gray-700 dark:text-gray-300">
+            <div className="world-heatmap-loader inline-block w-12 h-12 animate-spin"></div>
+            <p className="mt-3">
               加载地图数据中...
             </p>
           </div>
@@ -1123,11 +1173,14 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
 
       {hoveredCountry && (
         <div className="absolute bottom-5 left-0 right-0 text-center z-10">
-          <div className="inline-block bg-white/95 dark:bg-gray-800/95 px-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:scale-105">
-            <p className="text-gray-800 dark:text-white font-medium text-lg flex items-center justify-center gap-2">
+          <div className="world-heatmap-hover-card inline-block px-6 py-3">
+            <p className="font-medium text-lg flex items-center justify-center gap-2">
               {hoveredCountry}
               {hoveredCountry && visitedPlaces.includes(hoveredCountry) ? (
-                <span className="inline-flex items-center justify-center bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full text-sm ml-1.5 whitespace-nowrap">
+                <span
+                  className="world-heatmap-status-pill inline-flex items-center justify-center px-2.5 py-1 text-sm ml-1.5 whitespace-nowrap"
+                  data-visited="true"
+                >
                   <svg
                     className="w-4 h-4 mr-1"
                     viewBox="0 0 20 20"
@@ -1142,7 +1195,10 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
                   已去过
                 </span>
               ) : (
-                <span className="inline-flex items-center justify-center bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400 px-2.5 py-1 rounded-full text-sm ml-1.5 whitespace-nowrap">
+                <span
+                  className="world-heatmap-status-pill inline-flex items-center justify-center px-2.5 py-1 text-sm ml-1.5 whitespace-nowrap"
+                  data-visited="false"
+                >
                   尚未去过
                 </span>
               )}

@@ -81,25 +81,32 @@ const parentHref = parentPath ? `/articles/${parentPath}/` : "/articles/";
 >
   <div class="article-index-shell">
     <div class="browser">
-      <div class="pathbar">
-        <nav class="path" aria-label="文章路径">
+      <nav class="article-topbar article-index-topbar" aria-label="文章路径">
+        <div class="article-breadcrumb">
           <a href="/articles/" data-astro-prefetch="hover">文章</a>
           {
             pathSegments.map((segment, index) => {
               const segmentPath = pathSegments.slice(0, index + 1).join("/");
+              const isCurrentSegment = index === pathSegments.length - 1;
 
               return (
                 <>
                   <span aria-hidden="true">/</span>
-                  <a href={`/articles/${segmentPath}/`} data-astro-prefetch="hover">
-                    {segment}
-                  </a>
+                  {
+                    isCurrentSegment ? (
+                      <span aria-current="page">{segment}</span>
+                    ) : (
+                      <a href={`/articles/${segmentPath}/`} data-astro-prefetch="hover">
+                        {segment}
+                      </a>
+                    )
+                  }
                 </>
               );
             })
           }
-        </nav>
-      </div>
+        </div>
+      </nav>
 
       <div id="article-content">
         <div class="explorer-grid">

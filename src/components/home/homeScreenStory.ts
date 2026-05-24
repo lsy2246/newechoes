@@ -2184,11 +2184,14 @@ const drawDesktopStory = (
   const buildIndexAlpha = phase(progress, 0.78, 0.82);
   const workSceneAlpha = 1 - buildIndexAlpha;
 
-  const inputHeaderAlpha = phase(progress, 0.12, 0.22) * (1 - phase(progress, 0.32, 0.44));
-  const classifyAlpha = phase(progress, 0.3, 0.42) * (1 - phase(progress, 0.64, 0.74));
+  const inputHeaderReadability = 1 - phase(progress, 0.34, 0.4);
+  const classifyHeaderReadability = 1 - phase(progress, 0.6, 0.66);
+  const workHeaderReadability = phase(progress, 0.62, 0.7) * workSceneAlpha;
+  const inputHeaderAlpha = phase(progress, 0.12, 0.22) * inputHeaderReadability;
+  const classifyAlpha = phase(progress, 0.38, 0.48) * classifyHeaderReadability;
   const centerWorkAlpha = phase(progress, 0.3, 0.42) * workSceneAlpha;
   const sideTrackAlpha = (index: number) => classifyAlpha * (index === 1 ? 0 : 1 - centerWorkMorph);
-  const workHeaderAlpha = phase(progress, 0.66, 0.74) * workSceneAlpha;
+  const workHeaderAlpha = workHeaderReadability;
   const todayAlpha = phase(progress, 0.84, 0.88);
   const centerWorkRect = moveRect(trackRects[1], workRects[1], centerWorkMorph);
 

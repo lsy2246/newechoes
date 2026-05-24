@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const aboutPage = readFileSync("src/pages/about.astro", "utf8");
@@ -17,16 +17,9 @@ const swupLifecycleFiles = [
   "src/lib/global-graph-modal.ts",
 ];
 
-test("about page opts into the starry layout background", () => {
-  assert.ok(aboutPage.includes('backgroundMode="starry"'));
-});
-
-test("starry background references a project texture asset", () => {
-  assert.ok(globalCss.includes('url("/images/starfield-bg.jpg")'));
-
-  const texturePath = "public/images/starfield-bg.jpg";
-  assert.equal(existsSync(texturePath), true);
-  assert.ok(statSync(texturePath).size > 40_000);
+test("about page uses the normal monochrome page background", () => {
+  assert.equal(aboutPage.includes('backgroundMode="starry"'), false);
+  assert.equal(aboutPage.includes("starfield-bg.jpg"), false);
 });
 
 test("starry background does not change fixed header layout", () => {

@@ -98,8 +98,8 @@ function renderArticleItem(articleId: string, level: number) {
 }
 
 function renderSection(section: SectionStructure, level = 0): string {
-  const active = isSectionActive(section.path);
-  const open = active || level === 0;
+  const open = isSectionActive(section.path);
+  const isSectionCurrent = currentSectionPath === section.path && !currentArticle;
   const href = sectionUrl(section.path);
   const childCount = section.articles.length + section.sections.length;
   const children = [
@@ -107,7 +107,7 @@ function renderSection(section: SectionStructure, level = 0): string {
     ...section.articles.map((articleId) => renderArticleItem(articleId, level + 1)),
   ].join("");
 
-  return `<li class="graph-tree-item graph-tree-item-section${active ? " is-active" : ""}" data-section-path="${escapeHtml(section.path)}" style="--tree-level:${level};">
+  return `<li class="graph-tree-item graph-tree-item-section" data-section-path="${escapeHtml(section.path)}" style="--tree-level:${level};">
     <details class="graph-tree-group" data-section-path="${escapeHtml(section.path)}" ${open ? "open" : ""}>
       <summary class="graph-tree-summary">
         <span class="graph-tree-disclosure" aria-hidden="true">
@@ -115,7 +115,7 @@ function renderSection(section: SectionStructure, level = 0): string {
             <path d="m4 2 4 4-4 4"></path>
           </svg>
         </span>
-        <a href="${href}" class="graph-tree-link graph-tree-link-section${active ? " is-current" : ""}" data-route-target="${href}" data-section-path="${escapeHtml(section.path)}" data-node-target="section:${escapeHtml(section.path)}" data-astro-prefetch="hover">
+        <a href="${href}" class="graph-tree-link graph-tree-link-section${isSectionCurrent ? " is-current" : ""}" data-route-target="${href}" data-section-path="${escapeHtml(section.path)}" data-node-target="section:${escapeHtml(section.path)}" data-astro-prefetch="hover">
           <span class="graph-tree-label">${escapeHtml(section.name)}</span>
         </a>
         <span class="graph-tree-count">${childCount}</span>
@@ -219,17 +219,6 @@ const graphPayload = JSON.stringify({
   nodes: graphNodes,
   links: graphLinks,
 });
-
-const locationLabel = currentArticle
-  ? currentArticle.data.title
-  : currentSectionPath
-    ? currentSectionPath
-    : "首页或非文章页面";
-const locationRoute = currentArticle
-  ? articleUrl(currentArticle.id)
-  : currentSectionPath
-    ? sectionUrl(currentSectionPath)
-    : "/articles";
 ---
 
 <div
@@ -288,16 +277,6 @@ const locationRoute = currentArticle
         <div class="global-graph-panel-header">
           <div>
             <h3>文字索引</h3>
-            <p>
-              当前位置:
-              <a
-                href={locationRoute}
-                class="global-graph-current-link"
-                data-current-location
-              >
-                {locationLabel}
-              </a>
-            </p>
           </div>
         </div>
 

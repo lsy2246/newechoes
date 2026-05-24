@@ -126,7 +126,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                     <!-- 单项导航 -->
                     <a 
                       href={item.href} 
-                      class="nav-item relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium"
+                      class="nav-item relative flex items-center justify-center h-10 px-4 py-2 text-sm"
                       data-item-id={item.id}
                       data-state={activeItem && activeItem.id === item.id ? "active" : "inactive"}
                       data-astro-prefetch="hover"
@@ -141,7 +141,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                       <!-- 一级菜单按钮 -->
                       <button 
                         type="button"
-                        class="nav-group-toggle relative flex items-center justify-center h-10 px-4 py-2 text-sm font-medium"
+                        class="nav-group-toggle relative flex items-center justify-center h-10 px-4 py-2 text-sm"
                         data-toggle-id={item.id}
                         data-state={activeGroupId === item.id ? "active" : "inactive"}
                         data-height-reference="true"
@@ -159,7 +159,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                               )}
                               <a 
                                 href={subItem.href} 
-                                class="nav-subitem relative flex items-center justify-center h-10 px-3 py-2 text-sm font-medium"
+                                class="nav-subitem relative flex items-center justify-center h-10 px-3 py-2 text-sm"
                                 data-subitem-id={`${item.id}-${subItem.id}`}
                                 data-parent-id={item.id}
                                 data-state={activeSubItem && activeSubItem.id === subItem.id ? "active" : "inactive"}
@@ -949,8 +949,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       debounceTimer: null
     };
     
-    const activeClass = "font-medium";
-    
     // 当前活动项的状态 - 从DOM中提取当前激活状态
     let activeItemId = null;
     let activeSubItemId = null;
@@ -1523,7 +1521,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             // 确保切换按钮也具有正确的状态
             const toggle = group.querySelector('.nav-group-toggle');
             if (toggle) {
-              toggle.classList.add('menu-up', 'font-semibold');
+              toggle.classList.add('menu-up');
             }
           }
         });

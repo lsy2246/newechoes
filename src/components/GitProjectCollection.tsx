@@ -56,6 +56,7 @@ interface GitProjectCollectionProps {
   username: string;
   organization?: string;
   title?: string;
+  showTitle?: boolean;
   token?: string;
   perPage?: number;
   url?: string;
@@ -86,6 +87,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
   username,
   organization,
   title,
+  showTitle = true,
   token,
   perPage = DEFAULT_GIT_CONFIG.perPage,
   url,
@@ -385,19 +387,21 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
 
   return (
     <div className={`git-project-collection w-full ${className}`}>
-      <h2 className="git-project-title text-2xl font-bold mb-6">
-        {displayTitle}
-        {username && (
-          <span className="git-project-title-meta ml-2">
-            (@{username})
-          </span>
-        )}
-        {organization && (
-          <span className="git-project-title-meta ml-2">
-            (组织: {organization})
-          </span>
-        )}
-      </h2>
+      {showTitle && (
+        <h2 className="git-project-title text-2xl font-bold mb-6">
+          {displayTitle}
+          {username && (
+            <span className="git-project-title-meta ml-2">
+              (@{username})
+            </span>
+          )}
+          {organization && (
+            <span className="git-project-title-meta ml-2">
+              (组织: {organization})
+            </span>
+          )}
+        </h2>
+      )}
 
       {/* 内容区域 */}
       {loading && projects.length === 0 ? (

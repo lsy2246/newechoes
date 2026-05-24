@@ -16,6 +16,7 @@ interface Props {
   previewMode?: "default" | "card";
   fullBleed?: boolean;
   hideFooter?: boolean;
+  hideHeader?: boolean;
   headerMode?: "default" | "overlay";
   backgroundMode?: "default" | "starry";
 }
@@ -35,6 +36,7 @@ const {
   previewMode = "default",
   fullBleed = false,
   hideFooter = false,
+  hideHeader = false,
   headerMode = "default",
   backgroundMode = "default",
 } = Astro.props;
@@ -357,10 +359,11 @@ const canonicalHref = rssLink || canonicalURL.toString();
         "layout-overlay-header": useOverlayHeader,
         "layout-full-bleed": fullBleed,
         "layout-bg-starry": backgroundMode === "starry",
+        "layout-no-header": hideHeader,
       },
     ]}
   >
-    {!isCardPreview && <Header />}
+    {!isCardPreview && !hideHeader && <Header />}
     <main
       data-layout-background={backgroundMode}
       data-layout-page-type={pageType}
@@ -368,13 +371,14 @@ const canonicalHref = rssLink || canonicalURL.toString();
       data-layout-header-mode={headerMode}
       data-layout-card-preview={isCardPreview ? "true" : "false"}
       data-layout-hide-footer={hideFooter ? "true" : "false"}
+      data-layout-hide-header={hideHeader ? "true" : "false"}
       class:list={[
         "grow w-full",
         isCardPreview
           ? "max-w-none px-0 py-0 article-card-preview-main"
           : fullBleed
             ? [
-                useOverlayHeader ? "pt-0" : "pt-16",
+                hideHeader || useOverlayHeader ? "pt-0" : "pt-16",
                 "max-w-none px-0 py-0 layout-main-fullbleed",
               ]
             : "pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6",

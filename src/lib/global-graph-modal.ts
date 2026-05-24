@@ -26,6 +26,10 @@ type RuntimeNode = GraphNode & {
   labelElement: HTMLDivElement;
   anchorX: number;
   anchorY: number;
+  depth: number;
+  parentId: string | null;
+  siblingIndex: number;
+  siblingCount: number;
   x?: number;
   y?: number;
   vx?: number;
@@ -119,11 +123,19 @@ type GraphRuntime = {
 };
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-const GRAPH_CLICK_THRESHOLD_PX = 4;
+const GRAPH_CLICK_THRESHOLD_PX = 3;
 const GRAPH_DRAG_THRESHOLD_PX = 5;
+const GRAPH_NODE_HIT_PADDING_PX = 12;
+const GRAPH_CLUSTER_ROW_SPACING = 14;
+const GRAPH_CLUSTER_CLOUD_JITTER = 58;
+const GRAPH_LINK_CURVE = {
+  structure: 10,
+  reference: 24,
+  current: 18,
+} as const;
 const GRAPH_LINK_ALPHA = {
-  structure: 0.46,
-  reference: 0.34,
+  structure: 0.38,
+  reference: 0.18,
   focusStructure: 0.9,
   focusReference: 0.82,
   current: 0.95,
@@ -132,6 +144,16 @@ const GRAPH_LINK_WIDTH = {
   structure: 1.35,
   reference: 1.1,
   current: 2.15,
+} as const;
+const GRAPH_RECURSIVE_LAYOUT = {
+  rootRadius: 116,
+  branchDistance: 82,
+  minBranchDistance: 46,
+  depthFalloff: 0.86,
+  childSpread: Math.PI * 0.72,
+  articleSpread: Math.PI * 0.92,
+  articleDistance: 54,
+  siblingJitter: 16,
 } as const;
 
 function seededNoise(seed: number) {
@@ -162,7 +184,7 @@ function getThemePalette(): ThemePalette {
     article: read("--site-muted", isDark ? "#bdc5cf" : "#3f3f3f"),
     structure: isDark ? "rgba(143, 154, 167, 0.72)" : "rgba(16, 16, 16, 0.72)",
     structureActive: isDark ? "rgba(238, 242, 246, 0.9)" : "rgba(16, 16, 16, 0.9)",
-    reference: isDark ? "rgba(143, 154, 167, 0.64)" : "rgba(16, 16, 16, 0.64)",
+    reference: isDark ? "rgba(170, 138, 255, 0.74)" : "rgba(116, 74, 196, 0.68)",
     text: read("--site-ink", isDark ? "#f5f7fa" : "#101010"),
     textSoft: read("--site-muted", isDark ? "#bdc5cf" : "#3f3f3f"),
     bg: read("--site-bg", isDark ? "#111315" : "#ffffff"),
@@ -227,71 +249,170 @@ function getNodeTargetByRoute(nodes: GraphNode[], route: string) {
   return determineCurrentNode(nodes, route);
 }
 
-function createClusterAnchors(nodes: RuntimeNode[], width = 860, height = 540) {
-  const clusterKeys = Array.from(
-    new Set(
-      nodes
-        .filter((node) => node.type !== "root")
-        .map((node) => node.clusterKey),
-    ),
-  ).sort((left, right) => left.localeCompare(right, "zh-Hans-CN"));
-
-  const radiusX = Math.min(width * 0.28, 300);
-  const radiusY = Math.min(height * 0.22, 170);
-  const anchors = new Map<string, { x: number; y: number }>();
-
-  clusterKeys.forEach((key, index) => {
-    const angle = index * GOLDEN_ANGLE;
-    const ring = 0.54 + 0.46 * seededNoise(index + 1.7);
-    anchors.set(key, {
-      x: Math.cos(angle) * radiusX * ring,
-      y: Math.sin(angle) * radiusY * ring,
-    });
-  });
-
-  anchors.set("__root__", { x: 0, y: 0 });
-  return anchors;
-}
-
-function seedForcePositions(nodes: RuntimeNode[]) {
-  const anchors = createClusterAnchors(nodes);
-  const groupedNodes = new Map<string, RuntimeNode[]>();
+function assignRecursiveLayoutMetadata(
+  nodes: RuntimeNode[],
+  links: RuntimeLink[],
+) {
+  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+  const childrenByParent = new Map<string, RuntimeNode[]>();
 
   nodes.forEach((node) => {
-    const list = groupedNodes.get(node.clusterKey);
-    if (list) {
-      list.push(node);
-    } else {
-      groupedNodes.set(node.clusterKey, [node]);
-    }
+    node.depth = node.type === "root" ? 0 : 1;
+    node.parentId = node.type === "root" ? null : "root";
+    node.siblingIndex = 0;
+    node.siblingCount = 1;
   });
 
-  nodes.forEach((node, nodeIndex) => {
-    const anchor = anchors.get(node.clusterKey) || { x: 0, y: 0 };
+  links.forEach((link) => {
+    if (link.kind !== "structure") return;
+    link.target.parentId = link.source.id;
+    const children = childrenByParent.get(link.source.id) ?? [];
+    children.push(link.target);
+    childrenByParent.set(link.source.id, children);
+  });
 
-    if (node.type === "root") {
-      node.x = 0;
-      node.y = 0;
-      node.vx = 0;
-      node.vy = 0;
-      node.anchorX = 0;
-      node.anchorY = 0;
-      return;
-    }
+  const queue = [nodeMap.get("root")].filter(
+    (node): node is RuntimeNode => Boolean(node),
+  );
 
-    const group = groupedNodes.get(node.clusterKey) || [node];
-    const index = Math.max(group.indexOf(node), 0);
-    const row = index - (group.length - 1) / 2;
-    const sway = (seededNoise(nodeIndex + 9.3) - 0.5) * 44;
-    const tier = node.type === "section" ? 0.38 : 1;
+  while (queue.length > 0) {
+    const parent = queue.shift();
+    if (!parent) continue;
+    const children = (childrenByParent.get(parent.id) ?? []).sort((left, right) => {
+      if (left.type !== right.type) return left.type === "section" ? -1 : 1;
+      return left.label.localeCompare(right.label, "zh-Hans-CN");
+    });
 
-    node.anchorX = anchor.x + sway * tier;
-    node.anchorY = anchor.y + row * 19 * tier + (seededNoise(nodeIndex + 11.7) - 0.5) * 18;
-    node.x = node.anchorX + (seededNoise(nodeIndex + 3.1) - 0.5) * 56;
-    node.y = node.anchorY + (seededNoise(nodeIndex + 4.6) - 0.5) * 44;
+    children.forEach((child, index) => {
+      child.depth = parent.depth + 1;
+      child.parentId = parent.id;
+      child.siblingIndex = index;
+      child.siblingCount = children.length;
+      queue.push(child);
+    });
+  }
+
+  return childrenByParent;
+}
+
+function getRecursiveBranchDistance(depth: number) {
+  return Math.max(
+    GRAPH_RECURSIVE_LAYOUT.minBranchDistance,
+    GRAPH_RECURSIVE_LAYOUT.branchDistance *
+      GRAPH_RECURSIVE_LAYOUT.depthFalloff ** Math.max(0, depth - 1),
+  );
+}
+
+function createRecursiveAnchors(
+  root: RuntimeNode | undefined,
+  childrenByParent: Map<string, RuntimeNode[]>,
+) {
+  if (!root) return;
+
+  root.anchorX = 0;
+  root.anchorY = 0;
+  root.x = 0;
+  root.y = 0;
+  root.vx = 0;
+  root.vy = 0;
+
+  const placeChildren = (parent: RuntimeNode, parentAngle: number) => {
+    const children = childrenByParent.get(parent.id) ?? [];
+    if (children.length === 0) return;
+
+    const sectionCount = children.filter(
+      (child) => child.type === "section",
+    ).length;
+    const spread =
+      sectionCount > 0
+        ? GRAPH_RECURSIVE_LAYOUT.childSpread
+        : GRAPH_RECURSIVE_LAYOUT.articleSpread;
+    const startAngle = parentAngle - spread / 2;
+    const step = children.length > 1 ? spread / (children.length - 1) : 0;
+    const distance =
+      parent.depth === 0
+        ? GRAPH_RECURSIVE_LAYOUT.rootRadius
+        : getRecursiveBranchDistance(parent.depth + 1);
+
+    children.forEach((child, index) => {
+      const normalizedIndex = children.length > 1 ? index : 0.5;
+      const childAngle =
+        children.length > 1 ? startAngle + step * index : parentAngle;
+      const cloudAngle =
+        childAngle + (seededNoise(child.index ?? index) - 0.5) * 0.18;
+      const articleOffset =
+        child.type === "article"
+          ? GRAPH_RECURSIVE_LAYOUT.articleDistance *
+            Math.sqrt(normalizedIndex + 0.55) *
+            0.28
+          : 0;
+      const siblingOffset =
+        (child.siblingIndex - (child.siblingCount - 1) / 2) *
+        (child.type === "article" ? 4.8 : 2.6);
+      const jitter =
+        (seededNoise((child.index ?? index) + 19.5) - 0.5) *
+        GRAPH_RECURSIVE_LAYOUT.siblingJitter;
+      const childDistance = distance + articleOffset + jitter;
+
+      child.anchorX =
+        (parent.anchorX ?? 0) +
+        Math.cos(cloudAngle) * childDistance +
+        Math.cos(cloudAngle + Math.PI / 2) * siblingOffset;
+      child.anchorY =
+        (parent.anchorY ?? 0) +
+        Math.sin(cloudAngle) * childDistance +
+        Math.sin(cloudAngle + Math.PI / 2) * siblingOffset;
+      child.x =
+        child.anchorX +
+        (seededNoise((child.index ?? index) + 3.1) - 0.5) *
+          GRAPH_CLUSTER_CLOUD_JITTER;
+      child.y =
+        child.anchorY +
+        (seededNoise((child.index ?? index) + 4.6) - 0.5) *
+          (GRAPH_CLUSTER_CLOUD_JITTER * 0.72);
+      child.vx = 0;
+      child.vy = 0;
+
+      placeChildren(child, cloudAngle);
+    });
+  };
+
+  placeChildren(root, -Math.PI / 2);
+}
+
+function seedForcePositions(
+  nodes: RuntimeNode[],
+  links: RuntimeLink[],
+) {
+  const childrenByParent = assignRecursiveLayoutMetadata(nodes, links);
+  createRecursiveAnchors(
+    nodes.find((node) => node.type === "root"),
+    childrenByParent,
+  );
+
+  nodes.forEach((node) => {
+    if (node.x != null && node.y != null) return;
+    node.anchorX = 0;
+    node.anchorY = 0;
+    node.x = (seededNoise((node.index ?? 0) + 3.1) - 0.5) * GRAPH_CLUSTER_CLOUD_JITTER;
+    node.y = (seededNoise((node.index ?? 0) + 4.6) - 0.5) * GRAPH_CLUSTER_CLOUD_JITTER;
     node.vx = 0;
     node.vy = 0;
   });
+}
+
+function getStructureLinkDistance(link: RuntimeLink) {
+  const depthGap = Math.abs(link.source.depth - link.target.depth);
+  const base = getRecursiveBranchDistance(
+    Math.max(link.source.depth, link.target.depth),
+  );
+  const densityRelief = Math.min(26, Math.sqrt(link.target.siblingCount) * 5);
+
+  if (link.target.type === "article") {
+    return Math.max(40, base * 0.72 + densityRelief);
+  }
+
+  return Math.max(46, base * (0.9 + depthGap * 0.06) + densityRelief);
 }
 
 function createClusterForce(strength = 0.035): Force {
@@ -301,7 +422,10 @@ function createClusterForce(strength = 0.035): Force {
     nodes.forEach((node) => {
       if (node.type === "root") return;
       const localStrength =
-        strength * alpha * (node.type === "section" ? 1.2 : 0.72);
+        strength *
+        alpha *
+        (node.type === "section" ? 1.06 : 0.68) *
+        Math.max(0.62, 1 - node.depth * 0.035);
       node.vx = (node.vx ?? 0) + (node.anchorX - (node.x ?? 0)) * localStrength;
       node.vy = (node.vy ?? 0) + (node.anchorY - (node.y ?? 0)) * localStrength;
     });
@@ -360,6 +484,10 @@ function createRuntimeGraph(payload: GraphPayload) {
       labelElement: document.createElement("div"),
       anchorX: 0,
       anchorY: 0,
+      depth: node.type === "root" ? 0 : 1,
+      parentId: node.type === "root" ? null : "root",
+      siblingIndex: 0,
+      siblingCount: 1,
     };
     nodeMap.set(node.id, runtimeNode);
     return runtimeNode;
@@ -387,12 +515,14 @@ function createRuntimeGraph(payload: GraphPayload) {
   runtimeNodes.forEach((node) => {
     node.radius = getNodeRadius(node, node.degree);
   });
-  seedForcePositions(runtimeNodes);
+  seedForcePositions(runtimeNodes, runtimeLinks);
 
   return {
     nodeMap,
     runtimeNodes,
     runtimeLinks,
+    structureLinks: runtimeLinks.filter((link) => link.kind === "structure"),
+    referenceLinks: runtimeLinks.filter((link) => link.kind === "reference"),
   };
 }
 
@@ -446,7 +576,21 @@ async function createGraphRuntime(options: {
   const palette = getThemePalette();
   const { stage, mount, tooltip, status, payload, getCurrentNodeId, navigateTo } =
     options;
-  const { nodeMap, runtimeNodes, runtimeLinks } = createRuntimeGraph(payload);
+  const { nodeMap, runtimeNodes, runtimeLinks, structureLinks, referenceLinks } =
+    createRuntimeGraph(payload);
+  const referencePairDirections = new Map<string, number>();
+
+  referenceLinks.forEach((link, index) => {
+    const pairKey = [link.source.id, link.target.id].sort().join("::");
+    if (!referencePairDirections.has(pairKey)) {
+      referencePairDirections.set(
+        pairKey,
+        seededNoise(index + link.source.id.length + link.target.id.length) > 0.5
+          ? 1
+          : -1,
+      );
+    }
+  });
 
   const canvas = document.createElement("canvas");
   canvas.className = "global-graph-canvas-surface";
@@ -487,6 +631,8 @@ async function createGraphRuntime(options: {
     worldY: number;
     nodeId: string | null;
     hasDragged: boolean;
+    dragOffsetX: number;
+    dragOffsetY: number;
   } | null = null;
   let lastPointer: { x: number; y: number; worldX: number; worldY: number } | null =
     null;
@@ -501,29 +647,13 @@ async function createGraphRuntime(options: {
     .force(
       "link",
       forceModule
-        .forceLink(runtimeLinks)
+        .forceLink(structureLinks)
         .id((node: RuntimeNode) => node.id)
         .iterations(2)
-        .distance((link: RuntimeLink) => {
-          if (link.kind === "reference") {
-            return link.source.clusterKey === link.target.clusterKey ? 58 : 96;
-          }
-          if (link.source.type === "root" || link.target.type === "root") {
-            return 112;
-          }
-          return link.source.type === "section" && link.target.type === "article"
-            ? 42
-            : 68;
-        })
-        .strength((link: RuntimeLink) => {
-          if (link.kind === "reference") {
-            return link.source.clusterKey === link.target.clusterKey ? 0.18 : 0.08;
-          }
-          if (link.source.type === "root" || link.target.type === "root") {
-            return 0.16;
-          }
-          return 0.62;
-        }),
+        .distance((link: RuntimeLink) => getStructureLinkDistance(link))
+        .strength((link: RuntimeLink) =>
+          link.target.type === "article" ? 0.48 : 0.58,
+        ),
     )
     .force(
       "charge",
@@ -531,8 +661,14 @@ async function createGraphRuntime(options: {
         .forceManyBody()
         .strength((node: RuntimeNode) => {
           if (node.type === "root") return -420;
-          if (node.type === "section") return -180 - node.degree * 8;
-          return -42 - node.degree * 1.8;
+          if (node.type === "section") {
+            return -150 - node.degree * 6 - node.siblingCount * 1.2;
+          }
+          return (
+            -52 -
+            node.degree * 1.8 -
+            Math.min(28, node.siblingCount * 0.8)
+          );
         })
         .distanceMin(14)
         .distanceMax(280),
@@ -540,7 +676,10 @@ async function createGraphRuntime(options: {
     .force(
       "collide",
       forceModule
-        .forceCollide((node: RuntimeNode) => node.radius + 9)
+        .forceCollide(
+          (node: RuntimeNode) =>
+            node.radius + 8 + Math.min(12, Math.sqrt(node.siblingCount) * 1.8),
+        )
         .strength(0.86)
         .iterations(2),
     )
@@ -608,7 +747,7 @@ async function createGraphRuntime(options: {
 
     runtimeNodes.forEach((node) => {
       const point = worldToScreen(node.x, node.y);
-      const radius = Math.max(8, node.radius * view.zoom + 5);
+      const radius = Math.max(12, node.radius * view.zoom + GRAPH_NODE_HIT_PADDING_PX);
       const distance = Math.hypot(point.x - x, point.y - y);
       if (distance <= radius && distance < bestDistance) {
         bestNode = node;
@@ -663,8 +802,45 @@ async function createGraphRuntime(options: {
     ctx.setTransform(view.pixelRatio, 0, 0, view.pixelRatio, 0, 0);
   }
 
+  function getLinkCurve(link: RuntimeLink, isCurrent = false) {
+    if (isCurrent) return GRAPH_LINK_CURVE.current;
+    return link.kind === "reference"
+      ? GRAPH_LINK_CURVE.reference
+      : GRAPH_LINK_CURVE.structure;
+  }
+
+  function getLinkControlPoint(
+    source: { x: number; y: number },
+    target: { x: number; y: number },
+    curve: number,
+    seed: number,
+    directionOverride?: number,
+  ) {
+    const midX = (source.x + target.x) / 2;
+    const midY = (source.y + target.y) / 2;
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const direction = directionOverride ?? (seededNoise(seed + 31.4) > 0.5 ? 1 : -1);
+
+    return {
+      x: midX + (-dy / length) * curve * direction,
+      y: midY + (dx / length) * curve * direction,
+    };
+  }
+
+  function getReferencePairDirection(link: RuntimeLink) {
+    if (link.kind === "reference") {
+      const pairKey = [link.source.id, link.target.id].sort().join("::");
+      const pairDirection = referencePairDirections.get(pairKey) ?? 1;
+      return link.source.id <= link.target.id ? pairDirection : -pairDirection;
+    }
+
+    return 1;
+  }
+
   function drawLinks(focusSet: Set<string>) {
-    runtimeLinks.forEach((link) => {
+    structureLinks.forEach((link) => {
       const source = worldToScreen(link.source.x, link.source.y);
       const target = worldToScreen(link.target.x, link.target.y);
       const isFocused = focusSet.has(link.source.id) && focusSet.has(link.target.id);
@@ -697,10 +873,41 @@ async function createGraphRuntime(options: {
             : GRAPH_LINK_WIDTH.structure) * zoomLineScale;
       ctx.beginPath();
       ctx.moveTo(source.x, source.y);
-      const midX = (source.x + target.x) / 2;
-      const midY = (source.y + target.y) / 2;
-      const curve = link.kind === "reference" ? 12 : 4;
-      ctx.quadraticCurveTo(midX, midY - curve, target.x, target.y);
+      const curve = getLinkCurve(link, isCurrent);
+      const control = getLinkControlPoint(source, target, curve, link.target.index ?? 0);
+      ctx.quadraticCurveTo(control.x, control.y, target.x, target.y);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawReferenceLinks(focusSet: Set<string>) {
+    referenceLinks.forEach((link) => {
+      const source = worldToScreen(link.source.x, link.source.y);
+      const target = worldToScreen(link.target.x, link.target.y);
+      const isFocused = focusSet.has(link.source.id) && focusSet.has(link.target.id);
+      const isCurrent =
+        link.source.id === currentNodeId || link.target.id === currentNodeId;
+
+      const zoomLineScale = Math.max(1, Math.sqrt(view.zoom));
+
+      ctx.save();
+      ctx.strokeStyle = palette.reference;
+      ctx.globalAlpha = isCurrent ? GRAPH_LINK_ALPHA.focusReference : isFocused ? GRAPH_LINK_ALPHA.focusReference : GRAPH_LINK_ALPHA.reference;
+      ctx.lineWidth =
+        (isCurrent ? GRAPH_LINK_WIDTH.current : GRAPH_LINK_WIDTH.reference) *
+        zoomLineScale;
+      ctx.beginPath();
+      ctx.moveTo(source.x, source.y);
+      const curve = getLinkCurve(link, isCurrent);
+      const control = getLinkControlPoint(
+        source,
+        target,
+        curve,
+        link.target.index ?? 0,
+        getReferencePairDirection(link),
+      );
+      ctx.quadraticCurveTo(control.x, control.y, target.x, target.y);
       ctx.stroke();
       ctx.restore();
     });
@@ -800,6 +1007,7 @@ async function createGraphRuntime(options: {
 
     ctx.clearRect(0, 0, view.width, view.height);
     drawLinks(focusSet);
+    drawReferenceLinks(focusSet);
     drawNodes(focusSet);
     updateLabels(focusNode, childLabelSet, relatedLabelSet, focusSet);
     updateTooltip();
@@ -883,8 +1091,8 @@ async function createGraphRuntime(options: {
 
         const dx = pointer.worldX - pointerDownState.worldX;
         const dy = pointer.worldY - pointerDownState.worldY;
-        dragNode.fx = pointer.worldX;
-        dragNode.fy = pointer.worldY;
+        dragNode.fx = pointer.worldX - pointerDownState.dragOffsetX;
+        dragNode.fy = pointer.worldY - pointerDownState.dragOffsetY;
 
         runtimeNodes.forEach((candidate) => {
           if (candidate.id === dragNode?.id) return;
@@ -939,6 +1147,8 @@ async function createGraphRuntime(options: {
       originY: pointer.y,
       nodeId: node?.id ?? null,
       hasDragged: false,
+      dragOffsetX: node ? pointer.worldX - (node.x ?? pointer.worldX) : 0,
+      dragOffsetY: node ? pointer.worldY - (node.y ?? pointer.worldY) : 0,
     };
     lastPointer = pointer;
     pointerMode = node ? "node" : "pan";
@@ -1042,7 +1252,6 @@ export function initGlobalGraphModal() {
   const tooltip = modalEl.querySelector("[data-graph-tooltip]");
   const status = modalEl.querySelector("[data-graph-status]");
   const dataElement = modalEl.querySelector("[data-global-graph-json]");
-  const locationLabel = modalEl.querySelector("[data-current-location]");
 
   if (
     !(stage instanceof HTMLElement) ||
@@ -1057,8 +1266,6 @@ export function initGlobalGraphModal() {
   const mountEl = mount;
   const tooltipEl = tooltip;
   const statusEl = status instanceof HTMLElement ? status : null;
-  const locationLabelEl =
-    locationLabel instanceof HTMLElement ? locationLabel : null;
 
   const payload = JSON.parse(
     dataElement.textContent || '{"nodes":[],"links":[]}',
@@ -1116,51 +1323,61 @@ export function initGlobalGraphModal() {
     graphRuntime?.stop();
   }
 
+  function syncTreeCurrentItem(nodeId: string) {
+    modalEl.querySelectorAll(".graph-tree-link").forEach((link) => {
+      if (!(link instanceof HTMLElement)) return;
+      const linkNodeId = link.getAttribute("data-node-target") || "";
+      link.classList.toggle("is-current", linkNodeId === nodeId);
+    });
+  }
+
+  function syncTreeOpenState(nodeId: string) {
+    const node = payload.nodes.find((candidate) => candidate.id === nodeId);
+    const openSectionPaths = new Set<string>();
+    const sectionPath =
+      node?.type === "section" ? node.sectionPath || "" : node?.sectionPath || "";
+
+    if (sectionPath) {
+      const segments = sectionPath.split("/").filter(Boolean);
+      segments.forEach((_, index) => {
+        openSectionPaths.add(segments.slice(0, index + 1).join("/"));
+      });
+    }
+
+    modalEl.querySelectorAll(".graph-tree-group").forEach((details) => {
+      if (!(details instanceof HTMLDetailsElement)) return;
+      const sectionPath = details.getAttribute("data-section-path") || "";
+      details.open = openSectionPaths.has(sectionPath);
+    });
+  }
+
+  function centerTreeOnCurrentItem() {
+    const treeShell = modalEl.querySelector(".global-graph-tree-shell");
+    const currentLink = modalEl.querySelector(".graph-tree-link.is-current");
+    if (!(treeShell instanceof HTMLElement) || !(currentLink instanceof HTMLElement)) {
+      return;
+    }
+
+    const shellRect = treeShell.getBoundingClientRect();
+    const currentRect = currentLink.getBoundingClientRect();
+    const nextTop =
+      treeShell.scrollTop +
+      (currentRect.top - shellRect.top) -
+      shellRect.height / 2 +
+      currentRect.height / 2;
+
+    treeShell.scrollTo({
+      top: Math.max(0, nextTop),
+      behavior: "smooth",
+    });
+  }
+
   function applyCurrentInfo(info: ReturnType<typeof determineCurrentNode>) {
     currentNodeId = info.nodeId;
 
-    if (locationLabelEl) {
-      locationLabelEl.textContent = info.label;
-      if (locationLabelEl instanceof HTMLAnchorElement) {
-        locationLabelEl.href = info.route;
-      }
-    }
-
-    modalEl.querySelectorAll(".graph-tree-link").forEach((link) => {
-      if (!(link instanceof HTMLElement)) return;
-      const linkRoute = normalizeRoute(
-        link.getAttribute("data-route-target") ||
-          link.getAttribute("href") ||
-          "",
-      );
-      const sectionPath = link.getAttribute("data-section-path");
-      const isArticle = link.classList.contains("graph-tree-link-article");
-      const isCurrent = isArticle
-        ? linkRoute === info.route
-        : sectionPath
-          ? info.route === linkRoute || info.route.startsWith(`${linkRoute}/`)
-          : linkRoute === info.route;
-      link.classList.toggle("is-current", isCurrent);
-    });
-
-    modalEl.querySelectorAll("[data-section-path]").forEach((element) => {
-      if (!(element instanceof HTMLElement)) return;
-      const sectionPath = element.getAttribute("data-section-path");
-      if (!sectionPath) return;
-
-      const sectionRoute = normalizeRoute(`/articles/${sectionPath}`);
-      const active =
-        info.route === sectionRoute || info.route.startsWith(`${sectionRoute}/`);
-
-      if (element.classList.contains("graph-tree-item-section")) {
-        element.classList.toggle("is-active", active);
-      }
-
-      if (element instanceof HTMLDetailsElement) {
-        element.open = active || !sectionPath.includes("/");
-      }
-    });
-
+    syncTreeOpenState(currentNodeId);
+    syncTreeCurrentItem(currentNodeId);
+    centerTreeOnCurrentItem();
     graphRuntime?.setCurrentNode(currentNodeId, true);
   }
 
@@ -1174,7 +1391,6 @@ export function initGlobalGraphModal() {
     } else {
       applyCurrentInfo(getNodeTargetByRoute(payload.nodes, normalizedRoute));
       if (isOpen) {
-        centerTreeOnCurrentItem();
         graphRuntime?.resize();
       }
     }
@@ -1197,35 +1413,6 @@ export function initGlobalGraphModal() {
     const currentPath = pendingRoute ?? getCurrentPath();
     const currentInfo = determineCurrentNode(payload.nodes, currentPath);
     applyCurrentInfo(currentInfo);
-  }
-
-  function centerTreeOnCurrentItem() {
-    const treeShell = modalEl.querySelector(".global-graph-tree-shell");
-    if (!(treeShell instanceof HTMLElement)) return;
-
-    const activeLink =
-      (currentNodeId
-        ? modalEl.querySelector(
-            `[data-node-target="${CSS.escape(currentNodeId)}"]`,
-          )
-        : null) ||
-      modalEl.querySelector(".graph-tree-link-article.is-current") ||
-      modalEl.querySelector(".graph-tree-link-section.is-current");
-
-    if (!(activeLink instanceof HTMLElement)) return;
-
-    const shellRect = treeShell.getBoundingClientRect();
-    const activeRect = activeLink.getBoundingClientRect();
-    const nextTop =
-      treeShell.scrollTop +
-      (activeRect.top - shellRect.top) -
-      shellRect.height / 2 +
-      activeRect.height / 2;
-
-    treeShell.scrollTo({
-      top: Math.max(0, nextTop),
-      behavior: "smooth",
-    });
   }
 
   async function ensureGraphRuntime() {
@@ -1272,7 +1459,6 @@ export function initGlobalGraphModal() {
     isOpen = true;
 
     syncCurrentLocation();
-    centerTreeOnCurrentItem();
 
     try {
       const runtime = await ensureGraphRuntime();
@@ -1288,7 +1474,6 @@ export function initGlobalGraphModal() {
     pendingRoute = null;
     syncCurrentLocation();
     if (!isOpen) return;
-    centerTreeOnCurrentItem();
     graphRuntime?.resize();
     graphRuntime?.setCurrentNode(currentNodeId, true);
   }
@@ -1341,15 +1526,6 @@ export function initGlobalGraphModal() {
       navigateTo(route);
     });
   });
-
-  if (locationLabelEl instanceof HTMLAnchorElement) {
-    addListener(locationLabelEl, "click", (event) => {
-      event.preventDefault();
-      syncCurrentLocation();
-      centerTreeOnCurrentItem();
-      graphRuntime?.setCurrentNode(currentNodeId, true);
-    });
-  }
 
   addListener(document, "keydown", onKeydown);
   addListener(window, "resize", () => {

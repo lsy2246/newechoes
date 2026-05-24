@@ -387,68 +387,70 @@ const tableOfContents = generateTableOfContents(headings);
         { "article-preview-layout": isCardPreview },
       ]}
     >
-      <article class="article-main">
-        {
-          !isCardPreview && (
-            <div class="pathbar">
-              <nav class="path" aria-label="文章路径">
-                <a href="/articles/" data-astro-prefetch="hover">文章</a>
-                {pathSegments.map((segment, index) => {
-                  const segmentPath = pathSegments.slice(0, index + 1).join("/");
+      {
+        !isCardPreview && (
+          <nav class="article-topbar" aria-label="文章路径">
+            <div class="article-breadcrumb">
+              <a href="/articles/" data-astro-prefetch="hover">文章</a>
+              {pathSegments.map((segment, index) => {
+                const segmentPath = pathSegments.slice(0, index + 1).join("/");
 
-                  return (
-                    <>
-                      <span aria-hidden="true">/</span>
-                      <a href={`/articles/${segmentPath}/`} data-astro-prefetch="hover">
-                        {segment}
-                      </a>
-                    </>
-                  );
-                })}
-                <span aria-hidden="true">/</span>
-                <span>{article.data.title}</span>
-              </nav>
-              <div class="view-switch">
-                <a href={section ? `/articles/${section}/` : "/articles/"} data-astro-prefetch="hover">
-                  ← 返回文章列表
-                </a>
-              </div>
+                return (
+                  <>
+                    <span aria-hidden="true">/</span>
+                    <a href={`/articles/${segmentPath}/`} data-astro-prefetch="hover">
+                      {segment}
+                    </a>
+                  </>
+                );
+              })}
+              <span aria-hidden="true">/</span>
+              <span aria-current="page">{article.data.title}</span>
             </div>
-          )
-        }
+            <a
+              class="article-return-link"
+              href={section ? `/articles/${section}/` : "/articles/"}
+              data-astro-prefetch="hover"
+            >
+              ← 返回文章列表
+            </a>
+          </nav>
+        )
+      }
 
+      <article class="article-main">
         <header class="article-head">
-          <div class="article-title-row">
-            <h1 class="article-title">{article.data.title}</h1>
+          <div class="article-meta-line">
             <time
               datetime={article.data.date.toISOString()}
               class="article-date"
             >
               {formatArticleDate(article.data.date)}
             </time>
+            {
+              article.data.tags && article.data.tags.length > 0 && (
+                <div class="article-tags" aria-label="文章标签">
+                  {article.data.tags.slice(0, 8).map((tag: string) => (
+                    <a
+                      href={`/filtered?tags=${tag}`}
+                      class="article-tag"
+                      data-astro-prefetch="hover"
+                    >
+                      #{tag}
+                    </a>
+                  ))}
+                  {
+                    article.data.tags.length > 8 && (
+                      <span class="article-tag tag-more">
+                        +{article.data.tags.length - 8}
+                      </span>
+                    )
+                  }
+                </div>
+              )
+            }
           </div>
-          {
-            article.data.tags && article.data.tags.length > 0 && (
-              <div class="article-tags" aria-label="文章标签">
-                {article.data.tags.slice(0, 8).map((tag: string) => (
-                  <a
-                    href={`/filtered?tags=${tag}`}
-                    class="article-tag"
-                    data-astro-prefetch="hover"
-                  >
-                    #{tag}
-                  </a>
-                ))}
-                {
-                  article.data.tags.length > 8 && (
-                    <span class="article-tag tag-more">
-                      +{article.data.tags.length - 8}
-                    </span>
-                  )
-                }
-              </div>
-            )
-          }
+          <h1 class="article-title">{article.data.title}</h1>
         </header>
 
         {
@@ -465,42 +467,86 @@ const tableOfContents = generateTableOfContents(headings);
         </div>
 
         {
-          !isCardPreview && relatedArticles.length > 0 && (
-            <section class="related" aria-label={getRelatedTitle(relatedArticlesMatchType)}>
-              <div class="related-head">
-                <h2>{getRelatedTitle(relatedArticlesMatchType)}</h2>
-                <span class="related-count">{relatedArticles.slice(0, 3).length}</span>
-              </div>
-              <ul class="related-list">
-                {relatedArticles.slice(0, 3).map((relatedArticle: ArticleEntry, index: number) => {
-                  const relatedSummary = generateArticleSummary(relatedArticle);
+          !isCardPreview && (
+            <footer class="article-footer">
+              {
+                relatedArticles.length > 0 && (
+                  <section class="related" aria-label={getRelatedTitle(relatedArticlesMatchType)}>
+                    <div class="related-head">
+                      <h2>{getRelatedTitle(relatedArticlesMatchType)}</h2>
+                      <span class="related-count">{relatedArticles.slice(0, 3).length}</span>
+                    </div>
+                    <ul class="related-list">
+                      {relatedArticles.slice(0, 3).map((relatedArticle: ArticleEntry, index: number) => {
+                        const relatedSummary = generateArticleSummary(relatedArticle);
 
-                  return (
-                    <li>
-                      <a
-                        class="related-item"
-                        href={getArticleUrl(relatedArticle.id)}
-                        data-astro-prefetch="viewport"
-                      >
-                        <span class="related-index">
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                        <span class="related-copy">
-                          <strong>{relatedArticle.data.title}</strong>
-                          <span>{relatedSummary}</span>
-                        </span>
-                        <time
-                          class="related-date"
-                          datetime={relatedArticle.data.date.toISOString()}
-                        >
-                          {formatArticleDate(relatedArticle.data.date)}
-                        </time>
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+                        return (
+                          <li>
+                            <a
+                              class="related-item"
+                              href={getArticleUrl(relatedArticle.id)}
+                              data-astro-prefetch="viewport"
+                            >
+                              <span class="related-index">
+                                {String(index + 1).padStart(2, "0")}
+                              </span>
+                              <span class="related-copy">
+                                <strong>{relatedArticle.data.title}</strong>
+                                <span>{relatedSummary}</span>
+                              </span>
+                              <time
+                                class="related-date"
+                                datetime={relatedArticle.data.date.toISOString()}
+                              >
+                                {formatArticleDate(relatedArticle.data.date)}
+                              </time>
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                )
+              }
+
+              <section class="backlinks-section" aria-label="反向链接">
+                <div class="backlinks-head">
+                  <h2>反向链接</h2>
+                  <span class="backlinks-count">{backlinkArticles.length}</span>
+                </div>
+                {
+                  visibleBacklinkArticles.length > 0 ? (
+                    <div class="side-scroll backlinks-scroll">
+                      <ul class="backlink-list">
+                        {visibleBacklinkArticles.map((backlinkArticle: ArticleEntry) => (
+                          <li>
+                            <a
+                              href={getArticleUrl(backlinkArticle.id)}
+                              class="backlink-link"
+                              data-astro-prefetch="hover"
+                            >
+                              <strong>{backlinkArticle.data.title}</strong>
+                              <span>{formatArticleDate(backlinkArticle.data.date)}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                      {
+                        hiddenBacklinkCount > 0 && (
+                          <p class="backlinks-more">
+                            还有 {hiddenBacklinkCount} 篇引用暂未展开
+                          </p>
+                        )
+                      }
+                    </div>
+                  ) : (
+                    <p class="backlinks-empty">
+                      暂时还没有文章链接到这里。
+                    </p>
+                  )
+                }
+              </section>
+            </footer>
           )
         }
 
@@ -566,43 +612,6 @@ const tableOfContents = generateTableOfContents(headings);
               />
             </section>
 
-            <section class="side-block">
-              <div class="side-title-row">
-                <h2>反向链接</h2>
-                <span class="side-count">{backlinkArticles.length}</span>
-              </div>
-              {
-                visibleBacklinkArticles.length > 0 ? (
-                  <div class="side-scroll">
-                    <ul class="backlink-list">
-                      {visibleBacklinkArticles.map((backlinkArticle: ArticleEntry) => (
-                        <li>
-                          <a
-                            href={getArticleUrl(backlinkArticle.id)}
-                            class="backlink-link"
-                            data-astro-prefetch="hover"
-                          >
-                            <strong>{backlinkArticle.data.title}</strong>
-                            <span>{formatArticleDate(backlinkArticle.data.date)}</span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                    {
-                      hiddenBacklinkCount > 0 && (
-                        <p class="backlinks-more">
-                          还有 {hiddenBacklinkCount} 篇引用暂未展开
-                        </p>
-                      )
-                    }
-                  </div>
-                ) : (
-                  <p class="backlinks-empty">
-                    暂时还没有文章链接到这里。
-                  </p>
-                )
-              }
-            </section>
           </aside>
         </Fragment>
       )

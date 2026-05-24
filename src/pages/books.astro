@@ -7,10 +7,10 @@ import WereadBookList from "@/components/WereadBookList";
   title={`书单`}
   description={`我读过的书`}
 >
-  <h1 class="text-3xl font-bold mb-6">我读过的书</h1>
-
-  <WereadBookList
-    listId="333895983_80fTRWHwy"
-    client:load
-  />
-</Layout> 
+  <div class="collection-page-offset pt-6 md:pt-8">
+    <WereadBookList
+      listId="333895983_80fTRWHwy"
+      client:load
+    />
+  </div>
+</Layout>

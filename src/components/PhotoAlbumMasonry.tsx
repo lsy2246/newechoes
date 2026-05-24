@@ -4,6 +4,7 @@ import Masonry from "react-masonry-css";
 interface PhotoAlbumMasonryProps {
   shareUrl: string;
   title?: string;
+  showTitle?: boolean;
   className?: string;
 }
 
@@ -89,6 +90,7 @@ const sortPhotosForDisplay = (items: PhotoItem[]) =>
 const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   shareUrl,
   title,
+  showTitle = true,
   className = "",
 }) => {
   const [album, setAlbum] = useState<AlbumInfo | null>(null);
@@ -139,6 +141,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     imageFailureCount >= 3
       ? "检测到多张图片加载失败，当前网络可能无法访问 Google Photos 资源。"
       : null;
+  const hasLoadedEmptyAlbum = !isLoading && !error && photos.length === 0 && !hasMoreContent;
   const previewImageUrl = selectedPhoto?.previewUrl || selectedPhoto?.displayUrl || null;
   const previewFullImageUrl =
     selectedPhoto?.originalLikeUrl || selectedPhoto?.previewUrl || selectedPhoto?.displayUrl || null;
@@ -497,13 +500,20 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   return (
     <section className={`w-full ${className}`}>
       <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{title || album?.title || "相册"}</h1>
+        {showTitle ? (
+          <div>
+            <h1 className="text-3xl font-bold">{title || album?.title || "相册"}</h1>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              已显示 {visiblePhotos.length} 张
+              {photos.length > visiblePhotos.length ? `，已缓存 ${photos.length} 张` : ""}
+            </p>
+          </div>
+        ) : (
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             已显示 {visiblePhotos.length} 张
             {photos.length > visiblePhotos.length ? `，已缓存 ${photos.length} 张` : ""}
           </p>
-        </div>
+        )}
       </div>
 
       {networkHint && !error ? (
@@ -520,6 +530,22 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
             type="button"
             onClick={() => fetchPhotoPage(null, 0)}
             className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+          >
+            重试
+          </button>
+        </div>
+      ) : null}
+
+      {hasLoadedEmptyAlbum ? (
+        <div className="rounded-xl bg-amber-50 p-6 text-center text-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="font-semibold">相册里暂时没有可显示的照片</p>
+          <p className="mt-2 text-sm">
+            Google Photos 返回了空结果，可能是分享链接权限、相册内容或本地网络访问导致的。
+          </p>
+          <button
+            type="button"
+            onClick={() => fetchPhotoPage(null, 0)}
+            className="mt-4 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
           >
             重试
           </button>
