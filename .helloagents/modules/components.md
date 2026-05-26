@@ -15,6 +15,11 @@
 **行为**: 通过 props/slots 组合组件。
 **结果**: 统一外观与交互体验。
 
+### Countdown 字号语义化
+**条件**: 页面渲染倒计时或展示型数字。
+**行为**: `Countdown` 组件通过 `countdown-row`、`countdown-unit`、`countdown-value`、`countdown-label`、`countdown-expired` 等语义类接入全站 typography token，不在组件内使用 Tailwind `text-*` 直接定义孤立字号。
+**结果**: about 页倒计时数字、标签与全站标题/辅助文字阶梯一致。
+
 ### WASM 计算下沉
 **条件**: Search / ArticleFilter 需要执行检索或筛选。
 **行为**: 通过 lib/wasmWorkerClient 与 Worker 通信，异步获取结果。

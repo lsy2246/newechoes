@@ -55,7 +55,7 @@ test("filter panel CSS keeps console controls and dense results scannable", () =
   assert.match(cssBlock(".filter-control-grid"), /grid-template-columns:\s*minmax\(0,\s*15rem\) minmax\(0,\s*13rem\) minmax\(0,\s*17rem\) auto/);
   assert.match(cssBlock(".filter-control"), /min-width:\s*0;/);
   assert.match(cssBlock(".line-select"), /border:\s*1px solid var\(--site-line\)/);
-  assert.match(cssBlock(".line-select"), /font-size:\s*14px;/);
+  assert.match(cssBlock(".line-select"), /font-size:\s*var\(--type-ui\);/);
   assert.match(cssBlock(".line-select"), /min-height:\s*42px;/);
   assert.match(cssBlock(".filter-reset-button"), /min-height:\s*42px;/);
   assert.match(cssBlock(".filter-reset-button"), /border:\s*1px solid var\(--site-line\)/);

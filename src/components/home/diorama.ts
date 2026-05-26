@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { HOME_PROFILE } from "@/consts";
 import {
   drawHomeScreenBackdrop,
@@ -10,6 +11,62 @@ import {
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
 const HOME_DIORAMA_PIXEL_RATIO_CAP = 2;
+const DESK_TOP_FIXED_COLOR = 0xf8f8f6;
+const FLOOR_FIXED_COLOR = DESK_TOP_FIXED_COLOR;
+const DESK_LEG_FIXED_COLOR = 0xc6c9c8;
+const COMPUTER_FIXED_GREY = DESK_TOP_FIXED_COLOR;
+const KEYBOARD_MODEL_URL = "/models/home/keyboard.glb";
+const KEYBOARD_MODEL_TARGET_WIDTH = 0.9;
+const KEYBOARD_MODEL_TARGET_DEPTH = 0.36;
+const KEYBOARD_MODEL_TARGET_HEIGHT = 0.035;
+const KEYBOARD_MODEL_MOBILE_TARGET_WIDTH = 0.74;
+const KEYBOARD_MODEL_MOBILE_TARGET_DEPTH = 0.3;
+const KEYBOARD_MODEL_MOBILE_TARGET_HEIGHT = 0.03;
+const TYPING_CHARACTER_MODEL_URL = "/models/home/typing-character.glb";
+const TYPING_CHARACTER_MODEL_ATTRIBUTION =
+  "Typing character by Gagana Geesara Perera, character by Yury Misiyuk, CC BY 4.0";
+const TYPING_CHARACTER_MODEL_SOURCE =
+  "https://sketchfab.com/3d-models/typing-character-c08db34e77274c5daa5612406f254a27";
+const TYPING_CHARACTER_MODEL_TARGET_HEIGHT = 1.72;
+const TYPING_CHARACTER_MODEL_MOBILE_TARGET_HEIGHT = 1.38;
+const TYPING_CHARACTER_MODEL_FACING_ROTATION_Y = Math.PI;
+const TYPING_CHARACTER_MODEL_FORWARD_LEAN_X = 0.22;
+const TYPING_CHARACTER_MODEL_FLOOR_Y = -0.5;
+const TYPING_CHARACTER_MODEL_SEAT_Z_OFFSET = -0.02;
+const TYPING_CHARACTER_LOWER_LEG_LENGTH_SCALE = 1.14;
+const TYPING_CHARACTER_FIXED_COLOR = 0xe8e8e4;
+const TYPING_CHARACTER_EMISSIVE_COLOR = 0x343432;
+const TYPING_CHARACTER_EMISSIVE_INTENSITY = 0.16;
+const TYPING_CHARACTER_STATIC_POSE_TIME = 14.35;
+const TYPING_CHARACTER_CORRECTIVE_POSE = [
+  ["mixamorigSpine_01", -0.015, 0, 0],
+  ["mixamorigLeftUpLeg_055", -0.24, 0, 0],
+  ["mixamorigRightUpLeg_060", -0.24, 0, 0],
+  ["mixamorigLeftLeg_056", 0.16, 0, 0],
+  ["mixamorigRightLeg_061", 0.16, 0, 0],
+  ["mixamorigLeftForeArm_09", 0.035, 0, 0],
+  ["mixamorigRightForeArm_033", 0.055, 0, 0],
+  ["mixamorigLeftHand_010", 0.07, 0, 0],
+  ["mixamorigRightHand_034", 0.07, 0, 0],
+] as const;
+const TYPING_CHARACTER_FINGER_CURL_BONE_NAMES = [
+  "mixamorigLeftHandIndex1_015",
+  "mixamorigLeftHandIndex2_016",
+  "mixamorigLeftHandMiddle1_019",
+  "mixamorigLeftHandMiddle2_020",
+  "mixamorigLeftHandRing1_023",
+  "mixamorigLeftHandPinky1_027",
+  "mixamorigRightHandIndex1_039",
+  "mixamorigRightHandIndex2_040",
+  "mixamorigRightHandMiddle1_043",
+  "mixamorigRightHandMiddle2_044",
+  "mixamorigRightHandRing1_047",
+  "mixamorigRightHandPinky1_051",
+] as const;
+const TYPING_CHARACTER_LOWER_LEG_BONE_NAMES = [
+  "mixamorigLeftLeg_056",
+  "mixamorigRightLeg_061",
+] as const;
 
 type ThemeName = "light" | "dark";
 
@@ -27,19 +84,8 @@ const OUTDOOR_PALETTES: Record<ThemeName, OutdoorPalette> = {
 };
 
 type Theme = {
-  floor: number;
   wall: number;
-  deskTop: number;
-  deskLeg: number;
   chairShell: number;
-  computerShell: number;
-  laptopBody: number;
-  laptopFrame: number;
-  personSkin: number;
-  personHair: number;
-  personCloth: number;
-  personPants: number;
-  personShoe: number;
   screenBg: string;
   screenText: string;
   screenMuted: string;
@@ -50,19 +96,8 @@ type Theme = {
 
 const THEMES: Record<ThemeName, Theme> = {
   light: {
-    floor: 0xf2f3f2,
     wall: 0xffffff,
-    deskTop: 0xf8f8f6,
-    deskLeg: 0xc6c9c8,
     chairShell: 0xf1f2f0,
-    computerShell: 0xf5f6f4,
-    laptopBody: 0xe7e8e6,
-    laptopFrame: 0x202326,
-    personSkin: 0xd7b49b,
-    personHair: 0x17335f,
-    personCloth: 0xff7a59,
-    personPants: 0x20a7b8,
-    personShoe: 0x23272b,
     screenBg: "#ffffff",
     screenText: "#101010",
     screenMuted: "#3f3f3f",
@@ -71,19 +106,8 @@ const THEMES: Record<ThemeName, Theme> = {
     sceneBg: 0xf7f8f7,
   },
   dark: {
-    floor: 0x181a1d,
     wall: 0x111315,
-    deskTop: 0x25282c,
-    deskLeg: 0x8b9096,
     chairShell: 0xdadcd8,
-    computerShell: 0x30343a,
-    laptopBody: 0x30343a,
-    laptopFrame: 0xe6e9ec,
-    personSkin: 0xa8a6a0,
-    personHair: 0xb8d3ff,
-    personCloth: 0xff8a68,
-    personPants: 0x2bb8c7,
-    personShoe: 0x111315,
     screenBg: "#111315",
     screenText: "#f5f7fa",
     screenMuted: "#bdc5cf",
@@ -120,10 +144,10 @@ const getDeviceClass = (width: number, height: number): HomeScreenStoryDevice =>
 const SCREEN_CARRIER_PRESETS: Record<HomeScreenStoryDevice, ScreenCarrierPreset> = {
   desktop: {
     canvas: { width: 2560, height: 1440 },
-    screen: { w: 1.24, h: 0.68, t: 0.024 },
+    screen: { w: 1.06, h: 0.58, t: 0.024 },
     groupPosition: new THREE.Vector3(0, 0.055, -0.4),
     groupRotationX: -0.22,
-    screenFaceYOffset: 0.39,
+    screenFaceYOffset: 0.34,
     screenBodyOffsetZ: -0.013,
     cameraFit: 1,
     roomDistance: 4.1,
@@ -197,6 +221,7 @@ export function initDiorama() {
   );
   const useMobileCarrier = deviceClass === "mobile";
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let disposed = false;
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0xd8ecff, 7, 16);
@@ -275,20 +300,15 @@ export function initDiorama() {
 
   // ===== Materials =====
   const mats = {
-    floor: new THREE.MeshStandardMaterial({ color: 0xb89068, roughness: 0.92, transparent: true }),
+    floor: new THREE.MeshStandardMaterial({ color: FLOOR_FIXED_COLOR, roughness: 0.92, transparent: true }),
     wall: new THREE.MeshStandardMaterial({ color: 0xe8dfc8, roughness: 0.96, transparent: true }),
-    deskTop: new THREE.MeshStandardMaterial({ color: 0xf8f8f6, roughness: 0.58, metalness: 0.02 }),
-    deskLeg: new THREE.MeshStandardMaterial({ color: 0xc6c9c8, roughness: 0.46, metalness: 0.28 }),
+    deskTop: new THREE.MeshStandardMaterial({ color: DESK_TOP_FIXED_COLOR, roughness: 0.58, metalness: 0.02 }),
+    deskLeg: new THREE.MeshStandardMaterial({ color: DESK_LEG_FIXED_COLOR, roughness: 0.46, metalness: 0.28 }),
     chairShell: new THREE.MeshStandardMaterial({ color: 0xf1f2f0, roughness: 0.62, metalness: 0.02 }),
-    computerShell: new THREE.MeshStandardMaterial({ color: 0xf5f6f4, roughness: 0.52, metalness: 0.04 }),
-    laptopBody: new THREE.MeshStandardMaterial({ color: 0xf5f6f4, roughness: 0.52, metalness: 0.04 }),
-    laptopFrame: new THREE.MeshStandardMaterial({ color: 0x202326, roughness: 0.5, metalness: 0.12 }),
+    computerShell: new THREE.MeshStandardMaterial({ color: COMPUTER_FIXED_GREY, roughness: 0.58, metalness: 0.02 }),
+    laptopBody: new THREE.MeshStandardMaterial({ color: COMPUTER_FIXED_GREY, roughness: 0.58, metalness: 0.02 }),
+    laptopFrame: new THREE.MeshStandardMaterial({ color: COMPUTER_FIXED_GREY, roughness: 0.58, metalness: 0.02 }),
     screen: null as unknown as THREE.MeshBasicMaterial,
-    personSkin: new THREE.MeshStandardMaterial({ color: 0xd7b49b, roughness: 0.82, metalness: 0 }),
-    personHair: new THREE.MeshStandardMaterial({ color: 0x17335f, roughness: 0.78, metalness: 0 }),
-    personCloth: new THREE.MeshStandardMaterial({ color: 0xff7a59, roughness: 0.82, metalness: 0 }),
-    personPants: new THREE.MeshStandardMaterial({ color: 0x20a7b8, roughness: 0.78, metalness: 0 }),
-    personShoe: new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.52, metalness: 0.05 }),
     key: new THREE.MeshStandardMaterial({ color: 0x202326, roughness: 0.56, metalness: 0.08 }),
   };
   const revealMaterials: THREE.Material[] = [
@@ -300,11 +320,6 @@ export function initDiorama() {
     mats.computerShell,
     mats.laptopBody,
     mats.laptopFrame,
-    mats.personSkin,
-    mats.personHair,
-    mats.personCloth,
-    mats.personPants,
-    mats.personShoe,
     mats.key,
   ];
   for (const mat of revealMaterials) {
@@ -339,10 +354,10 @@ export function initDiorama() {
 
   // ===== Desk =====
   const desk = new THREE.Group();
-  const deskW = 2.45;
-  const deskD = 1.12;
+  const deskW = useMobileCarrier ? 2.45 : 2.02;
+  const deskD = useMobileCarrier ? 1.12 : 1.34;
   const deskTopH = 0.07;
-  const deskTopY = 0.22; // top surface at y=0.26 world, so thighs clear underneath
+  const deskTopY = 0.215; // raised slightly so the tabletop no longer crowds the lap
 
   const deskTopMesh = new THREE.Mesh(
     new RoundedBoxGeometry(deskW, deskTopH, deskD, 9, 0.055),
@@ -353,17 +368,18 @@ export function initDiorama() {
   deskTopMesh.receiveShadow = true;
   desk.add(deskTopMesh);
 
-  // Legs: from floor y=-0.5 to desk bottom y=0.18. Height 0.68, center y=-0.16.
-  const legH = 0.68;
+  // Legs run from the floor to the lowered table underside.
+  const deskLegTopY = deskTopY - deskTopH / 2;
+  const legH = deskLegTopY - roomFloorY;
   const legW = 0.08;
   [[-deskW / 2 + 0.1, -deskD / 2 + 0.1], [deskW / 2 - 0.1, -deskD / 2 + 0.1],
    [-deskW / 2 + 0.1, deskD / 2 - 0.1], [deskW / 2 - 0.1, deskD / 2 - 0.1]].forEach(([x, z]) => {
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(legW * 0.18, legW * 0.18, legH, 12), mats.deskLeg);
-    leg.position.set(x, -0.16, z);
+    leg.position.set(x, roomFloorY + legH / 2, z);
     leg.castShadow = true;
     desk.add(leg);
   });
-  desk.position.set(0, 0, -0.6);
+  desk.position.set(0, 0, useMobileCarrier ? -0.6 : -0.32);
   deskFigure.add(desk);
   const deskTopWorldY = desk.position.y + deskTopY + deskTopH / 2; // world y of top surface
 
@@ -372,23 +388,27 @@ export function initDiorama() {
   const laptop = new THREE.Group();
 
   const lpBaseW = useMobileCarrier ? 1.18 : 1.04;
-  const lpBaseD = useMobileCarrier ? 0.32 : 0.48;
-  const lpBaseH = 0.028;
+  const lpBaseD = useMobileCarrier ? 0.32 : 0.44;
+  const lpBaseH = useMobileCarrier ? 0.028 : 0.018;
+  const desktopKeyboardDeckZ = 0.58;
+  const desktopKeyboardInset = -0.01;
+  const desktopMonitorY = 0.09;
+  const desktopMonitorZ = 0.14;
 
   const lpBase = new THREE.Mesh(
     new RoundedBoxGeometry(lpBaseW, lpBaseH, lpBaseD, 8, 0.035),
     mats.computerShell,
   );
-  lpBase.position.set(0, lpBaseH / 2 + 0.002, 0.12);
+  lpBase.position.set(0, lpBaseH / 2 + 0.002, useMobileCarrier ? 0.12 : desktopKeyboardDeckZ);
   lpBase.castShadow = true;
   lpBase.receiveShadow = true;
-  lpBase.visible = true;
-  laptop.add(lpBase);
+  lpBase.visible = useMobileCarrier;
+  if (useMobileCarrier) laptop.add(lpBase);
 
   // Screen (hinged at back edge)
   const lpScreenGroup = new THREE.Group();
   lpScreenGroup.position.copy(screenPreset.groupPosition);
-  if (!useMobileCarrier) lpScreenGroup.position.set(0, 0.09, -0.4);
+  if (!useMobileCarrier) lpScreenGroup.position.set(0, desktopMonitorY, desktopMonitorZ);
   const lpScreenW = screenPreset.screen.w;
   const lpScreenH = screenPreset.screen.h;
   const lpScreenT = screenPreset.screen.t;
@@ -461,60 +481,131 @@ export function initDiorama() {
   lpScreenGroup.add(screenFace);
 
   lpScreenGroup.rotation.x = useMobileCarrier ? screenPreset.groupRotationX : -0.06;
+  let desktopMonitorRearAnchorPoint: THREE.Vector3 | null = null;
+  if (!useMobileCarrier) {
+    const desktopRearAnchorY = screenPreset.screenFaceYOffset - lpScreenH * 0.08;
+    const desktopRearAnchorZ = screenPreset.screenBodyOffsetZ - lpScreenT / 2 - 0.014;
+    const desktopRearAnchorLocal = new THREE.Vector3(0, desktopRearAnchorY, desktopRearAnchorZ);
+    desktopMonitorRearAnchorPoint = desktopRearAnchorLocal
+      .clone()
+      .applyEuler(lpScreenGroup.rotation)
+      .add(lpScreenGroup.position);
+
+    const monitorBackSupportPlate = new THREE.Mesh(
+      new RoundedBoxGeometry(0.34, 0.24, 0.028, 6, 0.018),
+      mats.computerShell,
+    );
+    monitorBackSupportPlate.name = "monitorBackSupportPlate";
+    monitorBackSupportPlate.position.copy(desktopRearAnchorLocal);
+    monitorBackSupportPlate.castShadow = true;
+    monitorBackSupportPlate.receiveShadow = true;
+    lpScreenGroup.add(monitorBackSupportPlate);
+
+    const monitorBackSupportHub = new THREE.Mesh(
+      new RoundedBoxGeometry(0.16, 0.13, 0.036, 6, 0.014),
+      mats.computerShell,
+    );
+    monitorBackSupportHub.name = "monitorBackSupportHub";
+    monitorBackSupportHub.position.set(0, desktopRearAnchorY, desktopRearAnchorZ - 0.028);
+    monitorBackSupportHub.castShadow = true;
+    lpScreenGroup.add(monitorBackSupportHub);
+  }
   laptop.add(lpScreenGroup);
 
-  // Keyboard (InstancedMesh)
-  const cols = 11;
-  const rows = 4;
-  const keyW = 0.075;
-  const keyD = 0.068;
-  const keyH = 0.014;
-  const keyGapX = 0.012;
-  const keyGapZ = 0.013;
-  const kbW = cols * keyW + (cols - 1) * keyGapX;
-  const kbX0 = -kbW / 2;
-  const kbZ0 = 0.17;
-  const totalKeys = rows * cols + 1;
-  const keyGeo = new THREE.BoxGeometry(keyW, keyH, keyD);
-  const keyMesh = new THREE.InstancedMesh(keyGeo, mats.key, totalKeys);
-  keyMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  keyMesh.castShadow = true;
-  const keyStates: { baseY: number; press: number; x: number; z: number; side: -1 | 1 }[] = [];
-  const keyBaseY = lpBaseH + keyH / 2 + 0.003;
-  const keyDummy = new THREE.Object3D();
-  let k = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const x = kbX0 + c * (keyW + keyGapX) + keyW / 2;
-      const z = kbZ0 + r * (keyD + keyGapZ) + keyD / 2;
-      const side: -1 | 1 = c < cols / 2 ? -1 : 1;
-      keyStates.push({ baseY: keyBaseY, press: 0, x, z, side });
-      keyDummy.position.set(x, keyBaseY, z);
-      keyDummy.updateMatrix();
-      keyMesh.setMatrixAt(k++, keyDummy.matrix);
-    }
-  }
-  // Space bar
-  const spaceW = keyW * 5 + keyGapX * 4;
-  const spaceZ = kbZ0 + rows * (keyD + keyGapZ) + keyD / 2;
-  keyStates.push({ baseY: keyBaseY, press: 0, x: 0, z: spaceZ, side: 1 });
-  keyDummy.position.set(0, keyBaseY, spaceZ);
-  keyDummy.scale.set(spaceW / keyW, 1, 1);
-  keyDummy.updateMatrix();
-  keyMesh.setMatrixAt(k++, keyDummy.matrix);
-  keyDummy.scale.set(1, 1, 1);
-  keyMesh.instanceMatrix.needsUpdate = true;
-  keyMesh.visible = true;
-  laptop.add(keyMesh);
-
-  // Trackpad (visual only)
-  const trackpad = new THREE.Mesh(
-    new RoundedBoxGeometry(0.38, 0.006, 0.22, 5, 0.018),
-    mats.computerShell,
+  // Keyboard model
+  let keyboardModelLoaded = false;
+  const keyboardModelMaterials: THREE.Material[] = [];
+  const keyboardModelBounds = new THREE.Box3();
+  const keyboardModelSize = new THREE.Vector3();
+  const keyboardModelCenter = new THREE.Vector3();
+  const keyboardModelMount = new THREE.Group();
+  keyboardModelMount.name = "keyboardModelMount";
+  keyboardModelMount.position.set(
+    0,
+    lpBaseH + (useMobileCarrier ? 0.006 : 0.004),
+    useMobileCarrier ? 0.17 : desktopKeyboardDeckZ,
   );
-  trackpad.position.set(0, lpBaseH + 0.002, -0.1);
-  trackpad.visible = useMobileCarrier;
-  laptop.add(trackpad);
+  laptop.add(keyboardModelMount);
+
+  const syncKeyboardModelOpacity = (opacity: number) => {
+    for (const mat of keyboardModelMaterials) {
+      mat.transparent = opacity < 0.995;
+      mat.opacity = opacity;
+      mat.needsUpdate = true;
+    }
+  };
+
+  const fitKeyboardModel = (model: THREE.Object3D) => {
+    keyboardModelBounds.setFromObject(model);
+    keyboardModelBounds.getSize(keyboardModelSize);
+    const targetWidth = useMobileCarrier
+      ? KEYBOARD_MODEL_MOBILE_TARGET_WIDTH
+      : KEYBOARD_MODEL_TARGET_WIDTH;
+    const targetDepth = useMobileCarrier
+      ? KEYBOARD_MODEL_MOBILE_TARGET_DEPTH
+      : KEYBOARD_MODEL_TARGET_DEPTH;
+    const targetHeight = useMobileCarrier
+      ? KEYBOARD_MODEL_MOBILE_TARGET_HEIGHT
+      : KEYBOARD_MODEL_TARGET_HEIGHT;
+    const horizontalScale = Math.min(
+      targetWidth / Math.max(0.001, keyboardModelSize.x),
+      targetDepth / Math.max(0.001, keyboardModelSize.z),
+    );
+    const verticalScale = targetHeight / Math.max(0.001, keyboardModelSize.y);
+
+    model.position.set(0, 0, 0);
+    model.rotation.set(0, 0, 0);
+    model.scale.set(horizontalScale, verticalScale, horizontalScale);
+    model.updateMatrixWorld(true);
+    keyboardModelBounds.setFromObject(model);
+    keyboardModelBounds.getCenter(keyboardModelCenter);
+    model.position.set(
+      -keyboardModelCenter.x,
+      -keyboardModelBounds.min.y,
+      -keyboardModelCenter.z,
+    );
+  };
+
+  const keyboardLoader = new GLTFLoader();
+  keyboardLoader.load(
+    KEYBOARD_MODEL_URL,
+    (gltf) => {
+      const model = gltf.scene;
+      if (disposed) {
+        model.traverse((obj) => {
+          const mesh = obj as THREE.Mesh;
+          if (mesh.geometry) mesh.geometry.dispose();
+          if (mesh.material) {
+            const mm = mesh.material as THREE.Material | THREE.Material[];
+            if (Array.isArray(mm)) mm.forEach((m) => m.dispose());
+            else mm.dispose();
+          }
+        });
+        return;
+      }
+      model.name = "keyboardGlbModel";
+      model.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        const mm = mesh.material as THREE.Material | THREE.Material[];
+        const matsToTrack = Array.isArray(mm) ? mm : [mm];
+        for (const mat of matsToTrack) {
+          if (!keyboardModelMaterials.includes(mat)) keyboardModelMaterials.push(mat);
+        }
+      });
+      fitKeyboardModel(model);
+      keyboardModelMount.add(model);
+      keyboardModelLoaded = true;
+      syncKeyboardModelOpacity(mats.key.opacity);
+    },
+    undefined,
+    () => {
+      if (disposed) return;
+      console.info(`Home diorama keyboard model unavailable: add ${KEYBOARD_MODEL_URL}.`);
+    },
+  );
 
   if (useMobileCarrier) {
     const shellPaddingX = 0.04;
@@ -560,37 +651,47 @@ export function initDiorama() {
   }
 
   if (!useMobileCarrier) {
+    const monitorStandFootH = 0.032;
+    const monitorRearAnchorZ = desktopMonitorRearAnchorPoint?.z ?? -0.48;
+    const monitorStandZ = monitorRearAnchorZ - 0.105;
+    const monitorStandTopY = desktopMonitorRearAnchorPoint?.y ?? 0.42;
+    const monitorStandPostH = monitorStandTopY - monitorStandFootH;
     const monitorStandPost = new THREE.Mesh(
-      new RoundedBoxGeometry(0.07, 0.24, 0.055, 8, 0.02),
+      new RoundedBoxGeometry(0.07, monitorStandPostH, 0.055, 8, 0.02),
       mats.computerShell,
     );
-    monitorStandPost.position.set(0, 0.128, -0.44);
+    monitorStandPost.position.set(0, monitorStandFootH + monitorStandPostH / 2, monitorStandZ);
     monitorStandPost.castShadow = true;
     laptop.add(monitorStandPost);
 
     const monitorStandFoot = new THREE.Mesh(
-      new RoundedBoxGeometry(0.52, 0.036, 0.24, 10, 0.035),
+      new RoundedBoxGeometry(0.52, monitorStandFootH, 0.24, 10, 0.035),
       mats.computerShell,
     );
-    monitorStandFoot.position.set(0, 0.018, -0.41);
+    monitorStandFoot.position.set(0, monitorStandFootH / 2, monitorStandZ + 0.045);
     monitorStandFoot.castShadow = true;
     monitorStandFoot.receiveShadow = true;
     laptop.add(monitorStandFoot);
 
-    const monitorBackMount = new THREE.Mesh(
-      new RoundedBoxGeometry(0.22, 0.12, 0.035, 6, 0.018),
+    const monitorSupportArmDepth = Math.max(0.1, monitorRearAnchorZ - monitorStandZ + 0.03);
+    const monitorRearSupportArm = new THREE.Mesh(
+      new RoundedBoxGeometry(0.13, 0.052, monitorSupportArmDepth, 6, 0.018),
       mats.computerShell,
     );
-    monitorBackMount.position.set(0, 0.245, -0.425);
-    monitorBackMount.rotation.x = -0.04;
-    monitorBackMount.castShadow = true;
-    laptop.add(monitorBackMount);
+    monitorRearSupportArm.name = "monitorRearSupportArm";
+    monitorRearSupportArm.position.set(
+      0,
+      monitorStandTopY,
+      (monitorStandZ + monitorRearAnchorZ) / 2,
+    );
+    monitorRearSupportArm.castShadow = true;
+    laptop.add(monitorRearSupportArm);
   }
 
   laptop.position.set(
     useMobileCarrier ? -0.02 : 0,
     deskTopWorldY + (useMobileCarrier ? 0.22 : 0),
-    useMobileCarrier ? -0.26 : -0.42,
+    useMobileCarrier ? -0.26 : -0.52,
   );
   laptop.rotation.set(0, 0, 0);
   deskFigure.add(laptop);
@@ -605,371 +706,238 @@ export function initDiorama() {
   const person = new THREE.Group();
 
   // ---- Chair ----
+  const chairSeatLift = useMobileCarrier ? 0 : 0.08;
+  const chairSeatW = 0.56;
+  const chairSeatD = 0.5;
+  const chairSeatH = 0.072;
+  const chairSeatY = -0.165 + chairSeatLift;
+  const chairSeatZ = -0.03;
+  const chairBackW = 0.5;
+  const chairBackH = 0.46;
+  const chairBackT = 0.055;
+  const chairBackY = 0.09 + chairSeatLift;
+  const chairBackZ = 0.14;
+  const chairLegTopY = chairSeatY - chairSeatH / 2 + 0.005;
+  const chairLegH = Math.max(0.001, chairLegTopY - roomFloorY);
+  const chairLegCenterY = roomFloorY + chairLegH / 2;
+
+  const makeChairRod = (start: THREE.Vector3, end: THREE.Vector3, radius = 0.014) => {
+    const delta = end.clone().sub(start);
+    const length = Math.max(0.001, delta.length());
+    const rod = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius, radius, length, 10),
+      mats.deskLeg,
+    );
+    rod.position.copy(start).add(end).multiplyScalar(0.5);
+    rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+    rod.castShadow = true;
+    return rod;
+  };
+
   const chairSeat = new THREE.Mesh(
-    new RoundedBoxGeometry(0.5, 0.06, 0.46, 8, 0.052),
+    new RoundedBoxGeometry(chairSeatW, chairSeatH, chairSeatD, 8, 0.045),
     mats.chairShell,
   );
-  chairSeat.position.set(0, -0.012, 0.05);
+  chairSeat.position.set(0, chairSeatY, chairSeatZ);
   chairSeat.castShadow = true;
   chairSeat.receiveShadow = true;
   person.add(chairSeat);
 
   const chairBack = new THREE.Mesh(
-    new RoundedBoxGeometry(0.48, 0.42, 0.07, 8, 0.05),
+    new RoundedBoxGeometry(chairBackW, chairBackH, chairBackT, 8, 0.04),
     mats.chairShell,
   );
-  chairBack.position.set(0, 0.15, 0.315);
-  chairBack.rotation.x = -0.12;
+  chairBack.position.set(0, chairBackY, chairBackZ);
+  chairBack.rotation.x = 0.025;
   chairBack.castShadow = true;
+  chairBack.receiveShadow = true;
   person.add(chairBack);
 
+  const chairBackBase = new THREE.Mesh(
+    new RoundedBoxGeometry(chairBackW * 0.9, 0.032, 0.07, 6, 0.016),
+    mats.chairShell,
+  );
+  chairBackBase.position.set(0, chairSeatY + chairSeatH / 2 + 0.004, chairBackZ);
+  chairBackBase.rotation.x = chairBack.rotation.x;
+  chairBackBase.castShadow = true;
+  chairBackBase.receiveShadow = true;
+  person.add(chairBackBase);
+
   // Chair legs (4 short legs under seat)
-  [[-0.2, -0.13], [0.2, -0.13], [-0.2, 0.21], [0.2, 0.21]].forEach(([x, z]) => {
+  [
+    [-chairSeatW / 2 + 0.08, chairSeatZ - chairSeatD / 2 + 0.07],
+    [chairSeatW / 2 - 0.08, chairSeatZ - chairSeatD / 2 + 0.07],
+    [-chairSeatW / 2 + 0.08, chairSeatZ + chairSeatD / 2 - 0.07],
+    [chairSeatW / 2 - 0.08, chairSeatZ + chairSeatD / 2 - 0.07],
+  ].forEach(([x, z]) => {
     const leg = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.014, 0.014, 0.46, 10),
+      new THREE.CylinderGeometry(0.017, 0.017, chairLegH, 10),
       mats.deskLeg,
     );
-    leg.position.set(x, -0.26, z);
+    leg.position.set(x, chairLegCenterY, z);
     leg.castShadow = true;
     person.add(leg);
   });
 
-  const makeBone = (
-    start: THREE.Vector3,
-    end: THREE.Vector3,
-    radiusTop: number,
-    radiusBottom: number,
-    material: THREE.Material,
-    segments = 10,
-  ) => {
-    const delta = end.clone().sub(start);
-    const length = Math.max(0.001, delta.length());
-    const mesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(radiusTop, radiusBottom, length, segments, 1),
-      material,
-    );
-    mesh.position.copy(start).add(end).multiplyScalar(0.5);
-    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    return mesh;
-  };
-
-  const makeBentSleeve = (
-    points: THREE.Vector3[],
-    radius: number,
-    material: THREE.Material,
-  ) => {
-    const curve = new THREE.CatmullRomCurve3(points);
-    const mesh = new THREE.Mesh(
-      new THREE.TubeGeometry(curve, 20, radius, 12, false),
-      material,
-    );
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    return mesh;
-  };
-
-  // ---- Body: simple volumetric low-poly character, not paper shards ----
-  const bodyGroup = new THREE.Group();
-  person.add(bodyGroup);
-
-  const torso = new THREE.Group();
-  bodyGroup.add(torso);
-
-  const torsoShell = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.18, 0.32, 8, 18),
-    mats.personCloth,
-  );
-  torsoShell.position.set(0, 0.315, 0.01);
-  torsoShell.scale.set(0.82, 1.03, 0.62);
-  torsoShell.rotation.x = -0.04;
-  torsoShell.castShadow = true;
-  torso.add(torsoShell);
-
-  const shoulderBlend = new THREE.Mesh(
-    new RoundedBoxGeometry(0.34, 0.1, 0.2, 6, 0.04),
-    mats.personCloth,
-  );
-  shoulderBlend.position.set(0, 0.53, -0.005);
-  shoulderBlend.scale.set(0.72, 0.56, 0.58);
-  shoulderBlend.rotation.x = -0.03;
-  shoulderBlend.castShadow = true;
-  torso.add(shoulderBlend);
-
-  const pelvis = new THREE.Mesh(
-    new RoundedBoxGeometry(0.35, 0.14, 0.28, 6, 0.05),
-    mats.personPants,
-  );
-  pelvis.position.set(0, 0.035, 0.005);
-  pelvis.scale.set(0.94, 0.9, 0.82);
-  pelvis.castShadow = true;
-  bodyGroup.add(pelvis);
-
-  const neck = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.055, 0.065, 0.095, 10),
-    mats.personSkin,
-  );
-  neck.position.set(0, 0.64, 0.012);
-  neck.castShadow = true;
-  person.add(neck);
-
-  const headGroup = new THREE.Group();
-  headGroup.position.set(0, 0.795, -0.018);
-  person.add(headGroup);
-
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.148, 24, 16),
-    mats.personSkin,
-  );
-  head.scale.set(0.86, 1.04, 0.92);
-  head.castShadow = true;
-  headGroup.add(head);
-
-  const faceNose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.018, 0.04, 8),
-    mats.personSkin,
-  );
-  faceNose.position.set(0.012, 0.012, -0.138);
-  faceNose.rotation.x = -Math.PI / 2;
-  faceNose.scale.set(0.78, 0.92, 0.68);
-  faceNose.castShadow = true;
-  headGroup.add(faceNose);
-
-  const leftEye = new THREE.Mesh(
-    new THREE.SphereGeometry(0.013, 10, 8),
-    mats.laptopFrame,
-  );
-  leftEye.position.set(-0.044, 0.036, -0.126);
-  leftEye.scale.set(0.72, 1, 0.48);
-  headGroup.add(leftEye);
-
-  const rightEye = new THREE.Mesh(
-    new THREE.SphereGeometry(0.013, 10, 8),
-    mats.laptopFrame,
-  );
-  rightEye.position.set(0.055, 0.036, -0.126);
-  rightEye.scale.set(0.72, 1, 0.48);
-  headGroup.add(rightEye);
-
-  const visibleEar = new THREE.Mesh(
-    new THREE.SphereGeometry(0.032, 8, 6),
-    mats.personSkin,
-  );
-  visibleEar.position.set(0.102, 0.002, 0.02);
-  visibleEar.scale.set(0.7, 1, 0.42);
-  visibleEar.castShadow = true;
-  headGroup.add(visibleEar);
-
-  const hair = new THREE.Group();
-  headGroup.add(hair);
-
-  const hairCap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.162, 28, 14),
-    mats.personHair,
-  );
-  hairCap.position.set(0, 0.035, 0);
-  hairCap.scale.set(0.94, 0.72, 0.68);
-  hairCap.rotation.x = -0.08;
-  hairCap.castShadow = true;
-  hair.add(hairCap);
-
-  const frontHairBand = new THREE.Mesh(
-    new RoundedBoxGeometry(0.19, 0.052, 0.04, 8, 0.022),
-    mats.personHair,
-  );
-  frontHairBand.position.set(-0.006, 0.072, -0.108);
-  frontHairBand.rotation.set(-0.16, 0, -0.035);
-  frontHairBand.castShadow = true;
-  hair.add(frontHairBand);
-
-  const sideHair = new THREE.Mesh(
-    new RoundedBoxGeometry(0.038, 0.1, 0.052, 7, 0.02),
-    mats.personHair,
-  );
-  sideHair.position.set(0.1, -0.012, 0.045);
-  sideHair.rotation.set(0.02, 0.08, -0.035);
-  sideHair.castShadow = true;
-  hair.add(sideHair);
-
-  const backHair = new THREE.Mesh(
-    new THREE.SphereGeometry(0.116, 16, 10),
-    mats.personHair,
-  );
-  backHair.position.set(0, -0.02, 0.088);
-  backHair.scale.set(0.9, 0.95, 0.66);
-  backHair.rotation.x = 0.06;
-  backHair.castShadow = true;
-  hair.add(backHair);
-
-  const mouth = new THREE.Mesh(
-    new RoundedBoxGeometry(0.064, 0.008, 0.008, 4, 0.003),
-    mats.laptopFrame,
-  );
-  mouth.position.set(0.018, -0.038, -0.133);
-  mouth.rotation.z = -0.04;
-  headGroup.add(mouth);
-
-  const makeDeskArm = (side: -1 | 1) => {
-    const armGroup = new THREE.Group();
-    const shoulderLocal = new THREE.Vector3(0.1 * side, 0.43, -0.045);
-    const elbowLocal = new THREE.Vector3(0.13 * side, 0.27, -0.24);
-    const wristLocal = new THREE.Vector3(0.1 * side, 0.285, -0.5);
-
-    const shoulderSocket = new THREE.Mesh(
-      new RoundedBoxGeometry(0.12, 0.095, 0.12, 6, 0.045),
-      mats.personCloth,
-    );
-    shoulderSocket.position.copy(shoulderLocal).add(new THREE.Vector3(-0.006 * side, 0.012, 0.018));
-    shoulderSocket.rotation.set(-0.18, 0.18 * side, 0.12 * side);
-    shoulderSocket.castShadow = true;
-    armGroup.add(shoulderSocket);
-
-    const bentSleeve = makeBentSleeve([shoulderLocal, elbowLocal, wristLocal], 0.032, mats.personCloth);
-    armGroup.add(bentSleeve);
-
-    const elbowBlend = new THREE.Mesh(
-      new RoundedBoxGeometry(0.076, 0.052, 0.07, 6, 0.026),
-      mats.personCloth,
-    );
-    elbowBlend.position.copy(elbowLocal).add(new THREE.Vector3(0.004 * side, 0.006, -0.004));
-    elbowBlend.rotation.set(-0.1, 0.12 * side, 0.08 * side);
-    elbowBlend.castShadow = true;
-    armGroup.add(elbowBlend);
-
-    const cuff = new THREE.Mesh(
-      new RoundedBoxGeometry(0.07, 0.035, 0.052, 5, 0.016),
-      mats.personCloth,
-    );
-    cuff.position.copy(wristLocal).add(new THREE.Vector3(0.003 * side, 0.009, 0.006));
-    cuff.rotation.set(0.12, 0.12 * side, 0.04 * side);
-    cuff.castShadow = true;
-    armGroup.add(cuff);
-
-    const hand = new THREE.Mesh(
-      new RoundedBoxGeometry(0.07, 0.026, 0.06, 5, 0.016),
-      mats.personSkin,
-    );
-    hand.position.copy(wristLocal).add(new THREE.Vector3(0.015 * side, -0.006, -0.02));
-    hand.rotation.set(0.28, 0.16 * side, 0.06 * side);
-    hand.castShadow = true;
-    armGroup.add(hand);
-
-    person.add(armGroup);
-    return { armGroup, hand };
-  };
-
-  const leftArm = makeDeskArm(-1);
-  const rightArm = makeDeskArm(1);
-
-  const makeSeatedLeg = (side: -1 | 1) => {
-    const legGroup = new THREE.Group();
-    const hipLocal = new THREE.Vector3(0.08 * side, 0.02, -0.02);
-    const kneeLocal = new THREE.Vector3(0.09 * side, -0.12, -0.31);
-    const ankleLocal = new THREE.Vector3(0.09 * side, -0.46, -0.31);
-
-    const thigh = makeBone(hipLocal, kneeLocal, 0.066, 0.058, mats.personPants, 10);
-    legGroup.add(thigh);
-
-    const shin = makeBone(kneeLocal, ankleLocal, 0.058, 0.05, mats.personPants, 10);
-    legGroup.add(shin);
-
-    const shoe = new THREE.Mesh(
-      new RoundedBoxGeometry(0.16, 0.07, 0.25, 5, 0.025),
-      mats.personShoe,
-    );
-    shoe.position.set(0.09 * side, -0.492, -0.37);
-    shoe.castShadow = true;
-    shoe.receiveShadow = true;
-    legGroup.add(shoe);
-
-    person.add(legGroup);
-    return { legGroup, thigh, shin, shoe };
-  };
-
-  const leftLeg = makeSeatedLeg(-1);
-  const rightLeg = makeSeatedLeg(1);
-  leftLeg.legGroup.position.z = 0.012;
-  rightLeg.legGroup.position.z = -0.012;
-
   // Seated at the front edge of the desk, looking into the monitor.
-  person.position.set(0, 0, 0.68);
+  person.position.set(0, 0, 0.58);
   person.scale.set(0.95, 1, 0.95);
-  person.rotation.set(0, -0.12, 0);
-  leftArm.armGroup.rotation.z = 0.08;
-  rightArm.armGroup.rotation.z = -0.08;
-  torso.rotation.x = 0;
-  torso.rotation.y = 0;
-  headGroup.position.z = -0.018;
+  person.rotation.set(0, 0, 0);
   if (useMobileCarrier) {
-    person.position.set(-0.02, 0, 0.74);
+    person.position.set(-0.02, 0, 0.71);
     person.scale.setScalar(0.84);
     person.rotation.y = 0;
     chairSeat.scale.z = 0.84;
     chairBack.scale.z = 0.86;
-    chairBack.position.z = 0.31;
-    torso.scale.set(0.92, 1, 0.72);
-    bodyGroup.scale.z = 0.82;
-    pelvis.scale.z = 0.72;
-    leftArm.armGroup.visible = false;
-    rightArm.armGroup.visible = false;
-    torso.rotation.x = -0.1;
-    torso.rotation.y = 0;
-    headGroup.position.z = -0.032;
-    faceNose.position.z = -0.148;
-    visibleEar.position.z = 0.012;
-
-    const makeMobileArm = (side: -1 | 1) => {
-      const armGroup = new THREE.Group();
-      const shoulderLocal = new THREE.Vector3(0.12 * side, 0.45, -0.04);
-      const elbowLocal = new THREE.Vector3(0.15 * side, 0.34, -0.25);
-      const wristLocal = new THREE.Vector3(0.1 * side, 0.31, -0.58);
-
-      const shoulderSocket = new THREE.Mesh(
-        new RoundedBoxGeometry(0.11, 0.085, 0.11, 6, 0.04),
-        mats.personCloth,
-      );
-      shoulderSocket.position.copy(shoulderLocal).add(new THREE.Vector3(-0.004 * side, 0.01, 0.016));
-      shoulderSocket.rotation.set(-0.16, 0.16 * side, 0.1 * side);
-      shoulderSocket.castShadow = true;
-      armGroup.add(shoulderSocket);
-
-      const bentSleeve = makeBentSleeve([shoulderLocal, elbowLocal, wristLocal], side === 1 ? 0.04 : 0.032, mats.personCloth);
-      armGroup.add(bentSleeve);
-
-      const elbowBlend = new THREE.Mesh(
-        new RoundedBoxGeometry(0.08, 0.058, 0.074, 6, 0.025),
-        mats.personCloth,
-      );
-      elbowBlend.position.copy(elbowLocal).add(new THREE.Vector3(0.004 * side, 0.004, -0.004));
-      elbowBlend.rotation.set(-0.1, 0.1 * side, 0.08 * side);
-      elbowBlend.castShadow = true;
-      armGroup.add(elbowBlend);
-
-      const cuff = new THREE.Mesh(
-        new RoundedBoxGeometry(0.074, 0.035, 0.056, 5, 0.016),
-        mats.personCloth,
-      );
-      cuff.position.copy(wristLocal).add(new THREE.Vector3(0.004 * side, 0.012, 0.012));
-      cuff.rotation.set(0.28, 0.14 * side, 0.08 * side);
-      cuff.castShadow = true;
-      armGroup.add(cuff);
-
-      const hand = new THREE.Mesh(
-        new RoundedBoxGeometry(0.07, 0.026, 0.06, 5, 0.016),
-        mats.personSkin,
-      );
-      hand.position.copy(wristLocal).add(new THREE.Vector3(0.02 * side, -0.004, -0.026));
-      hand.rotation.set(0.28, 0.16 * side, 0.06 * side);
-      hand.castShadow = true;
-      armGroup.add(hand);
-
-      person.add(armGroup);
-    };
-
-    makeMobileArm(-1);
-    makeMobileArm(1);
+    chairBack.position.z = 0.24;
   }
+
+  const typingCharacterMount = new THREE.Group();
+  typingCharacterMount.name = "typingCharacterModelMount";
+  typingCharacterMount.visible = false;
+  person.add(typingCharacterMount);
+
+  let typingCharacterLoaded = false;
+  const typingCharacterMaterials: THREE.Material[] = [];
+  const typingCharacterCorrectivePose: { bone: THREE.Object3D; rotation: THREE.Quaternion }[] = [];
+  const typingCharacterFingerCurlPose: { bone: THREE.Object3D; rotation: THREE.Quaternion }[] = [];
+  const typingCharacterBounds = new THREE.Box3();
+  const typingCharacterSize = new THREE.Vector3();
+  const typingCharacterCenter = new THREE.Vector3();
+
+  const syncTypingCharacterOpacity = (opacity: number) => {
+    for (const mat of typingCharacterMaterials) {
+      mat.transparent = opacity < 0.995;
+      mat.opacity = opacity;
+      mat.needsUpdate = true;
+    }
+  };
+
+  const tuneTypingCharacterMaterial = (mat: THREE.Material) => {
+    const shadedMat = mat as THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial;
+    if ("color" in shadedMat) shadedMat.color.setHex(TYPING_CHARACTER_FIXED_COLOR);
+    if ("emissive" in shadedMat) shadedMat.emissive.setHex(TYPING_CHARACTER_EMISSIVE_COLOR);
+    if ("emissiveIntensity" in shadedMat) shadedMat.emissiveIntensity = TYPING_CHARACTER_EMISSIVE_INTENSITY;
+    if ("roughness" in shadedMat) shadedMat.roughness = 0.74;
+    if ("metalness" in shadedMat) shadedMat.metalness = 0;
+    mat.needsUpdate = true;
+  };
+
+  const applyTypingCharacterLegProportions = (model: THREE.Object3D) => {
+    for (const name of TYPING_CHARACTER_LOWER_LEG_BONE_NAMES) {
+      const bone = model.getObjectByName(name);
+      if (!bone) continue;
+      bone.scale.y *= TYPING_CHARACTER_LOWER_LEG_LENGTH_SCALE;
+    }
+  };
+
+  const bindTypingCharacterCorrectivePose = (model: THREE.Object3D) => {
+    typingCharacterCorrectivePose.length = 0;
+    typingCharacterFingerCurlPose.length = 0;
+
+    for (const [name, x, y, z] of TYPING_CHARACTER_CORRECTIVE_POSE) {
+      const bone = model.getObjectByName(name);
+      if (!bone) continue;
+      typingCharacterCorrectivePose.push({
+        bone,
+        rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, "XYZ")),
+      });
+    }
+
+    for (const name of TYPING_CHARACTER_FINGER_CURL_BONE_NAMES) {
+      const bone = model.getObjectByName(name);
+      if (!bone) continue;
+      typingCharacterFingerCurlPose.push({
+        bone,
+        rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.035, 0, 0, "XYZ")),
+      });
+    }
+  };
+
+  const applyTypingCharacterCorrectivePose = () => {
+    for (const pose of typingCharacterCorrectivePose) {
+      pose.bone.quaternion.multiply(pose.rotation);
+    }
+    for (const pose of typingCharacterFingerCurlPose) {
+      pose.bone.quaternion.multiply(pose.rotation);
+    }
+  };
+
+  const fitTypingCharacterModel = (model: THREE.Object3D) => {
+    typingCharacterBounds.setFromObject(model);
+    typingCharacterBounds.getSize(typingCharacterSize);
+    typingCharacterBounds.getCenter(typingCharacterCenter);
+    const targetHeight = useMobileCarrier
+      ? TYPING_CHARACTER_MODEL_MOBILE_TARGET_HEIGHT
+      : TYPING_CHARACTER_MODEL_TARGET_HEIGHT;
+    const scale = targetHeight / Math.max(0.001, typingCharacterSize.y);
+    model.position.set(0, 0, 0);
+    model.scale.setScalar(scale);
+    model.rotation.set(TYPING_CHARACTER_MODEL_FORWARD_LEAN_X, TYPING_CHARACTER_MODEL_FACING_ROTATION_Y, 0);
+    model.updateMatrixWorld(true);
+    typingCharacterBounds.setFromObject(model);
+    typingCharacterBounds.getCenter(typingCharacterCenter);
+    model.position.set(
+      -typingCharacterCenter.x,
+      -typingCharacterBounds.min.y + TYPING_CHARACTER_MODEL_FLOOR_Y,
+      -typingCharacterCenter.z + (useMobileCarrier ? -0.03 : TYPING_CHARACTER_MODEL_SEAT_Z_OFFSET),
+    );
+  };
+
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.load(
+    TYPING_CHARACTER_MODEL_URL,
+    (gltf) => {
+      const model = gltf.scene;
+      if (disposed) {
+        model.traverse((obj) => {
+          const mesh = obj as THREE.Mesh;
+          if (mesh.geometry) mesh.geometry.dispose();
+          if (mesh.material) {
+            const mm = mesh.material as THREE.Material | THREE.Material[];
+            if (Array.isArray(mm)) mm.forEach((m) => m.dispose());
+            else mm.dispose();
+          }
+        });
+        return;
+      }
+      model.name = "typingCharacterSketchfabModel";
+      applyTypingCharacterLegProportions(model);
+      model.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        const mm = mesh.material as THREE.Material | THREE.Material[];
+        const matsToTrack = Array.isArray(mm) ? mm : [mm];
+        for (const mat of matsToTrack) {
+          tuneTypingCharacterMaterial(mat);
+          if (!typingCharacterMaterials.includes(mat)) typingCharacterMaterials.push(mat);
+        }
+      });
+      fitTypingCharacterModel(model);
+      bindTypingCharacterCorrectivePose(model);
+      typingCharacterMount.add(model);
+      typingCharacterLoaded = true;
+      typingCharacterMount.visible = true;
+      syncTypingCharacterOpacity(0);
+
+      if (gltf.animations.length) {
+        const typingCharacterMixer = new THREE.AnimationMixer(model);
+        const action = typingCharacterMixer.clipAction(gltf.animations[0]);
+        action.play();
+        typingCharacterMixer.setTime(TYPING_CHARACTER_STATIC_POSE_TIME);
+        applyTypingCharacterCorrectivePose();
+      }
+    },
+    undefined,
+    () => {
+      if (disposed) return;
+      console.info(
+        `Home diorama model unavailable: add ${TYPING_CHARACTER_MODEL_URL} from ${TYPING_CHARACTER_MODEL_SOURCE}. ${TYPING_CHARACTER_MODEL_ATTRIBUTION}.`,
+      );
+    },
+  );
   deskFigure.add(person);
 
   if (useMobileCarrier) {
@@ -1071,22 +1039,14 @@ export function initDiorama() {
 
   const applyTheme = (t: ThemeName) => {
     const p = THEMES[t];
-    mats.floor.color.setHex(p.floor);
+    mats.floor.color.setHex(FLOOR_FIXED_COLOR);
     mats.wall.color.setHex(p.wall);
-    mats.deskTop.color.setHex(p.deskTop);
-    mats.deskLeg.color.setHex(p.deskLeg);
+    mats.deskTop.color.setHex(DESK_TOP_FIXED_COLOR);
+    mats.deskLeg.color.setHex(DESK_LEG_FIXED_COLOR);
     mats.chairShell.color.setHex(p.chairShell);
-    mats.computerShell.color.setHex(p.computerShell);
-    mats.laptopBody.color.setHex(p.laptopBody);
-    mats.laptopFrame.color.setHex(p.laptopFrame);
     const mobileScreenTint = t === "dark" ? 0xc1ccd8 : 0xd9e1ee;
     mats.screen.color.setHex(useMobileCarrier ? mobileScreenTint : 0xffffff);
     introBackdropMaterial?.color.setHex(mobileScreenTint);
-    mats.personSkin.color.setHex(p.personSkin);
-    mats.personHair.color.setHex(p.personHair);
-    mats.personCloth.color.setHex(p.personCloth);
-    mats.personPants.color.setHex(p.personPants);
-    mats.personShoe.color.setHex(p.personShoe);
     mats.key.color.setHex(p.keyTop);
   };
   applyTheme(theme);
@@ -1623,57 +1583,6 @@ export function initDiorama() {
   let rafId = 0;
   let lastFrame = performance.now();
 
-  // Arm AI — each arm picks a target key, lerps its shoulder rotation toward it,
-  // and dips the elbow onto that specific key at the end of the move.
-  type ArmAI = {
-    startRotZ: number;
-    targetRotZ: number;
-    currentRotZ: number;
-    targetKeyIdx: number;
-    moveStart: number;
-    moveEnd: number;
-    holdUntil: number;
-    phase: "moving" | "hold";
-    dipValue: number;
-  };
-  const leftAI: ArmAI = {
-    startRotZ: 0.06, targetRotZ: 0.06, currentRotZ: 0.06,
-    targetKeyIdx: 0, moveStart: 0, moveEnd: 0,
-    holdUntil: performance.now(), phase: "hold", dipValue: 0,
-  };
-  const rightAI: ArmAI = {
-    startRotZ: -0.06, targetRotZ: -0.06, currentRotZ: -0.06,
-    targetKeyIdx: 0, moveStart: 0, moveEnd: 0,
-    holdUntil: performance.now() + 120, phase: "hold", dipValue: 0,
-  };
-  const planNextKey = (ai: ArmAI, side: -1 | 1, nowTs: number) => {
-    // Each arm only targets keys near its own shoulder — narrow home-row range
-    // so the hand never over-reaches beyond the keyboard.
-    const shoulderWorldX = 0.15 + 0.26 * side;
-    const candidates = keyStates
-      .map((s, i) => ({ s, i }))
-      .filter((k) => k.s.side === side)
-      .filter((k) => {
-        const worldX = 0.1 + k.s.x;
-        return Math.abs(worldX - shoulderWorldX) < 0.18;
-      });
-    if (!candidates.length) return;
-    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    const keyWorldX = 0.1 + pick.s.x;
-    const deltaX = keyWorldX - shoulderWorldX;
-    const baseRotZ = -0.06 * side;
-    // SIGN FIX: for right arm (side=1), a key to the RIGHT of shoulder (deltaX > 0)
-    // needs POSITIVE rotation.z to swing arm outward (previous code had wrong sign).
-    const raw = baseRotZ + side * deltaX * 1.2;
-    const targetRotZ = clamp(raw, -0.3, 0.3);
-    ai.startRotZ = ai.currentRotZ;
-    ai.targetRotZ = targetRotZ;
-    ai.targetKeyIdx = pick.i;
-    ai.moveStart = nowTs;
-    ai.moveEnd = nowTs + 180 + Math.random() * 220;
-    ai.phase = "moving";
-  };
-
   const outdoorFogColor = new THREE.Color();
 
   const animate = () => {
@@ -1845,14 +1754,11 @@ export function initDiorama() {
     mats.deskLeg.opacity = outsideReveal;
     mats.laptopBody.opacity = outsideReveal;
     mats.laptopFrame.opacity = outsideReveal;
-    mats.personSkin.opacity = roomReveal;
-    mats.personHair.opacity = roomReveal;
-    mats.personCloth.opacity = roomReveal;
-    mats.personPants.opacity = roomReveal;
-    mats.personShoe.opacity = roomReveal;
     mats.chairShell.opacity = roomReveal;
     mats.computerShell.opacity = outsideReveal;
     mats.key.opacity = outsideReveal;
+    if (typingCharacterLoaded) syncTypingCharacterOpacity(roomReveal);
+    if (keyboardModelLoaded) syncKeyboardModelOpacity(outsideReveal);
     syncRevealMaterialTransparency(renderMode === "room" && outsideReveal > 0.995 && roomReveal > 0.995);
 
     // Screen cursor blink & redraw
@@ -1864,63 +1770,6 @@ export function initDiorama() {
     if (needScreenRedraw) {
       needScreenRedraw = false;
       drawScreen(undefined, now);
-    }
-
-    // Person idle motion
-    if (useMobileCarrier) {
-      headGroup.rotation.x = Math.sin(now * 0.00035) * 0.012 + 0.08;
-      headGroup.rotation.y = 0;
-      hair.rotation.set(0, 0, 0);
-      torso.rotation.y = 0;
-      torso.rotation.x = -0.18;
-      bodyGroup.rotation.y = 0;
-      bodyGroup.rotation.x = -0.08;
-    } else {
-      headGroup.rotation.x = Math.sin(now * 0.0004) * 0.018 + 0.08;
-      headGroup.rotation.y = Math.sin(now * 0.0003) * 0.022 - 0.03;
-      hair.rotation.set(0, 0, 0);
-      torso.rotation.y = Math.sin(now * 0.0003) * 0.015;
-      torso.rotation.x = 0;
-      bodyGroup.rotation.y = Math.sin(now * 0.0003) * 0.012;
-      bodyGroup.rotation.x = Math.sin(now * 0.00035) * 0.008;
-    }
-
-    if (!reduceMotion && !useMobileCarrier) {
-      for (const ai of [leftAI, rightAI]) {
-        ai.dipValue *= 0.72;
-        if (now >= ai.holdUntil) {
-          planNextKey(ai, ai === leftAI ? -1 : 1, now);
-          ai.holdUntil = now + 220 + Math.random() * 280;
-        }
-        if (ai.targetKeyIdx >= 0) keyStates[ai.targetKeyIdx].press = Math.max(keyStates[ai.targetKeyIdx].press, 0.45);
-      }
-    }
-    if (!useMobileCarrier) {
-      for (let i = 0; i < keyStates.length; i++) keyStates[i].press *= 0.8;
-    }
-
-    // Update key matrices
-    if (!useMobileCarrier) {
-      let ki = 0;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const s = keyStates[ki];
-          keyDummy.position.set(s.x, s.baseY - s.press * 0.009, s.z);
-          keyDummy.scale.set(1, 1, 1);
-          keyDummy.updateMatrix();
-          keyMesh.setMatrixAt(ki, keyDummy.matrix);
-          ki++;
-        }
-      }
-      {
-        const s = keyStates[ki];
-        keyDummy.position.set(s.x, s.baseY - s.press * 0.009, s.z);
-        keyDummy.scale.set(spaceW / keyW, 1, 1);
-        keyDummy.updateMatrix();
-        keyMesh.setMatrixAt(ki, keyDummy.matrix);
-        keyDummy.scale.set(1, 1, 1);
-      }
-      keyMesh.instanceMatrix.needsUpdate = true;
     }
 
     if (!controls.enabled) {
@@ -1964,6 +1813,7 @@ export function initDiorama() {
 
   // ===== Cleanup =====
   const cleanup = () => {
+    disposed = true;
     if (rafId) cancelAnimationFrame(rafId);
     window.removeEventListener("scroll", syncScrollProgress);
     window.removeEventListener("resize", handleBreakpointResize);

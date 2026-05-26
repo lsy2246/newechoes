@@ -1477,7 +1477,7 @@ tbody tr:hover,
   padding-bottom: 24px;
   border-bottom: 1px solid var(--article-line);
   color: var(--article-ink);
-  font-size: 18px;
+  font-size: var(--type-body-lg);
   line-height: 1.5;
 }
 
@@ -1542,17 +1542,17 @@ tbody tr:hover,
 .article-title {
   margin: 0;
   color: var(--article-ink);
-  font-size: 46px;
-  font-weight: 520;
+  font-size: var(--type-article-title);
+  font-weight: var(--weight-medium);
   letter-spacing: 0;
-  line-height: 1.08;
+  line-height: var(--leading-tight);
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
 
 .article-date {
   color: var(--article-body);
-  font-size: 12px;
+  font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1565,7 +1565,7 @@ tbody tr:hover,
   max-height: 3.4em;
   overflow: hidden;
   color: var(--article-body);
-  font-size: 12px;
+  font-size: var(--type-meta);
   line-height: 1.45;
 }
 
@@ -1596,7 +1596,7 @@ tbody tr:hover,
   padding: 0 0 0 13px;
   border-left: 1px solid color-mix(in oklab, var(--article-warning) 42%, transparent);
   color: var(--article-body);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .article-warning strong {
@@ -1609,8 +1609,8 @@ tbody tr:hover,
   margin-top: 34px;
   margin-bottom: 0;
   color: var(--article-ink);
-  font-size: 18px;
-  line-height: 1.78;
+  font-size: var(--type-reader-body);
+  line-height: 1.74;
 }
 
 .article-warning + .article-prose {
@@ -1620,7 +1620,7 @@ tbody tr:hover,
 .article-prose :where(h1, h2, h3, h4, h5, h6) {
   scroll-margin-top: 7rem;
   color: var(--article-ink);
-  font-weight: 650;
+  font-weight: var(--weight-strong);
   letter-spacing: 0;
   text-wrap: balance;
 }
@@ -1629,7 +1629,7 @@ tbody tr:hover,
   margin: 0 0 1.6rem;
   padding-bottom: 0.6rem;
   border-bottom: 1px solid var(--article-line);
-  font-size: 34px;
+  font-size: var(--type-reader-h1);
   line-height: 1.18;
 }
 
@@ -1638,27 +1638,27 @@ tbody tr:hover,
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--article-line);
   color: var(--article-ink);
-  font-size: 26px;
+  font-size: var(--type-reader-h2);
   line-height: 1.24;
 }
 
 .article-prose h3 {
   margin: 2rem 0 0.75rem;
   padding-left: 0;
-  font-size: 21px;
+  font-size: var(--type-reader-h3);
   line-height: 1.34;
 }
 
 .article-prose h4 {
   margin: 1.75rem 0 0.65rem;
-  font-size: 18px;
+  font-size: var(--type-body-lg);
   line-height: 1.42;
 }
 
 .article-prose h5,
 .article-prose h6 {
   margin: 1.45rem 0 0.55rem;
-  font-size: 16px;
+  font-size: var(--type-body);
   line-height: 1.45;
 }
 
@@ -1774,7 +1774,7 @@ tbody tr:hover,
 .side-block h2 {
   margin: 0 0 13px;
   color: var(--article-ink);
-  font-size: 16px;
+  font-size: var(--type-card-title);
   font-weight: 760;
   letter-spacing: 0;
   text-transform: none;
@@ -1783,7 +1783,7 @@ tbody tr:hover,
 .related h2 {
   margin: 0 0 13px;
   color: var(--article-body);
-  font-size: 11px;
+  font-size: var(--type-caption);
   font-weight: 760;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1803,7 +1803,7 @@ tbody tr:hover,
 
 .side-count {
   color: var(--article-ink);
-  font-size: 12px;
+  font-size: var(--type-meta);
   font-weight: 760;
   font-variant-numeric: tabular-nums;
 }
@@ -1837,7 +1837,7 @@ tbody tr:hover,
   padding: 0;
   list-style: none;
   color: var(--article-muted);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .toc-item {
@@ -1868,8 +1868,8 @@ tbody tr:hover,
 .toc-item[data-depth="0"] > .toc-item-container > .toc-link {
   min-width: 0;
   color: var(--article-ink);
-  font-size: 15px;
-  font-weight: 650;
+  font-size: var(--type-body);
+  font-weight: var(--weight-strong);
 }
 
 .toc-item[data-depth="0"] > .toc-item-container > .toc-toggle {
@@ -1919,7 +1919,7 @@ tbody tr:hover,
   gap: 8px;
   margin: 0;
   color: var(--article-ink);
-  font-size: 13px;
+  font-size: var(--type-small);
   font-weight: 760;
   letter-spacing: 0;
   line-height: 1.2;
@@ -1928,8 +1928,8 @@ tbody tr:hover,
 
 .article-relation-count {
   color: var(--article-muted);
-  font-size: 11px;
-  font-weight: 620;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1937,7 +1937,7 @@ tbody tr:hover,
   content: "·";
   margin-right: 8px;
   color: var(--article-quiet);
-  font-weight: 520;
+  font-weight: var(--weight-regular);
 }
 
 .article-relation-list {
@@ -1977,14 +1977,14 @@ tbody tr:hover,
 
 .article-relation-index {
   color: var(--article-muted);
-  font-size: 11px;
-  font-weight: 650;
+  font-size: var(--type-caption);
+  font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
   line-height: 1.45;
 }
 
 .backlink-index {
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 1.45;
 }
 
@@ -1998,8 +1998,8 @@ tbody tr:hover,
   display: block;
   overflow: hidden;
   color: var(--article-ink);
-  font-size: 15px;
-  font-weight: 650;
+  font-size: var(--type-body);
+  font-weight: var(--weight-strong);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2009,7 +2009,7 @@ tbody tr:hover,
   display: -webkit-box;
   overflow: hidden;
   color: var(--article-body);
-  font-size: 12px;
+  font-size: var(--type-meta);
   line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -2020,20 +2020,20 @@ tbody tr:hover,
 .backlinks-more,
 .backlinks-empty {
   color: var(--article-muted);
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 1.45;
 }
 
 .article-relation-date {
   margin-top: 1px;
   color: var(--article-muted);
-  font-weight: 520;
+  font-weight: var(--weight-regular);
   white-space: nowrap;
 }
 
 .article-relation-cue {
   color: var(--article-quiet);
-  font-size: 13px;
+  font-size: var(--type-small);
   line-height: 1.35;
   text-align: right;
   transform: translateX(-4px);
@@ -2092,7 +2092,7 @@ tbody tr:hover,
   .article-topbar {
     gap: 12px;
     color: var(--article-ink);
-    font-size: 15px;
+    font-size: var(--type-body);
   }
 
   .article-breadcrumb {
@@ -2101,7 +2101,7 @@ tbody tr:hover,
   }
 
   .article-title {
-    font-size: 34px;
+    font-size: var(--type-article-title);
     line-height: 1.14;
   }
 

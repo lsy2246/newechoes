@@ -11,6 +11,8 @@ const articleDirectoryRoute = readFileSync("src/pages/articles/[...path].astro",
 const articleDetail = readFileSync("src/pages/articles/[...id].astro", "utf8");
 const filteredPage = readFileSync("src/pages/filtered.astro", "utf8");
 const articleFilter = readFileSync("src/components/ArticleFilter.tsx", "utf8");
+const aboutPage = readFileSync("src/pages/about.astro", "utf8");
+const countdown = readFileSync("src/components/Countdown.tsx", "utf8");
 const timelinePath = "src/pages/timeline.astro";
 const oldTimelinePath = "src/pages/articles/timeline.astro";
 const timelinePage = existsSync(timelinePath)
@@ -145,7 +147,7 @@ test("filter console and result list keep long text inside lightweight rows", ()
   assert.match(cssBlock(globalCss, ".explorer-grid .node-title"), /overflow-wrap:\s*anywhere;/);
   assert.match(cssBlock(globalCss, ".explorer-grid .node-summary"), /overflow-wrap:\s*anywhere;/);
   assert.match(cssBlock(globalCss, ".explorer-grid .node-meta"), /min-width:\s*0;/);
-  assert.match(cssBlock(globalCss, ".line-select"), /font-size:\s*14px;/);
+  assert.match(cssBlock(globalCss, ".line-select"), /font-size:\s*var\(--type-ui\);/);
   assert.match(cssBlock(globalCss, ".filter-date-groups"), /gap:\s*20px;/);
   assert.match(cssBlock(globalCss, ".filter-date-group"), /display:\s*grid;/);
   assert.match(cssBlock(globalCss, ".filter-tag"), /text-overflow:\s*ellipsis;/);
@@ -234,11 +236,11 @@ test("article detail aligns with the navigation container and keeps a tight side
   assert.match(cssBlock(articlesCss, ".article-layout #toc-panel"), /position:\s*sticky;/);
   assert.match(cssBlock(articlesCss, ".article-layout #toc-panel"), /right:\s*auto;/);
   assert.match(cssBlock(articlesCss, ".article-layout #toc-panel"), /width:\s*auto;/);
-  assert.match(cssBlock(articlesCss, ".article-title"), /font-size:\s*46px;/);
+  assert.match(cssBlock(articlesCss, ".article-title"), /font-size:\s*var\(--type-article-title\);/);
   assert.doesNotMatch(cssBlock(articlesCss, ".article-title"), /letter-spacing:\s*-/);
-  assert.ok(hasCssBlock(articlesCss, ".article-prose", /font-size:\s*18px;/));
-  assert.ok(hasCssBlock(articlesCss, ".article-prose", /line-height:\s*1\.78;/));
-  assert.ok(hasCssBlock(articlesCss, ".article-prose h2", /font-size:\s*26px;/));
+  assert.ok(hasCssBlock(articlesCss, ".article-prose", /font-size:\s*var\(--type-reader-body\);/));
+  assert.ok(hasCssBlock(articlesCss, ".article-prose", /line-height:\s*1\.74;/));
+  assert.ok(hasCssBlock(articlesCss, ".article-prose h2", /font-size:\s*var\(--type-reader-h2\);/));
   assert.ok(hasCssBlock(articlesCss, ".article-prose h2", /padding-bottom:\s*0\.5rem;/));
   assert.ok(hasCssBlock(articlesCss, ".article-prose :where(p, li, td, th)", /font-size:\s*inherit;/));
   assert.ok(hasCssBlock(articlesCss, ".article-prose :where(p, li, td, th)", /line-height:\s*inherit;/));
@@ -295,8 +297,20 @@ test("article toc active row uses only a short marker without a slab highlight",
   );
   assert.match(
     lastCssBlock(articlesCss, ".toc-item[data-depth=\"0\"] > .toc-item-container > .toc-link"),
-    /font-size:\s*15px;/,
+    /font-size:\s*var\(--type-body\);/,
   );
+});
+
+test("global typography tokens drive secondary pages and countdown UI", () => {
+  assert.match(cssBlock(globalCss, ":root"), /--type-page-title:\s*1\.375rem;/);
+  assert.match(cssBlock(globalCss, ":root"), /--type-reader-body:\s*1rem;/);
+  assert.match(cssBlock(globalCss, ".about-section-title"), /font-size:\s*var\(--type-page-title\);/);
+  assert.match(cssBlock(globalCss, ".countdown-value"), /font-size:\s*var\(--type-display\);/);
+  assert.match(cssBlock(globalCss, ".countdown-label"), /font-size:\s*var\(--type-meta\);/);
+  assert.ok(aboutPage.includes("about-section-title"));
+  assert.ok(aboutPage.includes("about-countdown-panel"));
+  assert.ok(countdown.includes("countdown-value"));
+  assert.ok(countdown.includes("countdown-label"));
 });
 
 test("article toc uses the rail height and never shows horizontal scrolling", () => {
@@ -435,10 +449,10 @@ test("article detail secondary text remains readable instead of hazy", () => {
   assert.match(lastCssBlock(articlesCss, ".article-relation-copy strong"), /color:\s*var\(--article-ink\);/);
   assert.match(lastCssBlock(articlesCss, ".article-relation-link:hover,\n.article-relation-link.is-preview-active"), /border-bottom-color:\s*var\(--article-line-strong\);/);
   assert.doesNotMatch(lastCssBlock(articlesCss, ".article-relation-link:hover,\n.article-relation-link.is-preview-active"), /background:\s*var\(--article-soft\);/);
-  assert.match(lastCssBlock(articlesCss, ".article-relation-copy strong"), /font-size:\s*15px;/);
-  assert.match(lastCssBlock(articlesCss, ".article-relation-copy strong"), /font-weight:\s*650;/);
+  assert.match(lastCssBlock(articlesCss, ".article-relation-copy strong"), /font-size:\s*var\(--type-body\);/);
+  assert.match(lastCssBlock(articlesCss, ".article-relation-copy strong"), /font-weight:\s*var\(--weight-strong\);/);
   assert.match(lastCssBlock(articlesCss, ".article-relation-copy span"), /color:\s*var\(--article-body\);/);
-  assert.match(lastCssBlock(articlesCss, ".article-relation-copy span"), /font-size:\s*12px;/);
+  assert.match(lastCssBlock(articlesCss, ".article-relation-copy span"), /font-size:\s*var\(--type-meta\);/);
   assert.match(lastCssBlock(articlesCss, ".article-relation-date"), /color:\s*var\(--article-muted\);/);
   assert.match(lastCssBlock(articlesCss, ".article-relation-index"), /color:\s*var\(--article-muted\);/);
 });

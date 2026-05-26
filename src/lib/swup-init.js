@@ -134,6 +134,27 @@ function syncLayoutFooterVisibility(hideFooter = false) {
   footer.setAttribute('aria-hidden', hideFooter ? 'true' : 'false');
 }
 
+function readPageShellState() {
+  const mainElement = document.querySelector('main[data-layout-background]');
+  const backgroundMode = mainElement?.getAttribute('data-layout-background') || 'default';
+  const headerMode = mainElement?.getAttribute('data-layout-header-mode') || (isHomePath() ? 'overlay' : 'default');
+  const pageType = mainElement?.getAttribute('data-layout-page-type') || 'page';
+  const isCardPreview = readLayoutFlag(mainElement, 'data-layout-card-preview');
+  const isFullBleed = readLayoutFlag(mainElement, 'data-layout-full-bleed', isHomePath());
+  const hideFooter = readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomePath());
+  const useOverlayHeader = headerMode === 'overlay';
+
+  return {
+    backgroundMode,
+    pageType,
+    isCardPreview,
+    isFullBleed,
+    hideFooter,
+    useOverlayHeader,
+    useHomeHeader: isHomePath()
+  };
+}
+
 function clearHomePageState() {
   if (isHomePath()) return;
 
@@ -146,29 +167,46 @@ function clearHomePageState() {
   docEl.style.removeProperty("--story-local");
 }
 
-// Swup only replaces page containers, so body-level layout classes need syncing.
-function syncLayoutBodyClasses() {
-  const mainElement = document.querySelector('main[data-layout-background]');
-  const backgroundMode = mainElement?.getAttribute('data-layout-background') || 'default';
-  const headerMode = mainElement?.getAttribute('data-layout-header-mode') || (isHomePath() ? 'overlay' : 'default');
-  const pageType = mainElement?.getAttribute('data-layout-page-type') || 'page';
-  const isCardPreview = readLayoutFlag(mainElement, 'data-layout-card-preview');
-  const isFullBleed = readLayoutFlag(mainElement, 'data-layout-full-bleed', isHomePath());
-  const hideFooter = readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomePath());
-  const useOverlayHeader = headerMode === 'overlay';
+function updateHeaderScrollState() {
+  const headerBg = document.getElementById('header-bg');
+  if (!headerBg) return;
 
-  document.body.classList.toggle('article-card-preview-body', isCardPreview);
-  document.body.classList.toggle('site-monochrome-page', !useOverlayHeader && !isCardPreview);
-  document.body.classList.toggle('layout-article-page', pageType === 'article');
-  document.body.classList.toggle('layout-directory-page', pageType === 'directory');
-  document.body.classList.toggle('layout-overlay-header', useOverlayHeader);
-  document.body.classList.toggle('layout-full-bleed', isFullBleed);
-  document.body.classList.toggle('layout-bg-starry', backgroundMode === 'starry');
-  syncLayoutFooterVisibility(hideFooter);
+  const shouldUseScrolledHeader = !isHomePath() && window.scrollY > 8;
+  headerBg.classList.toggle('scrolled', shouldUseScrolledHeader);
+}
+
+function syncHeaderShellState(shellState = readPageShellState()) {
+  const header = document.getElementById('main-header');
+  const headerBg = document.getElementById('header-bg');
+  if (!header || !headerBg) return;
+
+  if (shellState.useHomeHeader) {
+    header.setAttribute('data-home-header', 'true');
+  } else {
+    header.removeAttribute('data-home-header');
+  }
+
+  headerBg.classList.add('absolute', 'inset-0');
+  headerBg.classList.toggle('header-bg-surface', !shellState.useHomeHeader);
+  updateHeaderScrollState();
+}
+
+// Swup only replaces page containers, so body/header-level layout state needs syncing.
+function syncLayoutBodyClasses(shellState = readPageShellState()) {
+  document.body.classList.toggle('article-card-preview-body', shellState.isCardPreview);
+  document.body.classList.toggle('site-monochrome-page', !shellState.useOverlayHeader && !shellState.isCardPreview);
+  document.body.classList.toggle('layout-article-page', shellState.pageType === 'article');
+  document.body.classList.toggle('layout-directory-page', shellState.pageType === 'directory');
+  document.body.classList.toggle('layout-overlay-header', shellState.useOverlayHeader);
+  document.body.classList.toggle('layout-full-bleed', shellState.isFullBleed);
+  document.body.classList.toggle('layout-bg-starry', shellState.backgroundMode === 'starry');
+  syncLayoutFooterVisibility(shellState.hideFooter);
 }
 
 function syncPageShellState() {
-  syncLayoutBodyClasses();
+  const shellState = readPageShellState();
+  syncLayoutBodyClasses(shellState);
+  syncHeaderShellState(shellState);
   clearHomePageState();
 }
 
@@ -276,6 +314,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let isLoading = false;
   let contentReady = false;
   
+  // 发送页面转换事件 - 自定义全局事件
+  function sendPageTransitionEvent() {
+    // 创建自定义事件并触发
+    const event = new CustomEvent('page-transition', {
+      bubbles: true,
+      cancelable: false,
+      detail: { timestamp: Date.now() }
+    });
+    document.dispatchEvent(event);
+  }
+
   // 根据当前页面动态确定容器配置
   const containers = ['main']; // 主容器始终存在
   
@@ -312,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return ['main'];
       }
       
-      // Replace the whole article shell for article directory/detail navigation.
+      // 文章目录、正文和路径栏分属不同层级，文章区内部导航统一替换 main。
       if (isFromArticlePage || isToArticlePage) {
         return ['main'];
       }
@@ -323,17 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
     plugins: [] // 手动添加插件以控制顺序
   });
   window.swup = swup;
-  
-  // 发送页面转换事件 - 自定义全局事件
-  function sendPageTransitionEvent() {
-    // 创建自定义事件并触发
-    const event = new CustomEvent('page-transition', {
-      bubbles: true,
-      cancelable: false,
-      detail: { timestamp: Date.now() }
-    });
-    document.dispatchEvent(event);
-  }
   
   // 添加预加载插件 - 代替原有的预加载功能
   const preloadPlugin = new SwupPreloadPlugin({
@@ -428,6 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 初始化时设置
   setupTransition();
   syncPageShellState();
+  window.addEventListener('scroll', updateHeaderScrollState, { passive: true });
 
   
   // 1. 访问开始 - 显示加载动画，准备页面退出
@@ -616,6 +655,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const cleanup = () => {
     if (cleanedUp) return;
     cleanedUp = true;
+
+    window.removeEventListener('scroll', updateHeaderScrollState, { passive: true });
 
     // 发送页面切换事件
     sendPageTransitionEvent();

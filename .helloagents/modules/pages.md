@@ -15,6 +15,11 @@
 **行为**: 组合 components、styles 与内容数据。
 **结果**: 生成可访问的静态页面。
 
+### about 页面字号收敛
+**条件**: 访问 `/about` 页面。
+**行为**: 页面使用 `about-page`、`about-section`、`about-section-title`、`about-countdown-panel`、`about-heatmap-panel` 等语义类接入全站 typography token，不在 Astro 模板中用 Tailwind `text-3xl` 等局部字号定义标题。
+**结果**: about 页标题、倒计时和旅行足迹区域与文章、项目、筛选、时间线页面保持一致的字号阶梯。
+
 ### Git 项目 API 分页
 **条件**: 访问 `/api/git-projects` 获取 GitHub 项目。
 **行为**: 基于 GitHub Link header 解析是否有下一页与总页数。

@@ -31,8 +31,9 @@ const normalizedPath =
     : currentPath.endsWith("/")
       ? currentPath.slice(0, -1)
       : currentPath;
+const isHomeHeader = normalizedPath === "/";
 const headerBgClass =
-  normalizedPath === "/"
+  isHomeHeader
     ? "absolute inset-0"
     : "header-bg-surface absolute inset-0";
 
@@ -77,7 +78,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
 <header
   class="fixed w-full top-0 z-50"
   id="main-header"
-  data-home-header
+  data-home-header={isHomeHeader ? "true" : undefined}
 >
   <div
     class={headerBgClass}

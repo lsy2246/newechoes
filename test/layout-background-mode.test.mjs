@@ -72,6 +72,22 @@ test("swup can sync page-level layout body classes from the replaced main elemen
   assert.ok(swupInit.includes("layout-full-bleed"));
 });
 
+test("swup syncs the persistent header surface after leaving home", () => {
+  assert.ok(header.includes("const isHomeHeader = normalizedPath === \"/\";"));
+  assert.ok(header.includes('data-home-header={isHomeHeader ? "true" : undefined}'));
+  assert.ok(swupInit.includes("function syncHeaderShellState"));
+  assert.ok(swupInit.includes("header.removeAttribute('data-home-header')"));
+  assert.ok(swupInit.includes("headerBg.classList.toggle('header-bg-surface', !shellState.useHomeHeader)"));
+});
+
+test("header scroll state restores frosted navigation outside home", () => {
+  assert.ok(swupInit.includes("function updateHeaderScrollState"));
+  assert.ok(swupInit.includes("const shouldUseScrolledHeader = !isHomePath() && window.scrollY > 8;"));
+  assert.ok(swupInit.includes("headerBg.classList.toggle('scrolled', shouldUseScrolledHeader)"));
+  assert.ok(swupInit.includes("window.addEventListener('scroll', updateHeaderScrollState, { passive: true })"));
+  assert.ok(swupInit.includes("window.removeEventListener('scroll', updateHeaderScrollState, { passive: true })"));
+});
+
 test("swup lifecycle scripts use v4 events instead of legacy document events", () => {
   const legacyEvents = [
     "swup:contentReplaced",
