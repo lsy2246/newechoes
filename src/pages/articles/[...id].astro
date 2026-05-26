@@ -390,6 +390,48 @@ const tableOfContents = generateTableOfContents(headings);
       )
     }
 
+    {
+      !isCardPreview && (
+        <nav class="article-topbar" aria-label="文章路径">
+          <div class="article-breadcrumb">
+            <a
+              href="/articles/"
+              data-article-directory-link
+              data-astro-prefetch="hover"
+            >
+              文章
+            </a>
+            {pathSegments.map((segment, index) => {
+              const segmentPath = pathSegments.slice(0, index + 1).join("/");
+
+              return (
+                <>
+                  <span aria-hidden="true">/</span>
+                  <a
+                    href={`/articles/${segmentPath}/`}
+                    data-article-directory-link
+                    data-astro-prefetch="hover"
+                  >
+                    {segment}
+                  </a>
+                </>
+              );
+            })}
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">{article.data.title}</span>
+          </div>
+          <a
+            class="article-return-link"
+            href={section ? `/articles/${section}/` : "/articles/"}
+            data-article-directory-link
+            data-astro-prefetch="hover"
+          >
+            ← 返回文章列表
+          </a>
+        </nav>
+      )
+    }
+
     <div
       id="article-content"
       class:list={[
@@ -397,37 +439,6 @@ const tableOfContents = generateTableOfContents(headings);
         { "article-preview-layout": isCardPreview },
       ]}
     >
-      {
-        !isCardPreview && (
-          <nav class="article-topbar" aria-label="文章路径">
-            <div class="article-breadcrumb">
-              <a href="/articles/" data-astro-prefetch="hover">文章</a>
-              {pathSegments.map((segment, index) => {
-                const segmentPath = pathSegments.slice(0, index + 1).join("/");
-
-                return (
-                  <>
-                    <span aria-hidden="true">/</span>
-                    <a href={`/articles/${segmentPath}/`} data-astro-prefetch="hover">
-                      {segment}
-                    </a>
-                  </>
-                );
-              })}
-              <span aria-hidden="true">/</span>
-              <span aria-current="page">{article.data.title}</span>
-            </div>
-            <a
-              class="article-return-link"
-              href={section ? `/articles/${section}/` : "/articles/"}
-              data-astro-prefetch="hover"
-            >
-              ← 返回文章列表
-            </a>
-          </nav>
-        )
-      }
-
       <article class="article-main">
         <header class="article-head">
           <div class="article-meta-line">

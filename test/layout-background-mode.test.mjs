@@ -114,3 +114,12 @@ test("swup fully replaces the page shell when entering or leaving filter", () =>
   assert.equal(swupInit.includes("from: ['/articles', '/filtered']"), false);
   assert.equal(swupInit.includes("to: ['/articles', '/filtered']"), false);
 });
+
+test("article grid and detail navigation use swup history instead of same-path replacement", () => {
+  assert.ok(swupInit.includes("name: 'article-pages'"));
+  assert.ok(swupInit.includes("from: ['/articles']"));
+  assert.ok(swupInit.includes("to: ['/articles']"));
+  assert.equal(swupInit.includes("replaceArticleMainWithoutUrlChange"), false);
+  assert.equal(swupInit.includes("handleSamePathArticleNavigation"), false);
+  assert.equal(swupInit.includes("article-same-path:"), false);
+});

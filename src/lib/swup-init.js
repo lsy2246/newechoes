@@ -312,14 +312,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return ['main'];
       }
       
-      // 当从文章页到非文章页，或从非文章页到文章页时
-      if (isFromArticlePage !== isToArticlePage) {
+      // Replace the whole article shell for article directory/detail navigation.
+      if (isFromArticlePage || isToArticlePage) {
         return ['main'];
-      }
-      
-      // 对于文章页面之间的导航，使用两个容器
-      if (isFromArticlePage && isToArticlePage) {
-        return ['main', '#article-content'];
       }
       
       // 默认情况：使用main容器
@@ -393,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
         name: 'article-pages',
         from: ['/articles'],
         to: ['/articles'],
-        containers: ['#article-content']
+        containers: ['main']
       }
     ],
     // 默认情况下忽略URL片段，只使用路径部分

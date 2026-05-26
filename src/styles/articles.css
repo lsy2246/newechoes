@@ -1437,9 +1437,19 @@ tbody tr:hover,
 }
 
 .article-shell {
+  display: grid;
+  gap: 32px;
+  box-sizing: border-box;
   width: 100%;
+  padding: 38px 0 88px;
   background: var(--article-bg);
   color: var(--article-ink);
+}
+
+.article-shell.article-shell-preview {
+  display: block;
+  gap: 0;
+  padding: 0;
 }
 
 .article-layout {
@@ -1449,7 +1459,7 @@ tbody tr:hover,
   justify-content: start;
   box-sizing: border-box;
   width: 100%;
-  padding: 38px 0 88px;
+  padding: 0;
 }
 
 .article-preview-layout {
@@ -1732,7 +1742,7 @@ tbody tr:hover,
 
 .article-side {
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 1;
   position: sticky;
   top: 82px;
   align-self: start;
@@ -2065,8 +2075,12 @@ tbody tr:hover,
 }
 
 @media (max-width: 720px) {
-  .article-layout {
+  .article-shell {
     padding: 30px 0 56px;
+  }
+
+  .article-layout {
+    padding: 0;
   }
 
   .article-topbar,

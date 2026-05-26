@@ -3,6 +3,26 @@
   color: var(--article-ink);
 }
 
+.article-prose pre.mermaid {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  justify-content: flex-start;
+  padding: 1.25rem;
+  overflow-x: auto;
+  overflow-y: visible;
+  border-radius: 0.6rem;
+  scrollbar-gutter: stable;
+}
+
+.article-prose pre.mermaid svg {
+  display: block;
+  flex: 0 0 auto;
+  max-width: none !important;
+  height: auto;
+  overflow: visible !important;
+}
+
 .mermaid * {
   background-color: transparent !important;
 }

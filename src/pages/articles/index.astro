@@ -3,6 +3,7 @@ import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import { contentStructure } from "../../content.config";
 import Layout from "@/components/Layout.astro";
+import "@/styles/articles.css";
 
 export const prerender = true;
 
@@ -193,6 +194,7 @@ const parentHref = parentPath ? `/articles/${parentPath}/` : "/articles/";
                 <a
                   href={getArticleHref(article.id)}
                   class:list={["node", { "no-summary": !hasSummary }]}
+                  data-article-detail-link
                   data-astro-prefetch="viewport"
                 >
                   <span class="node-kind">md</span>

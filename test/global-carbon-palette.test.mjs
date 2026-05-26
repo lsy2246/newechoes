@@ -79,8 +79,8 @@ test("footer and explorer pages avoid fixed black-white and blue-gray haze", () 
   assert.match(cssBlock(globalCss, ".site-footer"), /background:\s*var\(--site-bg\);/);
   assert.match(cssBlock(globalCss, ".site-footer"), /color:\s*var\(--site-muted\);/);
   assert.match(cssBlock(globalCss, ".site-footer a:hover"), /color:\s*var\(--site-ink\);/);
-  assert.match(cssBlock(globalCss, ".node-icon"), /color:\s*var\(--site-muted\);/);
-  assert.match(cssBlock(globalCss, ".node-folder .node-icon"), /color:\s*var\(--site-body\);/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node-icon"), /color:\s*var\(--site-muted\);/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node-folder .node-icon"), /color:\s*var\(--site-body\);/);
   assert.equal(globalCss.includes("#9aa4ba"), false);
   assert.equal(globalCss.includes("#c1c8d6"), false);
 });

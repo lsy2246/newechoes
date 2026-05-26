@@ -5,6 +5,7 @@ import test from "node:test";
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 const articlesCss = readFileSync("src/styles/articles.css", "utf8");
 const articlesCodeCss = readFileSync("src/styles/articles-code.css", "utf8");
+const articlesMermaidCss = readFileSync("src/styles/articles-mermaid.css", "utf8");
 const articleIndex = readFileSync("src/pages/articles/index.astro", "utf8");
 const articleDirectoryRoute = readFileSync("src/pages/articles/[...path].astro", "utf8");
 const articleDetail = readFileSync("src/pages/articles/[...id].astro", "utf8");
@@ -31,6 +32,10 @@ const cssBlocks = (source, selector) => {
 const lastCssBlock = (source, selector) => cssBlocks(source, selector).at(-1) ?? "";
 const hasCssBlock = (source, selector, pattern) =>
   cssBlocks(source, selector).some((block) => pattern.test(block));
+const selectorRulePattern = (selector) => {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|\\n)${escaped}\\s*\\{`);
+};
 
 test("article surfaces use the graphite dark palette instead of pure black", () => {
   assert.match(cssBlock(globalCss, '[data-theme="dark"]'), /--site-bg:\s*#111315;/);
@@ -41,14 +46,27 @@ test("article surfaces use the graphite dark palette instead of pure black", () 
 });
 
 test("grid and filter views use the same lightweight explorer node language", () => {
+  assert.match(cssBlock(globalCss, ".article-index-shell"), /padding:\s*0;/);
+  assert.match(cssBlock(globalCss, ".browser"), /display:\s*grid;/);
+  assert.match(cssBlock(globalCss, ".browser"), /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(cssBlock(globalCss, ".browser"), /gap:\s*32px;/);
+  assert.match(cssBlock(globalCss, ".browser"), /padding:\s*38px 0 88px;/);
+  assert.equal(globalCss.includes(".browser-nested"), false);
+  assert.match(cssBlock(globalCss, ".article-index-topbar"), /grid-column:\s*1 \/ -1;/);
+  assert.match(cssBlock(globalCss, ".browser > #article-content"), /min-width:\s*0;/);
+  assert.doesNotMatch(cssBlock(globalCss, ".browser > #article-content"), /grid-column:\s*2;/);
   assert.match(cssBlock(globalCss, ".explorer-grid"), /auto-fill,\s*minmax\(230px,\s*1fr\)/);
-  assert.match(cssBlock(globalCss, ".node"), /grid-template-columns:\s*40px minmax\(0,\s*1fr\)/);
-  assert.match(cssBlock(globalCss, ".node"), /min-height:\s*136px;/);
-  assert.match(cssBlock(globalCss, ".node"), /border:\s*1px solid var\(--site-line\);/);
-  assert.match(cssBlock(globalCss, ".node"), /border-radius:\s*6px;/);
-  assert.match(cssBlock(globalCss, ".node-kind"), /position:\s*absolute;/);
+  assert.doesNotMatch(cssBlock(globalCss, ".explorer-grid"), /padding-top:/);
+  assert.doesNotMatch(globalCss, selectorRulePattern(".node"));
+  assert.match(cssBlock(globalCss, ".explorer-grid .node"), /grid-template-columns:\s*40px minmax\(0,\s*1fr\)/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node"), /min-height:\s*136px;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node"), /border:\s*1px solid var\(--site-line\);/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node"), /border-radius:\s*6px;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node-kind"), /position:\s*absolute;/);
 
   assert.ok(articleIndex.includes("article-topbar"));
+  assert.ok(articleIndex.includes('import "@/styles/articles.css";'));
+  assert.equal(articleIndex.includes("browser-nested"), false);
   assert.ok(articleIndex.includes("article-index-topbar"));
   assert.ok(articleIndex.includes("article-breadcrumb"));
   assert.ok(articleIndex.includes('aria-current="page"'));
@@ -57,12 +75,21 @@ test("grid and filter views use the same lightweight explorer node language", ()
   assert.match(cssBlock(globalCss, ".article-index-topbar"), /grid-template-columns:\s*minmax\(0,\s*1fr\) auto;/);
   assert.match(cssBlock(globalCss, ".article-index-topbar"), /border-bottom:\s*1px solid var\(--site-line\);/);
   assert.match(cssBlock(globalCss, ".article-index-topbar .article-breadcrumb"), /overflow:\s*hidden;/);
+  assert.match(
+    globalCss,
+    /@media \(max-width: 1080px\) \{[\s\S]*?\.browser,\s*\.filter-layout,\s*\.timeline-layout\s*\{[\s\S]*?grid-template-columns:\s*1fr;[\s\S]*?\.article-index-topbar\s*\{[\s\S]*?grid-column:\s*1;/,
+  );
+  assert.match(
+    globalCss,
+    /@media \(max-width: 720px\) \{[\s\S]*?\.browser\s*\{[\s\S]*?padding:\s*30px 0 56px;/,
+  );
   assert.ok(articleIndex.includes("explorer-grid"));
   assert.ok(articleIndex.includes("node-kind"));
   assert.ok(articleIndex.includes("node-icon"));
   assert.ok(articleIndex.includes("node-title"));
   assert.ok(articleIndex.includes("node-summary"));
   assert.ok(articleIndex.includes("node-meta"));
+  assert.ok(articleIndex.includes("data-article-detail-link"));
   assert.equal(articleIndex.includes("article-card"), false);
   assert.equal(articleIndex.includes("article-index-entry-grid"), false);
   assert.ok(articleDirectoryRoute.includes("props:"));
@@ -114,10 +141,10 @@ test("filter console and result list keep long text inside lightweight rows", ()
   assert.match(cssBlock(globalCss, ".filter-result-title"), /overflow-wrap:\s*anywhere;/);
   assert.match(cssBlock(globalCss, ".filter-result-summary"), /overflow-wrap:\s*anywhere;/);
   assert.match(cssBlock(globalCss, ".filter-result-meta"), /min-width:\s*0;/);
-  assert.match(cssBlock(globalCss, ".node > div"), /min-width:\s*0;/);
-  assert.match(cssBlock(globalCss, ".node-title"), /overflow-wrap:\s*anywhere;/);
-  assert.match(cssBlock(globalCss, ".node-summary"), /overflow-wrap:\s*anywhere;/);
-  assert.match(cssBlock(globalCss, ".node-meta"), /min-width:\s*0;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node > div"), /min-width:\s*0;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node-title"), /overflow-wrap:\s*anywhere;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node-summary"), /overflow-wrap:\s*anywhere;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node-meta"), /min-width:\s*0;/);
   assert.match(cssBlock(globalCss, ".line-select"), /font-size:\s*14px;/);
   assert.match(cssBlock(globalCss, ".filter-date-groups"), /gap:\s*20px;/);
   assert.match(cssBlock(globalCss, ".filter-date-group"), /display:\s*grid;/);
@@ -156,16 +183,23 @@ test("article detail keeps tags once and renders related articles as a linear li
 
 test("article detail top path bar spans the reader grid with a return link", () => {
   const topbarBlock = articleDetail.match(/<nav class="article-topbar"[\s\S]*?<\/nav>/)?.[0] ?? "";
+  const topbarIndex = articleDetail.indexOf('<nav class="article-topbar"');
+  const articleContentIndex = articleDetail.indexOf('id="article-content"');
 
   assert.notEqual(topbarBlock, "");
+  assert.ok(topbarIndex >= 0);
+  assert.ok(articleContentIndex >= 0);
+  assert.ok(topbarIndex < articleContentIndex);
   assert.ok(topbarBlock.includes('aria-label="文章路径"'));
   assert.ok(topbarBlock.includes('class="article-breadcrumb"'));
   assert.ok(topbarBlock.includes('href="/articles/"'));
+  assert.ok(topbarBlock.includes("data-article-directory-link"));
   assert.ok(topbarBlock.includes("pathSegments.map"));
   assert.ok(topbarBlock.includes("article.data.title"));
   assert.ok(topbarBlock.includes('aria-current="page"'));
   assert.ok(topbarBlock.includes('class="article-return-link"'));
   assert.ok(topbarBlock.includes("← 返回文章列表"));
+  assert.equal(articleDetail.includes("article-same-path:before-replace"), false);
 
   assert.match(cssBlock(articlesCss, ".article-topbar"), /grid-column:\s*1 \/ -1;/);
   assert.match(cssBlock(articlesCss, ".article-topbar"), /grid-template-columns:\s*minmax\(0,\s*1fr\) auto;/);
@@ -183,12 +217,17 @@ test("article detail aligns with the navigation container and keeps a tight side
   assert.match(cssBlock(articlesCss, ".layout-article-page > main"), /max-width:\s*80rem;/);
   assert.match(cssBlock(articlesCss, ".layout-article-page > main"), /margin-left:\s*auto;/);
   assert.match(cssBlock(articlesCss, ".layout-article-page > main"), /margin-right:\s*auto;/);
+  assert.ok(hasCssBlock(articlesCss, ".article-shell", /display:\s*grid;/));
+  assert.ok(hasCssBlock(articlesCss, ".article-shell", /gap:\s*32px;/));
+  assert.ok(hasCssBlock(articlesCss, ".article-shell", /padding:\s*38px 0 88px;/));
+  assert.match(cssBlock(articlesCss, ".article-shell.article-shell-preview"), /padding:\s*0;/);
   assert.match(cssBlock(articlesCss, ".article-layout"), /minmax\(170px,\s*220px\) minmax\(0,\s*1fr\)/);
   assert.match(cssBlock(articlesCss, ".article-layout"), /gap:\s*32px;/);
-  assert.match(cssBlock(articlesCss, ".article-layout"), /padding:\s*38px 0 88px;/);
+  assert.match(cssBlock(articlesCss, ".article-layout"), /padding:\s*0;/);
   assert.match(cssBlock(articlesCss, ".article-main"), /max-width:\s*none;/);
   assert.match(cssBlock(articlesCss, ".article-main"), /grid-column:\s*2;/);
   assert.match(cssBlock(articlesCss, ".article-side"), /grid-column:\s*1;/);
+  assert.match(cssBlock(articlesCss, ".article-side"), /grid-row:\s*1;/);
   assert.match(cssBlock(articlesCss, ".article-side"), /padding-right:\s*24px;/);
   assert.match(cssBlock(articlesCss, ".article-side"), /border-right:\s*1px solid var\(--article-line\);/);
   assert.doesNotMatch(cssBlock(articlesCss, ".article-side"), /border-left:/);
@@ -211,7 +250,7 @@ test("article detail aligns with the navigation container and keeps a tight side
 
   assert.match(
     articlesCss,
-    /@media \(max-width: 720px\) \{[\s\S]*?\.article-layout\s*\{[\s\S]*?padding:\s*30px 0 56px;/,
+    /@media \(max-width: 720px\) \{[\s\S]*?\.article-shell\s*\{[\s\S]*?padding:\s*30px 0 56px;[\s\S]*?\.article-layout\s*\{[\s\S]*?padding:\s*0;/,
   );
 
   assert.ok(
@@ -402,6 +441,16 @@ test("article detail secondary text remains readable instead of hazy", () => {
   assert.match(lastCssBlock(articlesCss, ".article-relation-copy span"), /font-size:\s*12px;/);
   assert.match(lastCssBlock(articlesCss, ".article-relation-date"), /color:\s*var\(--article-muted\);/);
   assert.match(lastCssBlock(articlesCss, ".article-relation-index"), /color:\s*var\(--article-muted\);/);
+});
+
+test("article mermaid diagrams do not inherit explorer node hover or crop at svg bounds", () => {
+  assert.match(cssBlock(articlesMermaidCss, ".article-prose pre.mermaid"), /overflow-x:\s*auto;/);
+  assert.match(cssBlock(articlesMermaidCss, ".article-prose pre.mermaid"), /overflow-y:\s*visible;/);
+  assert.match(cssBlock(articlesMermaidCss, ".article-prose pre.mermaid"), /scrollbar-gutter:\s*stable;/);
+  assert.match(cssBlock(articlesMermaidCss, ".article-prose pre.mermaid svg"), /max-width:\s*none !important;/);
+  assert.match(cssBlock(articlesMermaidCss, ".article-prose pre.mermaid svg"), /overflow:\s*visible !important;/);
+  assert.doesNotMatch(globalCss, selectorRulePattern(".node:hover"));
+  assert.match(cssBlock(globalCss, ".explorer-grid .node:hover"), /transform:\s*translateY\(-1px\);/);
 });
 
 test("timeline page exists and avoids heavy archive explanation blocks", () => {
