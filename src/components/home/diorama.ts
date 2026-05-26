@@ -435,8 +435,9 @@ export function initDiorama() {
   mats.screen = new THREE.MeshBasicMaterial({
     map: screenTexture,
     toneMapped: false,
-    depthWrite: false,
+    depthWrite: true,
     depthTest: true,
+    fog: false,
     color: useMobileCarrier ? 0xd9e1ee : 0xffffff,
   });
 

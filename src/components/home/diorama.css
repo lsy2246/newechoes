@@ -28,9 +28,9 @@
   touch-action: pan-y;
   overscroll-behavior: contain;
   background:
-    radial-gradient(circle at 16% 10%, rgba(234, 191, 126, 0.2), transparent 24%),
-    radial-gradient(circle at 82% 15%, rgba(131, 159, 201, 0.18), transparent 24%),
-    linear-gradient(180deg, #f4ede1 0%, #ede2d2 100%);
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.36), transparent 30%),
+    radial-gradient(circle at 82% 15%, rgba(148, 163, 184, 0.12), transparent 24%),
+    linear-gradient(180deg, #f8f8f6 0%, #f2f3f1 100%);
 }
 
 [data-theme="dark"] .home-diorama {
