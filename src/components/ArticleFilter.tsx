@@ -451,22 +451,6 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   return (
     <section className="filter-console-layout" aria-label="文章筛选">
       <div className="filter-console">
-        <div className="filter-console-head">
-          <div className="filter-console-copy">
-            <p className="filter-console-kicker">文章筛选</p>
-            <h1 className="filter-console-title">检索文章</h1>
-            <p className="filter-console-status">{resultStatusText}</p>
-          </div>
-          <button
-            type="button"
-            className="filter-reset-button"
-            onClick={resetFilters}
-            disabled={!hasActiveFilters && filters.currentPage <= 1}
-          >
-            重置筛选
-          </button>
-        </div>
-
         <div className="filter-control-grid">
           <div className="filter-control-cell">
             <span className="filter-control-label">标签</span>
@@ -645,6 +629,15 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               </div>
             </details>
           </div>
+
+          <button
+            type="button"
+            className="filter-reset-button"
+            onClick={resetFilters}
+            disabled={!hasActiveFilters && filters.currentPage <= 1}
+          >
+            重置筛选
+          </button>
         </div>
 
         <div className="filter-active-strip" aria-label="当前筛选条件">
@@ -680,6 +673,14 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                   className={hasSummary ? "filter-result-link" : "filter-result-link no-summary"}
                   data-astro-prefetch="viewport"
                 >
+                  <span className="filter-result-kind">article</span>
+                  <span className="filter-result-icon" aria-hidden="true">
+                    <svg viewBox="0 0 40 44" fill="none">
+                      <path d="M9 4h15l7 7v29H9V4Z" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M24 4v8h7" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M14 20h12M14 26h12M14 32h7" stroke="currentColor" strokeWidth="1.5" />
+                    </svg>
+                  </span>
                   <div className="filter-result-copy">
                     <h2 className="filter-result-title">{article.title || "无标题"}</h2>
                     <p className="filter-result-summary" aria-hidden={!hasSummary}>

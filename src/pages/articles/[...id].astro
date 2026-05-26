@@ -22,6 +22,14 @@ interface Heading {
   text: string;
 }
 
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 // 生成文章摘要的辅助函数
 function generateArticleSummary(article: ArticleEntry): string {
   if (article.data.summary) {
@@ -318,6 +326,7 @@ function generateTableOfContents(headings: Heading[]) {
     items.forEach((item) => {
       const hasChildren = item.children && item.children.length > 0;
       const isHigherLevel = item.depth <= 1; // 只有最高级和次高级标题使用较重的样式
+      const titleText = escapeHtmlAttribute(item.text);
 
       html += `<li class="toc-item" data-depth="${item.depth}">
         <div class="toc-item-container">
@@ -327,6 +336,7 @@ function generateTableOfContents(headings: Heading[]) {
                  ? "toc-link-strong font-medium"
                  : "toc-link-muted"
              }"
+             title="${titleText}"
              style="--toc-indent: ${item.depth * 0.85}rem;">
             ${item.text}
           </a>
@@ -469,83 +479,98 @@ const tableOfContents = generateTableOfContents(headings);
         {
           !isCardPreview && (
             <footer class="article-footer">
-              {
-                relatedArticles.length > 0 && (
-                  <section class="related" aria-label={getRelatedTitle(relatedArticlesMatchType)}>
-                    <div class="related-head">
-                      <h2>{getRelatedTitle(relatedArticlesMatchType)}</h2>
-                      <span class="related-count">{relatedArticles.slice(0, 3).length}</span>
-                    </div>
-                    <ul class="related-list">
-                      {relatedArticles.slice(0, 3).map((relatedArticle: ArticleEntry, index: number) => {
-                        const relatedSummary = generateArticleSummary(relatedArticle);
-
-                        return (
-                          <li>
-                            <a
-                              class="related-item"
-                              href={getArticleUrl(relatedArticle.id)}
-                              data-astro-prefetch="viewport"
-                            >
-                              <span class="related-index">
-                                {String(index + 1).padStart(2, "0")}
-                              </span>
-                              <span class="related-copy">
-                                <strong>{relatedArticle.data.title}</strong>
-                                <span>{relatedSummary}</span>
-                              </span>
-                              <time
-                                class="related-date"
-                                datetime={relatedArticle.data.date.toISOString()}
-                              >
-                                {formatArticleDate(relatedArticle.data.date)}
-                              </time>
-                            </a>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </section>
-                )
-              }
-
-              <section class="backlinks-section" aria-label="反向链接">
-                <div class="backlinks-head">
-                  <h2>反向链接</h2>
-                  <span class="backlinks-count">{backlinkArticles.length}</span>
-                </div>
+              <div class="article-relations" aria-label="文章关系">
                 {
-                  visibleBacklinkArticles.length > 0 ? (
-                    <div class="side-scroll backlinks-scroll">
-                      <ul class="backlink-list">
-                        {visibleBacklinkArticles.map((backlinkArticle: ArticleEntry) => (
-                          <li>
-                            <a
-                              href={getArticleUrl(backlinkArticle.id)}
-                              class="backlink-link"
-                              data-astro-prefetch="hover"
-                            >
-                              <strong>{backlinkArticle.data.title}</strong>
-                              <span>{formatArticleDate(backlinkArticle.data.date)}</span>
-                            </a>
-                          </li>
-                        ))}
+                  relatedArticles.length > 0 && (
+                    <section class="article-relation related" aria-label={getRelatedTitle(relatedArticlesMatchType)}>
+                      <div class="article-relation-head related-head">
+                        <h2>
+                          {getRelatedTitle(relatedArticlesMatchType)}
+                          <span class="article-relation-count related-count">
+                            {relatedArticles.slice(0, 3).length}
+                          </span>
+                        </h2>
+                      </div>
+                      <ul class="article-relation-list related-list">
+                        {relatedArticles.slice(0, 3).map((relatedArticle: ArticleEntry, index: number) => {
+                          const relatedSummary = generateArticleSummary(relatedArticle);
+
+                          return (
+                            <li>
+                              <a
+                                class="article-relation-link related-item"
+                                href={getArticleUrl(relatedArticle.id)}
+                                data-astro-prefetch="viewport"
+                              >
+                                <span class="article-relation-index related-index">
+                                  {String(index + 1).padStart(2, "0")}
+                                </span>
+                                <span class="article-relation-copy related-copy">
+                                  <strong>{relatedArticle.data.title}</strong>
+                                  <span>{relatedSummary}</span>
+                                  <time
+                                    class="article-relation-date related-date"
+                                    datetime={relatedArticle.data.date.toISOString()}
+                                  >
+                                    {formatArticleDate(relatedArticle.data.date)}
+                                  </time>
+                                </span>
+                                <span class="article-relation-cue" aria-hidden="true">→</span>
+                              </a>
+                            </li>
+                          );
+                        })}
                       </ul>
-                      {
-                        hiddenBacklinkCount > 0 && (
-                          <p class="backlinks-more">
-                            还有 {hiddenBacklinkCount} 篇引用暂未展开
-                          </p>
-                        )
-                      }
-                    </div>
-                  ) : (
-                    <p class="backlinks-empty">
-                      暂时还没有文章链接到这里。
-                    </p>
+                    </section>
                   )
                 }
-              </section>
+
+                <section class="article-relation backlinks-section" aria-label="反向链接">
+                  <div class="article-relation-head backlinks-head">
+                    <h2>
+                      反向链接
+                      <span class="article-relation-count backlinks-count">{backlinkArticles.length}</span>
+                    </h2>
+                  </div>
+                  {
+                    visibleBacklinkArticles.length > 0 ? (
+                      <div class="side-scroll backlinks-scroll">
+                        <ul class="article-relation-list backlink-list">
+                          {visibleBacklinkArticles.map((backlinkArticle: ArticleEntry, index: number) => (
+                            <li>
+                              <a
+                                href={getArticleUrl(backlinkArticle.id)}
+                                class="article-relation-link backlink-link"
+                                data-astro-prefetch="hover"
+                              >
+                                <span class="article-relation-index backlink-index" aria-hidden="true">
+                                  {String(index + 1).padStart(2, "0")}
+                                </span>
+                                <span class="article-relation-copy backlink-copy">
+                                  <strong>{backlinkArticle.data.title}</strong>
+                                  <span>{formatArticleDate(backlinkArticle.data.date)}</span>
+                                </span>
+                                <span class="article-relation-cue" aria-hidden="true">→</span>
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                        {
+                          hiddenBacklinkCount > 0 && (
+                            <p class="backlinks-more">
+                              还有 {hiddenBacklinkCount} 篇引用暂未展开
+                            </p>
+                          )
+                        }
+                      </div>
+                    ) : (
+                      <p class="backlinks-empty">
+                        暂时还没有文章链接到这里。
+                      </p>
+                    )
+                  }
+                </section>
+              </div>
             </footer>
           )
         }
