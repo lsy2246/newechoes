@@ -8,6 +8,10 @@ import SwupPreloadPlugin from '@swup/preload-plugin';
 // 添加Scripts插件 - 确保页面转场后脚本能重新执行
 import SwupScriptsPlugin from '@swup/scripts-plugin';
 
+const LOADING_SPINNER_MIN_VISIBLE_MS = 360;
+let loadingSpinnerHideTimer = 0;
+let loadingSpinnerShownAt = 0;
+
 // 创建加载动画元素
 function createLoadingSpinner() {
   // 检查是否已存在加载动画元素
@@ -20,6 +24,7 @@ function createLoadingSpinner() {
   const spinner = document.createElement('div');
   spinner.id = 'swup-loading-spinner';
   spinner.className = 'loading-spinner-container';
+  spinner.setAttribute('aria-hidden', 'true');
   
   // 创建内部旋转元素
   const spinnerInner = document.createElement('div');
@@ -34,7 +39,7 @@ function createLoadingSpinner() {
   return spinner;
 }
 
-// 将加载动画添加到body并固定在内容区域的中心
+// 将加载动画添加到body并固定在当前视口中心。
 function addSpinnerToBody(spinner) {
   if (!spinner) return;
   
@@ -44,35 +49,15 @@ function addSpinnerToBody(spinner) {
       spinner.parentNode.removeChild(spinner);
     }
     
-    // 获取当前活跃元素
-    const activeElement = getActiveElement();
-    
     // 添加到body而不是活跃容器，避免内容替换时被移除
     document.body.appendChild(spinner);
-    
-    // 如果有活跃元素，根据其位置调整加载动画的位置
-    if (activeElement) {
-      // 获取活跃元素的位置信息
-      const rect = activeElement.getBoundingClientRect();
-      
-      // 计算中心点相对于视口的位置
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      
-      // 设置加载动画位置
-      spinner.style.position = 'fixed';
-      spinner.style.top = centerY + 'px';
-      spinner.style.left = centerX + 'px';
-      spinner.style.transform = 'translate(-50%, -50%)';
-      spinner.style.zIndex = '9999'; // 确保在最顶层
-    } else {
-      // 如果没有活跃元素，则居中显示
-      spinner.style.position = 'fixed';
-      spinner.style.top = '50%';
-      spinner.style.left = '50%';
-      spinner.style.transform = 'translate(-50%, -50%)';
-      spinner.style.zIndex = '9999'; // 确保在最顶层
-    }
+
+    // 首页 main 高度远大于视口，按元素中心定位会把 spinner 放到屏幕外。
+    spinner.style.position = 'fixed';
+    spinner.style.top = '50%';
+    spinner.style.left = '50%';
+    spinner.style.transform = 'translate(-50%, -50%)';
+    spinner.style.zIndex = '9999';
   } catch (error) {
     console.error('添加加载动画时出错:', error);
   }
@@ -81,6 +66,11 @@ function addSpinnerToBody(spinner) {
 // 显示加载动画
 function showLoadingSpinner(spinner, forceNew = false) {
   if (!spinner) return;
+
+  if (loadingSpinnerHideTimer) {
+    clearTimeout(loadingSpinnerHideTimer);
+    loadingSpinnerHideTimer = 0;
+  }
   
   // 确保加载动画已添加到body
   addSpinnerToBody(spinner);
@@ -92,6 +82,7 @@ function showLoadingSpinner(spinner, forceNew = false) {
   
   spinner.style.display = 'flex';
   spinner.classList.add('is-active');
+  loadingSpinnerShownAt = Date.now();
 }
 
 // 隐藏加载动画
@@ -99,15 +90,26 @@ function hideLoadingSpinner(spinner) {
   if (!spinner || !document.body.contains(spinner) || !spinner.classList.contains('is-active')) {
     return;
   }
+
+  if (loadingSpinnerHideTimer) {
+    clearTimeout(loadingSpinnerHideTimer);
+    loadingSpinnerHideTimer = 0;
+  }
+
+  const visibleFor = Date.now() - loadingSpinnerShownAt;
+  const hideDelay = Math.max(0, LOADING_SPINNER_MIN_VISIBLE_MS - visibleFor);
+
+  loadingSpinnerHideTimer = window.setTimeout(() => {
+    loadingSpinnerHideTimer = 0;
+    spinner.classList.remove('is-active');
   
-  spinner.classList.remove('is-active');
-  
-  // 添加淡出效果后移除
-  setTimeout(() => {
-    if (spinner && document.body.contains(spinner)) {
-      spinner.style.display = 'none';
-    }
-  }, 300);
+    // 添加淡出效果后移除
+    setTimeout(() => {
+      if (spinner && document.body.contains(spinner)) {
+        spinner.style.display = 'none';
+      }
+    }, 300);
+  }, hideDelay);
 }
 
 // 根据当前路径同步首页专属的 body class

@@ -4,6 +4,7 @@ import test from "node:test";
 
 const aboutPage = readFileSync("src/pages/about.astro", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
+const swupTransitionsCss = readFileSync("src/styles/swup-transitions.css", "utf8");
 const header = readFileSync("src/components/Header.astro", "utf8");
 const layout = readFileSync("src/components/Layout.astro", "utf8");
 const search = readFileSync("src/components/Search.tsx", "utf8");
@@ -151,6 +152,18 @@ test("swup clears homepage-only html state when leaving home", () => {
   assert.ok(swupInit.includes('removeAttribute("data-home-header-phase")'));
   assert.ok(swupInit.includes('removeProperty("--home-progress")'));
   assert.ok(swupInit.includes('removeProperty("--story-progress")'));
+});
+
+test("swup route loader stays viewport centered for the tall homepage shell", () => {
+  assert.ok(swupInit.includes("const LOADING_SPINNER_MIN_VISIBLE_MS = 360"));
+  assert.ok(swupInit.includes("spinner.style.top = '50%'"));
+  assert.ok(swupInit.includes("spinner.style.left = '50%'"));
+  assert.ok(swupInit.includes("const hideDelay = Math.max(0, LOADING_SPINNER_MIN_VISIBLE_MS - visibleFor);"));
+  assert.equal(swupInit.includes("const centerY = rect.top + rect.height / 2"), false);
+  assert.match(
+    swupTransitionsCss,
+    /\.loading-spinner-container\s*\{[\s\S]*position:\s*fixed;/,
+  );
 });
 
 test("swup fully replaces the page shell when entering or leaving filter", () => {
