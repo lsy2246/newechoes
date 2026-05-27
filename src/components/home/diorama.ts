@@ -19,9 +19,9 @@ const KEYBOARD_MODEL_URL = "/models/home/keyboard.glb";
 const KEYBOARD_MODEL_TARGET_WIDTH = 0.9;
 const KEYBOARD_MODEL_TARGET_DEPTH = 0.36;
 const KEYBOARD_MODEL_TARGET_HEIGHT = 0.035;
-const KEYBOARD_MODEL_MOBILE_TARGET_WIDTH = 0.74;
-const KEYBOARD_MODEL_MOBILE_TARGET_DEPTH = 0.3;
-const KEYBOARD_MODEL_MOBILE_TARGET_HEIGHT = 0.03;
+const KEYBOARD_MODEL_MOBILE_TARGET_WIDTH = 0.58;
+const KEYBOARD_MODEL_MOBILE_TARGET_DEPTH = 0.22;
+const KEYBOARD_MODEL_MOBILE_TARGET_HEIGHT = 0.026;
 const TYPING_CHARACTER_MODEL_URL = "/models/home/typing-character.glb";
 const TYPING_CHARACTER_MODEL_ATTRIBUTION =
   "Typing character by Gagana Geesara Perera, character by Yury Misiyuk, CC BY 4.0";
@@ -159,8 +159,8 @@ const SCREEN_CARRIER_PRESETS: Record<HomeScreenStoryDevice, ScreenCarrierPreset>
   },
   mobile: {
     canvas: { width: 1120, height: 2400 },
-    screen: { w: 0.31, h: 0.6, t: 0.022 },
-    groupPosition: new THREE.Vector3(0, 0.08, -0.055),
+    screen: { w: 0.31, h: 0.34, t: 0.018 },
+    groupPosition: new THREE.Vector3(0, 0.24, -0.19),
     groupRotationX: -0.1,
     screenFaceYOffset: 0,
     screenBodyOffsetZ: -0.01,
@@ -344,8 +344,10 @@ export function initDiorama() {
   scene.add(deskFigure);
 
   // A simple plinth keeps the 3D scene readable as one article component.
+  const floorW = useMobileCarrier ? 2.85 : 3.35;
+  const floorD = useMobileCarrier ? 2.82 : 3.32;
   const floor = new THREE.Mesh(
-    new RoundedBoxGeometry(3.35, 0.12, 3.32, 6, 0.035),
+    new RoundedBoxGeometry(floorW, 0.12, floorD, 6, 0.035),
     mats.floor,
   );
   floor.position.set(0, roomFloorY - 0.06, -0.105);
@@ -354,10 +356,10 @@ export function initDiorama() {
 
   // ===== Desk =====
   const desk = new THREE.Group();
-  const deskW = useMobileCarrier ? 2.45 : 2.02;
-  const deskD = useMobileCarrier ? 1.12 : 1.34;
+  const deskW = useMobileCarrier ? 1.66 : 2.02;
+  const deskD = useMobileCarrier ? 1.02 : 1.34;
   const deskTopH = 0.07;
-  const deskTopY = 0.215; // raised slightly so the tabletop no longer crowds the lap
+  const deskTopY = useMobileCarrier ? 0.09 : 0.215;
 
   const deskTopMesh = new THREE.Mesh(
     new RoundedBoxGeometry(deskW, deskTopH, deskD, 9, 0.055),
@@ -379,7 +381,7 @@ export function initDiorama() {
     leg.castShadow = true;
     desk.add(leg);
   });
-  desk.position.set(0, 0, useMobileCarrier ? -0.6 : -0.32);
+  desk.position.set(0, 0, useMobileCarrier ? -0.38 : -0.32);
   deskFigure.add(desk);
   const deskTopWorldY = desk.position.y + deskTopY + deskTopH / 2; // world y of top surface
 
@@ -387,23 +389,11 @@ export function initDiorama() {
   // ===== Laptop (→ /projects) =====
   const laptop = new THREE.Group();
 
-  const lpBaseW = useMobileCarrier ? 1.18 : 1.04;
-  const lpBaseD = useMobileCarrier ? 0.32 : 0.44;
-  const lpBaseH = useMobileCarrier ? 0.028 : 0.018;
+  const lpBaseH = useMobileCarrier ? 0.022 : 0.018;
   const desktopKeyboardDeckZ = 0.58;
   const desktopKeyboardInset = -0.01;
   const desktopMonitorY = 0.09;
   const desktopMonitorZ = 0.14;
-
-  const lpBase = new THREE.Mesh(
-    new RoundedBoxGeometry(lpBaseW, lpBaseH, lpBaseD, 8, 0.035),
-    mats.computerShell,
-  );
-  lpBase.position.set(0, lpBaseH / 2 + 0.002, useMobileCarrier ? 0.12 : desktopKeyboardDeckZ);
-  lpBase.castShadow = true;
-  lpBase.receiveShadow = true;
-  lpBase.visible = useMobileCarrier;
-  if (useMobileCarrier) laptop.add(lpBase);
 
   // Screen (hinged at back edge)
   const lpScreenGroup = new THREE.Group();
@@ -523,8 +513,8 @@ export function initDiorama() {
   keyboardModelMount.name = "keyboardModelMount";
   keyboardModelMount.position.set(
     0,
-    lpBaseH + (useMobileCarrier ? 0.006 : 0.004),
-    useMobileCarrier ? 0.17 : desktopKeyboardDeckZ,
+    useMobileCarrier ? 0.004 : lpBaseH + 0.004,
+    useMobileCarrier ? 0.189 : desktopKeyboardDeckZ,
   );
   laptop.add(keyboardModelMount);
 
@@ -633,7 +623,7 @@ export function initDiorama() {
     innerFrame.position.set(0, screenPreset.screenFaceYOffset, shellDepth / 2 - 0.008);
     innerFrame.visible = false;
 
-    screenFace.position.z = shellDepth / 2 + 0.003;
+    screenFace.position.z = shellDepth / 2 + 0.001;
 
     const sensor = new THREE.Mesh(
       new THREE.SphereGeometry(0.009, 16, 16),
@@ -648,6 +638,14 @@ export function initDiorama() {
     );
     speaker.position.set(0, screenPreset.screenFaceYOffset + shellH / 2 - 0.068, shellDepth / 2 + 0.001);
     lpScreenGroup.add(speaker);
+
+    const backRest = new THREE.Mesh(
+      new RoundedBoxGeometry(shellW * 0.56, shellH * 0.34, 0.018, 6, 0.01),
+      mats.computerShell,
+    );
+    backRest.position.set(0, screenPreset.screenFaceYOffset - shellH * 0.12, -shellDepth / 2 - 0.012);
+    backRest.castShadow = true;
+    lpScreenGroup.add(backRest);
 
   }
 
@@ -690,9 +688,9 @@ export function initDiorama() {
   }
 
   laptop.position.set(
-    useMobileCarrier ? -0.02 : 0,
-    deskTopWorldY + (useMobileCarrier ? 0.22 : 0),
-    useMobileCarrier ? -0.26 : -0.52,
+    useMobileCarrier ? 0 : 0,
+    deskTopWorldY + (useMobileCarrier ? 0 : 0),
+    useMobileCarrier ? -0.2 : -0.52,
   );
   laptop.rotation.set(0, 0, 0);
   deskFigure.add(laptop);
@@ -714,7 +712,7 @@ export function initDiorama() {
   const chairSeatY = -0.165 + chairSeatLift;
   const chairSeatZ = -0.03;
   const chairBackW = 0.5;
-  const chairBackH = 0.46;
+  const chairBackH = useMobileCarrier ? 0.36 : 0.46;
   const chairBackT = 0.055;
   const chairBackY = 0.09 + chairSeatLift;
   const chairBackZ = 0.14;
@@ -785,12 +783,14 @@ export function initDiorama() {
   person.scale.set(0.95, 1, 0.95);
   person.rotation.set(0, 0, 0);
   if (useMobileCarrier) {
-    person.position.set(-0.02, 0, 0.71);
-    person.scale.setScalar(0.84);
+    person.position.set(0.03, 0, 0.36);
+    person.scale.set(0.88, 1, 0.88);
     person.rotation.y = 0;
     chairSeat.scale.z = 0.84;
     chairBack.scale.z = 0.86;
-    chairBack.position.z = 0.24;
+    chairBack.position.y = 0.035;
+    chairBack.position.z = 0.1;
+    chairBackBase.position.z = 0.1;
   }
 
   const typingCharacterMount = new THREE.Group();
@@ -942,50 +942,29 @@ export function initDiorama() {
   deskFigure.add(person);
 
   if (useMobileCarrier) {
-    const standBaseW = clamp(screenFaceW * 0.72, 0.17, 0.34);
-    const standBraceW = clamp(screenFaceW * 0.58, 0.13, 0.28);
-    const standLipW = clamp(screenFaceW * 0.48, 0.11, 0.22);
+    const screenCenterZ = laptop.position.z + lpScreenGroup.position.z + screenPreset.screenBodyOffsetZ;
+    const screenBackZ = screenCenterZ - lpScreenT / 2;
+    const screenCenterY = laptop.position.y + lpScreenGroup.position.y + screenPreset.screenFaceYOffset;
+    const standBackZ = screenBackZ - 0.032;
+    const standPostBottomY = deskTopWorldY + 0.018;
+    const standPostTopY = screenCenterY - lpScreenH * 0.08;
+    const standPostH = Math.max(0.001, standPostTopY - standPostBottomY);
     const standBase = new THREE.Mesh(
-      new RoundedBoxGeometry(standBaseW, 0.02, 0.12, 6, 0.014),
+      new RoundedBoxGeometry(0.2, 0.018, 0.11, 6, 0.012),
       mats.computerShell,
     );
-    standBase.position.set(laptop.position.x, deskTopWorldY + 0.01, laptop.position.z - 0.03);
+    standBase.position.set(laptop.position.x, deskTopWorldY + 0.009, standBackZ - 0.005);
     standBase.castShadow = true;
     standBase.receiveShadow = true;
     deskFigure.add(standBase);
 
     const standPost = new THREE.Mesh(
-      new THREE.BoxGeometry(0.024, 0.14, 0.03),
+      new THREE.BoxGeometry(0.022, standPostH, 0.022),
       mats.computerShell,
     );
-    standPost.position.set(laptop.position.x, deskTopWorldY + 0.08, laptop.position.z - 0.07);
+    standPost.position.set(laptop.position.x, standPostBottomY + standPostH / 2, standBackZ);
     standPost.castShadow = true;
     deskFigure.add(standPost);
-
-    const standBrace = new THREE.Mesh(
-      new RoundedBoxGeometry(standBraceW, 0.18, 0.026, 6, 0.016),
-      mats.computerShell,
-    );
-    standBrace.position.set(
-      laptop.position.x,
-      deskTopWorldY + 0.16,
-      laptop.position.z - 0.055,
-    );
-    standBrace.rotation.x = -0.34;
-    standBrace.castShadow = true;
-    deskFigure.add(standBrace);
-
-    const standLip = new THREE.Mesh(
-      new RoundedBoxGeometry(standLipW, 0.026, 0.026, 6, 0.01),
-      mats.computerShell,
-    );
-    standLip.position.set(
-      laptop.position.x,
-      deskTopWorldY + 0.023,
-      laptop.position.z + 0.02,
-    );
-    standLip.castShadow = true;
-    deskFigure.add(standLip);
   }
 
   const monitorScreen = laptop;
@@ -1023,11 +1002,15 @@ export function initDiorama() {
       .addScaledVector(screenWorldNormal, introDistance)
       .addScaledVector(screenWorldUp, screenPreset.introTargetUp);
 
-    roomCameraTarget.set(0.02, 0.38, -0.18);
+    roomCameraTarget.set(
+      useMobileCarrier ? 0.07 : 0.02,
+      useMobileCarrier ? 0.2 : 0.38,
+      useMobileCarrier ? 0.02 : -0.18,
+    );
     roomCameraPos.set(
-      useMobileCarrier ? 0.68 : 3.05,
-      useMobileCarrier ? 1.26 : 1.1,
-      useMobileCarrier ? 3.7 : 0.42,
+      useMobileCarrier ? 1.46 : 3.05,
+      useMobileCarrier ? 0.98 : 1.1,
+      useMobileCarrier ? 2.46 : 0.42,
     );
   };
   syncScreenIntroCamera();
@@ -1638,8 +1621,8 @@ export function initDiorama() {
     if (shouldStartCameraRejoin) captureCameraRejoin();
     if (homeProgress <= CAMERA_REJOIN_START || renderMode !== "room") cameraRejoinActive = false;
 
-    const outsideReveal = easeInOutSine(clamp((homeProgress - 0.66) / 0.3));
-    const roomReveal = easeInOutSine(clamp((homeProgress - 0.7) / 0.26));
+    const outsideReveal = easeInOutSine(clamp((homeProgress - 0.66) / (useMobileCarrier ? 0.24 : 0.3)));
+    const roomReveal = easeInOutSine(clamp((homeProgress - 0.7) / (useMobileCarrier ? 0.18 : 0.26)));
     if (introBackdropMaterial) {
       const backdropFade = 1 - easeInOutSine(clamp((homeProgress - 0.56) / 0.18));
       introBackdropMaterial.opacity = backdropFade;
