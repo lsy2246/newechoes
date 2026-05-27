@@ -1059,9 +1059,10 @@ export function initDiorama() {
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   // ===== Scroll-driven homepage state =====
-  type RenderMode = "story" | "handoff" | "room";
+  type RenderMode = "story" | "handoff" | "room" | "loop";
   const STORY_MODE_END = 0.7;
   const HANDOFF_MODE_END = 0.735;
+  const ROOM_CAMERA_END = 0.88;
   const STORY_PROGRESS_END = 0.7;
   const STORY_FRAME_STEPS = useMobileCarrier ? 120 : 140;
   const SCREEN_REDRAW_STEP = 1 / STORY_FRAME_STEPS;
@@ -1075,18 +1076,31 @@ export function initDiorama() {
   const STORY_FADE_END = 0.71;
   const SCENE_FADE_START = 0.708;
   const SCENE_FADE_END = HANDOFF_MODE_END;
-  const INTERACTIVE_PROGRESS = 0.965;
-  const CAMERA_REJOIN_START = 0.925;
-  const CAMERA_REJOIN_END = INTERACTIVE_PROGRESS;
+  const INTERACTIVE_PROGRESS = ROOM_CAMERA_END;
+  const LOOP_RETURN_START = 0.94;
+  const LOOP_RESET_PROGRESS = 0.998;
+  const LOOP_BACK_WRAP_THRESHOLD = 0.002;
+  const LOOP_BACK_WRAP_MIN_PROGRESS = LOOP_RETURN_START + 0.004;
+  const CAMERA_REJOIN_START = 0.82;
+  const CAMERA_REJOIN_END = ROOM_CAMERA_END;
   const CAMERA_REJOIN_FOLLOW_RATE = 0.0075;
   const CAMERA_CATCHUP_FOLLOW_RATE = 0.012;
+  const LOOP_CAMERA_FOLLOW_RATE = 0.0065;
   const getRenderMode = (progress: number): RenderMode => {
     if (progress < STORY_MODE_END) return "story";
     if (progress < HANDOFF_MODE_END) return "handoff";
+    if (progress >= LOOP_RETURN_START) return "loop";
     return "room";
+  };
+  const getLoopReturnAmount = (progress: number) =>
+    easeInOutSine(clamp((progress - LOOP_RETURN_START) / (LOOP_RESET_PROGRESS - LOOP_RETURN_START)));
+  const getStoryVisualProgress = (progress: number) => {
+    if (progress <= LOOP_RETURN_START) return progress;
+    return 0;
   };
   let homeProgress = 0;
   let scrollTargetProgress = 0;
+  let visualProgress = getStoryVisualProgress(homeProgress);
   let renderMode = getRenderMode(homeProgress);
   let cameraRejoinActive = false;
   let cameraInertialCatchup = false;
@@ -1094,6 +1108,7 @@ export function initDiorama() {
   let lastDrawnStoryProgress = -1;
   let lastTexturedStoryProgress = -1;
   let lastStoryOverlayKey = "";
+  let loopResetQueued = false;
   const storyFrameCache = new Map<string, HTMLCanvasElement>();
   const cameraRejoinStartPos = new THREE.Vector3();
   const cameraRejoinStartTarget = new THREE.Vector3();
@@ -1104,14 +1119,23 @@ export function initDiorama() {
   const cameraRejoinStepDir = new THREE.Vector3();
   const cameraRejoinDeltaQuat = new THREE.Quaternion();
   const cameraRejoinStepQuat = new THREE.Quaternion();
+  const loopCameraStartPos = new THREE.Vector3();
+  const loopCameraStartTarget = new THREE.Vector3();
+  const previousLoopCameraStartPos = new THREE.Vector3();
+  const previousLoopCameraStartTarget = new THREE.Vector3();
   const desiredCameraPos = new THREE.Vector3();
   const desiredCameraTarget = new THREE.Vector3();
   let cameraRejoinStartFov = roomFov;
   let cameraRejoinEndFov = roomFov;
+  let loopCameraStartFov = roomFov;
+  let previousLoopCameraStartFov = roomFov;
+  let loopCameraCaptured = false;
+  let previousLoopCameraCaptured = false;
   let sceneControlActivated = false;
   const isCenterDioramaActive = (progress: number) => progress < CENTER_DIORAMA_PROGRESS_END;
   const shouldUpdateScreenTexture = (progress: number) => !useMobileCarrier && progress <= SCREEN_TEXTURE_PROGRESS_END;
-  const getCameraPull = (progress: number) => easeInOutSine(clamp((progress - STORY_MODE_END) / 0.27));
+  const getCameraPull = (progress: number) =>
+    easeInOutSine(clamp((progress - STORY_MODE_END) / (ROOM_CAMERA_END - STORY_MODE_END)));
   const getScrollCameraState = (
     progress: number,
     outPos: THREE.Vector3,
@@ -1152,6 +1176,39 @@ export function initDiorama() {
       .addScaledVector(cameraRejoinStepDir, lerp(startRadius, endRadius, t));
     return lerp(cameraRejoinStartFov, cameraRejoinEndFov, t);
   };
+  const captureLoopCamera = () => {
+    loopCameraStartPos.copy(camera.position);
+    loopCameraStartTarget.copy(controls.target);
+    loopCameraStartFov = camera.fov;
+    previousLoopCameraStartPos.copy(loopCameraStartPos);
+    previousLoopCameraStartTarget.copy(loopCameraStartTarget);
+    previousLoopCameraStartFov = loopCameraStartFov;
+    previousLoopCameraCaptured = true;
+    loopCameraCaptured = true;
+  };
+  const primeLoopCameraForBackwardWrap = () => {
+    if (previousLoopCameraCaptured) {
+      loopCameraStartPos.copy(previousLoopCameraStartPos);
+      loopCameraStartTarget.copy(previousLoopCameraStartTarget);
+      loopCameraStartFov = previousLoopCameraStartFov;
+    } else {
+      loopCameraStartPos.copy(roomCameraPos);
+      loopCameraStartTarget.copy(roomCameraTarget);
+      loopCameraStartFov = roomFov;
+    }
+    loopCameraCaptured = true;
+  };
+  const getLoopCameraState = (
+    progress: number,
+    outPos: THREE.Vector3,
+    outTarget: THREE.Vector3,
+  ) => {
+    if (!loopCameraCaptured) captureLoopCamera();
+    const t = getLoopReturnAmount(progress);
+    outPos.lerpVectors(loopCameraStartPos, componentCameraPos, t);
+    outTarget.lerpVectors(loopCameraStartTarget, componentCameraTarget, t);
+    return lerp(loopCameraStartFov, componentFov, t);
+  };
   const getCameraFollowAlpha = (dt: number, rate: number) =>
     reduceMotion ? 1 : 1 - Math.exp(-dt * rate);
   const isCameraCloseToDesired = (desiredFov: number) =>
@@ -1178,27 +1235,109 @@ export function initDiorama() {
     camera.updateProjectionMatrix();
   };
   const syncSceneOverlay = () => {
-    const storyOut = easeInOutSine(clamp((homeProgress - STORY_FADE_START) / (STORY_FADE_END - STORY_FADE_START)));
-    const sceneIn = easeInOutSine(clamp((homeProgress - SCENE_FADE_START) / (SCENE_FADE_END - SCENE_FADE_START)));
-    const componentAlpha = 1 - easeInOutSine(clamp((homeProgress - CENTER_DIORAMA_FADE_START) / (CENTER_DIORAMA_PROGRESS_END - CENTER_DIORAMA_FADE_START)));
-    docEl.style.setProperty("--scene-opacity", sceneIn.toFixed(4));
-    docEl.style.setProperty("--story-opacity", (1 - storyOut).toFixed(4));
-    docEl.style.setProperty("--component-scene-opacity", componentAlpha.toFixed(4));
+    const loopReturn = getLoopReturnAmount(homeProgress);
+    const storyOut = easeInOutSine(clamp((visualProgress - STORY_FADE_START) / (STORY_FADE_END - STORY_FADE_START)));
+    const sceneIn = easeInOutSine(clamp((visualProgress - SCENE_FADE_START) / (SCENE_FADE_END - SCENE_FADE_START)));
+    const componentAlpha = 1 - easeInOutSine(clamp((visualProgress - CENTER_DIORAMA_FADE_START) / (CENTER_DIORAMA_PROGRESS_END - CENTER_DIORAMA_FADE_START)));
+    const storyAlpha = renderMode === "loop" ? loopReturn : 1 - storyOut;
+    const componentSceneAlpha = renderMode === "loop" ? Math.max(componentAlpha, loopReturn) : componentAlpha;
+    const roomSceneAlpha = renderMode === "loop" ? 1 : sceneIn;
+    docEl.style.setProperty("--scene-opacity", roomSceneAlpha.toFixed(4));
+    docEl.style.setProperty("--story-opacity", storyAlpha.toFixed(4));
+    docEl.style.setProperty("--component-scene-opacity", componentSceneAlpha.toFixed(4));
   };
 
-  const getScrollProgress = () => {
+  const getShellScrollMetrics = () => {
     if (!shellEl) return 1;
     const rect = shellEl.getBoundingClientRect();
     const total = Math.max(1, rect.height - window.innerHeight);
-    return clamp(-rect.top / total);
+    const shellTop = window.scrollY + rect.top;
+    return { rect, shellTop, total };
+  };
+  const getScrollProgress = () => {
+    const metrics = getShellScrollMetrics();
+    if (metrics === 1) return 1;
+    return clamp((window.scrollY - metrics.shellTop) / metrics.total);
+  };
+  const scrollToProgress = (progress: number) => {
+    const metrics = getShellScrollMetrics();
+    if (metrics === 1) return false;
+    window.scrollTo({
+      top: Math.max(0, metrics.shellTop + metrics.total * clamp(progress)),
+      left: 0,
+      behavior: "auto",
+    });
+    return true;
   };
   const syncScrollProgress = () => {
     scrollTargetProgress = getScrollProgress();
   };
+  const resetScrollToLoopStart = () => {
+    if (loopResetQueued) return;
+    loopResetQueued = true;
+    requestAnimationFrame(() => {
+      if (disposed) return;
+      scrollToProgress(0);
+      scrollTargetProgress = 0;
+      homeProgress = 0;
+      visualProgress = 0;
+      renderMode = getRenderMode(0);
+      loopCameraCaptured = false;
+      cameraRejoinActive = false;
+      cameraInertialCatchup = false;
+      sceneControlActivated = false;
+      if (controls.enabled) controls.enabled = false;
+      desiredCameraPos.copy(componentCameraPos);
+      desiredCameraTarget.copy(componentCameraTarget);
+      applyCameraPose(componentFov, 16, true, CAMERA_CATCHUP_FOLLOW_RATE);
+      camera.updateProjectionMatrix();
+      applyHomeState(0);
+      syncSceneOverlay();
+      needScreenRedraw = true;
+      loopResetQueued = false;
+    });
+  };
+  const wrapOpeningBackward = (deltaY: number) => {
+    const metrics = getShellScrollMetrics();
+    if (metrics === 1) return false;
+    const inHomeRange = metrics.rect.top <= 1 && metrics.rect.bottom >= window.innerHeight - 1;
+    const atLoopOpening =
+      homeProgress <= LOOP_BACK_WRAP_THRESHOLD &&
+      scrollTargetProgress <= LOOP_BACK_WRAP_THRESHOLD;
+    if (!inHomeRange || !atLoopOpening) return false;
+
+    const targetProgress = clamp(
+      LOOP_RESET_PROGRESS + deltaY / metrics.total,
+      LOOP_BACK_WRAP_MIN_PROGRESS,
+      LOOP_RESET_PROGRESS - 0.001,
+    );
+    primeLoopCameraForBackwardWrap();
+    scrollToProgress(targetProgress);
+    scrollTargetProgress = targetProgress;
+    homeProgress = targetProgress;
+    renderMode = getRenderMode(homeProgress);
+    visualProgress = getStoryVisualProgress(homeProgress);
+    cameraRejoinActive = false;
+    cameraInertialCatchup = false;
+    sceneControlActivated = false;
+    if (controls.enabled) controls.enabled = false;
+    needScreenRedraw = true;
+    applyHomeState(homeProgress);
+    syncSceneOverlay();
+    return true;
+  };
+  const loopBackwardWheelHandler = (e: WheelEvent) => {
+    if (e.deltaY >= -0.5) return;
+    if (!wrapOpeningBackward(e.deltaY)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
   syncScrollProgress();
   homeProgress = scrollTargetProgress;
+  visualProgress = getStoryVisualProgress(homeProgress);
   renderMode = getRenderMode(homeProgress);
   window.addEventListener("scroll", syncScrollProgress, { passive: true });
+  window.addEventListener("wheel", loopBackwardWheelHandler, { passive: false, capture: true });
   const handleBreakpointResize = () => {
     const nextDevice = getDeviceClass(window.innerWidth, window.innerHeight);
     if (nextDevice !== deviceClass) {
@@ -1213,9 +1352,10 @@ export function initDiorama() {
   window.addEventListener("resize", handleBreakpointResize);
 
   const applyHomeState = (progress: number) => {
+    const shownProgress = getStoryVisualProgress(progress);
     const value = progress.toFixed(4);
     const homeHeaderPhase = getRenderMode(progress) === "story" ? "story" : "room";
-    const storyProgress = clamp(progress / STORY_PROGRESS_END);
+    const storyProgress = clamp(shownProgress / STORY_PROGRESS_END);
     docEl.style.setProperty("--home-progress", value);
     docEl.dataset.homeHeaderPhase = homeHeaderPhase;
     docEl.style.setProperty("--story-progress", storyProgress.toFixed(4));
@@ -1224,8 +1364,16 @@ export function initDiorama() {
     storyEl?.style.setProperty("--story-progress", storyProgress.toFixed(4));
     storyEl?.style.setProperty("--story-local", storyProgress.toFixed(4));
     sceneEl?.setAttribute("data-home-phase", progress > 0.76 ? "room" : "page");
-    const cueMode = progress > 0.965 ? "explore" : progress > 0.9 ? "settle" : "scroll";
-    const cueProgress = clamp(progress / 0.965);
+    const cueMode = progress >= LOOP_RETURN_START
+      ? "scroll"
+      : progress >= INTERACTIVE_PROGRESS
+        ? "explore"
+        : progress > CAMERA_REJOIN_START
+          ? "settle"
+          : "scroll";
+    const cueProgress = progress >= LOOP_RETURN_START
+      ? 1 - getLoopReturnAmount(progress)
+      : clamp(progress / LOOP_RETURN_START);
     cueEl?.style.setProperty("--cue-progress", cueProgress.toFixed(4));
     cueEl?.setAttribute("data-home-visible", "true");
     cueEl?.setAttribute("data-cue-mode", cueMode);
@@ -1383,13 +1531,13 @@ export function initDiorama() {
   // Screen canvas drawing
   const drawScreen = (targets?: { overlay?: boolean; texture?: boolean }, now = performance.now()) => {
     const drawOverlay = targets?.overlay ?? renderMode !== "room";
-    const centerDioramaActive = isCenterDioramaActive(homeProgress);
+    const centerDioramaActive = isCenterDioramaActive(visualProgress);
     const updateTexture = targets?.texture ?? (renderMode !== "story" || shouldUpdateScreenTexture(homeProgress));
     const ctx = screenCtx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const storyAutoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
     const profileRows = Object.fromEntries(HOME_PROFILE.rows.map((row) => [row.label, row.value]));
-    const storyProgress = reduceMotion ? 1 : clamp(homeProgress / STORY_PROGRESS_END);
+    const storyProgress = reduceMotion ? 1 : clamp(visualProgress / STORY_PROGRESS_END);
     const storyInput: Parameters<typeof drawHomeScreenStory>[1] = {
       device: deviceClass,
       theme,
@@ -1405,7 +1553,7 @@ export function initDiorama() {
     };
 
     const textureStoryInput = updateTexture && renderMode === "room"
-      ? { ...storyInput, progress: 1 }
+      ? storyInput
       : { ...storyInput, revealCenterDiorama: false };
 
     if (updateTexture) {
@@ -1602,18 +1750,17 @@ export function initDiorama() {
     const prevMode = renderMode;
     homeProgress = nextProgress;
     renderMode = getRenderMode(homeProgress);
-    const storyProgress = reduceMotion ? 1 : clamp(homeProgress / STORY_PROGRESS_END);
+    visualProgress = getStoryVisualProgress(homeProgress);
+    const storyProgress = reduceMotion ? 1 : clamp(visualProgress / STORY_PROGRESS_END);
     const progressChanged = Math.abs(prevProgress - homeProgress) > 0.0005;
     const modeChanged = prevMode !== renderMode;
     if (
       modeChanged ||
       (progressChanged &&
-        renderMode !== "room" &&
         Math.abs(storyProgress - lastDrawnStoryProgress) >= SCREEN_REDRAW_STEP)
     ) {
       needScreenRedraw = true;
     }
-    if (renderMode === "room" && lastTexturedStoryProgress < 0.999) needScreenRedraw = true;
 
     applyHomeState(homeProgress);
     syncSceneOverlay();
@@ -1678,6 +1825,10 @@ export function initDiorama() {
       return;
     }
 
+    if (renderMode === "loop" && !loopCameraCaptured) {
+      captureLoopCamera();
+    }
+
     if (homeProgress >= INTERACTIVE_PROGRESS) {
       cameraRejoinActive = false;
       cameraInertialCatchup = false;
@@ -1696,7 +1847,8 @@ export function initDiorama() {
       introBackdropMaterial.visible = backdropFade > 0.01;
     }
     const inCameraRejoin = cameraRejoinActive && homeProgress > CAMERA_REJOIN_START && homeProgress < CAMERA_REJOIN_END;
-    const controlsShouldEnable = homeProgress >= INTERACTIVE_PROGRESS;
+    const inLoopReturn = renderMode === "loop" && homeProgress >= LOOP_RETURN_START;
+    const controlsShouldEnable = homeProgress >= INTERACTIVE_PROGRESS && renderMode === "room";
     if (!controlsShouldEnable) sceneControlActivated = false;
     syncSceneOverlay();
     syncSceneInputMode(controlsShouldEnable);
@@ -1721,6 +1873,22 @@ export function initDiorama() {
         canvasEl.style.cursor = "grab";
         markInteracted();
       }
+    }
+
+    if (inLoopReturn) {
+      if (needScreenRedraw) {
+        needScreenRedraw = false;
+        drawScreen({ overlay: true, texture: true }, now);
+      }
+      const loopDesiredFov = getLoopCameraState(homeProgress, desiredCameraPos, desiredCameraTarget);
+      applyCameraPose(loopDesiredFov, dt, false, LOOP_CAMERA_FOLLOW_RATE);
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+      if (homeProgress >= LOOP_RESET_PROGRESS) {
+        resetScrollToLoopStart();
+      }
+      rafId = requestAnimationFrame(animate);
+      return;
     }
 
     // Typewriter tick (types → holds → deletes → idle → next line)
@@ -1864,6 +2032,7 @@ export function initDiorama() {
     disposed = true;
     if (rafId) cancelAnimationFrame(rafId);
     window.removeEventListener("scroll", syncScrollProgress);
+    window.removeEventListener("wheel", loopBackwardWheelHandler, { capture: true });
     window.removeEventListener("resize", handleBreakpointResize);
     canvasEl.removeEventListener("pointermove", pointerMoveHandler);
     canvasEl.removeEventListener("pointerdown", pointerDownHandler);

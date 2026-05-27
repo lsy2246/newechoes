@@ -64,11 +64,31 @@ test("home diorama handoff pulls back from the screen into the room", () => {
   assert.match(dioramaTs, /const HANDOFF_MODE_END = 0\.735;/);
   assert.match(
     dioramaTs,
-    /const getCameraPull = \(progress: number\) => easeInOutSine\(clamp\(\(progress - STORY_MODE_END\) \/ 0\.27\)\);/,
+    /const getCameraPull = \(progress: number\) =>\s*easeInOutSine\(clamp\(\(progress - STORY_MODE_END\) \/ \(ROOM_CAMERA_END - STORY_MODE_END\)\)\);/,
   );
   assert.match(dioramaTs, /outPos\.lerpVectors\(screenCameraPos, roomCameraPos, pull\);/);
   assert.match(dioramaTs, /outTarget\.lerpVectors\(screenCameraTarget, roomCameraTarget, pull\);/);
   assert.match(dioramaTs, /lerp\(\s*screenFov,\s*roomFov,\s*getScrollCameraState/);
   assert.doesNotMatch(dioramaTs, /getHandoffCameraPull/);
   assert.doesNotMatch(dioramaTs, /outPos\.lerp\(roomCameraPos/);
+});
+
+test("home loop returns to the next opening without reversing the 2D story", () => {
+  assert.match(dioramaTs, /const LOOP_RETURN_START = 0\.94;/);
+  assert.match(
+    dioramaTs,
+    /const getStoryVisualProgress = \(progress: number\) => \{\s*if \(progress <= LOOP_RETURN_START\) return progress;\s*return 0;\s*\};/,
+  );
+  assert.doesNotMatch(dioramaTs, /lerp\(STORY_MODE_END, 0, t\)/);
+  assert.match(
+    dioramaTs,
+    /if \(inLoopReturn\) \{\s*if \(needScreenRedraw\) \{\s*needScreenRedraw = false;\s*drawScreen\(\{ overlay: true, texture: true \}, now\);/,
+  );
+  assert.match(dioramaTs, /const LOOP_BACK_WRAP_THRESHOLD = 0\.002;/);
+  assert.match(dioramaTs, /const wrapOpeningBackward = \(deltaY: number\) => \{/);
+  assert.match(dioramaTs, /primeLoopCameraForBackwardWrap\(\);/);
+  assert.match(
+    dioramaTs,
+    /window\.addEventListener\("wheel", loopBackwardWheelHandler, \{ passive: false, capture: true \}\);/,
+  );
 });
