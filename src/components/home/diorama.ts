@@ -103,16 +103,16 @@ const THEMES: Record<ThemeName, Theme> = {
     screenMuted: "#3f3f3f",
     screenAccent: "#101010",
     keyTop: 0x202326,
-    sceneBg: 0xf7f8f7,
+    sceneBg: 0xffffff,
   },
   dark: {
-    wall: 0x111315,
-    chairShell: 0xdadcd8,
+    wall: 0xffffff,
+    chairShell: 0xf1f2f0,
     screenBg: "#111315",
     screenText: "#f5f7fa",
     screenMuted: "#bdc5cf",
     screenAccent: "#eef2f6",
-    keyTop: 0xe6e9ec,
+    keyTop: 0x202326,
     sceneBg: 0x111315,
   },
 };
@@ -231,15 +231,18 @@ export function initDiorama() {
   const roomCameraTarget = new THREE.Vector3();
   const screenCameraPos = new THREE.Vector3();
   const screenCameraTarget = new THREE.Vector3();
+  const componentCameraPos = new THREE.Vector3();
+  const componentCameraTarget = new THREE.Vector3();
   const screenFov = 20;
   const roomFov = 50;
+  const componentFov = useMobileCarrier ? 44 : 46;
 
   const camera = new THREE.PerspectiveCamera(screenFov, 1, 0.1, 60);
 
   const renderer = new THREE.WebGLRenderer({
     canvas: canvasEl,
     antialias: true,
-    alpha: false,
+    alpha: true,
     powerPreference: "high-performance",
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, HOME_DIORAMA_PIXEL_RATIO_CAP));
@@ -344,8 +347,8 @@ export function initDiorama() {
   scene.add(deskFigure);
 
   // A simple plinth keeps the 3D scene readable as one article component.
-  const floorW = useMobileCarrier ? 2.85 : 3.35;
-  const floorD = useMobileCarrier ? 2.82 : 3.32;
+  const floorW = useMobileCarrier ? 2.15 : 2.68;
+  const floorD = useMobileCarrier ? 2.08 : 2.52;
   const floor = new THREE.Mesh(
     new RoundedBoxGeometry(floorW, 0.12, floorD, 6, 0.035),
     mats.floor,
@@ -921,7 +924,7 @@ export function initDiorama() {
       typingCharacterMount.add(model);
       typingCharacterLoaded = true;
       typingCharacterMount.visible = true;
-      syncTypingCharacterOpacity(0);
+      syncTypingCharacterOpacity(renderMode === "story" && !useMobileCarrier ? 1 : 0);
 
       if (gltf.animations.length) {
         const typingCharacterMixer = new THREE.AnimationMixer(model);
@@ -1012,10 +1015,20 @@ export function initDiorama() {
       useMobileCarrier ? 0.98 : 1.1,
       useMobileCarrier ? 2.46 : 0.42,
     );
+    componentCameraTarget.set(
+      useMobileCarrier ? 0.03 : 0,
+      useMobileCarrier ? 0.03 : 0.02,
+      useMobileCarrier ? -0.1 : -0.12,
+    );
+    componentCameraPos.set(
+      useMobileCarrier ? 3.2 : 6.25,
+      useMobileCarrier ? 2.05 : 2.65,
+      useMobileCarrier ? 5.2 : 4.75,
+    );
   };
   syncScreenIntroCamera();
-  camera.position.copy(screenCameraPos);
-  controls.target.copy(screenCameraTarget);
+  camera.position.copy(componentCameraPos);
+  controls.target.copy(componentCameraTarget);
 
   // ===== Theme =====
   const getTheme = (): ThemeName => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
@@ -1047,18 +1060,18 @@ export function initDiorama() {
 
   // ===== Scroll-driven homepage state =====
   type RenderMode = "story" | "handoff" | "room";
-  const STORY_MODE_END = 0.7;
-  const HANDOFF_MODE_END = 0.735;
+  const STORY_MODE_END = 0.64;
+  const HANDOFF_MODE_END = 0.72;
   const STORY_PROGRESS_END = 0.7;
   const STORY_FRAME_STEPS = useMobileCarrier ? 120 : 140;
   const SCREEN_REDRAW_STEP = 1 / STORY_FRAME_STEPS;
   const STORY_FRAME_CACHE_LIMIT = useMobileCarrier ? 3 : 5;
   const STORY_CANVAS_DPR = HOME_DIORAMA_PIXEL_RATIO_CAP;
   const STORY_LAYOUT_DPR_CAP = useMobileCarrier ? 1.35 : 1.5;
-  const STORY_FADE_START = 0.695;
-  const STORY_FADE_END = 0.71;
-  const SCENE_FADE_START = 0.708;
-  const SCENE_FADE_END = 0.735;
+  const STORY_FADE_START = 0.56;
+  const STORY_FADE_END = 0.72;
+  const SCENE_FADE_START = 0;
+  const SCENE_FADE_END = 0.08;
   const INTERACTIVE_PROGRESS = 0.965;
   const CAMERA_REJOIN_START = 0.925;
   const CAMERA_REJOIN_END = INTERACTIVE_PROGRESS;
@@ -1093,23 +1106,25 @@ export function initDiorama() {
   let cameraRejoinStartFov = roomFov;
   let cameraRejoinEndFov = roomFov;
   let sceneControlActivated = false;
-  const getCameraPull = (progress: number) => easeInOutSine(clamp((progress - 0.7) / 0.27));
+  const getComponentCameraPull = (progress: number) => easeInOutSine(clamp((progress - 0.18) / 0.52));
+  const getRoomCameraPull = (progress: number) => easeInOutSine(clamp((progress - 0.7) / 0.27));
   const getScrollCameraState = (
     progress: number,
     outPos: THREE.Vector3,
     outTarget: THREE.Vector3,
   ) => {
-    const pull = getCameraPull(progress);
-    outPos.lerpVectors(screenCameraPos, roomCameraPos, pull);
-    outTarget.lerpVectors(screenCameraTarget, roomCameraTarget, pull);
-    return pull;
+    const componentPull = getComponentCameraPull(progress);
+    const roomPull = getRoomCameraPull(progress);
+    outPos.lerpVectors(componentCameraPos, roomCameraPos, componentPull);
+    outTarget.lerpVectors(componentCameraTarget, roomCameraTarget, componentPull);
+    return roomPull;
   };
   const captureCameraRejoin = () => {
     cameraRejoinStartPos.copy(camera.position);
     cameraRejoinStartTarget.copy(controls.target);
     const endPull = getScrollCameraState(CAMERA_REJOIN_START, cameraRejoinEndPos, cameraRejoinEndTarget);
     cameraRejoinStartFov = camera.fov;
-    cameraRejoinEndFov = lerp(screenFov, roomFov, endPull);
+    cameraRejoinEndFov = lerp(componentFov, roomFov, endPull);
     cameraRejoinActive = true;
     cameraInertialCatchup = true;
   };
@@ -1149,7 +1164,7 @@ export function initDiorama() {
   };
   const syncCameraToScrollState = (progress: number) => {
     const desiredFov = lerp(
-      screenFov,
+      componentFov,
       roomFov,
       getScrollCameraState(progress, desiredCameraPos, desiredCameraTarget),
     );
@@ -1162,8 +1177,10 @@ export function initDiorama() {
   const syncSceneOverlay = () => {
     const storyOut = easeInOutSine(clamp((homeProgress - STORY_FADE_START) / (STORY_FADE_END - STORY_FADE_START)));
     const sceneIn = easeInOutSine(clamp((homeProgress - SCENE_FADE_START) / (SCENE_FADE_END - SCENE_FADE_START)));
+    const componentAlpha = 1 - easeInOutSine(clamp((homeProgress - 0.54) / 0.18));
     docEl.style.setProperty("--scene-opacity", sceneIn.toFixed(4));
     docEl.style.setProperty("--story-opacity", (1 - storyOut).toFixed(4));
+    docEl.style.setProperty("--component-scene-opacity", componentAlpha.toFixed(4));
   };
 
   const getScrollProgress = () => {
@@ -1362,7 +1379,7 @@ export function initDiorama() {
   // Screen canvas drawing
   const drawScreen = (targets?: { overlay?: boolean; texture?: boolean }, now = performance.now()) => {
     const drawOverlay = targets?.overlay ?? renderMode !== "room";
-    const updateTexture = targets?.texture ?? renderMode !== "story";
+    const updateTexture = targets?.texture ?? (renderMode !== "story" || (!useMobileCarrier && homeProgress < STORY_MODE_END));
     const ctx = screenCtx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const storyAutoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
@@ -1374,6 +1391,7 @@ export function initDiorama() {
       progress: storyProgress,
       pixelRatio: 1,
       layoutPixelRatio: 1,
+      revealCenterDiorama: renderMode !== "room",
       motion: now * 0.001,
       now: formatNowBeijing(),
       stack: profileRows.stack ?? "Rust · TypeScript",
@@ -1383,7 +1401,7 @@ export function initDiorama() {
 
     const textureStoryInput = updateTexture && renderMode === "room"
       ? { ...storyInput, progress: 1 }
-      : storyInput;
+      : { ...storyInput, revealCenterDiorama: false };
 
     if (updateTexture) {
       drawHomeScreenStory(ctx, textureStoryInput);
@@ -1605,8 +1623,41 @@ export function initDiorama() {
       if (connectorMotionActive) needScreenRedraw = true;
       if (needScreenRedraw) {
         needScreenRedraw = false;
-        drawScreen({ overlay: true, texture: false }, now);
+        drawScreen({ overlay: true, texture: !useMobileCarrier }, now);
       }
+      const componentReveal = 1;
+      const componentPersonReveal = componentReveal;
+      sunLight.color.setHex(0xffffff);
+      sunLight.intensity = 1.22;
+      ambient.color.setHex(0xffffff);
+      ambient.intensity = 0.62;
+      windowLight.color.setHex(0xffffff);
+      windowLight.intensity = 0.46;
+      screenLight.intensity = 0.2;
+      if (scene.fog) {
+        const fog = scene.fog as THREE.Fog;
+        fog.color.setHex(THEMES[theme].sceneBg);
+        fog.near = 10;
+        fog.far = 22;
+      }
+      scene.background = null;
+      renderer.toneMappingExposure = 1.08;
+      mats.floor.opacity = componentReveal;
+      mats.wall.opacity = 0;
+      mats.deskTop.opacity = componentReveal;
+      mats.deskLeg.opacity = componentReveal;
+      mats.laptopBody.opacity = componentReveal;
+      mats.laptopFrame.opacity = componentReveal;
+      mats.chairShell.opacity = componentPersonReveal;
+      mats.computerShell.opacity = componentReveal;
+      mats.key.opacity = componentReveal;
+      if (typingCharacterLoaded) syncTypingCharacterOpacity(componentPersonReveal);
+      if (keyboardModelLoaded) syncKeyboardModelOpacity(componentReveal);
+      syncRevealMaterialTransparency(false);
+      getScrollCameraState(homeProgress, desiredCameraPos, desiredCameraTarget);
+      applyCameraPose(componentFov, dt, true, CAMERA_CATCHUP_FOLLOW_RATE);
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
       rafId = requestAnimationFrame(animate);
       return;
     }
@@ -1700,27 +1751,23 @@ export function initDiorama() {
     }
 
     const outdoor = OUTDOOR_PALETTES[theme];
-    const objectSceneLight = theme === "dark" ? 0xcfd5dc : 0xffffff;
+    const objectSceneLight = 0xffffff;
     outdoorFogColor.setHex(outdoor.fogTint);
 
     sunLight.color.setHex(objectSceneLight);
-    sunLight.intensity = lerp(0.75, theme === "dark" ? 1.05 : 1.22, outsideReveal);
+    sunLight.intensity = lerp(0.75, 1.22, outsideReveal);
     ambient.color.setHex(objectSceneLight);
-    ambient.intensity = theme === "dark" ? 0.46 : 0.62;
+    ambient.intensity = 0.62;
     windowLight.color.setHex(objectSceneLight);
-    windowLight.intensity = lerp(0.2, theme === "dark" ? 0.38 : 0.46, outsideReveal);
+    windowLight.intensity = lerp(0.2, 0.46, outsideReveal);
     const screenLightMax = useMobileCarrier
-      ? theme === "dark"
-        ? 0.018
-        : 0.032
-      : theme === "dark"
-        ? 0.18
-        : 0.3;
+      ? 0.032
+      : 0.3;
     screenLight.intensity = lerp(0, screenLightMax, easeInOutSine(clamp((homeProgress - 0.8) / 0.14)));
     if (scene.fog) {
       const fog = scene.fog as THREE.Fog;
       fog.color
-          .setHex(theme === "dark" ? 0x111315 : 0xf7f8f7)
+          .setHex(theme === "dark" ? 0x111315 : 0xffffff)
           .lerp(outdoorFogColor, outsideReveal);
       fog.near = lerp(18, 11, outsideReveal);
       fog.far = lerp(34, 24, outsideReveal);
@@ -1760,7 +1807,7 @@ export function initDiorama() {
       const desiredFov = inCameraRejoin
         ? getCameraRejoinState(homeProgress, desiredCameraPos, desiredCameraTarget)
         : lerp(
-            screenFov,
+            componentFov,
             roomFov,
             getScrollCameraState(homeProgress, desiredCameraPos, desiredCameraTarget),
           );
@@ -1827,6 +1874,7 @@ export function initDiorama() {
     docEl.style.removeProperty("--home-progress");
     docEl.removeAttribute("data-home-header-phase");
     docEl.style.removeProperty("--scene-opacity");
+    docEl.style.removeProperty("--component-scene-opacity");
     docEl.style.removeProperty("--story-opacity");
     docEl.style.removeProperty("--story-progress");
     docEl.style.removeProperty("--story-local");

@@ -7,6 +7,7 @@ type StoryInput = {
   progress: number;
   pixelRatio?: number;
   layoutPixelRatio?: number;
+  revealCenterDiorama?: boolean;
   motion?: number;
   now: string;
   stack: string;
@@ -1829,6 +1830,9 @@ const drawDesktopStory = (
   const centerX = width * 0.5;
   const centerY = height * 0.5;
   const stageX = centerX - stageW * 0.5;
+  const dioramaMode = input.revealCenterDiorama === true;
+  const dioramaFocusGuardX = clamp(stageW * 0.18, 205 * unit, 270 * unit);
+  const dioramaFocusGuardY = clamp(height * 0.16, 135 * unit, 190 * unit);
   const connector = palette.aiLine;
   const connectorFlow = palette.aiFlow;
   const materialRuleColor = input.theme === "dark" ? "rgba(159, 154, 159, 0.3)" : "rgba(5, 5, 5, 0.2)";
@@ -2055,10 +2059,16 @@ const drawDesktopStory = (
     const nx = dx / distance;
     const ny = dy / distance;
     const centerGuard = clamp(height * 0.145, 104 * unit, 142 * unit);
+    const fromX = dioramaMode
+      ? centerX + nx * dioramaFocusGuardX
+      : centerX + nx * centerGuard;
+    const fromY = dioramaMode
+      ? centerY + ny * dioramaFocusGuardY
+      : centerY + ny * centerGuard * 0.58;
 
     return {
-      fromX: centerX + nx * centerGuard,
-      fromY: centerY + ny * centerGuard * 0.58,
+      fromX,
+      fromY,
       toX: nx >= 0 ? layout.labelLeft - layout.connectorGap : layout.labelRight + layout.connectorGap,
       toY: layout.labelCenterY,
     };
@@ -2070,7 +2080,7 @@ const drawDesktopStory = (
     { x: -stageW * 0.31, y: -height * 0.15 },
     { x: stageW * 0.29, y: -height * 0.17 },
     { x: -stageW * 0.27, y: height * 0.09 },
-    { x: stageW * 0.24, y: height * 0.07 },
+    { x: stageW * 0.32, y: height * 0.07 },
     { x: -stageW * 0.25, y: height * 0.25 },
     { x: stageW * 0.25, y: height * 0.25 },
   ];
@@ -2194,6 +2204,45 @@ const drawDesktopStory = (
   const workHeaderAlpha = workHeaderReadability;
   const todayAlpha = phase(progress, 0.84, 0.88);
   const centerWorkRect = moveRect(trackRects[1], workRects[1], centerWorkMorph);
+
+  if (dioramaMode) {
+    inputRects[0] = {
+      x: centerX - stageW * 0.43,
+      y: centerY - height * 0.205,
+      w: inputCardW * 0.5,
+      h: inputCardH * 0.72,
+    };
+    inputRects[1] = {
+      x: centerX + stageW * 0.245,
+      y: centerY - height * 0.215,
+      w: inputCardW * 0.52,
+      h: inputCardH * 0.72,
+    };
+    inputRects[2] = {
+      x: centerX - stageW * 0.38,
+      y: centerY + height * 0.06,
+      w: inputCardW * 0.48,
+      h: inputCardH * 0.72,
+    };
+    inputRects[3] = {
+      x: centerX + stageW * 0.41,
+      y: centerY - height * 0.155,
+      w: inputCardW * 0.54,
+      h: inputCardH * 0.72,
+    };
+    inputRects[4] = {
+      x: centerX - stageW * 0.33,
+      y: centerY + height * 0.245,
+      w: inputCardW * 0.49,
+      h: inputCardH * 0.72,
+    };
+    inputRects[5] = {
+      x: centerX + stageW * 0.205,
+      y: centerY + height * 0.235,
+      w: inputCardW * 0.55,
+      h: inputCardH * 0.72,
+    };
+  }
 
   const drawEditorialMaterial = (
     rect: Rect,
@@ -2376,8 +2425,30 @@ const drawDesktopStory = (
     });
   };
 
+  const drawDioramaCenterFrame = (alpha: number) => {
+    if (!dioramaMode) return;
+
+    withAlpha(ctx, alpha, () => {
+      ctx.save();
+      ctx.strokeStyle = input.theme === "dark" ? "rgba(238, 242, 246, 0.12)" : "rgba(16, 16, 16, 0.12)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3 * unit, 17 * unit]);
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY + 12 * unit, dioramaFocusGuardX * 0.72, dioramaFocusGuardY * 0.54, -0.08, Math.PI * 0.08, Math.PI * 1.12);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY + 12 * unit, dioramaFocusGuardX * 0.92, dioramaFocusGuardY * 0.66, -0.08, Math.PI * 1.04, Math.PI * 1.78);
+      ctx.stroke();
+      ctx.restore();
+    });
+  };
+
   withAlpha(ctx, fieldAlpha, () => {
-    drawIntro(ctx, progress, "desktop", input.theme, width, height);
+    if (dioramaMode) {
+      drawDioramaCenterFrame((1 - classify) * (1 - phase(progress, 0.52, 0.68)));
+    } else {
+      drawIntro(ctx, progress, "desktop", input.theme, width, height);
+    }
 
     stageHeader("input / things I keep returning to", "cinema · travel · books · code · AI · writing", inputHeaderAlpha, height * 0.265, inputAreaX);
     stageHeader("classify / three inner lanes", "seeing · making · thinking", classifyAlpha, height * 0.265, trackX);
@@ -2452,13 +2523,21 @@ export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryI
   const layoutHeight = (ctx.canvas.height / pixelRatio) * layoutPixelRatio;
   ctx.setTransform(pixelRatio / layoutPixelRatio, 0, 0, pixelRatio / layoutPixelRatio, 0, 0);
   if (input.device === "mobile") {
-    drawBackground(ctx, palette, progress, layoutWidth, layoutHeight);
+    if (input.revealCenterDiorama) {
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    } else {
+      drawBackground(ctx, palette, progress, layoutWidth, layoutHeight);
+    }
     drawMobileStory(ctx, input, palette, progress, layoutWidth, layoutHeight);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     return;
   }
 
-  drawBackground(ctx, palette, progress, layoutWidth, layoutHeight);
+  if (input.revealCenterDiorama) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  } else {
+    drawBackground(ctx, palette, progress, layoutWidth, layoutHeight);
+  }
   drawDesktopStory(ctx, input, palette, progress, layoutWidth, layoutHeight);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 };

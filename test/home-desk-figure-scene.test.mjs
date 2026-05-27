@@ -5,6 +5,7 @@ import test from "node:test";
 const dioramaTs = readFileSync("src/components/home/diorama.ts", "utf8");
 const homeDioramaAstro = readFileSync("src/components/home/HomeDiorama.astro", "utf8");
 const dioramaCss = readFileSync("src/components/home/diorama.css", "utf8");
+const homeScreenStoryTs = readFileSync("src/components/home/homeScreenStory.ts", "utf8");
 
 test("home 3D scene is a desk figure object with the 2D story kept on the monitor", () => {
   assert.match(dioramaTs, /const deskFigure = new THREE\.Group\(\);/);
@@ -161,11 +162,24 @@ test("home 3D desk figure uses a volumetric stylized seated person", () => {
 });
 
 test("home 3D desk figure balances the plinth around the desk and seated person", () => {
-  assert.match(dioramaTs, /new RoundedBoxGeometry\(3\.35, 0\.12, 3\.32, 6, 0\.035\)/);
+  assert.match(dioramaTs, /const floorW = useMobileCarrier \? 2\.15 : 2\.68;/);
+  assert.match(dioramaTs, /const floorD = useMobileCarrier \? 2\.08 : 2\.52;/);
+  assert.match(dioramaTs, /new RoundedBoxGeometry\(floorW, 0\.12, floorD, 6, 0\.035\)/);
   assert.match(dioramaTs, /floor\.position\.set\(0, roomFloorY - 0\.06, -0\.105\);/);
-  assert.match(dioramaTs, /const deskW = 2\.45;/);
-  assert.match(dioramaTs, /const deskD = useMobileCarrier \? 1\.12 : 1\.74;/);
+  assert.match(dioramaTs, /const deskW = useMobileCarrier \? 1\.66 : 2\.02;/);
+  assert.match(dioramaTs, /const deskD = useMobileCarrier \? 1\.02 : 1\.34;/);
   assert.doesNotMatch(dioramaTs, /const deskW = 3;/);
+});
+
+test("home first-screen diorama removes the old desk caption and lsy label", () => {
+  assert.doesNotMatch(dioramaTs, /lsyLabel/);
+  assert.doesNotMatch(dioramaTs, /fillText\("lsy"/);
+  assert.doesNotMatch(homeScreenStoryTs, /inside the desk/);
+  assert.doesNotMatch(homeScreenStoryTs, /drawEditorialRule\(railX/);
+});
+
+test("home first-screen diorama places AI playground high on the right side", () => {
+  assert.match(homeScreenStoryTs, /\{ x: stageW \* 0\.32, y: height \* 0\.07 \},/);
 });
 
 test("home 3D desk figure avoids visible ball-joint assembly on the seated person", () => {
@@ -257,14 +271,10 @@ test("home 3D desk figure can replace the fallback figure with the Sketchfab typ
   assert.match(dioramaTs, /syncTypingCharacterOpacity\(roomReveal\);/);
 });
 
-test("home diorama includes required attribution for the downloaded typing character asset", () => {
-  assert.match(homeDioramaAstro, /class="diorama-asset-credit"/);
-  assert.match(homeDioramaAstro, /Typing character/);
-  assert.match(homeDioramaAstro, /Gagana Geesara Perera/);
-  assert.match(homeDioramaAstro, /Yury Misiyuk/);
-  assert.match(homeDioramaAstro, /creativecommons\.org\/licenses\/by\/4\.0/);
-  assert.match(dioramaCss, /\.diorama-asset-credit \{/);
-  assert.match(dioramaCss, /clip-path: inset\(50%\);/);
+test("home diorama does not render model attribution in the page shell", () => {
+  assert.doesNotMatch(homeDioramaAstro, /class="diorama-asset-credit"/);
+  assert.doesNotMatch(homeDioramaAstro, /creativecommons\.org\/licenses\/by\/4\.0/);
+  assert.doesNotMatch(dioramaCss, /\.diorama-asset-credit \{/);
 });
 
 test("home 3D desk figure uses simple volumetric limbs instead of paper shards", () => {

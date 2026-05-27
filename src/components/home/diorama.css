@@ -4,6 +4,7 @@
   --home-progress: 0;
   --scene-opacity: 1;
   --story-opacity: 1;
+  --component-scene-opacity: 0;
   --story-progress: 0;
   --story-local: 0;
 }
@@ -27,17 +28,11 @@
   overflow: hidden;
   touch-action: pan-y;
   overscroll-behavior: contain;
-  background:
-    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.36), transparent 30%),
-    radial-gradient(circle at 82% 15%, rgba(148, 163, 184, 0.12), transparent 24%),
-    linear-gradient(180deg, #f8f8f6 0%, #f2f3f1 100%);
+  background: #ffffff;
 }
 
 [data-theme="dark"] .home-diorama {
-  background:
-    radial-gradient(circle at 16% 10%, rgba(209, 164, 90, 0.13), transparent 22%),
-    radial-gradient(circle at 82% 15%, rgba(84, 117, 167, 0.16), transparent 22%),
-    linear-gradient(180deg, #111722 0%, #0a111b 100%);
+  background: var(--site-bg, #111315);
 }
 
 .home-diorama__canvas,
@@ -53,7 +48,7 @@
   display: block;
   touch-action: pan-y;
   pointer-events: none;
-  opacity: var(--scene-opacity, 1);
+  opacity: max(var(--scene-opacity, 1), var(--component-scene-opacity, 0));
   transition: opacity 0.18s linear;
 }
 
@@ -84,12 +79,12 @@
   opacity: var(--story-opacity, 1);
   transition: opacity 0.18s linear;
   color: #211914;
-  background: #ffffff;
+  background: transparent;
 }
 
 [data-theme="dark"] .home-story {
   color: #efe9dd;
-  background: #111315;
+  background: transparent;
 }
 
 .home-story__canvas {
@@ -1495,18 +1490,6 @@
   width: 1px;
   height: 1px;
   overflow: hidden;
-}
-
-.diorama-asset-credit {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 .diorama-sr-nav a:focus {
