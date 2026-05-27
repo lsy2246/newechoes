@@ -1831,6 +1831,8 @@ const drawDesktopStory = (
   const centerY = height * 0.5;
   const stageX = centerX - stageW * 0.5;
   const dioramaMode = input.revealCenterDiorama === true;
+  const dioramaHandoff = dioramaMode ? phase(progress, 0.08, 0.24) : 1;
+  const dioramaPresence = 1 - dioramaHandoff;
   const dioramaFocusGuardX = clamp(stageW * 0.18, 205 * unit, 270 * unit);
   const dioramaFocusGuardY = clamp(height * 0.16, 135 * unit, 190 * unit);
   const connector = palette.aiLine;
@@ -2059,12 +2061,12 @@ const drawDesktopStory = (
     const nx = dx / distance;
     const ny = dy / distance;
     const centerGuard = clamp(height * 0.145, 104 * unit, 142 * unit);
-    const fromX = dioramaMode
-      ? centerX + nx * dioramaFocusGuardX
-      : centerX + nx * centerGuard;
-    const fromY = dioramaMode
-      ? centerY + ny * dioramaFocusGuardY
-      : centerY + ny * centerGuard * 0.58;
+    const normalFromX = centerX + nx * centerGuard;
+    const normalFromY = centerY + ny * centerGuard * 0.58;
+    const dioramaFromX = centerX + nx * dioramaFocusGuardX;
+    const dioramaFromY = centerY + ny * dioramaFocusGuardY;
+    const fromX = lerp(dioramaFromX, normalFromX, dioramaHandoff);
+    const fromY = lerp(dioramaFromY, normalFromY, dioramaHandoff);
 
     return {
       fromX,
@@ -2186,63 +2188,24 @@ const drawDesktopStory = (
   }));
 
   const gather = phase(progress, 0.06, 0.2);
-  const classify = phase(progress, 0.28, 0.52);
-  const centerWorkMorph = phase(progress, 0.54, 0.7);
+  const classify = phase(progress, 0.34, 0.56);
+  const centerWorkMorph = phase(progress, 0.58, 0.72);
   const buildBridge = phase(progress, 0.82, 0.9);
   const todayMorph = phase(progress, 0.86, 0.98);
   const fieldAlpha = 1 - phase(progress, 0.9, 0.98);
   const buildIndexAlpha = phase(progress, 0.78, 0.82);
   const workSceneAlpha = 1 - buildIndexAlpha;
 
-  const inputHeaderReadability = 1 - phase(progress, 0.34, 0.4);
-  const classifyHeaderReadability = 1 - phase(progress, 0.6, 0.66);
-  const workHeaderReadability = phase(progress, 0.62, 0.7) * workSceneAlpha;
-  const inputHeaderAlpha = phase(progress, 0.12, 0.22) * inputHeaderReadability;
-  const classifyAlpha = phase(progress, 0.38, 0.48) * classifyHeaderReadability;
-  const centerWorkAlpha = phase(progress, 0.3, 0.42) * workSceneAlpha;
+  const inputHeaderReadability = 1 - phase(progress, 0.4, 0.46);
+  const classifyHeaderReadability = 1 - phase(progress, 0.64, 0.7);
+  const workHeaderReadability = phase(progress, 0.66, 0.74) * workSceneAlpha;
+  const inputHeaderAlpha = phase(progress, 0.16, 0.26) * inputHeaderReadability;
+  const classifyAlpha = phase(progress, 0.44, 0.54) * classifyHeaderReadability;
+  const centerWorkAlpha = phase(progress, 0.44, 0.56) * workSceneAlpha;
   const sideTrackAlpha = (index: number) => classifyAlpha * (index === 1 ? 0 : 1 - centerWorkMorph);
   const workHeaderAlpha = workHeaderReadability;
   const todayAlpha = phase(progress, 0.84, 0.88);
   const centerWorkRect = moveRect(trackRects[1], workRects[1], centerWorkMorph);
-
-  if (dioramaMode) {
-    inputRects[0] = {
-      x: centerX - stageW * 0.43,
-      y: centerY - height * 0.205,
-      w: inputCardW * 0.5,
-      h: inputCardH * 0.72,
-    };
-    inputRects[1] = {
-      x: centerX + stageW * 0.245,
-      y: centerY - height * 0.215,
-      w: inputCardW * 0.52,
-      h: inputCardH * 0.72,
-    };
-    inputRects[2] = {
-      x: centerX - stageW * 0.38,
-      y: centerY + height * 0.06,
-      w: inputCardW * 0.48,
-      h: inputCardH * 0.72,
-    };
-    inputRects[3] = {
-      x: centerX + stageW * 0.41,
-      y: centerY - height * 0.155,
-      w: inputCardW * 0.54,
-      h: inputCardH * 0.72,
-    };
-    inputRects[4] = {
-      x: centerX - stageW * 0.33,
-      y: centerY + height * 0.245,
-      w: inputCardW * 0.49,
-      h: inputCardH * 0.72,
-    };
-    inputRects[5] = {
-      x: centerX + stageW * 0.205,
-      y: centerY + height * 0.235,
-      w: inputCardW * 0.55,
-      h: inputCardH * 0.72,
-    };
-  }
 
   const drawEditorialMaterial = (
     rect: Rect,
@@ -2426,9 +2389,9 @@ const drawDesktopStory = (
   };
 
   const drawDioramaCenterFrame = (alpha: number) => {
-    if (!dioramaMode) return;
+    if (!dioramaMode || dioramaPresence <= 0.001) return;
 
-    withAlpha(ctx, alpha, () => {
+    withAlpha(ctx, alpha * dioramaPresence, () => {
       ctx.save();
       ctx.strokeStyle = input.theme === "dark" ? "rgba(238, 242, 246, 0.12)" : "rgba(16, 16, 16, 0.12)";
       ctx.lineWidth = 1;
@@ -2445,7 +2408,7 @@ const drawDesktopStory = (
 
   withAlpha(ctx, fieldAlpha, () => {
     if (dioramaMode) {
-      drawDioramaCenterFrame((1 - classify) * (1 - phase(progress, 0.52, 0.68)));
+      drawDioramaCenterFrame((1 - classify) * (1 - phase(progress, 0.56, 0.7)));
     } else {
       drawIntro(ctx, progress, "desktop", input.theme, width, height);
     }
@@ -2483,8 +2446,8 @@ const drawDesktopStory = (
 
     [0, 2].forEach((index) => {
       const row = workRows[index];
-      const sideWorkEnd = 0.7;
-      const sideWorkStart = index === 0 ? 0.6 : 0.62;
+      const sideWorkEnd = 0.74;
+      const sideWorkStart = index === 0 ? 0.64 : 0.66;
       const sidePull = phase(progress, sideWorkStart, sideWorkEnd);
 
       const sideDirection = index === 0 ? -1 : 1;

@@ -1007,13 +1007,13 @@ export function initDiorama() {
 
     roomCameraTarget.set(
       useMobileCarrier ? 0.07 : 0.02,
-      useMobileCarrier ? 0.2 : 0.38,
-      useMobileCarrier ? 0.02 : -0.18,
+      useMobileCarrier ? 0.2 : 0.28,
+      useMobileCarrier ? 0.02 : 0.04,
     );
     roomCameraPos.set(
-      useMobileCarrier ? 1.46 : 3.05,
-      useMobileCarrier ? 0.98 : 1.1,
-      useMobileCarrier ? 2.46 : 0.42,
+      useMobileCarrier ? 1.46 : 1.88,
+      useMobileCarrier ? 0.98 : 1.46,
+      useMobileCarrier ? 2.46 : 2.78,
     );
     componentCameraTarget.set(
       useMobileCarrier ? 0.03 : 0,
@@ -1027,8 +1027,8 @@ export function initDiorama() {
     );
   };
   syncScreenIntroCamera();
-  camera.position.copy(componentCameraPos);
-  controls.target.copy(componentCameraTarget);
+  camera.position.copy(screenCameraPos);
+  controls.target.copy(screenCameraTarget);
 
   // ===== Theme =====
   const getTheme = (): ThemeName => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
@@ -1060,18 +1060,21 @@ export function initDiorama() {
 
   // ===== Scroll-driven homepage state =====
   type RenderMode = "story" | "handoff" | "room";
-  const STORY_MODE_END = 0.64;
-  const HANDOFF_MODE_END = 0.72;
+  const STORY_MODE_END = 0.7;
+  const HANDOFF_MODE_END = 0.735;
   const STORY_PROGRESS_END = 0.7;
   const STORY_FRAME_STEPS = useMobileCarrier ? 120 : 140;
   const SCREEN_REDRAW_STEP = 1 / STORY_FRAME_STEPS;
   const STORY_FRAME_CACHE_LIMIT = useMobileCarrier ? 3 : 5;
   const STORY_CANVAS_DPR = HOME_DIORAMA_PIXEL_RATIO_CAP;
   const STORY_LAYOUT_DPR_CAP = useMobileCarrier ? 1.35 : 1.5;
-  const STORY_FADE_START = 0.56;
-  const STORY_FADE_END = 0.72;
-  const SCENE_FADE_START = 0;
-  const SCENE_FADE_END = 0.08;
+  const CENTER_DIORAMA_FADE_START = 0.08;
+  const CENTER_DIORAMA_PROGRESS_END = 0.24;
+  const SCREEN_TEXTURE_PROGRESS_END = STORY_MODE_END;
+  const STORY_FADE_START = 0.695;
+  const STORY_FADE_END = 0.71;
+  const SCENE_FADE_START = 0.708;
+  const SCENE_FADE_END = HANDOFF_MODE_END;
   const INTERACTIVE_PROGRESS = 0.965;
   const CAMERA_REJOIN_START = 0.925;
   const CAMERA_REJOIN_END = INTERACTIVE_PROGRESS;
@@ -1106,25 +1109,25 @@ export function initDiorama() {
   let cameraRejoinStartFov = roomFov;
   let cameraRejoinEndFov = roomFov;
   let sceneControlActivated = false;
-  const getComponentCameraPull = (progress: number) => easeInOutSine(clamp((progress - 0.18) / 0.52));
-  const getRoomCameraPull = (progress: number) => easeInOutSine(clamp((progress - 0.7) / 0.27));
+  const isCenterDioramaActive = (progress: number) => progress < CENTER_DIORAMA_PROGRESS_END;
+  const shouldUpdateScreenTexture = (progress: number) => !useMobileCarrier && progress <= SCREEN_TEXTURE_PROGRESS_END;
+  const getCameraPull = (progress: number) => easeInOutSine(clamp((progress - STORY_MODE_END) / 0.27));
   const getScrollCameraState = (
     progress: number,
     outPos: THREE.Vector3,
     outTarget: THREE.Vector3,
   ) => {
-    const componentPull = getComponentCameraPull(progress);
-    const roomPull = getRoomCameraPull(progress);
-    outPos.lerpVectors(componentCameraPos, roomCameraPos, componentPull);
-    outTarget.lerpVectors(componentCameraTarget, roomCameraTarget, componentPull);
-    return roomPull;
+    const pull = getCameraPull(progress);
+    outPos.lerpVectors(screenCameraPos, roomCameraPos, pull);
+    outTarget.lerpVectors(screenCameraTarget, roomCameraTarget, pull);
+    return pull;
   };
   const captureCameraRejoin = () => {
     cameraRejoinStartPos.copy(camera.position);
     cameraRejoinStartTarget.copy(controls.target);
     const endPull = getScrollCameraState(CAMERA_REJOIN_START, cameraRejoinEndPos, cameraRejoinEndTarget);
     cameraRejoinStartFov = camera.fov;
-    cameraRejoinEndFov = lerp(componentFov, roomFov, endPull);
+    cameraRejoinEndFov = lerp(screenFov, roomFov, endPull);
     cameraRejoinActive = true;
     cameraInertialCatchup = true;
   };
@@ -1164,7 +1167,7 @@ export function initDiorama() {
   };
   const syncCameraToScrollState = (progress: number) => {
     const desiredFov = lerp(
-      componentFov,
+      screenFov,
       roomFov,
       getScrollCameraState(progress, desiredCameraPos, desiredCameraTarget),
     );
@@ -1177,7 +1180,7 @@ export function initDiorama() {
   const syncSceneOverlay = () => {
     const storyOut = easeInOutSine(clamp((homeProgress - STORY_FADE_START) / (STORY_FADE_END - STORY_FADE_START)));
     const sceneIn = easeInOutSine(clamp((homeProgress - SCENE_FADE_START) / (SCENE_FADE_END - SCENE_FADE_START)));
-    const componentAlpha = 1 - easeInOutSine(clamp((homeProgress - 0.54) / 0.18));
+    const componentAlpha = 1 - easeInOutSine(clamp((homeProgress - CENTER_DIORAMA_FADE_START) / (CENTER_DIORAMA_PROGRESS_END - CENTER_DIORAMA_FADE_START)));
     docEl.style.setProperty("--scene-opacity", sceneIn.toFixed(4));
     docEl.style.setProperty("--story-opacity", (1 - storyOut).toFixed(4));
     docEl.style.setProperty("--component-scene-opacity", componentAlpha.toFixed(4));
@@ -1332,6 +1335,7 @@ export function initDiorama() {
       storyInput.postsLabel,
       storyInput.stack,
       storyInput.contact,
+      storyInput.revealCenterDiorama ? "center-diorama" : "story",
     ].join("|");
 
     if (cacheKey === lastStoryOverlayKey) return;
@@ -1379,7 +1383,8 @@ export function initDiorama() {
   // Screen canvas drawing
   const drawScreen = (targets?: { overlay?: boolean; texture?: boolean }, now = performance.now()) => {
     const drawOverlay = targets?.overlay ?? renderMode !== "room";
-    const updateTexture = targets?.texture ?? (renderMode !== "story" || (!useMobileCarrier && homeProgress < STORY_MODE_END));
+    const centerDioramaActive = isCenterDioramaActive(homeProgress);
+    const updateTexture = targets?.texture ?? (renderMode !== "story" || shouldUpdateScreenTexture(homeProgress));
     const ctx = screenCtx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const storyAutoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
@@ -1391,7 +1396,7 @@ export function initDiorama() {
       progress: storyProgress,
       pixelRatio: 1,
       layoutPixelRatio: 1,
-      revealCenterDiorama: renderMode !== "room",
+      revealCenterDiorama: centerDioramaActive,
       motion: now * 0.001,
       now: formatNowBeijing(),
       stack: profileRows.stack ?? "Rust · TypeScript",
@@ -1623,7 +1628,7 @@ export function initDiorama() {
       if (connectorMotionActive) needScreenRedraw = true;
       if (needScreenRedraw) {
         needScreenRedraw = false;
-        drawScreen({ overlay: true, texture: !useMobileCarrier }, now);
+        drawScreen({ overlay: true, texture: shouldUpdateScreenTexture(homeProgress) }, now);
       }
       const componentReveal = 1;
       const componentPersonReveal = componentReveal;
@@ -1654,8 +1659,19 @@ export function initDiorama() {
       if (typingCharacterLoaded) syncTypingCharacterOpacity(componentPersonReveal);
       if (keyboardModelLoaded) syncKeyboardModelOpacity(componentReveal);
       syncRevealMaterialTransparency(false);
-      getScrollCameraState(homeProgress, desiredCameraPos, desiredCameraTarget);
-      applyCameraPose(componentFov, dt, true, CAMERA_CATCHUP_FOLLOW_RATE);
+      const centerDioramaActive = isCenterDioramaActive(homeProgress);
+      const desiredFov = centerDioramaActive
+        ? componentFov
+        : lerp(
+            screenFov,
+            roomFov,
+            getScrollCameraState(homeProgress, desiredCameraPos, desiredCameraTarget),
+          );
+      if (centerDioramaActive) {
+        desiredCameraPos.copy(componentCameraPos);
+        desiredCameraTarget.copy(componentCameraTarget);
+      }
+      applyCameraPose(desiredFov, dt, true, CAMERA_CATCHUP_FOLLOW_RATE);
       camera.updateProjectionMatrix();
       renderer.render(scene, camera);
       rafId = requestAnimationFrame(animate);
@@ -1672,8 +1688,8 @@ export function initDiorama() {
     if (shouldStartCameraRejoin) captureCameraRejoin();
     if (homeProgress <= CAMERA_REJOIN_START || renderMode !== "room") cameraRejoinActive = false;
 
-    const outsideReveal = easeInOutSine(clamp((homeProgress - 0.66) / (useMobileCarrier ? 0.24 : 0.3)));
-    const roomReveal = easeInOutSine(clamp((homeProgress - 0.7) / (useMobileCarrier ? 0.18 : 0.26)));
+    const outsideReveal = easeInOutSine(clamp((homeProgress - 0.66) / (useMobileCarrier ? 0.2 : 0.24)));
+    const roomReveal = easeInOutSine(clamp((homeProgress - 0.68) / (useMobileCarrier ? 0.15 : 0.2)));
     if (introBackdropMaterial) {
       const backdropFade = 1 - easeInOutSine(clamp((homeProgress - 0.56) / 0.18));
       introBackdropMaterial.opacity = backdropFade;
@@ -1777,9 +1793,9 @@ export function initDiorama() {
       new THREE.Color(THEMES[theme].sceneBg),
       outsideReveal,
     );
-    renderer.toneMappingExposure = lerp(1.28, 1.05, outsideReveal);
+    renderer.toneMappingExposure = lerp(1.12, 1.04, outsideReveal);
     const introRoomGhost = useMobileCarrier ? 0 : 1;
-    mats.floor.opacity = lerp(0.08 * introRoomGhost, 1, outsideReveal);
+    mats.floor.opacity = lerp(0, 1, outsideReveal);
     mats.wall.opacity = 0;
     mats.deskTop.opacity = outsideReveal;
     mats.deskLeg.opacity = outsideReveal;
@@ -1788,9 +1804,10 @@ export function initDiorama() {
     mats.chairShell.opacity = roomReveal;
     mats.computerShell.opacity = outsideReveal;
     mats.key.opacity = outsideReveal;
+    mats.screen.opacity = 1;
     if (typingCharacterLoaded) syncTypingCharacterOpacity(roomReveal);
     if (keyboardModelLoaded) syncKeyboardModelOpacity(outsideReveal);
-    syncRevealMaterialTransparency(renderMode === "room" && outsideReveal > 0.995 && roomReveal > 0.995);
+    syncRevealMaterialTransparency(renderMode === "room" && outsideReveal > 0.98 && roomReveal > 0.98);
 
     // Screen cursor blink & redraw
     if (renderMode !== "room" && now - cursorLastToggle > 520) {
@@ -1807,7 +1824,7 @@ export function initDiorama() {
       const desiredFov = inCameraRejoin
         ? getCameraRejoinState(homeProgress, desiredCameraPos, desiredCameraTarget)
         : lerp(
-            componentFov,
+            screenFov,
             roomFov,
             getScrollCameraState(homeProgress, desiredCameraPos, desiredCameraTarget),
           );

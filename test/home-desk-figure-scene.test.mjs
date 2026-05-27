@@ -182,6 +182,14 @@ test("home first-screen diorama places AI playground high on the right side", ()
   assert.match(homeScreenStoryTs, /\{ x: stageW \* 0\.32, y: height \* 0\.07 \},/);
 });
 
+test("home first-screen diorama hands directly into the 2D input story", () => {
+  assert.match(homeScreenStoryTs, /const dioramaHandoff = dioramaMode \? phase\(progress, 0\.08, 0\.24\) : 1;/);
+  assert.doesNotMatch(homeScreenStoryTs, /dioramaInputRects/);
+  assert.match(homeScreenStoryTs, /const collected = moveRect\(orbit, inputRects\[index\], gather\);/);
+  assert.match(homeScreenStoryTs, /const classify = phase\(progress, 0\.34, 0\.56\);/);
+  assert.match(homeScreenStoryTs, /const inputHeaderAlpha = phase\(progress, 0\.16, 0\.26\) \* inputHeaderReadability;/);
+});
+
 test("home 3D desk figure avoids visible ball-joint assembly on the seated person", () => {
   assert.match(dioramaTs, /const leftArm = makeDeskArm\(-1\);/);
   assert.match(dioramaTs, /const rightArm = makeDeskArm\(1\);/);
@@ -308,11 +316,15 @@ test("home 3D desk figure keeps the monitor from overpowering the seated person"
   assert.doesNotMatch(dioramaTs, /new RoundedBoxGeometry\(0\.3, 0\.046, 0\.075/);
 });
 
-test("home 3D desk figure presents the final scene from a side-profile angle", () => {
-  assert.match(dioramaTs, /roomCameraTarget\.set\(0\.02, 0\.38, -0\.18\);/);
-  assert.match(dioramaTs, /useMobileCarrier \? 0\.68 : 3\.05,/);
-  assert.match(dioramaTs, /useMobileCarrier \? 1\.26 : 1\.1,/);
-  assert.match(dioramaTs, /useMobileCarrier \? 3\.7 : 0\.42,/);
+test("home 3D desk figure presents the final scene from an elevated rear angle", () => {
+  assert.match(dioramaTs, /useMobileCarrier \? 0\.2 : 0\.28,/);
+  assert.match(dioramaTs, /useMobileCarrier \? 0\.02 : 0\.04,/);
+  assert.match(dioramaTs, /useMobileCarrier \? 1\.46 : 1\.88,/);
+  assert.match(dioramaTs, /useMobileCarrier \? 0\.98 : 1\.46,/);
+  assert.match(dioramaTs, /useMobileCarrier \? 2\.46 : 2\.78,/);
+  assert.doesNotMatch(dioramaTs, /useMobileCarrier \? 0\.68 : 3\.05,/);
+  assert.doesNotMatch(dioramaTs, /useMobileCarrier \? 1\.26 : 1\.1,/);
+  assert.doesNotMatch(dioramaTs, /useMobileCarrier \? 3\.7 : 0\.42,/);
   assert.doesNotMatch(dioramaTs, /useMobileCarrier \? 0\.36 : 0\.72,/);
   assert.doesNotMatch(dioramaTs, /useMobileCarrier \? 4\.0 : 3\.62,/);
 });

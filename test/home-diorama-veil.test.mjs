@@ -10,7 +10,7 @@ const cssBlock = (selector) => {
   return dioramaCss.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
 };
 
-test("home diorama removes the veil once the scene enters room mode", () => {
+test("home diorama keeps the veil transparent", () => {
   assert.match(
     dioramaTs,
     /setAttribute\("data-home-phase",\s*progress > 0\.76 \? "room" : "page"\)/,
@@ -18,13 +18,14 @@ test("home diorama removes the veil once the scene enters room mode", () => {
 
   assert.match(
     cssBlock(".home-diorama__veil"),
-    /opacity:\s*calc\(0\.14 - var\(--home-progress\) \* 0\.12\);/,
+    /background:\s*transparent;/,
   );
 
   assert.match(
     cssBlock('.home-diorama[data-home-phase="room"] .home-diorama__veil'),
     /opacity:\s*0;/,
   );
+  assert.match(cssBlock(".home-diorama__veil"), /opacity:\s*0;/);
 });
 
 test("home diorama keeps the light theme background white", () => {
@@ -41,4 +42,33 @@ test("home dark theme matches the header background while keeping light model ma
   assert.match(dioramaTs, /const objectSceneLight = 0xffffff;/);
   assert.match(dioramaTs, /sunLight\.intensity = 1\.22;/);
   assert.doesNotMatch(dioramaTs, /theme === "dark" \? 0xcfd5dc/);
+});
+
+test("home center diorama is limited to the first-screen opening", () => {
+  assert.match(dioramaTs, /const CENTER_DIORAMA_FADE_START = 0\.08;/);
+  assert.match(dioramaTs, /const CENTER_DIORAMA_PROGRESS_END = 0\.24;/);
+  assert.match(dioramaTs, /const SCREEN_TEXTURE_PROGRESS_END = STORY_MODE_END;/);
+  assert.match(dioramaTs, /const isCenterDioramaActive = \(progress: number\) => progress < CENTER_DIORAMA_PROGRESS_END;/);
+  assert.match(dioramaTs, /const shouldUpdateScreenTexture = \(progress: number\) => !useMobileCarrier && progress <= SCREEN_TEXTURE_PROGRESS_END;/);
+  assert.match(dioramaTs, /const STORY_FADE_START = 0\.695;/);
+  assert.match(dioramaTs, /const STORY_FADE_END = 0\.71;/);
+  assert.match(dioramaTs, /const SCENE_FADE_START = 0\.708;/);
+  assert.match(dioramaTs, /const SCENE_FADE_END = HANDOFF_MODE_END;/);
+  assert.match(dioramaTs, /revealCenterDiorama: centerDioramaActive,/);
+  assert.match(dioramaTs, /storyInput\.revealCenterDiorama \? "center-diorama" : "story"/);
+  assert.doesNotMatch(dioramaTs, /texture: !useMobileCarrier && isCenterDioramaActive\(homeProgress\)/);
+});
+
+test("home diorama handoff pulls back from the screen into the room", () => {
+  assert.match(dioramaTs, /const STORY_MODE_END = 0\.7;/);
+  assert.match(dioramaTs, /const HANDOFF_MODE_END = 0\.735;/);
+  assert.match(
+    dioramaTs,
+    /const getCameraPull = \(progress: number\) => easeInOutSine\(clamp\(\(progress - STORY_MODE_END\) \/ 0\.27\)\);/,
+  );
+  assert.match(dioramaTs, /outPos\.lerpVectors\(screenCameraPos, roomCameraPos, pull\);/);
+  assert.match(dioramaTs, /outTarget\.lerpVectors\(screenCameraTarget, roomCameraTarget, pull\);/);
+  assert.match(dioramaTs, /lerp\(\s*screenFov,\s*roomFov,\s*getScrollCameraState/);
+  assert.doesNotMatch(dioramaTs, /getHandoffCameraPull/);
+  assert.doesNotMatch(dioramaTs, /outPos\.lerp\(roomCameraPos/);
 });

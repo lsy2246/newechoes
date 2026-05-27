@@ -54,10 +54,8 @@
 
 .home-diorama__veil {
   pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.18), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
-  opacity: calc(0.14 - var(--home-progress) * 0.12);
+  background: transparent;
+  opacity: 0;
 }
 
 .home-diorama[data-home-phase="room"] .home-diorama__veil {
@@ -65,9 +63,7 @@
 }
 
 [data-theme="dark"] .home-diorama__veil {
-  background:
-    radial-gradient(circle at 50% 24%, rgba(255, 241, 215, 0.05), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+  background: transparent;
 }
 
 .home-story {
