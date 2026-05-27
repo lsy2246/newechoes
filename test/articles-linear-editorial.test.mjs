@@ -18,6 +18,7 @@ const oldTimelinePath = "src/pages/articles/timeline.astro";
 const timelinePage = existsSync(timelinePath)
   ? readFileSync(timelinePath, "utf8")
   : "";
+const swupInit = readFileSync("src/lib/swup-init.js", "utf8");
 
 const cssBlock = (source, selector) => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -494,7 +495,8 @@ test("timeline page exists and avoids heavy archive explanation blocks", () => {
   assert.ok(timelinePage.includes("data-timeline-year-link"));
   assert.ok(timelinePage.includes("data-timeline-year-section"));
   assert.ok(timelinePage.includes("aria-current"));
-  assert.ok(timelinePage.includes("IntersectionObserver"));
+  assert.ok(swupInit.includes("IntersectionObserver"));
+  assert.ok(swupInit.includes("timelineYearSpy"));
   assert.ok(timelinePage.includes("timeline-year-index"));
   assert.equal(timelinePage.includes("inspector"), false);
   assert.equal(timelinePage.includes("归档规则"), false);

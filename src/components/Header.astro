@@ -5,6 +5,12 @@ import Search from "@/components/Search.tsx";
 import GlobalGraphModal from "@/components/GlobalGraphModal.astro";
 import "@/styles/header.css";
 
+interface Props {
+  hidden?: boolean;
+}
+
+const { hidden = false } = Astro.props;
+
 type NavSubItem = {
   id: string;
   text: string;
@@ -79,6 +85,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   class="fixed w-full top-0 z-50"
   id="main-header"
   data-home-header={isHomeHeader ? "true" : undefined}
+  data-layout-header-hidden={hidden ? "true" : "false"}
+  aria-hidden={hidden ? "true" : undefined}
+  hidden={hidden ? true : undefined}
 >
   <div
     class={headerBgClass}

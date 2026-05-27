@@ -6,6 +6,7 @@ const aboutPage = readFileSync("src/pages/about.astro", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 const header = readFileSync("src/components/Header.astro", "utf8");
 const layout = readFileSync("src/components/Layout.astro", "utf8");
+const search = readFileSync("src/components/Search.tsx", "utf8");
 const swupInit = readFileSync("src/lib/swup-init.js", "utf8");
 const swupLifecycleFiles = [
   "src/lib/swup-init.js",
@@ -64,12 +65,14 @@ test("swup can sync page-level layout body classes from the replaced main elemen
   assert.ok(layout.includes("data-layout-header-mode={headerMode}"));
   assert.ok(layout.includes('data-layout-card-preview={isCardPreview ? "true" : "false"}'));
   assert.ok(layout.includes('data-layout-hide-footer={hideFooter ? "true" : "false"}'));
+  assert.ok(layout.includes('data-layout-hide-header={hideHeader ? "true" : "false"}'));
 
   assert.ok(swupInit.includes("site-monochrome-page"));
   assert.ok(swupInit.includes("layout-article-page"));
   assert.ok(swupInit.includes("layout-directory-page"));
   assert.ok(swupInit.includes("layout-overlay-header"));
   assert.ok(swupInit.includes("layout-full-bleed"));
+  assert.ok(swupInit.includes("layout-no-header"));
 });
 
 test("swup syncs the persistent header surface after leaving home", () => {
@@ -78,6 +81,21 @@ test("swup syncs the persistent header surface after leaving home", () => {
   assert.ok(swupInit.includes("function syncHeaderShellState"));
   assert.ok(swupInit.includes("header.removeAttribute('data-home-header')"));
   assert.ok(swupInit.includes("headerBg.classList.toggle('header-bg-surface', !shellState.useHomeHeader)"));
+});
+
+test("swup syncs header visibility from the replaced page shell", () => {
+  assert.ok(layout.includes("<Header hidden={hideHeader} />"));
+  assert.equal(layout.includes("!hideHeader && <Header"), false);
+  assert.ok(header.includes("interface Props"));
+  assert.ok(header.includes("hidden?: boolean"));
+  assert.ok(header.includes('data-layout-header-hidden={hidden ? "true" : "false"}'));
+  assert.ok(swupInit.includes("function syncLayoutHeaderVisibility"));
+  assert.ok(swupInit.includes("const hideHeader = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-header')"));
+  assert.ok(swupInit.includes("const hideFooter = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomePath())"));
+  assert.ok(swupInit.includes("syncLayoutHeaderVisibility(shellState.hideHeader)"));
+  assert.ok(swupInit.includes("header.hidden = hideHeader"));
+  assert.ok(swupInit.includes("header.classList.toggle('hidden', hideHeader)"));
+  assert.ok(swupInit.includes("header.setAttribute('data-layout-header-hidden', hideHeader ? 'true' : 'false')"));
 });
 
 test("header scroll state restores frosted navigation outside home", () => {
@@ -110,6 +128,22 @@ test("swup lifecycle scripts use v4 events instead of legacy document events", (
 test("swup exposes and tears down one shared instance for page scripts", () => {
   assert.ok(swupInit.includes("window.swup = swup"));
   assert.ok(swupInit.includes("delete window.swup"));
+});
+
+test("swup owns timeline year spy lifecycle outside page inline scripts", () => {
+  assert.ok(swupInit.includes("const timelineYearSpy ="));
+  assert.ok(swupInit.includes("document.querySelectorAll('[data-timeline-year-link]')"));
+  assert.ok(swupInit.includes("document.querySelectorAll('[data-timeline-year-section]')"));
+  assert.ok(swupInit.includes("new IntersectionObserver(requestUpdate"));
+  assert.ok(swupInit.includes("timelineYearSpy.cleanup?.()"));
+  assert.ok(swupInit.includes("timelineYearSpy.init()"));
+});
+
+test("search closes transient panels during swup navigation", () => {
+  assert.ok(search.includes('document.addEventListener("swup:visit:start", handlePageChange)'));
+  assert.ok(search.includes('document.addEventListener("swup:page:view", handlePageChange)'));
+  assert.ok(search.includes('document.removeEventListener("swup:visit:start", handlePageChange)'));
+  assert.ok(search.includes('document.removeEventListener("swup:page:view", handlePageChange)'));
 });
 
 test("swup clears homepage-only html state when leaving home", () => {

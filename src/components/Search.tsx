@@ -1369,13 +1369,17 @@ const Search: React.FC<SearchProps> = ({
       closeMobileSearchPanel();
     };
 
-    // 监听Astro视图转换事件
+    // 监听Astro和Swup视图转换事件
     document.addEventListener("astro:after-swap", handlePageChange);
     document.addEventListener("astro:page-load", handlePageChange);
+    document.addEventListener("swup:visit:start", handlePageChange);
+    document.addEventListener("swup:page:view", handlePageChange);
 
     return () => {
       document.removeEventListener("astro:after-swap", handlePageChange);
       document.removeEventListener("astro:page-load", handlePageChange);
+      document.removeEventListener("swup:visit:start", handlePageChange);
+      document.removeEventListener("swup:page:view", handlePageChange);
     };
   }, [closeMobileSearchPanel]);
 

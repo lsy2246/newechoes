@@ -363,7 +363,7 @@ const canonicalHref = rssLink || canonicalURL.toString();
       },
     ]}
   >
-    {!isCardPreview && !hideHeader && <Header />}
+    {!isCardPreview && <Header hidden={hideHeader} />}
     <main
       data-layout-background={backgroundMode}
       data-layout-page-type={pageType}

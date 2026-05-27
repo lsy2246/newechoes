@@ -134,6 +134,16 @@ function syncLayoutFooterVisibility(hideFooter = false) {
   footer.setAttribute('aria-hidden', hideFooter ? 'true' : 'false');
 }
 
+function syncLayoutHeaderVisibility(hideHeader = false) {
+  const header = document.getElementById('main-header');
+  if (!header) return;
+
+  header.hidden = hideHeader;
+  header.classList.toggle('hidden', hideHeader);
+  header.setAttribute('data-layout-header-hidden', hideHeader ? 'true' : 'false');
+  header.setAttribute('aria-hidden', hideHeader ? 'true' : 'false');
+}
+
 function readPageShellState() {
   const mainElement = document.querySelector('main[data-layout-background]');
   const backgroundMode = mainElement?.getAttribute('data-layout-background') || 'default';
@@ -141,7 +151,8 @@ function readPageShellState() {
   const pageType = mainElement?.getAttribute('data-layout-page-type') || 'page';
   const isCardPreview = readLayoutFlag(mainElement, 'data-layout-card-preview');
   const isFullBleed = readLayoutFlag(mainElement, 'data-layout-full-bleed', isHomePath());
-  const hideFooter = readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomePath());
+  const hideFooter = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomePath());
+  const hideHeader = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-header');
   const useOverlayHeader = headerMode === 'overlay';
 
   return {
@@ -150,6 +161,7 @@ function readPageShellState() {
     isCardPreview,
     isFullBleed,
     hideFooter,
+    hideHeader,
     useOverlayHeader,
     useHomeHeader: isHomePath()
   };
@@ -180,6 +192,8 @@ function syncHeaderShellState(shellState = readPageShellState()) {
   const headerBg = document.getElementById('header-bg');
   if (!header || !headerBg) return;
 
+  syncLayoutHeaderVisibility(shellState.hideHeader);
+
   if (shellState.useHomeHeader) {
     header.setAttribute('data-home-header', 'true');
   } else {
@@ -200,6 +214,7 @@ function syncLayoutBodyClasses(shellState = readPageShellState()) {
   document.body.classList.toggle('layout-overlay-header', shellState.useOverlayHeader);
   document.body.classList.toggle('layout-full-bleed', shellState.isFullBleed);
   document.body.classList.toggle('layout-bg-starry', shellState.backgroundMode === 'starry');
+  document.body.classList.toggle('layout-no-header', shellState.hideHeader);
   syncLayoutFooterVisibility(shellState.hideFooter);
 }
 
@@ -248,6 +263,93 @@ function isArticleShellPageUrl(url = window.location.pathname) {
 function isArticlePage() {
   return isArticleShellPageUrl();
 }
+
+const timelineYearSpy = {
+  cleanup: null,
+
+  init() {
+    this.cleanup?.();
+
+    const links = Array.from(document.querySelectorAll('[data-timeline-year-link]'));
+    const sections = Array.from(document.querySelectorAll('[data-timeline-year-section]'));
+
+    if (!links.length || !sections.length) {
+      this.cleanup = null;
+      return;
+    }
+
+    let frameId = 0;
+    let ticking = false;
+
+    const setActiveYear = (year) => {
+      links.forEach((link) => {
+        const isActive = link.dataset.timelineYearLink === year;
+        link.classList.toggle('active', isActive);
+
+        if (isActive) {
+          link.setAttribute('aria-current', 'true');
+          link.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center'
+          });
+        } else {
+          link.removeAttribute('aria-current');
+        }
+      });
+    };
+
+    const getCurrentYear = () => {
+      const readingLine = window.innerHeight * 0.26;
+      let currentYear = sections[0]?.getAttribute('data-timeline-year-section') || '';
+
+      for (const section of sections) {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= readingLine) {
+          currentYear = section.getAttribute('data-timeline-year-section') || currentYear;
+        } else {
+          break;
+        }
+      }
+
+      return currentYear;
+    };
+
+    const updateActiveYear = () => {
+      frameId = 0;
+      ticking = false;
+      setActiveYear(getCurrentYear());
+    };
+
+    const requestUpdate = () => {
+      if (ticking) return;
+      ticking = true;
+      frameId = window.requestAnimationFrame(updateActiveYear);
+    };
+
+    const observer = new IntersectionObserver(requestUpdate, {
+      root: null,
+      rootMargin: '-18% 0px -64% 0px',
+      threshold: [0, 0.2, 0.6, 1]
+    });
+
+    sections.forEach((section) => observer.observe(section));
+    window.addEventListener('scroll', requestUpdate, { passive: true });
+    window.addEventListener('resize', requestUpdate);
+    requestUpdate();
+    window.requestAnimationFrame(requestUpdate);
+
+    this.cleanup = () => {
+      observer.disconnect();
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      window.removeEventListener('scroll', requestUpdate);
+      window.removeEventListener('resize', requestUpdate);
+      this.cleanup = null;
+    };
+  }
+};
 
 // 检查DOM中是否存在指定的容器
 function containerExists(selector) {
@@ -466,6 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 初始化时设置
   setupTransition();
   syncPageShellState();
+  timelineYearSpy.init();
   window.addEventListener('scroll', updateHeaderScrollState, { passive: true });
 
   
@@ -474,6 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isLoading = true;
     contentReady = false;
     animationInProgress = true;
+    timelineYearSpy.cleanup?.();
     
     // 发送页面切换事件
     sendPageTransitionEvent();
@@ -532,6 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   swup.hooks.on('content:replace', () => {
     syncPageShellState();
+    timelineYearSpy.init();
 
     const activeElement = getActiveElement();
     if (activeElement) {
@@ -587,6 +692,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 同步 body 上的页面级 layout class —— swup 不会自动替换 body 属性
     syncPageShellState();
+    timelineYearSpy.init();
   });
   
   // 加载失败处理
@@ -657,6 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cleanedUp = true;
 
     window.removeEventListener('scroll', updateHeaderScrollState, { passive: true });
+    timelineYearSpy.cleanup?.();
 
     // 发送页面切换事件
     sendPageTransitionEvent();
