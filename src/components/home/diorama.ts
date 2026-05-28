@@ -1244,9 +1244,9 @@ export function initDiorama() {
     const componentSceneAlpha = renderMode === "loop" ? Math.max(componentAlpha, loopReturn) : componentAlpha;
     const roomSceneAlpha = renderMode === "loop" ? 1 : sceneIn;
     const componentLayout = renderMode === "loop" ? loopReturn : renderMode === "story" ? 1 : 0;
-    const componentScale = lerp(1, useMobileCarrier ? 0.82 : 0.4, componentLayout);
-    const componentX = (useMobileCarrier ? 0 : 6.5) * componentLayout;
-    const componentY = (useMobileCarrier ? 0.3 : 2.8) * componentLayout;
+    const componentScale = lerp(1, useMobileCarrier ? 0.2 : 0.4, componentLayout);
+    const componentX = (useMobileCarrier ? 16.5 : 6.5) * componentLayout;
+    const componentY = (useMobileCarrier ? -3.5 : 2.8) * componentLayout;
     docEl.style.setProperty("--scene-opacity", roomSceneAlpha.toFixed(4));
     docEl.style.setProperty("--story-opacity", storyAlpha.toFixed(4));
     docEl.style.setProperty("--component-scene-opacity", componentSceneAlpha.toFixed(4));

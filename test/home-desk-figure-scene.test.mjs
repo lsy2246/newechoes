@@ -284,9 +284,9 @@ test("home first-screen 3D component stays small enough to support the lsy hero"
   assert.match(dioramaTs, /const centerDioramaProgress = clamp\(visualProgress \/ STORY_PROGRESS_END\);/);
   assert.match(dioramaTs, /const componentAlpha = 1 - easeInOutSine\(clamp\(\(centerDioramaProgress - CENTER_DIORAMA_FADE_START\) \/ \(CENTER_DIORAMA_PROGRESS_END - CENTER_DIORAMA_FADE_START\)\)\);/);
   assert.match(dioramaTs, /const componentLayout = renderMode === "loop" \? loopReturn : renderMode === "story" \? 1 : 0;/);
-  assert.match(dioramaTs, /const componentScale = lerp\(1, useMobileCarrier \? 0\.82 : 0\.4, componentLayout\);/);
-  assert.match(dioramaTs, /const componentX = \(useMobileCarrier \? 0 : 6\.5\) \* componentLayout;/);
-  assert.match(dioramaTs, /const componentY = \(useMobileCarrier \? 0\.3 : 2\.8\) \* componentLayout;/);
+  assert.match(dioramaTs, /const componentScale = lerp\(1, useMobileCarrier \? 0\.2 : 0\.4, componentLayout\);/);
+  assert.match(dioramaTs, /const componentX = \(useMobileCarrier \? 16\.5 : 6\.5\) \* componentLayout;/);
+  assert.match(dioramaTs, /const componentY = \(useMobileCarrier \? -3\.5 : 2\.8\) \* componentLayout;/);
   assert.match(dioramaTs, /docEl\.style\.setProperty\("--component-scene-scale", componentScale\.toFixed\(4\)\);/);
   assert.doesNotMatch(dioramaTs, /const componentLayout = renderMode === "loop" \? loopReturn : componentAlpha;/);
   assert.doesNotMatch(dioramaTs, /componentAlpha > 0 \? 1 : 0/);
