@@ -5,6 +5,12 @@ import Search from "@/components/Search.tsx";
 import GlobalGraphModal from "@/components/GlobalGraphModal.astro";
 import "@/styles/header.css";
 
+interface Props {
+  hidden?: boolean;
+}
+
+const { hidden = false } = Astro.props;
+
 type NavSubItem = {
   id: string;
   text: string;
@@ -31,8 +37,9 @@ const normalizedPath =
     : currentPath.endsWith("/")
       ? currentPath.slice(0, -1)
       : currentPath;
+const isHomeHeader = normalizedPath === "/";
 const headerBgClass =
-  normalizedPath === "/"
+  isHomeHeader
     ? "absolute inset-0"
     : "header-bg-surface absolute inset-0";
 
@@ -77,7 +84,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
 <header
   class="fixed w-full top-0 z-50"
   id="main-header"
-  data-home-header
+  data-home-header={isHomeHeader ? "true" : undefined}
+  data-layout-header-hidden={hidden ? "true" : "false"}
+  aria-hidden={hidden ? "true" : undefined}
+  hidden={hidden ? true : undefined}
 >
   <div
     class={headerBgClass}
@@ -102,7 +112,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-xs ml-auto mr-4"
           data-home-header-search
         >
-          <Search client:load placeholder="搜索文章..." maxResults={5} />
+          <Search client:idle={{ timeout: 900 }} placeholder="搜索文章..." maxResults={5} />
         </div>
 
         <!-- 导航链接 - 集成NavSelector组件 -->
@@ -292,7 +302,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       >
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div class="relative">
-            <Search client:load placeholder="搜索文章..." maxResults={5} />
+            <Search client:idle={{ timeout: 900 }} placeholder="搜索文章..." maxResults={5} />
           </div>
         </div>
       </div>

@@ -230,9 +230,10 @@ pre code {
   color: #64748b;
 }
 
-/* 确保所有代码元素没有背景 */
-code,
+/* 代码块保持透明背景，行内代码由 articles.css 单独控制 */
 pre,
+pre code,
+pre code span,
 .code-block-content,
 .code-block-content pre.shiki,
 .code-block-content pre.astro-code,

@@ -4,6 +4,10 @@
   --home-progress: 0;
   --scene-opacity: 1;
   --story-opacity: 1;
+  --component-scene-opacity: 0;
+  --component-scene-x: 0vw;
+  --component-scene-y: 0vh;
+  --component-scene-scale: 1;
   --story-progress: 0;
   --story-local: 0;
 }
@@ -27,17 +31,11 @@
   overflow: hidden;
   touch-action: pan-y;
   overscroll-behavior: contain;
-  background:
-    radial-gradient(circle at 16% 10%, rgba(234, 191, 126, 0.2), transparent 24%),
-    radial-gradient(circle at 82% 15%, rgba(131, 159, 201, 0.18), transparent 24%),
-    linear-gradient(180deg, #f4ede1 0%, #ede2d2 100%);
+  background: #ffffff;
 }
 
 [data-theme="dark"] .home-diorama {
-  background:
-    radial-gradient(circle at 16% 10%, rgba(209, 164, 90, 0.13), transparent 22%),
-    radial-gradient(circle at 82% 15%, rgba(84, 117, 167, 0.16), transparent 22%),
-    linear-gradient(180deg, #111722 0%, #0a111b 100%);
+  background: var(--site-bg, #111315);
 }
 
 .home-diorama__canvas,
@@ -53,16 +51,17 @@
   display: block;
   touch-action: pan-y;
   pointer-events: none;
-  opacity: var(--scene-opacity, 1);
+  opacity: max(var(--scene-opacity, 1), var(--component-scene-opacity, 0));
+  transform: translate3d(var(--component-scene-x, 0vw), var(--component-scene-y, 0vh), 0) scale(var(--component-scene-scale, 1));
+  transform-origin: 50% 53%;
   transition: opacity 0.18s linear;
+  will-change: opacity, transform;
 }
 
 .home-diorama__veil {
   pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.18), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
-  opacity: calc(0.14 - var(--home-progress) * 0.12);
+  background: transparent;
+  opacity: 0;
 }
 
 .home-diorama[data-home-phase="room"] .home-diorama__veil {
@@ -70,9 +69,7 @@
 }
 
 [data-theme="dark"] .home-diorama__veil {
-  background:
-    radial-gradient(circle at 50% 24%, rgba(255, 241, 215, 0.05), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+  background: transparent;
 }
 
 .home-story {
@@ -84,12 +81,12 @@
   opacity: var(--story-opacity, 1);
   transition: opacity 0.18s linear;
   color: #211914;
-  background: #ffffff;
+  background: transparent;
 }
 
 [data-theme="dark"] .home-story {
   color: #efe9dd;
-  background: #111315;
+  background: transparent;
 }
 
 .home-story__canvas {
@@ -1280,6 +1277,7 @@
 
 .home-scroll-cue[data-cue-mode="scroll"] .home-scroll-cue__motion-icon--scroll,
 .home-scroll-cue[data-cue-mode="settle"] .home-scroll-cue__motion-icon--scroll,
+.home-scroll-cue[data-cue-mode="loading"] .home-scroll-cue__motion-icon--scroll,
 .home-scroll-cue[data-cue-mode="explore"] .home-scroll-cue__motion-icon--drag {
   opacity: 1;
   transform: scale(1);
@@ -1287,6 +1285,10 @@
 
 .home-scroll-cue[data-cue-mode="settle"] .home-scroll-cue__motion::before {
   animation-duration: 2.25s;
+}
+
+.home-scroll-cue[data-cue-mode="loading"] .home-scroll-cue__motion::before {
+  animation-duration: 1.35s;
 }
 
 .home-scroll-cue[data-cue-mode="explore"] .home-scroll-cue__motion::before {
@@ -1361,6 +1363,19 @@
   transition: transform 0.12s linear;
 }
 
+.home-scroll-cue[data-cue-mode="loading"] .home-scroll-cue__progress {
+  background: rgb(var(--cue-ink-rgb) / 0.13);
+}
+
+.home-scroll-cue[data-cue-mode="loading"] .home-scroll-cue__progress span {
+  width: 46%;
+  background: linear-gradient(90deg, transparent, rgb(var(--cue-ink-rgb) / 0.86), transparent);
+  transform: translateX(-115%);
+  transform-origin: center;
+  animation: home-cue-loading-bar 1.05s ease-in-out infinite;
+  transition: none;
+}
+
 [data-theme="dark"] .home-scroll-cue__progress span {
   background: linear-gradient(90deg, rgba(184, 170, 223, 0.4), rgba(184, 170, 223, 0.92));
 }
@@ -1392,6 +1407,10 @@
 
 .home-scroll-cue[data-cue-mode="explore"] .home-scroll-cue__percent {
   opacity: 0.9;
+}
+
+.home-scroll-cue[data-cue-mode="loading"] .home-scroll-cue__percent {
+  opacity: 0.86;
 }
 
 [data-theme="dark"] .home-scroll-cue[data-cue-mode="explore"] {
@@ -1454,6 +1473,16 @@
   50% {
     opacity: 1;
     transform: translateX(0.18rem);
+  }
+}
+
+@keyframes home-cue-loading-bar {
+  0% {
+    transform: translateX(-115%);
+  }
+
+  100% {
+    transform: translateX(235%);
   }
 }
 

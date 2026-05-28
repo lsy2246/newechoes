@@ -97,24 +97,24 @@ export const Countdown: React.FC<CountdownProps> = ({ targetDate, className = ''
     }, [targetDate]);
 
     const TimeBox = ({ value, label }: { value: number; label: string }) => (
-        <div className="text-center px-4">
-            <div className="text-4xl font-light">
+        <div className="countdown-unit">
+            <div className="countdown-value">
                 {value.toString().padStart(2, '0')}
             </div>
-            <div className="text-sm mt-1 text-gray-500 dark:text-gray-400">{label}</div>
+            <div className="countdown-label">{label}</div>
         </div>
     );
 
     if (timeLeft.expired) {
         return (
-            <div className={`text-center ${className}`}>
-                <div className="text-xl text-gray-500 dark:text-gray-400">时间已到</div>
+            <div className={className}>
+                <div className="countdown-expired">时间已到</div>
             </div>
         );
     }
 
     return (
-        <div className={`flex items-center justify-center ${className}`}>
+        <div className={`countdown-row ${className}`}>
             <TimeBox value={timeLeft.days} label="天" />
             <TimeBox value={timeLeft.hours} label="时" />
             <TimeBox value={timeLeft.minutes} label="分" />

@@ -33,6 +33,8 @@ interface ArticleFilterProps {
   searchParams?: Record<string, string> | URLSearchParams;
 }
 
+type FilterMenu = "tags" | "date" | "view";
+
 const DEFAULT_FILTERS: FilterState = {
   tags: [],
   sort: "newest",
@@ -260,6 +262,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openFilterMenu, setOpenFilterMenu] = useState<FilterMenu | null>(null);
   const isReadyRef = useRef(false);
 
   const runFilter = useCallback(async (nextFilters: FilterState) => {
@@ -448,29 +451,24 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     updateFilters(DEFAULT_FILTERS);
   };
 
+  const syncFilterMenu = (menu: FilterMenu, isOpen: boolean) => {
+    setOpenFilterMenu((currentMenu) => {
+      if (isOpen) return menu;
+      return currentMenu === menu ? null : currentMenu;
+    });
+  };
+
   return (
     <section className="filter-console-layout" aria-label="文章筛选">
       <div className="filter-console">
-        <div className="filter-console-head">
-          <div className="filter-console-copy">
-            <p className="filter-console-kicker">文章筛选</p>
-            <h1 className="filter-console-title">检索文章</h1>
-            <p className="filter-console-status">{resultStatusText}</p>
-          </div>
-          <button
-            type="button"
-            className="filter-reset-button"
-            onClick={resetFilters}
-            disabled={!hasActiveFilters && filters.currentPage <= 1}
-          >
-            重置筛选
-          </button>
-        </div>
-
         <div className="filter-control-grid">
           <div className="filter-control-cell">
             <span className="filter-control-label">标签</span>
-            <details className="filter-disclosure filter-tag-disclosure">
+            <details
+              className="filter-disclosure filter-tag-disclosure"
+              open={openFilterMenu === "tags"}
+              onToggle={(event) => syncFilterMenu("tags", event.currentTarget.open)}
+            >
               <summary className="line-select filter-control">
                 <span className="filter-tag-summary">{selectedTagSummary}</span>
                 <span className="filter-chevron" aria-hidden="true">∨</span>
@@ -534,7 +532,11 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
           <div className="filter-control-cell">
             <span className="filter-control-label">时间</span>
-            <details className="filter-disclosure">
+            <details
+              className="filter-disclosure"
+              open={openFilterMenu === "date"}
+              onToggle={(event) => syncFilterMenu("date", event.currentTarget.open)}
+            >
               <summary className="line-select filter-control">
                 <span>{dateRangeLabel}</span>
                 <span className="filter-chevron" aria-hidden="true">∨</span>
@@ -606,7 +608,11 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
           <div className="filter-control-cell">
             <span className="filter-control-label">排序</span>
-            <details className="filter-disclosure filter-view-disclosure">
+            <details
+              className="filter-disclosure filter-view-disclosure"
+              open={openFilterMenu === "view"}
+              onToggle={(event) => syncFilterMenu("view", event.currentTarget.open)}
+            >
               <summary className="line-select filter-control">
                 <span>{viewLabel}</span>
                 <span className="filter-chevron" aria-hidden="true">∨</span>
@@ -645,6 +651,15 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
               </div>
             </details>
           </div>
+
+          <button
+            type="button"
+            className="filter-reset-button"
+            onClick={resetFilters}
+            disabled={!hasActiveFilters && filters.currentPage <= 1}
+          >
+            重置筛选
+          </button>
         </div>
 
         <div className="filter-active-strip" aria-label="当前筛选条件">
@@ -680,6 +695,14 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
                   className={hasSummary ? "filter-result-link" : "filter-result-link no-summary"}
                   data-astro-prefetch="viewport"
                 >
+                  <span className="filter-result-kind">article</span>
+                  <span className="filter-result-icon" aria-hidden="true">
+                    <svg viewBox="0 0 40 44" fill="none">
+                      <path d="M9 4h15l7 7v29H9V4Z" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M24 4v8h7" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M14 20h12M14 26h12M14 32h7" stroke="currentColor" strokeWidth="1.5" />
+                    </svg>
+                  </span>
                   <div className="filter-result-copy">
                     <h2 className="filter-result-title">{article.title || "无标题"}</h2>
                     <p className="filter-result-summary" aria-hidden={!hasSummary}>

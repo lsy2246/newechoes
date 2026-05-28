@@ -19,12 +19,13 @@ test("filter panel exposes a compact console model instead of disconnected contr
   assert.ok(articleFilter.includes("hiddenSelectedTagCount"));
   assert.ok(articleFilter.includes("filter-console-layout"));
   assert.ok(articleFilter.includes("filter-console"));
-  assert.ok(articleFilter.includes("filter-console-head"));
   assert.ok(articleFilter.includes("filter-control-grid"));
   assert.ok(articleFilter.includes("filter-control"));
   assert.ok(articleFilter.includes("filter-active-strip"));
   assert.ok(articleFilter.includes("filter-result-list"));
   assert.ok(articleFilter.includes("filter-result-link"));
+  assert.ok(articleFilter.includes("filter-result-kind"));
+  assert.ok(articleFilter.includes("filter-result-icon"));
   assert.ok(articleFilter.includes("filter-reset-button"));
   assert.ok(articleFilter.includes("filter-view-options"));
   assert.ok(articleFilter.includes("filter-tag-search"));
@@ -41,15 +42,23 @@ test("filter panel exposes a compact console model instead of disconnected contr
   assert.equal(articleFilter.includes("inputMode=\"numeric\""), false);
   assert.equal(articleFilter.includes('id="filter-start-date"'), false);
   assert.equal(articleFilter.includes("placeholder=\"开始日期\""), false);
+  assert.equal(articleFilter.includes("filter-console-head"), false);
+  assert.equal(articleFilter.includes("filter-console-kicker"), false);
+  assert.equal(articleFilter.includes("filter-console-title"), false);
+  assert.equal(articleFilter.includes("检索文章"), false);
 });
 
 test("filter panel CSS keeps console controls and dense results scannable", () => {
   assert.match(cssBlock(".filter-console-layout"), /display:\s*grid;/);
-  assert.match(cssBlock(".filter-console-layout"), /gap:\s*clamp\(22px,\s*3vw,\s*34px\)/);
-  assert.match(cssBlock(".filter-console"), /border-top:\s*1px solid var\(--site-line-strong\)/);
-  assert.match(cssBlock(".filter-console-head"), /grid-template-columns:\s*minmax\(0,\s*1fr\) auto/);
-  assert.match(cssBlock(".filter-control-grid"), /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(cssBlock(".filter-console-layout"), /gap:\s*clamp\(20px,\s*2\.4vw,\s*28px\)/);
+  assert.doesNotMatch(cssBlock(".filter-console"), /border-top:/);
+  assert.match(cssBlock(".filter-control-grid"), /grid-template-columns:\s*minmax\(0,\s*15rem\) minmax\(0,\s*13rem\) minmax\(0,\s*17rem\) auto/);
   assert.match(cssBlock(".filter-control"), /min-width:\s*0;/);
+  assert.match(cssBlock(".line-select"), /border:\s*1px solid var\(--site-line\)/);
+  assert.match(cssBlock(".line-select"), /font-size:\s*var\(--type-ui\);/);
+  assert.match(cssBlock(".line-select"), /min-height:\s*42px;/);
+  assert.match(cssBlock(".filter-reset-button"), /min-height:\s*42px;/);
+  assert.match(cssBlock(".filter-reset-button"), /border:\s*1px solid var\(--site-line\)/);
   assert.match(cssBlock(".filter-option-grid"), /display:\s*grid;/);
   assert.match(cssBlock(".filter-date-groups"), /gap:\s*20px;/);
   assert.match(cssBlock(".filter-date-group"), /display:\s*grid;/);
@@ -58,8 +67,14 @@ test("filter panel CSS keeps console controls and dense results scannable", () =
   assert.match(cssBlock(".filter-tag-option"), /grid-template-columns:\s*minmax\(0,\s*1fr\) auto/);
   assert.match(cssBlock(".filter-tag-summary"), /white-space:\s*nowrap;/);
   assert.match(cssBlock(".filter-result-list"), /display:\s*grid;/);
-  assert.match(cssBlock(".filter-result-link"), /grid-template-columns:\s*minmax\(0,\s*1fr\) auto/);
+  assert.match(cssBlock(".filter-result-list"), /auto-fill,\s*minmax\(270px,\s*1fr\)/);
+  assert.match(cssBlock(".filter-result-link"), /display:\s*flex;/);
+  assert.match(cssBlock(".filter-result-link"), /flex-direction:\s*column;/);
+  assert.match(cssBlock(".filter-result-link"), /border:\s*1px solid var\(--site-line\);/);
+  assert.match(cssBlock(".filter-result-link"), /padding:\s*44px 18px 16px;/);
+  assert.match(cssBlock(".filter-result-icon"), /position:\s*absolute;/);
   assert.match(cssBlock(".filter-result-title"), /overflow-wrap:\s*anywhere;/);
+  assert.match(cssBlock(".filter-result-title"), /-webkit-line-clamp:\s*2;/);
   assert.match(cssBlock(".filter-result-summary"), /-webkit-line-clamp:\s*2;/);
 });
 
@@ -81,11 +96,7 @@ test("filter console stacks controls and result rows on mobile", () => {
   );
   assert.match(
     globalCss,
-    /@media \(max-width:\s*720px\) \{[\s\S]*?\.filter-console-head\s*\{[\s\S]*?grid-template-columns:\s*1fr;/,
-  );
-  assert.match(
-    globalCss,
-    /@media \(max-width:\s*720px\) \{[\s\S]*?\.filter-result-link\s*\{[\s\S]*?grid-template-columns:\s*1fr;/,
+    /@media \(max-width:\s*720px\) \{[\s\S]*?\.filter-result-link\s*\{[\s\S]*?min-height:\s*168px;[\s\S]*?padding:\s*44px 18px 16px;/,
   );
   assert.match(
     globalCss,
