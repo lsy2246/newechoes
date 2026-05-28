@@ -1542,10 +1542,11 @@ tbody tr:hover,
 .article-title {
   margin: 0;
   color: var(--article-ink);
+  font-family: var(--font-reading);
   font-size: var(--type-article-title);
-  font-weight: var(--weight-medium);
+  font-weight: 620;
   letter-spacing: 0;
-  line-height: var(--leading-tight);
+  line-height: 1.16;
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
@@ -1609,8 +1610,9 @@ tbody tr:hover,
   margin-top: 34px;
   margin-bottom: 0;
   color: var(--article-ink);
+  font-family: var(--font-reading);
   font-size: var(--type-reader-body);
-  line-height: 1.74;
+  line-height: 1.78;
 }
 
 .article-warning + .article-prose {
@@ -1639,14 +1641,16 @@ tbody tr:hover,
   border-bottom: 1px solid var(--article-line);
   color: var(--article-ink);
   font-size: var(--type-reader-h2);
-  line-height: 1.24;
+  font-weight: 700;
+  line-height: 1.28;
 }
 
 .article-prose h3 {
   margin: 2rem 0 0.75rem;
   padding-left: 0;
   font-size: var(--type-reader-h3);
-  line-height: 1.34;
+  font-weight: var(--weight-strong);
+  line-height: 1.38;
 }
 
 .article-prose h4 {

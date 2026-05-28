@@ -33,6 +33,8 @@ interface ArticleFilterProps {
   searchParams?: Record<string, string> | URLSearchParams;
 }
 
+type FilterMenu = "tags" | "date" | "view";
+
 const DEFAULT_FILTERS: FilterState = {
   tags: [],
   sort: "newest",
@@ -260,6 +262,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openFilterMenu, setOpenFilterMenu] = useState<FilterMenu | null>(null);
   const isReadyRef = useRef(false);
 
   const runFilter = useCallback(async (nextFilters: FilterState) => {
@@ -448,13 +451,24 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     updateFilters(DEFAULT_FILTERS);
   };
 
+  const syncFilterMenu = (menu: FilterMenu, isOpen: boolean) => {
+    setOpenFilterMenu((currentMenu) => {
+      if (isOpen) return menu;
+      return currentMenu === menu ? null : currentMenu;
+    });
+  };
+
   return (
     <section className="filter-console-layout" aria-label="文章筛选">
       <div className="filter-console">
         <div className="filter-control-grid">
           <div className="filter-control-cell">
             <span className="filter-control-label">标签</span>
-            <details className="filter-disclosure filter-tag-disclosure">
+            <details
+              className="filter-disclosure filter-tag-disclosure"
+              open={openFilterMenu === "tags"}
+              onToggle={(event) => syncFilterMenu("tags", event.currentTarget.open)}
+            >
               <summary className="line-select filter-control">
                 <span className="filter-tag-summary">{selectedTagSummary}</span>
                 <span className="filter-chevron" aria-hidden="true">∨</span>
@@ -518,7 +532,11 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
           <div className="filter-control-cell">
             <span className="filter-control-label">时间</span>
-            <details className="filter-disclosure">
+            <details
+              className="filter-disclosure"
+              open={openFilterMenu === "date"}
+              onToggle={(event) => syncFilterMenu("date", event.currentTarget.open)}
+            >
               <summary className="line-select filter-control">
                 <span>{dateRangeLabel}</span>
                 <span className="filter-chevron" aria-hidden="true">∨</span>
@@ -590,7 +608,11 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
           <div className="filter-control-cell">
             <span className="filter-control-label">排序</span>
-            <details className="filter-disclosure filter-view-disclosure">
+            <details
+              className="filter-disclosure filter-view-disclosure"
+              open={openFilterMenu === "view"}
+              onToggle={(event) => syncFilterMenu("view", event.currentTarget.open)}
+            >
               <summary className="line-select filter-control">
                 <span>{viewLabel}</span>
                 <span className="filter-chevron" aria-hidden="true">∨</span>

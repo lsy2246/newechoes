@@ -20,14 +20,20 @@
   --bg-secondary: #ffffff;
   --text-primary: var(--site-ink);
   --text-secondary: var(--site-muted);
+  --font-ui: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
+    sans-serif;
+  --font-reading: "Source Han Sans SC", "Noto Sans SC", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
   --type-micro: 0.625rem;
   --type-caption: 0.6875rem;
   --type-meta: 0.75rem;
+  --type-list-summary: 0.8125rem;
   --type-small: 0.8125rem;
   --type-ui: 0.875rem;
   --type-body: 0.9375rem;
   --type-body-lg: 1rem;
-  --type-card-title: 1rem;
+  --type-card-title: 1.0625rem;
   --type-section-title: 1.25rem;
   --type-page-title: 1.375rem;
   --type-display: 2rem;
@@ -42,7 +48,7 @@
   --leading-dense: 1.38;
   --weight-regular: 400;
   --weight-medium: 560;
-  --weight-strong: 650;
+  --weight-strong: 680;
 }
 
 @media (min-width: 1024px) {
@@ -100,6 +106,12 @@
 html {
   scrollbar-gutter: stable;
   overflow-y: scroll;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
 }
 
 /* 定义深色模式选择器 */
@@ -2535,7 +2547,7 @@ html[data-theme="dark"],
   font-size: var(--type-card-title);
   font-weight: var(--weight-strong);
   letter-spacing: 0;
-  line-height: 1.28;
+  line-height: 1.34;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -2547,8 +2559,8 @@ html[data-theme="dark"],
   margin: 8px 0 0;
   overflow: hidden;
   color: var(--site-muted);
-  font-size: var(--type-meta);
-  line-height: 1.38;
+  font-size: var(--type-list-summary);
+  line-height: 1.56;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -2565,7 +2577,7 @@ html[data-theme="dark"],
   min-width: 0;
   margin-top: 14px;
   color: var(--site-quiet);
-  font-size: var(--type-caption);
+  font-size: var(--type-meta);
   line-height: 1.35;
 }
 
@@ -2584,7 +2596,7 @@ html[data-theme="dark"],
 
 .explorer-grid .node-folder .node-title {
   color: var(--site-ink);
-  font-weight: 610;
+  font-weight: var(--weight-strong);
 }
 
 .explorer-grid .node-up .node-icon,
@@ -2620,9 +2632,9 @@ html[data-theme="dark"],
 
 .filter-control-label {
   color: var(--site-muted);
-  font-size: var(--type-caption);
-  font-weight: 760;
-  letter-spacing: 0.1em;
+  font-size: var(--type-meta);
+  font-weight: 650;
+  letter-spacing: 0.04em;
   line-height: 1;
   text-transform: uppercase;
 }
@@ -2641,10 +2653,10 @@ html[data-theme="dark"],
   background: var(--site-bg);
   color: var(--site-ink);
   font: inherit;
-  font-size: var(--type-ui);
+  font-size: var(--type-body);
   font-weight: var(--weight-medium);
   letter-spacing: 0;
-  line-height: 1.25;
+  line-height: 1.3;
   transition:
     border-color 0.16s ease,
     box-shadow 0.16s ease;
@@ -3067,7 +3079,7 @@ html[data-theme="dark"],
   font-size: var(--type-card-title);
   font-weight: var(--weight-strong);
   letter-spacing: 0;
-  line-height: 1.3;
+  line-height: 1.34;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -3078,8 +3090,8 @@ html[data-theme="dark"],
   margin: 8px 0 0;
   overflow: hidden;
   color: var(--site-muted);
-  font-size: var(--type-meta);
-  line-height: 1.5;
+  font-size: var(--type-list-summary);
+  line-height: 1.56;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -3097,7 +3109,7 @@ html[data-theme="dark"],
   margin-top: auto;
   padding-top: 16px;
   color: var(--site-quiet);
-  font-size: var(--type-caption);
+  font-size: var(--type-meta);
   line-height: 1.35;
 }
 
@@ -3163,9 +3175,9 @@ html[data-theme="dark"],
 
 .timeline-strip-label {
   color: var(--site-quiet);
-  font-size: var(--type-caption);
-  font-weight: 760;
-  letter-spacing: 0.12em;
+  font-size: var(--type-meta);
+  font-weight: 650;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -3250,7 +3262,7 @@ html[data-theme="dark"],
   margin: 0;
   color: var(--site-quiet);
   font-size: var(--type-display);
-  font-weight: var(--weight-medium);
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 1;
 }
@@ -3287,7 +3299,7 @@ html[data-theme="dark"],
 .month-label span {
   font-size: var(--type-card-title);
   font-weight: var(--weight-strong);
-  line-height: 1.1;
+  line-height: 1.16;
 }
 
 .month-label small {
@@ -3363,7 +3375,7 @@ html[data-theme="dark"],
   color: var(--site-ink);
   font-size: var(--type-card-title);
   font-weight: var(--weight-strong);
-  line-height: 1.35;
+  line-height: 1.36;
   overflow-wrap: anywhere;
 }
 
@@ -3372,8 +3384,8 @@ html[data-theme="dark"],
   margin-top: 6px;
   overflow: hidden;
   color: var(--site-muted);
-  font-size: var(--type-meta);
-  line-height: 1.45;
+  font-size: var(--type-list-summary);
+  line-height: 1.55;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
