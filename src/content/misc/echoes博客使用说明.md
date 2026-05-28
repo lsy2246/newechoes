@@ -162,29 +162,21 @@ export const ARTICLE_EXPIRY_CONFIG = {
 
 相册页使用 Google Photos 分享链接作为数据源，并通过 `@/components/PhotoAlbumMasonry` 实现类似豆瓣页面的无限瀑布流加载。
 
-在 `src/consts.ts` 中配置分享链接：
-
-```typescript
-export const PHOTO_ALBUM_CONFIG = {
-  shareUrl: "https://photos.app.goo.gl/your-share-id",
-  title: "我的相册",
-};
-```
-
 页面示例：
 
 ```astro
 ---
 import PhotoAlbumMasonry from "@/components/PhotoAlbumMasonry";
-import { PHOTO_ALBUM_CONFIG } from "@/consts";
 ---
 
 <PhotoAlbumMasonry
-  shareUrl={PHOTO_ALBUM_CONFIG.shareUrl}
-  title={PHOTO_ALBUM_CONFIG.title}
+  shareId="your-share-id"
+  title="我的相册"
   client:load
 />
 ```
+
+从分享链接获取 ID：`https://photos.app.goo.gl/your-share-id`
 
 > 相册数据来自 Google Photos 分享页内部接口，并非官方稳定 API。如果 Google 调整页面结构，可能需要同步适配。
 

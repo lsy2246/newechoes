@@ -134,6 +134,13 @@ function syncLayoutFooterVisibility(hideFooter = false) {
   footer.setAttribute('aria-hidden', hideFooter ? 'true' : 'false');
 }
 
+function syncHeaderBackgroundSurface(useOverlayHeader = false) {
+  const headerBg = document.getElementById('header-bg');
+  if (!headerBg) return;
+
+  headerBg.classList.toggle('header-bg-surface', !useOverlayHeader);
+}
+
 function clearHomePageState() {
   if (isHomePath()) return;
 
@@ -164,6 +171,7 @@ function syncLayoutBodyClasses() {
   document.body.classList.toggle('layout-overlay-header', useOverlayHeader);
   document.body.classList.toggle('layout-full-bleed', isFullBleed);
   document.body.classList.toggle('layout-bg-starry', backgroundMode === 'starry');
+  syncHeaderBackgroundSurface(useOverlayHeader);
   syncLayoutFooterVisibility(hideFooter);
 }
 

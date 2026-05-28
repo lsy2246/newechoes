@@ -551,10 +551,16 @@
 }
 
 .graph-tree-children {
+  grid-column: 2 / -1;
+  grid-row: 2;
   list-style: none;
   margin: 0.08rem 0 0 0.62rem;
   padding: 0.06rem 0 0.06rem 0.78rem;
   position: relative;
+}
+
+.graph-tree-link-article {
+  width: 100%;
 }
 
 .graph-tree-children::before {
@@ -576,21 +582,24 @@
 }
 
 .graph-tree-group {
+  display: grid;
+  grid-template-columns: 1.05rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.35rem;
   border-radius: 0.35rem;
 }
 
 .graph-tree-summary {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: block;
   list-style: none;
   cursor: pointer;
   padding: 0;
   position: relative;
-}
-
-.graph-tree-summary::-webkit-details-marker {
-  display: none;
+  grid-column: 1;
+  grid-row: 1;
+  border: 0;
+  background: transparent;
+  color: inherit;
 }
 
 .graph-tree-disclosure {
@@ -613,7 +622,7 @@
   transform: translateX(0.02rem);
 }
 
-.graph-tree-group[open] > .graph-tree-summary .graph-tree-disclosure {
+.graph-tree-group.is-open > .graph-tree-summary .graph-tree-disclosure {
   color: var(--graph-text);
   background: transparent;
   border-color: transparent;
@@ -626,7 +635,7 @@
   border-color: transparent;
 }
 
-[data-theme="dark"] .graph-tree-group[open] > .graph-tree-summary .graph-tree-disclosure {
+[data-theme="dark"] .graph-tree-group.is-open > .graph-tree-summary .graph-tree-disclosure {
   color: var(--graph-text);
   background: transparent;
   border-color: transparent;
@@ -638,7 +647,6 @@
   gap: 0.42rem;
   min-height: 2rem;
   min-width: 0;
-  flex: 1;
   padding: 0.34rem 0.45rem;
   border-radius: 0.35rem;
   color: var(--graph-text-soft);
@@ -646,6 +654,11 @@
   transition: background-color 0.18s ease, color 0.18s ease;
   border: 0;
   position: relative;
+}
+
+.graph-tree-group > .graph-tree-link-section {
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .graph-tree-link::before {
@@ -727,17 +740,19 @@
   border: 1px solid rgba(248, 250, 252, 0.14);
 }
 
-.graph-tree-item-section.is-active > .graph-tree-group > .graph-tree-summary .graph-tree-count {
+.graph-tree-item-section.is-active > .graph-tree-group .graph-tree-count {
   color: var(--graph-text);
   background: var(--graph-panel-soft);
 }
 
-[data-theme="dark"] .graph-tree-item-section.is-active > .graph-tree-group > .graph-tree-summary .graph-tree-count {
+[data-theme="dark"] .graph-tree-item-section.is-active > .graph-tree-group .graph-tree-count {
   color: var(--graph-text);
   background: transparent;
 }
 
 .graph-tree-count {
+  grid-column: 3;
+  grid-row: 1;
   flex-shrink: 0;
   min-width: 1.45rem;
   height: 1.15rem;

@@ -103,6 +103,21 @@ test("swup clears homepage-only html state when leaving home", () => {
   assert.ok(swupInit.includes('removeProperty("--story-progress")'));
 });
 
+test("swup syncs the persisted header background surface from the replaced page shell", () => {
+  assert.ok(swupInit.includes("function syncHeaderBackgroundSurface"));
+  assert.ok(swupInit.includes("syncHeaderBackgroundSurface(useOverlayHeader);"));
+  assert.match(
+    swupInit,
+    /headerBg\.classList\.toggle\('header-bg-surface', !useOverlayHeader\);/,
+  );
+});
+
+test("header toggles the frosted scroll state while the page moves", () => {
+  assert.ok(header.includes("function syncHeaderScrollSurface"));
+  assert.match(header, /headerBg\.classList\.toggle\('scrolled', window\.scrollY > 8\);/);
+  assert.match(header, /addListener\(window, 'scroll', syncHeaderScrollSurface, \{ passive: true \}\);/);
+});
+
 test("swup fully replaces the page shell when entering or leaving filter", () => {
   assert.ok(swupInit.includes("function isFilteredPageUrl"));
   assert.ok(swupInit.includes("const isFromFilterPage = isFilteredPageUrl(visit?.from?.url);"));

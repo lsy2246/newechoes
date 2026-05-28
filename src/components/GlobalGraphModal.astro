@@ -1,6 +1,7 @@
 ---
 import { getCollection, type CollectionEntry } from "astro:content";
 import { contentStructure, type SectionStructure } from "@/content.config";
+import GlobalGraphTree from "./GlobalGraphTree.astro";
 import {
   createArticleReferenceResolver,
   extractArticleReferences,
@@ -67,79 +68,6 @@ const currentSectionPath = currentArticle
   : normalizedCurrentPath.startsWith("/articles/")
     ? decodeURI(normalizedCurrentPath.replace(/^\/articles\//, ""))
     : "";
-
-function isSectionActive(sectionPath: string) {
-  if (!sectionPath) return false;
-  return (
-    currentSectionPath === sectionPath ||
-    currentSectionPath.startsWith(`${sectionPath}/`) ||
-    (currentArticle ? currentArticle.id.startsWith(`${sectionPath}/`) : false)
-  );
-}
-
-function escapeHtml(text: string) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function renderArticleItem(articleId: string, level: number) {
-  const title = articleTitleMap.get(articleId) ?? articleId.split("/").at(-1) ?? articleId;
-  const href = articleUrl(articleId);
-  const isCurrent = currentArticle?.id === articleId;
-  return `<li class="graph-tree-item graph-tree-item-article" data-article-id="${escapeHtml(articleId)}" style="--tree-level:${level};">
-    <a href="${href}" class="graph-tree-link graph-tree-link-article${isCurrent ? " is-current" : ""}" data-route-target="${href}" data-node-target="article:${escapeHtml(articleId)}" data-astro-prefetch="hover">
-      <span class="graph-tree-label">${escapeHtml(title)}</span>
-    </a>
-  </li>`;
-}
-
-function renderSection(section: SectionStructure, level = 0): string {
-  const open = isSectionActive(section.path);
-  const isSectionCurrent = currentSectionPath === section.path && !currentArticle;
-  const href = sectionUrl(section.path);
-  const childCount = section.articles.length + section.sections.length;
-  const children = [
-    ...section.sections.map((child) => renderSection(child, level + 1)),
-    ...section.articles.map((articleId) => renderArticleItem(articleId, level + 1)),
-  ].join("");
-
-  return `<li class="graph-tree-item graph-tree-item-section" data-section-path="${escapeHtml(section.path)}" style="--tree-level:${level};">
-    <details class="graph-tree-group" data-section-path="${escapeHtml(section.path)}" ${open ? "open" : ""}>
-      <summary class="graph-tree-summary">
-        <span class="graph-tree-disclosure" aria-hidden="true">
-          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m4 2 4 4-4 4"></path>
-          </svg>
-        </span>
-        <a href="${href}" class="graph-tree-link graph-tree-link-section${isSectionCurrent ? " is-current" : ""}" data-route-target="${href}" data-section-path="${escapeHtml(section.path)}" data-node-target="section:${escapeHtml(section.path)}" data-astro-prefetch="hover">
-          <span class="graph-tree-label">${escapeHtml(section.name)}</span>
-        </a>
-        <span class="graph-tree-count">${childCount}</span>
-      </summary>
-      ${
-        children
-          ? `<ul class="graph-tree-children">${children}</ul>`
-          : `<div class="graph-tree-empty">这个目录下暂时没有更多分支</div>`
-      }
-    </details>
-  </li>`;
-}
-
-const treeHtml = [
-  contentStructure.articles.length > 0
-    ? `<li class="graph-tree-item graph-tree-item-top">
-        <div class="graph-tree-top-label">根目录文章</div>
-        <ul class="graph-tree-children">
-          ${contentStructure.articles.map((articleId) => renderArticleItem(articleId, 0)).join("")}
-        </ul>
-      </li>`
-    : "",
-  ...contentStructure.sections.map((section) => renderSection(section)),
-].join("");
 
 const graphNodes: GraphNode[] = [
   {
@@ -281,10 +209,12 @@ const graphPayload = JSON.stringify({
         </div>
 
         <div class="global-graph-tree-shell">
-          <ul
-            class="global-graph-tree"
-            set:html={treeHtml}
-          ></ul>
+          <GlobalGraphTree
+            articleTitleMap={articleTitleMap}
+            contentStructure={contentStructure}
+            currentArticleId={currentArticle?.id}
+            currentSectionPath={currentSectionPath}
+          />
         </div>
       </aside>
 

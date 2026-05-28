@@ -1,7 +1,6 @@
 ---
 import Layout from "@/components/Layout.astro";
 import PhotoAlbumMasonry from "@/components/PhotoAlbumMasonry";
-import { PHOTO_ALBUM_CONFIG } from "@/consts";
 ---
 
 <Layout
@@ -10,8 +9,8 @@ import { PHOTO_ALBUM_CONFIG } from "@/consts";
 >
   <div class="collection-page-offset pt-6 md:pt-8">
     <PhotoAlbumMasonry
-      shareUrl={PHOTO_ALBUM_CONFIG.shareUrl}
-      title={PHOTO_ALBUM_CONFIG.title}
+      shareId="M62Uxp4Uz2CUwie9A"
+      title="生活碎片"
       showTitle={false}
       client:load
     />

@@ -1,4 +1,5 @@
 import vm from "node:vm";
+import { fetchAssetWithRelayFallback, relayAssetUrl } from "./server-asset-relay";
 
 const RPC_ID = "snAcKc";
 
@@ -12,16 +13,22 @@ export type GooglePhotoItem = {
   takenAt: string | null;
   durationMs: number | null;
   thumbUrl: string;
+  fallbackThumbUrl: string;
   displayUrl: string;
+  fallbackDisplayUrl: string;
   previewUrl: string;
+  fallbackPreviewUrl: string;
   originalLikeUrl: string | null;
+  fallbackOriginalLikeUrl: string | null;
   videoUrl: string | null;
+  fallbackVideoUrl: string | null;
 };
 
 export type GooglePhotoAlbum = {
   id: string | null;
   title: string | null;
   coverUrl: string | null;
+  fallbackCoverUrl: string | null;
 };
 
 type CursorPayload = {
@@ -49,7 +56,48 @@ type GlobalData = {
 
 const REQUEST_TIMEOUT_MS = 10000;
 
-const imageUrl = (baseUrl: string, params: string) => `${baseUrl}=${params}`;
+export const GOOGLE_PHOTOS_MEDIA_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36",
+  "Accept": "image/avif,image/webp,image/apng,image/*,video/*,*/*;q=0.8",
+};
+
+const GOOGLE_PHOTOS_PAGE_HEADERS = {
+  "user-agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36",
+  accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+};
+
+const googlePhotosMediaUrl = (baseUrl: string, params: string) => `${baseUrl}=${params}`;
+
+const localGooglePhotosMediaUrl = (mediaUrl: string) =>
+  `/api/google-photos?mediaUrl=${encodeURIComponent(mediaUrl)}`;
+
+const proxiedGooglePhotosMediaUrl = (baseUrl: string, params: string) => {
+  const mediaUrl = googlePhotosMediaUrl(baseUrl, params);
+  const fallbackUrl = localGooglePhotosMediaUrl(mediaUrl);
+
+  return {
+    url: relayAssetUrl(mediaUrl, GOOGLE_PHOTOS_MEDIA_HEADERS) || fallbackUrl,
+    fallbackUrl,
+  };
+};
+
+const proxiedGooglePhotosCoverUrl = (coverUrl: unknown) => {
+  if (typeof coverUrl !== "string" || !coverUrl.startsWith("https://lh3.googleusercontent.com/")) {
+    return {
+      url: null,
+      fallbackUrl: null,
+    };
+  }
+
+  const fallbackUrl = localGooglePhotosMediaUrl(coverUrl);
+
+  return {
+    url: relayAssetUrl(coverUrl, GOOGLE_PHOTOS_MEDIA_HEADERS) || fallbackUrl,
+    fallbackUrl,
+  };
+};
 
 async function fetchWithTimeout(url: URL | string, options: RequestInit = {}) {
   const controller = new AbortController();
@@ -98,6 +146,15 @@ const toPhotoItems = (items: unknown[][], startIndex = 0): GooglePhotoItem[] => 
         return null;
       }
 
+      const thumbUrl = proxiedGooglePhotosMediaUrl(baseUrl, "w600");
+      const displayUrl = proxiedGooglePhotosMediaUrl(baseUrl, "w1600");
+      const previewUrl = proxiedGooglePhotosMediaUrl(baseUrl, "w2400");
+      const originalLikeUrl =
+        mediaType === "photo" && width && height
+          ? proxiedGooglePhotosMediaUrl(baseUrl, `w${width}-h${height}`)
+          : null;
+      const videoUrl = mediaType === "video" ? proxiedGooglePhotosMediaUrl(baseUrl, "dv") : null;
+
       return {
         index: startIndex + itemIndex + 1,
         id: item[0],
@@ -107,32 +164,52 @@ const toPhotoItems = (items: unknown[][], startIndex = 0): GooglePhotoItem[] => 
         height,
         takenAt: takenMs ? new Date(takenMs).toISOString() : null,
         durationMs,
-        thumbUrl: imageUrl(baseUrl, "w600"),
-        displayUrl: imageUrl(baseUrl, "w1600"),
-        previewUrl: imageUrl(baseUrl, "w2400"),
-        originalLikeUrl:
-          mediaType === "photo" && width && height ? imageUrl(baseUrl, `w${width}-h${height}`) : null,
-        videoUrl: mediaType === "video" ? imageUrl(baseUrl, "dv") : null,
+        thumbUrl: thumbUrl.url,
+        fallbackThumbUrl: thumbUrl.fallbackUrl,
+        displayUrl: displayUrl.url,
+        fallbackDisplayUrl: displayUrl.fallbackUrl,
+        previewUrl: previewUrl.url,
+        fallbackPreviewUrl: previewUrl.fallbackUrl,
+        originalLikeUrl: originalLikeUrl?.url || null,
+        fallbackOriginalLikeUrl: originalLikeUrl?.fallbackUrl || null,
+        videoUrl: videoUrl?.url || null,
+        fallbackVideoUrl: videoUrl?.fallbackUrl || null,
       };
     })
     .filter((item): item is GooglePhotoItem => Boolean(item));
 };
 
-const toAlbum = (album: unknown[]): GooglePhotoAlbum => ({
-  id: typeof album?.[0] === "string" ? album[0] : null,
-  title: typeof album?.[1] === "string" ? album[1] : null,
-  coverUrl: typeof album?.[3] === "string" ? album[3] : null,
-});
+const toAlbum = (album: unknown[]): GooglePhotoAlbum => {
+  const coverUrl = proxiedGooglePhotosCoverUrl(album?.[3]);
+
+  return {
+    id: typeof album?.[0] === "string" ? album[0] : null,
+    title: typeof album?.[1] === "string" ? album[1] : null,
+    coverUrl: coverUrl.url,
+    fallbackCoverUrl: coverUrl.fallbackUrl,
+  };
+};
 
 export async function fetchSharedAlbumHtml(shareUrl: string) {
-  const response = await fetchWithTimeout(shareUrl, {
-    redirect: "follow",
-    headers: {
-      "user-agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36",
-      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+
+  try {
+    response = await fetchAssetWithRelayFallback(shareUrl, {
+      headers: GOOGLE_PHOTOS_PAGE_HEADERS,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Google Photos 请求超时");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     throw new Error(`Google Photos request failed: ${response.status} ${response.statusText}`);

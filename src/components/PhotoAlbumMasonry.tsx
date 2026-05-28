@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Masonry from "react-masonry-css";
 
 interface PhotoAlbumMasonryProps {
-  shareUrl: string;
+  shareId: string;
   title?: string;
   showTitle?: boolean;
   className?: string;
@@ -17,10 +17,15 @@ interface PhotoItem {
   takenAt: string | null;
   durationMs: number | null;
   thumbUrl: string;
+  fallbackThumbUrl?: string | null;
   displayUrl: string;
+  fallbackDisplayUrl?: string | null;
   previewUrl: string;
+  fallbackPreviewUrl?: string | null;
   originalLikeUrl: string | null;
+  fallbackOriginalLikeUrl?: string | null;
   videoUrl: string | null;
+  fallbackVideoUrl?: string | null;
 }
 
 interface AlbumInfo {
@@ -40,6 +45,7 @@ interface ScrollLockState {
 
 const REVEAL_BATCH_SIZE = 15;
 const CLIENT_TIMEOUT_MS = 12000;
+const GOOGLE_PHOTOS_SHARE_URL_BASE = "https://photos.app.goo.gl/";
 const EMPTY_IMAGE_SRC =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
@@ -88,7 +94,7 @@ const sortPhotosForDisplay = (items: PhotoItem[]) =>
   });
 
 const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
-  shareUrl,
+  shareId,
   title,
   showTitle = true,
   className = "",
@@ -199,6 +205,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       return;
     }
 
+    delete video.dataset.fallbackApplied;
     video.src = selectedPhoto.videoUrl;
     video.poster = selectedPhoto.previewUrl || selectedPhoto.displayUrl;
     video.load();
@@ -226,7 +233,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
 
       try {
         const params = new URLSearchParams({
-          shareUrl,
+          shareUrl: `${GOOGLE_PHOTOS_SHARE_URL_BASE}${encodeURIComponent(shareId)}`,
           loadedCount: String(loadedCount),
         });
 
@@ -282,7 +289,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
         }
       }
     },
-    [shareUrl],
+    [shareId],
   );
 
   const loadMore = useCallback(() => {
@@ -384,7 +391,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
         abortControllerRef.current.abort();
       }
     };
-  }, [shareUrl, fetchPhotoPage]);
+  }, [shareId, fetchPhotoPage]);
 
   useEffect(() => {
     if (!scrollDetectorRef.current) {
@@ -497,6 +504,26 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     });
   };
 
+  const fallbackMediaSource = (
+    event: React.SyntheticEvent<HTMLImageElement | HTMLVideoElement>,
+    fallbackUrl?: string | null,
+    onMissingFallback?: () => void,
+  ) => {
+    const element = event.currentTarget;
+
+    if (!fallbackUrl || element.dataset.fallbackApplied === "true") {
+      onMissingFallback?.();
+      return;
+    }
+
+    element.dataset.fallbackApplied = "true";
+    element.src = fallbackUrl;
+
+    if (element instanceof HTMLVideoElement) {
+      element.load();
+    }
+  };
+
   return (
     <section className={`w-full ${className}`}>
       <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -585,7 +612,9 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                 height={photo.height || undefined}
                 loading="lazy"
                 onLoad={() => markMediaLoaded(photo.id)}
-                onError={() => registerImageFailure(photo.id)}
+                onError={(event) =>
+                  fallbackMediaSource(event, photo.fallbackThumbUrl, () => registerImageFailure(photo.id))
+                }
                 className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
                   loadedMediaIds[photo.id] ? "opacity-100" : "opacity-0"
                 }`}
@@ -645,7 +674,6 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
           onClick={closePreview}
-          onWheel={(event) => event.preventDefault()}
           style={{
             overscrollBehavior: "contain",
             touchAction: "none",
@@ -719,6 +747,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
 
                   <img
                     ref={previewPosterImageRef}
+                    key={`${selectedPhoto.id}-poster`}
                     src={selectedPhoto.previewUrl || selectedPhoto.displayUrl}
                     alt={
                       album?.title && selectedPhotoOrder !== null
@@ -726,7 +755,13 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                         : `相册缩略图 ${selectedPhotoOrder ?? ""}`.trim()
                     }
                     onLoad={() => setPreviewThumbLoaded(true)}
-                    onError={() => setPreviewThumbLoaded(true)}
+                    onError={(event) =>
+                      fallbackMediaSource(
+                        event,
+                        selectedPhoto.fallbackPreviewUrl || selectedPhoto.fallbackDisplayUrl,
+                        () => setPreviewThumbLoaded(true),
+                      )
+                    }
                     className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
                       !previewVideoReady ? "opacity-100" : "opacity-0"
                     }`}
@@ -789,9 +824,11 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                       setPreviewVideoReady(true);
                       setPreviewVideoFailed(false);
                     }}
-                    onError={() => {
-                      setPreviewThumbLoaded(true);
-                      setPreviewVideoFailed(true);
+                    onError={(event) => {
+                      fallbackMediaSource(event, selectedPhoto.fallbackVideoUrl, () => {
+                        setPreviewThumbLoaded(true);
+                        setPreviewVideoFailed(true);
+                      });
                     }}
                     className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
                       previewVideoReady ? "opacity-100" : "pointer-events-none opacity-0"
@@ -820,6 +857,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                   {previewImageUrl ? (
                     <img
                       ref={previewImageElementRef}
+                      key={`${selectedPhoto.id}-${previewImageUrl}`}
                       src={previewImageUrl}
                       alt={
                         album?.title && selectedPhotoOrder !== null
@@ -833,7 +871,15 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                           setPreviewFullLoaded(true);
                         }
                       }}
-                      onError={() => setPreviewThumbLoaded(true)}
+                      onError={(event) =>
+                        fallbackMediaSource(
+                          event,
+                          previewImageUrl === selectedPhoto.previewUrl
+                            ? selectedPhoto.fallbackPreviewUrl
+                            : selectedPhoto.fallbackDisplayUrl,
+                          () => setPreviewThumbLoaded(true),
+                        )
+                      }
                       className="absolute inset-0 h-full w-full object-contain"
                     />
                   ) : null}
@@ -841,6 +887,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                   {shouldLoadFullPreviewImage && previewFullImageUrl ? (
                     <img
                       ref={previewFullImageElementRef}
+                      key={`${selectedPhoto.id}-${previewFullImageUrl}`}
                       src={previewFullImageUrl}
                       alt={
                         album?.title && selectedPhotoOrder !== null
@@ -848,7 +895,11 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                           : `相册照片 ${selectedPhotoOrder ?? ""}`.trim()
                       }
                       onLoad={() => setPreviewFullLoaded(true)}
-                      onError={() => setPreviewFullLoaded(true)}
+                      onError={(event) =>
+                        fallbackMediaSource(event, selectedPhoto.fallbackOriginalLikeUrl, () =>
+                          setPreviewFullLoaded(true),
+                        )
+                      }
                       className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
                         previewFullLoaded ? "opacity-100" : "opacity-0"
                       }`}

@@ -1344,10 +1344,21 @@ export function initGlobalGraphModal() {
       });
     }
 
-    modalEl.querySelectorAll(".graph-tree-group").forEach((details) => {
-      if (!(details instanceof HTMLDetailsElement)) return;
-      const sectionPath = details.getAttribute("data-section-path") || "";
-      details.open = openSectionPaths.has(sectionPath);
+    modalEl.querySelectorAll(".graph-tree-group").forEach((group) => {
+      if (!(group instanceof HTMLElement)) return;
+      const sectionPath = group.getAttribute("data-section-path") || "";
+      const isOpen = openSectionPaths.has(sectionPath);
+      const disclosure = group.querySelector("[data-tree-disclosure]");
+      const children = group.querySelector(".graph-tree-children, .graph-tree-empty");
+
+      group.classList.toggle("is-open", isOpen);
+      group.setAttribute("data-open", isOpen ? "true" : "false");
+      if (disclosure instanceof HTMLElement) {
+        disclosure.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      }
+      if (children instanceof HTMLElement) {
+        children.hidden = !isOpen;
+      }
     });
   }
 
@@ -1500,6 +1511,23 @@ export function initGlobalGraphModal() {
 
   modalEl.querySelectorAll("[data-close-global-graph]").forEach((element) => {
     addListener(element, "click", closeModal);
+  });
+
+  modalEl.querySelectorAll("[data-tree-disclosure]").forEach((button) => {
+    if (!(button instanceof HTMLElement)) return;
+    const group = button.closest(".graph-tree-group");
+    const children = group?.querySelector(".graph-tree-children, .graph-tree-empty");
+    if (!(group instanceof HTMLElement)) return;
+
+    addListener(button, "click", () => {
+      const isOpen = group.getAttribute("data-open") !== "true";
+      group.classList.toggle("is-open", isOpen);
+      group.setAttribute("data-open", isOpen ? "true" : "false");
+      button.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      if (children instanceof HTMLElement) {
+        children.hidden = !isOpen;
+      }
+    });
   });
 
   modalEl.querySelectorAll(".graph-tree-link").forEach((link) => {

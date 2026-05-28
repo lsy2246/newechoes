@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { load } from 'cheerio';
+import { fetchAssetDirect, relayAssetUrl } from '@/lib/server-asset-relay';
 
 // 添加服务器渲染标记
 export const prerender = false;
@@ -8,6 +9,14 @@ export const prerender = false;
 const MAX_RETRIES = 0;        // 最大重试次数
 const RETRY_DELAY = 1500;     // 重试延迟（毫秒）
 const REQUEST_TIMEOUT = 10000; // 请求超时时间（毫秒）
+const DOUBAN_IMAGE_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+  'Referer': 'https://movie.douban.com/',
+  'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+};
+
+const localDoubanImageUrl = (imageUrl: string) =>
+  `/api/douban?imageUrl=${encodeURIComponent(imageUrl)}`;
 
 // 带超时的 fetch 函数
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number) {
@@ -67,12 +76,8 @@ export const GET: APIRoute = async ({ request }) => {
   // 如果是图片代理请求
   if (imageUrl) {
     try {
-      const response = await fetch(imageUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
-          'Referer': 'https://movie.douban.com/',
-          'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
-        },
+      const response = await fetchAssetDirect(imageUrl, {
+        headers: DOUBAN_IMAGE_HEADERS,
       });
 
       if (!response.ok) {
@@ -190,6 +195,7 @@ export const GET: APIRoute = async ({ request }) => {
         // 添加类型定义
         interface DoubanItem {
           imageUrl: string;
+          fallbackImageUrl: string;
           title: string;
           subtitle: string;
           link: string;
@@ -287,8 +293,11 @@ export const GET: APIRoute = async ({ request }) => {
             }
 
             // 确保所有字段至少有空字符串
+            const fallbackImageUrl = imageUrl ? localDoubanImageUrl(imageUrl) : '';
+
             items.push({
-              imageUrl: imageUrl || '',
+              imageUrl: imageUrl ? relayAssetUrl(imageUrl, DOUBAN_IMAGE_HEADERS) || fallbackImageUrl : '',
+              fallbackImageUrl,
               title: title || '',
               subtitle: subtitle || '',
               link: link || '',
@@ -472,4 +481,4 @@ export const GET: APIRoute = async ({ request }) => {
       }
     });
   }
-} 
+}

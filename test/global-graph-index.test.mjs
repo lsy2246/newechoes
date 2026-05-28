@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const modal = readFileSync("src/components/GlobalGraphModal.astro", "utf8");
+const tree = readFileSync("src/components/GlobalGraphTree.astro", "utf8");
 const headerCss = readFileSync("src/styles/header.css", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 const runtime = readFileSync("src/lib/global-graph-modal.ts", "utf8");
@@ -40,16 +41,48 @@ test("global graph tree uses compact file-sidebar styling", () => {
   assert.match(cssBlock(".graph-tree-count"), /border-radius:\s*9999px;/);
 });
 
+test("global graph section rows keep disclosure, label, and count aligned", () => {
+  assert.match(cssBlock(".graph-tree-group"), /grid-template-columns:\s*1\.05rem minmax\(0,\s*1fr\) auto;/);
+  assert.match(cssBlock(".graph-tree-summary"), /grid-row:\s*1;/);
+  assert.match(cssBlock(".graph-tree-group > .graph-tree-link-section"), /grid-row:\s*1;/);
+  assert.match(cssBlock(".graph-tree-count"), /grid-row:\s*1;/);
+  assert.match(cssBlock(".graph-tree-children"), /grid-column:\s*2 \/ -1;/);
+});
+
 test("global graph text index expands only the current path", () => {
-  assert.match(modal, /const open\s*=\s*isSectionActive\(section\.path\);/);
-  assert.match(modal, /\$\{open \? "open" : ""\}/);
+  assert.match(tree, /const open\s*=\s*section \? isSectionActive\(section\.path\) : false;/);
+  assert.match(tree, /open=\{open\}/);
   assert.equal(modal.includes("const open = level === 0"), false);
   assert.equal(modal.includes("active || level === 0"), false);
-  assert.match(modal, /class="graph-tree-link graph-tree-link-article\$\{isCurrent \? " is-current" : ""\}"/);
-  assert.match(modal, /class="graph-tree-link graph-tree-link-section\$\{isSectionCurrent \? " is-current" : ""\}"/);
+  assert.match(tree, /class:list=\{\[\s*"graph-tree-link"/);
+  assert.match(tree, /"graph-tree-link-article"/);
+  assert.match(tree, /"graph-tree-link-section"/);
   assert.equal(modal.includes('${active ? " is-active" : ""}'), false);
   assert.equal(runtime.includes('element.classList.toggle("is-active"'), false);
   assert.equal(runtime.includes("element.open = active || !sectionPath.includes"), false);
+});
+
+test("global graph section summaries do not contain interactive links", () => {
+  const summaryBlocks = tree.match(/<summary[\s\S]*?<\/summary>/g) ?? [];
+
+  assert.ok(summaryBlocks.length > 0);
+  summaryBlocks.forEach((summary) => {
+    assert.equal(summary.includes("<a "), false);
+  });
+  assert.match(tree, /"graph-tree-link-section"/);
+});
+
+test("global graph text index is rendered with Astro components instead of string HTML", () => {
+  assert.match(modal, /import GlobalGraphTree from "\.\/GlobalGraphTree\.astro";/);
+  assert.match(modal, /<GlobalGraphTree/);
+  assert.equal(modal.includes("set:html={treeHtml}"), false);
+  assert.equal(modal.includes("const treeHtml"), false);
+  assert.equal(modal.includes("function renderSection"), false);
+  assert.equal(modal.includes("function renderArticleItem"), false);
+  assert.equal(tree.includes("GlobalGraphTreeSection.astro"), false);
+  assert.equal(tree.includes("GlobalGraphTreeArticle.astro"), false);
+  assert.equal(existsSync("src/components/GlobalGraphTreeSection.astro"), false);
+  assert.equal(existsSync("src/components/GlobalGraphTreeArticle.astro"), false);
 });
 
 test("global graph keeps the text index expanded after canvas navigation", () => {
@@ -65,8 +98,8 @@ test("global graph shows current location inside the text index and centers it",
   assert.equal(modal.includes("当前位置:"), false);
   assert.equal(modal.includes("data-current-location"), false);
   assert.equal(modal.includes("global-graph-current-link"), false);
-  assert.match(modal, /\$\{isCurrent \? " is-current" : ""\}/);
-  assert.match(modal, /\$\{isSectionCurrent \? " is-current" : ""\}/);
+  assert.match(tree, /"is-current":\s*isCurrent/);
+  assert.match(tree, /"is-current":\s*isSectionCurrent/);
   assert.match(runtime, /function syncTreeCurrentItem/);
   assert.match(runtime, /link\.classList\.toggle\("is-current",\s*linkNodeId === nodeId\);/);
   assert.match(runtime, /function centerTreeOnCurrentItem/);

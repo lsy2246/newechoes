@@ -1,6 +1,8 @@
 export const SITE_URL = 'https://blog.lsy22.com';
 export const SITE_TITLE = "echoes";
 export const SITE_DESCRIPTION = "记录生活，分享所思";
+// 可选：外部静态资源代理模板，使用 {url} 和 {headers} 作为占位符；未配置时使用站点内置后端代理。
+export const ASSET_RELAY_URL = "https://proxy.u.cd/download?url={url}&headers={headers}";
 // 新的导航结构 - 支持分层导航
 export const NAV_STRUCTURE = [
     { id: "home", text: "首页", href: "/" },
@@ -38,24 +40,5 @@ export const ARTICLE_EXPIRY_CONFIG = {
     warningMessage: '这篇文章已经发布超过一年了，内容可能已经过时，请谨慎参考。' // 提醒消息
 };
 
-export const PHOTO_ALBUM_CONFIG = {
-    shareUrl: 'https://photos.app.goo.gl/M62Uxp4Uz2CUwie9A',
-    title: '生活碎片'
-};
 
-// 主页 diorama —— 笔记本屏幕上显示的个人信息
-// 所有字段都可以改。rows 可加可减；typewriter 列表里的每一条都会被轮播打字-删除。
-export const HOME_PROFILE = {
-    title: 'lsy',                               // 屏幕上的大字
-    subtitle: 'full-stack & AI',                // 大字下方副标题
-    rows: [
-        { label: 'stack', value: 'React · TypeScript · Rust' },
-        { label: 'contact', value: 'lsy22@vip.qq.com' },
-    ] as { label: string; value: string }[],
-    typewriter: [
-        'today in echoes',
-        'local workspace',
-        'updating',
-    ] as string[],
-};
 

@@ -9,6 +9,7 @@ interface DoubanCollectionProps {
 interface DoubanItem {
   title: string;
   imageUrl: string;
+  fallbackImageUrl?: string;
   link: string;
 }
 
@@ -393,10 +394,18 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
             >
               <div className="cover-card-poster">
                 <img
-                  src={`/api/douban?imageUrl=${encodeURIComponent(item.imageUrl)}`}
+                  src={item.imageUrl}
                   alt={item.title}
                   className="cover-card-image"
                   loading="lazy"
+                  onError={(event) => {
+                    if (!item.fallbackImageUrl || event.currentTarget.dataset.fallbackApplied === "true") {
+                      return;
+                    }
+
+                    event.currentTarget.dataset.fallbackApplied = "true";
+                    event.currentTarget.src = item.fallbackImageUrl;
+                  }}
                 />
                 <div className="cover-card-overlay">
                   <div className="cover-card-textStack">

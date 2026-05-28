@@ -416,6 +416,13 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const path = window.location.pathname;
     return path === '/' ? '/' : path.endsWith('/') ? path.slice(0, -1) : path;
   }
+
+  function syncHeaderScrollSurface() {
+    const headerBg = document.getElementById('header-bg');
+    if (!headerBg) return;
+
+    headerBg.classList.toggle('scrolled', window.scrollY > 8);
+  }
   
   // 添加事件监听器并记录，方便后续统一清理
   function addListener(element, eventType, handler, options) {
@@ -866,6 +873,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   function setupNavigation() {
     // 初始化路径记录
     state.lastActivePath = getCurrentPath();
+
+    syncHeaderScrollSurface();
+    addListener(window, 'scroll', syncHeaderScrollSurface, { passive: true });
     
     // 设置桌面导航
     setupNavSelector();

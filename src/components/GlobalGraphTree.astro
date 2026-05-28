@@ -1,0 +1,197 @@
+---
+import type { ContentStructure, SectionStructure } from "@/content.config";
+import { getCanonicalArticleUrl } from "@/lib/article-links";
+
+interface Props {
+  articleId?: string;
+  articleTitleMap: Map<string, string>;
+  contentStructure?: ContentStructure;
+  currentArticleId?: string;
+  currentSectionPath: string;
+  level?: number;
+  section?: SectionStructure;
+}
+
+const {
+  articleId,
+  articleTitleMap,
+  contentStructure,
+  currentArticleId,
+  currentSectionPath,
+  level = 0,
+  section,
+} = Astro.props;
+
+const structure = contentStructure ?? { articles: [], sections: [] };
+
+function sectionUrl(sectionPath: string) {
+  return `/articles/${encodeURI(sectionPath)}`;
+}
+
+function isSectionActive(sectionPath: string) {
+  if (!sectionPath) return false;
+  return (
+    currentSectionPath === sectionPath ||
+    currentSectionPath.startsWith(`${sectionPath}/`) ||
+    (currentArticleId ? currentArticleId.startsWith(`${sectionPath}/`) : false)
+  );
+}
+
+function getArticleTitle(articleId: string) {
+  return articleTitleMap.get(articleId) ?? articleId.split("/").at(-1) ?? articleId;
+}
+
+const articleHref = articleId ? getCanonicalArticleUrl(articleId) : "";
+const articleTitle = articleId ? getArticleTitle(articleId) : "";
+const isCurrent = currentArticleId === articleId;
+
+const open = section ? isSectionActive(section.path) : false;
+const isSectionCurrent = section
+  ? currentSectionPath === section.path && !currentArticleId
+  : false;
+const sectionHref = section ? sectionUrl(section.path) : "";
+const childCount = section ? section.articles.length + section.sections.length : 0;
+const hasChildren = childCount > 0;
+---
+
+{
+  articleId ? (
+    <li
+      class="graph-tree-item graph-tree-item-article"
+      data-article-id={articleId}
+      style={`--tree-level:${level};`}
+    >
+      <a
+        href={articleHref}
+        class:list={[
+          "graph-tree-link",
+          "graph-tree-link-article",
+          { "is-current": isCurrent },
+        ]}
+        data-route-target={articleHref}
+        data-node-target={`article:${articleId}`}
+        data-astro-prefetch="hover"
+      >
+        <span class="graph-tree-label">{articleTitle}</span>
+      </a>
+    </li>
+  ) : section ? (
+    <li
+      class="graph-tree-item graph-tree-item-section"
+      data-section-path={section.path}
+      style={`--tree-level:${level};`}
+    >
+      <div
+        class:list={["graph-tree-group", { "is-open": open }]}
+        data-section-path={section.path}
+        data-open={open ? "true" : "false"}
+      >
+        <button
+          type="button"
+          class="graph-tree-summary"
+          aria-label={`展开或折叠 ${section.name}`}
+          aria-expanded={open ? "true" : "false"}
+          data-tree-disclosure
+        >
+          <span
+            class="graph-tree-disclosure"
+            aria-hidden="true"
+          >
+            <svg
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m4 2 4 4-4 4"></path>
+            </svg>
+          </span>
+        </button>
+
+        <a
+          href={sectionHref}
+          class:list={[
+            "graph-tree-link",
+            "graph-tree-link-section",
+            { "is-current": isSectionCurrent },
+          ]}
+          data-route-target={sectionHref}
+          data-section-path={section.path}
+          data-node-target={`section:${section.path}`}
+          data-astro-prefetch="hover"
+        >
+          <span class="graph-tree-label">{section.name}</span>
+        </a>
+
+        <span class="graph-tree-count">{childCount}</span>
+
+        {
+          hasChildren ? (
+            <ul class="graph-tree-children" hidden={!open}>
+              {
+                section.sections.map((child) => (
+                  <Astro.self
+                    articleTitleMap={articleTitleMap}
+                    currentArticleId={currentArticleId}
+                    currentSectionPath={currentSectionPath}
+                    level={level + 1}
+                    section={child}
+                  />
+                ))
+              }
+              {
+                section.articles.map((childArticleId) => (
+                  <Astro.self
+                    articleId={childArticleId}
+                    articleTitleMap={articleTitleMap}
+                    currentArticleId={currentArticleId}
+                    currentSectionPath={currentSectionPath}
+                    level={level + 1}
+                  />
+                ))
+              }
+            </ul>
+          ) : (
+            <div class="graph-tree-empty" hidden={!open}>这个目录下暂时没有更多分支</div>
+          )
+        }
+      </div>
+    </li>
+  ) : (
+    <ul class="global-graph-tree">
+      {
+        structure.articles.length > 0 && (
+          <li class="graph-tree-item graph-tree-item-top">
+            <div class="graph-tree-top-label">根目录文章</div>
+            <ul class="graph-tree-children">
+              {
+                structure.articles.map((rootArticleId) => (
+                  <Astro.self
+                    articleId={rootArticleId}
+                    articleTitleMap={articleTitleMap}
+                    currentArticleId={currentArticleId}
+                    currentSectionPath={currentSectionPath}
+                    level={0}
+                  />
+                ))
+              }
+            </ul>
+          </li>
+        )
+      }
+
+      {
+        structure.sections.map((rootSection) => (
+          <Astro.self
+            articleTitleMap={articleTitleMap}
+            currentArticleId={currentArticleId}
+            currentSectionPath={currentSectionPath}
+            section={rootSection}
+          />
+        ))
+      }
+    </ul>
+  )
+}
