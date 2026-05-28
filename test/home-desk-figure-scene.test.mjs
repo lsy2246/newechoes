@@ -292,6 +292,29 @@ test("home first-screen 3D component stays small enough to support the lsy hero"
   assert.doesNotMatch(dioramaTs, /componentAlpha > 0 \? 1 : 0/);
 });
 
+test("home startup keeps the real opening frame while heavy assets warm up", () => {
+  assert.match(dioramaTs, /const STARTUP_GATE_PROGRESS = 0\.08;/);
+  assert.match(dioramaTs, /const STARTUP_GATE_TIMEOUT_MS = 1400;/);
+  assert.match(dioramaTs, /let startupGateReleased = reduceMotion;/);
+  assert.match(dioramaTs, /let startupGatePendingScroll = false;/);
+  assert.match(dioramaTs, /const rawScrollProgress = getScrollProgress\(\);/);
+  assert.match(dioramaTs, /startupGatePendingScroll = !startupGateReleased && rawScrollProgress > STARTUP_GATE_PROGRESS \+ 0\.002;/);
+  assert.match(dioramaTs, /scrollTargetProgress = startupGateReleased\s*\?\s*rawScrollProgress\s*:\s*Math\.min\(rawScrollProgress, STARTUP_GATE_PROGRESS\);/);
+  assert.match(dioramaTs, /const releaseStartupGate = \(\) => \{/);
+  assert.match(dioramaTs, /keyboardModelLoaded = true;\s*syncKeyboardModelOpacity\(mats\.key\.opacity\);\s*releaseStartupGate\(\);/);
+  assert.match(dioramaTs, /applyTypingCharacterCorrectivePose\(\);\s*\}\s*releaseStartupGate\(\);/);
+  assert.match(dioramaTs, /const startupGateTimer = window\.setTimeout\(releaseStartupGate, STARTUP_GATE_TIMEOUT_MS\);/);
+  assert.match(dioramaTs, /window\.clearTimeout\(startupGateTimer\);/);
+});
+
+test("home startup cue changes progress bar state while the opening scroll is gated", () => {
+  assert.match(dioramaTs, /const cueMode = !startupGateReleased && startupGatePendingScroll\s*\?\s*"loading"/);
+  assert.match(dioramaTs, /cuePercentEl\.textContent = cueMode === "loading" \? "\.\.\." : `\$\{Math\.round\(cueProgress \* 100\)\}%`;/);
+  assert.match(dioramaCss, /\.home-scroll-cue\[data-cue-mode="loading"\] \.home-scroll-cue__progress span/);
+  assert.match(dioramaCss, /animation:\s*home-cue-loading-bar 1\.05s ease-in-out infinite;/);
+  assert.match(dioramaCss, /@keyframes home-cue-loading-bar/);
+});
+
 test("home 3D renderer sizes from the untransformed canvas box", () => {
   assert.match(dioramaTs, /const w = Math\.max\(1, canvasEl\.clientWidth \|\| window\.innerWidth\);/);
   assert.match(dioramaTs, /const h = Math\.max\(1, canvasEl\.clientHeight \|\| window\.innerHeight\);/);

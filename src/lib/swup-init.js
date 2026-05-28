@@ -479,23 +479,21 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 添加预加载插件 - 代替原有的预加载功能
   const preloadPlugin = new SwupPreloadPlugin({
-    // 最多同时预加载5个链接
-    throttle: 5,
+    // 早初始化 Swup，但降低首屏资源争用。
+    throttle: window.matchMedia('(max-width: 767px)').matches ? 1 : 2,
     // 开启鼠标悬停预加载
     preloadHoveredLinks: true,
     // 开启视口内链接预加载，自定义配置
     preloadVisibleLinks: {
-      // 链接可见面积达到30%时预加载
-      threshold: 0.3,
-      // 链接可见500毫秒后开始预加载
-      delay: 500,
+      // 链接稳定可见后再预加载，避免首屏和重组件争抢网络。
+      threshold: 0.6,
+      delay: window.matchMedia('(max-width: 767px)').matches ? 1800 : 1200,
       // 在哪些容器内寻找链接
       containers: ['body'],
       // 忽略带有data-no-preload属性的链接
       ignore: (el) => el.hasAttribute('data-no-preload')
     },
-    // 预加载初始页面，以便"后退"导航更快
-    preloadInitialPage: true
+    preloadInitialPage: false
   });
   swup.use(preloadPlugin);
 

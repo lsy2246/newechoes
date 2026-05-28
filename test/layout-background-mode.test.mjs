@@ -147,6 +147,19 @@ test("search closes transient panels during swup navigation", () => {
   assert.ok(search.includes('document.removeEventListener("swup:page:view", handlePageChange)'));
 });
 
+test("search hydrates early without blocking the initial navigation paint", () => {
+  assert.match(header, /<Search client:idle=\{\{ timeout: 900 \}\} placeholder="搜索文章\.\.\." maxResults=\{5\} \/>/);
+  assert.equal(header.includes("<Search client:load"), false);
+});
+
+test("swup keeps early navigation active without aggressive first-paint preloading", () => {
+  assert.ok(swupInit.includes("preloadHoveredLinks: true"));
+  assert.ok(swupInit.includes("preloadInitialPage: false"));
+  assert.ok(swupInit.includes("threshold: 0.6"));
+  assert.ok(swupInit.includes("delay: window.matchMedia('(max-width: 767px)').matches ? 1800 : 1200"));
+  assert.ok(swupInit.includes("throttle: window.matchMedia('(max-width: 767px)').matches ? 1 : 2"));
+});
+
 test("swup clears homepage-only html state when leaving home", () => {
   assert.ok(swupInit.includes("clearHomePageState"));
   assert.ok(swupInit.includes('removeAttribute("data-home-header-phase")'));

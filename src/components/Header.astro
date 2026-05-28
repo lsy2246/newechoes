@@ -112,7 +112,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-xs ml-auto mr-4"
           data-home-header-search
         >
-          <Search client:load placeholder="搜索文章..." maxResults={5} />
+          <Search client:idle={{ timeout: 900 }} placeholder="搜索文章..." maxResults={5} />
         </div>
 
         <!-- 导航链接 - 集成NavSelector组件 -->
@@ -302,7 +302,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       >
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div class="relative">
-            <Search client:load placeholder="搜索文章..." maxResults={5} />
+            <Search client:idle={{ timeout: 900 }} placeholder="搜索文章..." maxResults={5} />
           </div>
         </div>
       </div>

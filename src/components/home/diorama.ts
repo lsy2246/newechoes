@@ -593,6 +593,7 @@ export function initDiorama() {
       keyboardModelMount.add(model);
       keyboardModelLoaded = true;
       syncKeyboardModelOpacity(mats.key.opacity);
+      releaseStartupGate();
     },
     undefined,
     () => {
@@ -933,6 +934,7 @@ export function initDiorama() {
         typingCharacterMixer.setTime(TYPING_CHARACTER_STATIC_POSE_TIME);
         applyTypingCharacterCorrectivePose();
       }
+      releaseStartupGate();
     },
     undefined,
     () => {
@@ -1081,6 +1083,8 @@ export function initDiorama() {
   const LOOP_RESET_PROGRESS = 0.998;
   const LOOP_BACK_WRAP_THRESHOLD = 0.002;
   const LOOP_BACK_WRAP_MIN_PROGRESS = LOOP_RETURN_START + 0.004;
+  const STARTUP_GATE_PROGRESS = 0.08;
+  const STARTUP_GATE_TIMEOUT_MS = 1400;
   const CAMERA_REJOIN_START = 0.82;
   const CAMERA_REJOIN_END = ROOM_CAMERA_END;
   const CAMERA_REJOIN_FOLLOW_RATE = 0.0075;
@@ -1102,6 +1106,8 @@ export function initDiorama() {
   let scrollTargetProgress = 0;
   let visualProgress = getStoryVisualProgress(homeProgress);
   let renderMode = getRenderMode(homeProgress);
+  let startupGateReleased = reduceMotion;
+  let startupGatePendingScroll = false;
   let cameraRejoinActive = false;
   let cameraInertialCatchup = false;
   let initialCameraSyncPending = true;
@@ -1278,7 +1284,17 @@ export function initDiorama() {
     return true;
   };
   const syncScrollProgress = () => {
-    scrollTargetProgress = getScrollProgress();
+    const rawScrollProgress = getScrollProgress();
+    startupGatePendingScroll = !startupGateReleased && rawScrollProgress > STARTUP_GATE_PROGRESS + 0.002;
+    scrollTargetProgress = startupGateReleased
+      ? rawScrollProgress
+      : Math.min(rawScrollProgress, STARTUP_GATE_PROGRESS);
+  };
+  const releaseStartupGate = () => {
+    if (startupGateReleased) return;
+    startupGateReleased = true;
+    syncScrollProgress();
+    needScreenRedraw = true;
   };
   const resetScrollToLoopStart = () => {
     if (loopResetQueued) return;
@@ -1372,20 +1388,22 @@ export function initDiorama() {
     storyEl?.style.setProperty("--story-progress", storyProgress.toFixed(4));
     storyEl?.style.setProperty("--story-local", storyProgress.toFixed(4));
     sceneEl?.setAttribute("data-home-phase", progress > 0.76 ? "room" : "page");
-    const cueMode = progress >= LOOP_RETURN_START
-      ? "scroll"
-      : progress >= INTERACTIVE_PROGRESS
-        ? "explore"
-        : progress > CAMERA_REJOIN_START
-          ? "settle"
-          : "scroll";
+    const cueMode = !startupGateReleased && startupGatePendingScroll
+      ? "loading"
+      : progress >= LOOP_RETURN_START
+        ? "scroll"
+        : progress >= INTERACTIVE_PROGRESS
+          ? "explore"
+          : progress > CAMERA_REJOIN_START
+            ? "settle"
+            : "scroll";
     const cueProgress = progress >= LOOP_RETURN_START
       ? 1 - getLoopReturnAmount(progress)
       : clamp(progress / LOOP_RETURN_START);
     cueEl?.style.setProperty("--cue-progress", cueProgress.toFixed(4));
     cueEl?.setAttribute("data-home-visible", "true");
     cueEl?.setAttribute("data-cue-mode", cueMode);
-    if (cuePercentEl) cuePercentEl.textContent = `${Math.round(cueProgress * 100)}%`;
+    if (cuePercentEl) cuePercentEl.textContent = cueMode === "loading" ? "..." : `${Math.round(cueProgress * 100)}%`;
   };
 
   let needScreenRedraw = true;
@@ -2032,11 +2050,13 @@ export function initDiorama() {
   }
 
   drawScreen();
+  const startupGateTimer = window.setTimeout(releaseStartupGate, STARTUP_GATE_TIMEOUT_MS);
   rafId = requestAnimationFrame(animate);
 
   // ===== Cleanup =====
   const cleanup = () => {
     disposed = true;
+    window.clearTimeout(startupGateTimer);
     if (rafId) cancelAnimationFrame(rafId);
     window.removeEventListener("scroll", syncScrollProgress);
     window.removeEventListener("wheel", loopBackwardWheelHandler, { capture: true });
