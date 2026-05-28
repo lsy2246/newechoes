@@ -1833,8 +1833,12 @@ const drawDesktopStory = (
   const dioramaMode = input.revealCenterDiorama === true;
   const dioramaHandoff = dioramaMode ? phase(progress, 0.08, 0.24) : 1;
   const dioramaPresence = 1 - dioramaHandoff;
-  const dioramaFocusGuardX = clamp(stageW * 0.18, 205 * unit, 270 * unit);
-  const dioramaFocusGuardY = clamp(height * 0.16, 135 * unit, 190 * unit);
+  const dioramaTitleX = centerX + stageW * 0.015;
+  const dioramaTitleY = centerY + 24 * unit;
+  const dioramaCoreX = dioramaTitleX;
+  const dioramaCoreY = centerY - 12 * unit;
+  const dioramaFocusGuardX = clamp(stageW * 0.15, 158 * unit, 220 * unit);
+  const dioramaFocusGuardY = clamp(height * 0.125, 104 * unit, 154 * unit);
   const connector = palette.aiLine;
   const connectorFlow = palette.aiFlow;
   const materialRuleColor = input.theme === "dark" ? "rgba(159, 154, 159, 0.3)" : "rgba(5, 5, 5, 0.2)";
@@ -1981,7 +1985,9 @@ const drawDesktopStory = (
     withAlpha(ctx, alpha, () => {
       ctx.save();
       const midX = (fromX + toX) / 2;
-      const bend = (toY - fromY) * 0.18;
+      const verticalDirection = toY < dioramaCoreY ? -1 : 1;
+      const horizontalArc = clamp(Math.abs(toX - fromX) * 0.08, 18 * unit, 46 * unit);
+      const bend = (toY - fromY) * 0.24 + verticalDirection * horizontalArc;
 
       const drawConnectorPath = () => {
         ctx.beginPath();
@@ -1991,7 +1997,7 @@ const drawDesktopStory = (
 
       ctx.strokeStyle = connector;
       ctx.globalAlpha *= input.theme === "dark" ? 0.9 : 0.78;
-      ctx.lineWidth = 2.2 * unit;
+      ctx.lineWidth = 2 * unit;
       ctx.lineCap = "round";
       ctx.setLineDash([8 * unit, 8 * unit]);
       ctx.lineDashOffset = connectorMotion * 42 * unit;
@@ -1999,8 +2005,8 @@ const drawDesktopStory = (
       ctx.stroke();
 
       ctx.strokeStyle = connectorFlow;
-      ctx.globalAlpha *= input.theme === "dark" ? 0.58 : 0.5;
-      ctx.lineWidth = 2.8 * unit;
+      ctx.globalAlpha *= input.theme === "dark" ? 0.56 : 0.5;
+      ctx.lineWidth = 2.35 * unit;
       ctx.setLineDash([3 * unit, 25 * unit]);
       ctx.lineDashOffset = connectorMotion * 92 * unit;
       drawConnectorPath();
@@ -2055,16 +2061,18 @@ const drawDesktopStory = (
     const layout = materialLabelLayout(rect, item, compact);
     const materialCenterX = (layout.labelLeft + layout.labelRight) / 2;
     const materialCenterY = layout.labelCenterY;
-    const dx = materialCenterX - centerX;
-    const dy = materialCenterY - centerY;
+    const relationHubX = lerp(dioramaCoreX, centerX, dioramaHandoff);
+    const relationHubY = lerp(dioramaCoreY, centerY, dioramaHandoff);
+    const dx = materialCenterX - relationHubX;
+    const dy = materialCenterY - relationHubY;
     const distance = Math.max(1, Math.hypot(dx, dy));
     const nx = dx / distance;
     const ny = dy / distance;
     const centerGuard = clamp(height * 0.145, 104 * unit, 142 * unit);
     const normalFromX = centerX + nx * centerGuard;
     const normalFromY = centerY + ny * centerGuard * 0.58;
-    const dioramaFromX = centerX + nx * dioramaFocusGuardX;
-    const dioramaFromY = centerY + ny * dioramaFocusGuardY;
+    const dioramaFromX = dioramaCoreX + nx * dioramaFocusGuardX;
+    const dioramaFromY = dioramaCoreY + ny * dioramaFocusGuardY;
     const fromX = lerp(dioramaFromX, normalFromX, dioramaHandoff);
     const fromY = lerp(dioramaFromY, normalFromY, dioramaHandoff);
 
@@ -2079,12 +2087,20 @@ const drawDesktopStory = (
   const materials = STORY_MATERIALS;
 
   const mindOffsets = [
-    { x: -stageW * 0.31, y: -height * 0.15 },
-    { x: stageW * 0.29, y: -height * 0.17 },
-    { x: -stageW * 0.27, y: height * 0.09 },
-    { x: stageW * 0.32, y: height * 0.07 },
-    { x: -stageW * 0.25, y: height * 0.25 },
-    { x: stageW * 0.25, y: height * 0.25 },
+    { x: -stageW * 0.3, y: -height * 0.16 },
+    { x: stageW * 0.31, y: -height * 0.17 },
+    { x: -stageW * 0.28, y: height * 0.09 },
+    { x: stageW * 0.33, y: height * 0.07 },
+    { x: -stageW * 0.26, y: height * 0.25 },
+    { x: stageW * 0.28, y: height * 0.24 },
+  ];
+  const dioramaMindOffsets = [
+    { x: -stageW * 0.28, y: -height * 0.15 },
+    { x: stageW * 0.3, y: -height * 0.16 },
+    { x: -stageW * 0.27, y: height * 0.08 },
+    { x: stageW * 0.32, y: height * 0.04 },
+    { x: -stageW * 0.25, y: height * 0.22 },
+    { x: stageW * 0.28, y: height * 0.21 },
   ];
 
   const inputCardW = stageW * 0.34;
@@ -2393,15 +2409,40 @@ const drawDesktopStory = (
 
     withAlpha(ctx, alpha * dioramaPresence, () => {
       ctx.save();
-      ctx.strokeStyle = input.theme === "dark" ? "rgba(238, 242, 246, 0.12)" : "rgba(16, 16, 16, 0.12)";
+      ctx.strokeStyle = input.theme === "dark" ? "rgba(238, 242, 246, 0.1)" : "rgba(16, 16, 16, 0.09)";
       ctx.lineWidth = 1;
-      ctx.setLineDash([3 * unit, 17 * unit]);
+      ctx.setLineDash([3 * unit, 18 * unit]);
       ctx.beginPath();
-      ctx.ellipse(centerX, centerY + 12 * unit, dioramaFocusGuardX * 0.72, dioramaFocusGuardY * 0.54, -0.08, Math.PI * 0.08, Math.PI * 1.12);
+      ctx.ellipse(dioramaCoreX, dioramaCoreY + 12 * unit, dioramaFocusGuardX * 0.88, dioramaFocusGuardY * 0.54, -0.08, Math.PI * 0.08, Math.PI * 1.12);
       ctx.stroke();
       ctx.beginPath();
-      ctx.ellipse(centerX, centerY + 12 * unit, dioramaFocusGuardX * 0.92, dioramaFocusGuardY * 0.66, -0.08, Math.PI * 1.04, Math.PI * 1.78);
+      ctx.ellipse(dioramaCoreX, dioramaCoreY + 12 * unit, dioramaFocusGuardX * 1.05, dioramaFocusGuardY * 0.66, -0.08, Math.PI * 1.04, Math.PI * 1.78);
       ctx.stroke();
+      ctx.restore();
+    });
+  };
+
+  const drawDioramaIdentityPanel = (alpha: number) => {
+    if (!dioramaMode || dioramaPresence <= 0.001) return;
+
+    const panelAlpha = alpha;
+    const titleSize = clamp(height * 0.17, 128 * unit, 192 * unit);
+    const titleX = dioramaTitleX;
+
+    withAlpha(ctx, panelAlpha, () => {
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.font = `600 ${titleSize}px 'Fraunces', 'Noto Serif SC', serif`;
+      ctx.fillStyle = palette.text;
+      ctx.shadowColor = input.theme === "dark" ? "rgba(0, 0, 0, 0.24)" : "rgba(16, 16, 16, 0.055)";
+      ctx.shadowBlur = 15 * unit;
+      ctx.shadowOffsetY = 8 * unit;
+      ctx.fillText("lsy", titleX, dioramaTitleY);
+      ctx.shadowColor = "transparent";
+
+      ctx.font = `700 ${19 * unit}px 'JetBrains Mono', monospace`;
+      ctx.fillStyle = palette.muted;
+      ctx.fillText("today in echoes", titleX, dioramaTitleY + 84 * unit);
       ctx.restore();
     });
   };
@@ -2427,13 +2468,20 @@ const drawDesktopStory = (
     const materialAlpha = (group: number) => Math.max(materialInputAlpha, group === 1 ? centerClassifyAlpha : sideTrackAlpha(group));
     const relationAlpha = (1 - phase(progress, 0.16, 0.22)) * (1 - classify);
     materials.forEach((item, index) => {
-      const offset = mindOffsets[index];
+      const normalOffset = mindOffsets[index];
+      const openingOffset = dioramaMindOffsets[index];
+      const offset = {
+        x: lerp(openingOffset.x, normalOffset.x, dioramaHandoff),
+        y: lerp(openingOffset.y, normalOffset.y, dioramaHandoff),
+      };
+      const orbitHubX = lerp(dioramaCoreX, centerX, dioramaHandoff);
+      const orbitHubY = lerp(dioramaCoreY, centerY, dioramaHandoff);
       const orbitAngle = item.angle + progress * 0.42;
       const orbitW = inputCardW * 0.46;
       const orbitH = inputCardH * 0.62;
       const orbit: Rect = {
-        x: clamp(centerX + offset.x + Math.cos(orbitAngle) * stageW * 0.015 - orbitW / 2, safeX, safeRight - orbitW),
-        y: centerY + offset.y + Math.sin(orbitAngle) * height * 0.018 - orbitH / 2,
+        x: clamp(orbitHubX + offset.x + Math.cos(orbitAngle) * stageW * 0.012 - orbitW / 2, safeX, safeRight - orbitW),
+        y: orbitHubY + offset.y + Math.sin(orbitAngle) * height * 0.014 - orbitH / 2,
         w: orbitW,
         h: orbitH,
       };
@@ -2443,6 +2491,8 @@ const drawDesktopStory = (
       curvedConnector(anchor.fromX, anchor.fromY, anchor.toX, anchor.toY, relationAlpha);
       drawEditorialMaterial(rect, item, classify, materialAlpha(item.group), phase(gather, 0.78, 1), index);
     });
+
+    drawDioramaIdentityPanel((1 - classify) * (1 - phase(progress, 0.16, 0.24)));
 
     [0, 2].forEach((index) => {
       const row = workRows[index];

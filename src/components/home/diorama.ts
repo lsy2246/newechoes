@@ -235,7 +235,7 @@ export function initDiorama() {
   const componentCameraTarget = new THREE.Vector3();
   const screenFov = 20;
   const roomFov = 50;
-  const componentFov = useMobileCarrier ? 44 : 46;
+  const componentFov = useMobileCarrier ? 42 : 49;
 
   const camera = new THREE.PerspectiveCamera(screenFov, 1, 0.1, 60);
 
@@ -1018,12 +1018,12 @@ export function initDiorama() {
     componentCameraTarget.set(
       useMobileCarrier ? 0.03 : 0,
       useMobileCarrier ? 0.03 : 0.02,
-      useMobileCarrier ? -0.1 : -0.12,
+      useMobileCarrier ? -0.1 : -0.06,
     );
     componentCameraPos.set(
-      useMobileCarrier ? 3.2 : 6.25,
-      useMobileCarrier ? 2.05 : 2.65,
-      useMobileCarrier ? 5.2 : 4.75,
+      useMobileCarrier ? 3.35 : 7.75,
+      useMobileCarrier ? 2.12 : 3.12,
+      useMobileCarrier ? 5.35 : 5.95,
     );
   };
   syncScreenIntroCamera();
@@ -1069,7 +1069,7 @@ export function initDiorama() {
   const STORY_FRAME_CACHE_LIMIT = useMobileCarrier ? 3 : 5;
   const STORY_CANVAS_DPR = HOME_DIORAMA_PIXEL_RATIO_CAP;
   const STORY_LAYOUT_DPR_CAP = useMobileCarrier ? 1.35 : 1.5;
-  const CENTER_DIORAMA_FADE_START = 0.08;
+  const CENTER_DIORAMA_FADE_START = 0.16;
   const CENTER_DIORAMA_PROGRESS_END = 0.24;
   const SCREEN_TEXTURE_PROGRESS_END = STORY_MODE_END;
   const STORY_FADE_START = 0.695;
@@ -1238,13 +1238,21 @@ export function initDiorama() {
     const loopReturn = getLoopReturnAmount(homeProgress);
     const storyOut = easeInOutSine(clamp((visualProgress - STORY_FADE_START) / (STORY_FADE_END - STORY_FADE_START)));
     const sceneIn = easeInOutSine(clamp((visualProgress - SCENE_FADE_START) / (SCENE_FADE_END - SCENE_FADE_START)));
-    const componentAlpha = 1 - easeInOutSine(clamp((visualProgress - CENTER_DIORAMA_FADE_START) / (CENTER_DIORAMA_PROGRESS_END - CENTER_DIORAMA_FADE_START)));
+    const centerDioramaProgress = clamp(visualProgress / STORY_PROGRESS_END);
+    const componentAlpha = 1 - easeInOutSine(clamp((centerDioramaProgress - CENTER_DIORAMA_FADE_START) / (CENTER_DIORAMA_PROGRESS_END - CENTER_DIORAMA_FADE_START)));
     const storyAlpha = renderMode === "loop" ? loopReturn : 1 - storyOut;
     const componentSceneAlpha = renderMode === "loop" ? Math.max(componentAlpha, loopReturn) : componentAlpha;
     const roomSceneAlpha = renderMode === "loop" ? 1 : sceneIn;
+    const componentLayout = renderMode === "loop" ? loopReturn : renderMode === "story" ? 1 : 0;
+    const componentScale = lerp(1, useMobileCarrier ? 0.82 : 0.4, componentLayout);
+    const componentX = (useMobileCarrier ? 0 : 6.5) * componentLayout;
+    const componentY = (useMobileCarrier ? 0.3 : 2.8) * componentLayout;
     docEl.style.setProperty("--scene-opacity", roomSceneAlpha.toFixed(4));
     docEl.style.setProperty("--story-opacity", storyAlpha.toFixed(4));
     docEl.style.setProperty("--component-scene-opacity", componentSceneAlpha.toFixed(4));
+    docEl.style.setProperty("--component-scene-x", `${componentX.toFixed(3)}vw`);
+    docEl.style.setProperty("--component-scene-y", `${componentY.toFixed(3)}vh`);
+    docEl.style.setProperty("--component-scene-scale", componentScale.toFixed(4));
   };
 
   const getShellScrollMetrics = () => {
@@ -1579,9 +1587,8 @@ export function initDiorama() {
 
   // ===== Resize =====
   const resize = () => {
-    const rect = canvasEl.getBoundingClientRect();
-    const w = Math.max(1, rect.width || window.innerWidth);
-    const h = Math.max(1, rect.height || window.innerHeight);
+    const w = Math.max(1, canvasEl.clientWidth || window.innerWidth);
+    const h = Math.max(1, canvasEl.clientHeight || window.innerHeight);
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     syncScreenIntroCamera();
@@ -1881,7 +1888,7 @@ export function initDiorama() {
         drawScreen({ overlay: true, texture: true }, now);
       }
       const loopDesiredFov = getLoopCameraState(homeProgress, desiredCameraPos, desiredCameraTarget);
-      applyCameraPose(loopDesiredFov, dt, false, LOOP_CAMERA_FOLLOW_RATE);
+      applyCameraPose(loopDesiredFov, dt, true, LOOP_CAMERA_FOLLOW_RATE);
       camera.updateProjectionMatrix();
       renderer.render(scene, camera);
       if (homeProgress >= LOOP_RESET_PROGRESS) {
@@ -2061,6 +2068,9 @@ export function initDiorama() {
     docEl.removeAttribute("data-home-header-phase");
     docEl.style.removeProperty("--scene-opacity");
     docEl.style.removeProperty("--component-scene-opacity");
+    docEl.style.removeProperty("--component-scene-x");
+    docEl.style.removeProperty("--component-scene-y");
+    docEl.style.removeProperty("--component-scene-scale");
     docEl.style.removeProperty("--story-opacity");
     docEl.style.removeProperty("--story-progress");
     docEl.style.removeProperty("--story-local");

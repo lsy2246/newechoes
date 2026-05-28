@@ -5,6 +5,9 @@
   --scene-opacity: 1;
   --story-opacity: 1;
   --component-scene-opacity: 0;
+  --component-scene-x: 0vw;
+  --component-scene-y: 0vh;
+  --component-scene-scale: 1;
   --story-progress: 0;
   --story-local: 0;
 }
@@ -49,7 +52,10 @@
   touch-action: pan-y;
   pointer-events: none;
   opacity: max(var(--scene-opacity, 1), var(--component-scene-opacity, 0));
+  transform: translate3d(var(--component-scene-x, 0vw), var(--component-scene-y, 0vh), 0) scale(var(--component-scene-scale, 1));
+  transform-origin: 50% 53%;
   transition: opacity 0.18s linear;
+  will-change: opacity, transform;
 }
 
 .home-diorama__veil {
