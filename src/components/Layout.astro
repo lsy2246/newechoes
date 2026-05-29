@@ -9,6 +9,7 @@ interface Props {
   title?: string;
   description?: string;
   date?: Date;
+  updatedDate?: Date;
   tags?: string[];
   skipSrTitle?: boolean; // 控制是否跳过屏幕阅读器标题
   pageType?: "page" | "article" | "directory"; // 更有语义的页面类型
@@ -29,6 +30,7 @@ const {
   title = SITE_TITLE,
   description = SITE_DESCRIPTION,
   date,
+  updatedDate,
   tags,
   skipSrTitle = true,
   pageType = "page", // 默认为普通页面
@@ -137,6 +139,14 @@ const canonicalHref = rssLink || canonicalURL.toString();
         <meta
           property="article:published_time"
           content={date.toISOString()}
+        />
+      )
+    }
+    {
+      updatedDate && pageType === "article" && (
+        <meta
+          property="article:modified_time"
+          content={updatedDate.toISOString()}
         />
       )
     }

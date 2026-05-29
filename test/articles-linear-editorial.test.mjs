@@ -13,6 +13,7 @@ const articleDirectoryRoute = readFileSync("src/pages/articles/[...path].astro",
 const articleDetail = readFileSync("src/pages/articles/[...id].astro", "utf8");
 const filteredPage = readFileSync("src/pages/filtered.astro", "utf8");
 const articleFilter = readFileSync("src/components/ArticleFilter.tsx", "utf8");
+const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
 const aboutPage = readFileSync("src/pages/about.astro", "utf8");
 const countdown = readFileSync("src/components/Countdown.tsx", "utf8");
 const constsSource = readFileSync("src/consts.ts", "utf8");
@@ -215,6 +216,15 @@ test("article history keeps the snapshot link under the hash", () => {
   assert.equal(versionBlock.includes("文件快照"), false);
 });
 
+test("article history heading is localized and related reading has no extra top rule", () => {
+  const historyHead = articleDetail.match(/<div class="article-history-head">[\s\S]*?<\/div>/)?.[0] ?? "";
+
+  assert.notEqual(historyHead, "");
+  assert.ok(historyHead.includes("<h2>历史版本</h2>"));
+  assert.equal(historyHead.includes("<h2>History</h2>"), false);
+  assert.doesNotMatch(cssBlock(articlesCss, ".article-relations"), /border-top:/);
+});
+
 test("article history move paths are displayed relative to content root", () => {
   assert.ok(articleDetail.includes("formatArticleHistoryPath(event.previousPath)"));
   assert.ok(articleDetail.includes("formatArticleHistoryPath(event.currentPath)"));
@@ -224,15 +234,29 @@ test("article history move paths are displayed relative to content root", () => 
 
 test("article history external links are controlled by a source repository config", () => {
   assert.match(constsSource, /export const SOURCE_REPOSITORY_CONFIG\s*=/);
-  assert.match(constsSource, /url:\s*""/);
-  assert.match(constsSource, /provider:\s*"auto"/);
+  assert.match(constsSource, /url:\s*"https:\/\/github\.com\/lsy2246\/newechoes"/);
+  assert.match(constsSource, /provider:\s*"github"/);
+  assert.doesNotMatch(constsSource, /provider:\s*"auto"/);
   assert.ok(articleDetail.includes("SOURCE_REPOSITORY_CONFIG"));
   assert.ok(articleDetail.includes("getArticleHistory(article, SOURCE_REPOSITORY_CONFIG)"));
   assert.ok(timelinePage.includes("SOURCE_REPOSITORY_CONFIG"));
   assert.ok(timelinePage.includes("getArticleHistoryMap(articles, SOURCE_REPOSITORY_CONFIG)"));
   assert.ok(articleHistorySource.includes("repositoryConfig = {}"));
   assert.ok(articleHistorySource.includes("repositoryProvider"));
+  assert.equal(articleHistorySource.includes('repositoryProvider = "auto"'), false);
   assert.equal(articleHistorySource.includes("readRepositoryUrl()"), false);
+});
+
+test("article pages expose git updated time for filter indexing", () => {
+  assert.ok(articleDetail.includes("updatedDate={articleHistory.updatedAt ?? undefined}"));
+  assert.ok(articleDetail.includes("articleHistory.updatedAt && ("));
+  assert.ok(articleDetail.includes("article-updated-date"));
+  assert.ok(layoutSource.includes("updatedDate?: Date"));
+  assert.ok(layoutSource.includes('property="article:modified_time"'));
+  assert.ok(layoutSource.includes("updatedDate.toISOString()"));
+  assert.ok(filteredPage.includes("articleUpdatedAt"));
+  assert.ok(filteredPage.includes("getArticleHistoryMap"));
+  assert.ok(filteredPage.includes("getCanonicalArticleUrl(articleIdentity)"));
 });
 
 test("article detail routes are generated only from title identities", () => {
@@ -339,14 +363,43 @@ test("article backlinks render below the article and long lists can scroll", () 
   assert.equal(articleDetail.includes("↩"), false);
   assert.equal(articleDetail.includes("article-sidecard-badge"), false);
   assert.match(cssBlock(articlesCss, ".side-scroll"), /overflow-y:\s*auto;/);
-  assert.match(cssBlock(articlesCss, ".article-relations"), /border-top:\s*1px solid var\(--article-line\);/);
+  assert.doesNotMatch(cssBlock(articlesCss, ".article-relations"), /border-top:/);
   assert.match(cssBlock(articlesCss, ".backlinks-scroll"), /max-height:\s*16rem;/);
 });
 
-test("article sidebar wires backlink rows into the hover preview system", () => {
-  const linkSelectorBlock = articleDetail.match(/const linkSelectors = \[[\s\S]*?\];/)?.[0] ?? "";
+test("article detail keeps internal links canonical without hover previews", () => {
+  assert.ok(articleDetail.includes("setupArticleReferenceLinks"));
+  assert.ok(articleDetail.includes("data-article-link-index"));
+  assert.equal(articleDetail.includes("setupArticleLinkPreviews"), false);
+  assert.equal(articleDetail.includes("data-article-preview-index"), false);
+  assert.equal(articleDetail.includes("article-link-preview"), false);
+  assert.equal(articleDetail.includes("article-preview-link"), false);
+  assert.equal(articleDetail.includes("is-preview-active"), false);
+  assert.equal(articleDetail.includes("HTMLIFrameElement"), false);
+  assert.equal(articleDetail.includes("mouseenter"), false);
+  assert.equal(articlesCss.includes(".article-link-preview"), false);
+  assert.equal(articlesCss.includes(".article-preview-link"), false);
+  assert.equal(articlesCss.includes("is-preview-active"), false);
+});
 
-  assert.ok(linkSelectorBlock.includes('".backlink-link[href]"'));
+test("article links share a restrained text interaction system", () => {
+  assert.match(cssBlock(articlesCss, ":root"), /--article-interactive-ink:\s*var\(--article-ink\);/);
+  assert.match(cssBlock(articlesCss, ":root"), /--article-interactive-line:/);
+  assert.match(cssBlock(articlesCss, ":root"), /--article-interactive-hover:\s*var\(--article-signal\);/);
+  assert.match(cssBlock(articlesCss, ":root"), /--article-interactive-active:/);
+  assert.match(cssBlock(articlesCss, ":root"), /--article-interactive-focus:/);
+
+  const proseLink = cssBlock(articlesCss, ".article-prose a");
+  assert.match(proseLink, /color:\s*var\(--article-interactive-ink\);/);
+  assert.match(proseLink, /text-decoration-color:\s*var\(--article-interactive-line\);/);
+  assert.match(proseLink, /transition:/);
+
+  assert.match(cssBlock(articlesCss, ".article-prose a:hover"), /color:\s*var\(--article-interactive-hover\);/);
+  assert.match(cssBlock(articlesCss, ".article-prose a:hover"), /text-decoration-color:\s*var\(--article-interactive-hover\);/);
+  assert.match(cssBlock(articlesCss, ".article-prose a:active"), /color:\s*var\(--article-interactive-active\);/);
+  assert.match(cssBlock(articlesCss, ".article-prose a:active"), /text-decoration-thickness:\s*2px;/);
+  assert.match(cssBlock(articlesCss, ".article-prose a:focus-visible"), /outline:\s*2px solid var\(--article-interactive-focus\);/);
+  assert.match(cssBlock(articlesCss, ".article-prose a:focus-visible"), /outline-offset:\s*3px;/);
 });
 
 test("article toc active row uses only a short marker without a slab highlight", () => {
@@ -417,33 +470,15 @@ test("article dark prose separates body copy from link and code highlights", () 
     lastCssBlock(articlesCss, ".article-prose :where(strong, b)"),
     /color:\s*var\(--article-ink\);/,
   );
+  assert.match(cssBlock(articlesCss, ".article-prose a"), /color:\s*var\(--article-interactive-ink\);/);
+  assert.match(cssBlock(articlesCss, ".article-prose a"), /text-decoration-line:\s*underline;/);
+  assert.match(cssBlock(articlesCss, ".article-prose a"), /text-decoration-thickness:\s*1\.5px;/);
+  assert.match(cssBlock(articlesCss, ".article-prose a"), /text-underline-offset:\s*0\.18em;/);
+  assert.match(cssBlock(articlesCss, ".article-prose a"), /border-bottom:\s*0;/);
+  assert.match(lastCssBlock(articlesCss, '[data-theme="dark"] .article-prose a'), /color:\s*var\(--article-interactive-ink\);/);
   assert.match(
-    articlesCss,
-    /\.article-prose a,\s*\.article-preview-link\s*\{[\s\S]*?color:\s*var\(--article-ink\);/,
-  );
-  assert.match(
-    articlesCss,
-    /\.article-prose a,\s*\.article-preview-link\s*\{[\s\S]*?text-decoration-line:\s*underline;/,
-  );
-  assert.match(
-    articlesCss,
-    /\.article-prose a,\s*\.article-preview-link\s*\{[\s\S]*?text-decoration-thickness:\s*1\.5px;/,
-  );
-  assert.match(
-    articlesCss,
-    /\.article-prose a,\s*\.article-preview-link\s*\{[\s\S]*?text-underline-offset:\s*0\.18em;/,
-  );
-  assert.match(
-    articlesCss,
-    /\.article-prose a,\s*\.article-preview-link\s*\{[\s\S]*?border-bottom:\s*0;/,
-  );
-  assert.match(
-    articlesCss,
-    /\[data-theme="dark"\] \.article-prose a,\s*\[data-theme="dark"\] \.article-preview-link\s*\{[\s\S]*?color:\s*var\(--article-ink\);/,
-  );
-  assert.match(
-    articlesCss,
-    /\[data-theme="dark"\] \.article-prose a,\s*\[data-theme="dark"\] \.article-preview-link\s*\{[\s\S]*?text-decoration-color:\s*color-mix\(in oklab,\s*var\(--article-ink\) 72%,\s*transparent\);/,
+    lastCssBlock(articlesCss, '[data-theme="dark"] .article-prose a'),
+    /text-decoration-color:\s*color-mix\(in oklab,\s*var\(--article-ink\) 72%,\s*transparent\);/,
   );
   assert.match(lastCssBlock(articlesCss, ".article-prose :not(pre) > code"), /background:\s*var\(--article-soft-strong\);/);
   assert.match(lastCssBlock(articlesCss, ".article-prose :not(pre) > code"), /border:\s*0;/);
@@ -515,11 +550,15 @@ test("article detail secondary text remains readable instead of hazy", () => {
     articlesCss,
     /\.backlink-copy span,\s*\.article-relation-date,\s*\.backlinks-more,\s*\.backlinks-empty\s*\{[\s\S]*?color:\s*var\(--article-muted\);/,
   );
-  assert.match(lastCssBlock(articlesCss, ".article-relation-copy strong"), /color:\s*var\(--article-ink\);/);
-  assert.match(lastCssBlock(articlesCss, ".article-relation-link:hover,\n.article-relation-link.is-preview-active"), /border-bottom-color:\s*var\(--article-line-strong\);/);
-  assert.doesNotMatch(lastCssBlock(articlesCss, ".article-relation-link:hover,\n.article-relation-link.is-preview-active"), /background:\s*var\(--article-soft\);/);
-  assert.match(lastCssBlock(articlesCss, ".article-relation-copy strong"), /font-size:\s*var\(--type-body\);/);
-  assert.match(lastCssBlock(articlesCss, ".article-relation-copy strong"), /font-weight:\s*var\(--weight-strong\);/);
+  assert.ok(hasCssBlock(articlesCss, ".article-relation-copy strong", /color:\s*var\(--article-ink\);/));
+  assert.match(lastCssBlock(articlesCss, ".article-relation-link:hover"), /border-bottom-color:\s*var\(--article-interactive-hover\);/);
+  assert.doesNotMatch(lastCssBlock(articlesCss, ".article-relation-link:hover"), /background:\s*var\(--article-soft\);/);
+  assert.match(lastCssBlock(articlesCss, ".article-relation-link:hover .article-relation-copy strong"), /color:\s*var\(--article-interactive-hover\);/);
+  assert.match(lastCssBlock(articlesCss, ".article-relation-link:active .article-relation-copy strong"), /color:\s*var\(--article-interactive-active\);/);
+  assert.match(lastCssBlock(articlesCss, ".article-relation-link:focus-visible"), /outline:\s*2px solid var\(--article-interactive-focus\);/);
+  assert.match(lastCssBlock(articlesCss, ".article-history-hash[href]:active,\n.article-history-snapshot:active"), /color:\s*var\(--article-interactive-active\);/);
+  assert.ok(hasCssBlock(articlesCss, ".article-relation-copy strong", /font-size:\s*var\(--type-body\);/));
+  assert.ok(hasCssBlock(articlesCss, ".article-relation-copy strong", /font-weight:\s*var\(--weight-strong\);/));
   assert.match(lastCssBlock(articlesCss, ".article-relation-copy span"), /color:\s*var\(--article-body\);/);
   assert.match(lastCssBlock(articlesCss, ".article-relation-copy span"), /font-size:\s*var\(--type-meta\);/);
   assert.match(lastCssBlock(articlesCss, ".article-relation-date"), /color:\s*var\(--article-muted\);/);

@@ -91,7 +91,7 @@ function generateRssXslt() {
                   <xsl:value-of select="title"/>
                   </a>
                   <div class="xml-summary">
-                    <xsl:value-of select="description" disable-output-escaping="yes"/>
+                    <xsl:value-of select="description"/>
                   </div>
                 </div>
                 <div class="xml-row-meta">

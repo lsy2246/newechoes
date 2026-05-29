@@ -33,6 +33,18 @@ test("filter panel exposes a compact console model instead of disconnected contr
   assert.ok(articleFilter.includes("filter-date-months"));
   assert.ok(articleFilter.includes("最近 30 天"));
   assert.ok(articleFilter.includes("最近一年"));
+  assert.ok(articleFilter.includes("最近修改"));
+  assert.ok(articleFilter.includes("最早修改"));
+  assert.ok(articleFilter.includes("updated_desc"));
+  assert.ok(articleFilter.includes("updated_asc"));
+  assert.ok(articleFilter.includes("articleUpdatedAt"));
+  assert.ok(articleFilter.includes("updatedAtByUrl"));
+  assert.ok(articleFilter.includes("isUpdatedSort"));
+  assert.ok(articleFilter.includes("sortArticlesByUpdatedTime"));
+  assert.ok(articleFilter.includes("document.addEventListener(\"pointerdown\""));
+  assert.ok(articleFilter.includes("filterConsoleRef"));
+  assert.ok(articleFilter.includes(".closest(\".filter-disclosure\")"));
+  assert.ok(articleFilter.includes("setOpenFilterMenu(null)"));
   assert.ok(articleFilter.includes("每页"));
   assert.equal(articleFilter.includes("filter-rail"), false);
   assert.equal(articleFilter.includes("explorer-grid"), false);
@@ -87,6 +99,18 @@ test("filter dropdowns float above results instead of changing layout flow", () 
   assert.match(cssBlock(".filter-drawer"), /box-shadow:/);
   assert.match(cssBlock(".filter-tag-disclosure .filter-drawer"), /width:\s*min\(30rem,\s*calc\(100vw - 2rem\)\);/);
   assert.match(cssBlock(".filter-view-disclosure .filter-drawer"), /right:\s*0;/);
+});
+
+test("filter sort menu exposes update-time ordering and closes on outside clicks", () => {
+  assert.match(articleFilter, /updated_desc:\s*"最近修改"/);
+  assert.match(articleFilter, /updated_asc:\s*"最早修改"/);
+  assert.match(articleFilter, /sort:\s*isUpdatedSort\(nextFilters\.sort\)\s*\?\s*"newest"\s*:\s*nextFilters\.sort/);
+  assert.match(articleFilter, /limit:\s*Math\.max\(total,\s*1\)/);
+  assert.ok(articleFilter.includes("sortArticlesByUpdatedTime(allArticles, nextFilters.sort, updatedAtByUrl)"));
+  assert.match(articleFilter, /document\.addEventListener\("pointerdown",\s*handlePointerDown/);
+  assert.match(articleFilter, /filterConsoleRef\.current\.contains\(target\)/);
+  assert.match(articleFilter, /targetElement\?\.closest\("\.filter-disclosure"\)/);
+  assert.match(articleFilter, /document\.removeEventListener\("pointerdown",\s*handlePointerDown/);
 });
 
 test("filter console stacks controls and result rows on mobile", () => {

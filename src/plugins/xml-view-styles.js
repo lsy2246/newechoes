@@ -121,7 +121,6 @@ export function generateXmlViewStyles() {
 
           .xml-list {
             margin-top: 26px;
-            border-top: 1px solid var(--xml-line);
           }
 
           .xml-row {

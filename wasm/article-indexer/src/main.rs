@@ -321,12 +321,20 @@ fn extract_article_from_html(file_path: &Path, base_dir: &Path, index_all: bool,
             Utc::now()
         });
 
+    let updated_at = meta_tags.get("article:modified_time")
+        .and_then(|date_str| {
+            chrono::DateTime::parse_from_rfc3339(date_str)
+                .map(|dt| dt.with_timezone(&Utc))
+                .ok()
+        });
+
     // 创建文章元数据，保留原始页面类型信息，并添加标题结构
     let article = ArticleMetadata {
         id,
         title,
         summary,
         date,
+        updated_at,
         tags,
         url,
         content,

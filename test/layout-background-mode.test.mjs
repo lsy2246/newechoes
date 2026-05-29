@@ -53,6 +53,24 @@ test("swup head sync does not persist generated style tags", () => {
   assert.equal(swupInit.includes('persistAssets: true'), false);
 });
 
+test("swup keeps route stylesheets through head sync before cleaning stale ones", () => {
+  assert.ok(swupInit.includes("const ROUTE_STYLESHEET_SELECTOR = 'link[rel=\"stylesheet\"][href]'"));
+  assert.ok(swupInit.includes("prepareStylesheetPersistenceForHeadSync"));
+  assert.ok(swupInit.includes("shouldPersistStylesheetDuringHeadSync"));
+  assert.ok(swupInit.includes("cleanupPersistedStylesheetsForHeadSync"));
+  assert.ok(swupInit.includes("data-swup-persisted-stylesheet"));
+  assert.ok(swupInit.includes("persistTags: shouldPersistStylesheetDuringHeadSync"));
+  assert.ok(swupInit.includes("tag.hasAttribute(PERSISTED_STYLESHEET_ATTRIBUTE)"));
+  assert.match(
+    swupInit,
+    /swup\.hooks\.before\('content:replace', prepareStylesheetPersistenceForHeadSync,[\s\S]*priority: -110/,
+  );
+  assert.match(
+    swupInit,
+    /swup\.hooks\.on\('content:replace', cleanupPersistedStylesheetsForHeadSync/,
+  );
+});
+
 test("swup preserves current Vite dev styles instead of swapping in stale fetched styles", () => {
   assert.ok(swupInit.includes("preserveViteDevStylesForHeadSync"));
   assert.ok(swupInit.includes("style[data-vite-dev-id]"));

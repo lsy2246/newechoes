@@ -65,18 +65,35 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
 </script>
 
 <script>
-  import { initDiorama } from "./diorama";
-
   const isHome = () => {
     const path = window.location.pathname;
     return path === "/" || path === "";
   };
 
-  const maybeInit = () => {
-    if (isHome()) initDiorama();
+  const HOME_DIORAMA_MODULE_KEY = "__homeDioramaModule";
+  const HOME_DIORAMA_ACTIVE_SCENE_KEY = "__homeDioramaActiveScene";
+
+  const resetDioramaState = () => {
+    window[HOME_DIORAMA_ACTIVE_SCENE_KEY] = null;
+  };
+
+  const maybeInit = async () => {
+    const sceneElement = document.querySelector("[data-home-scene]");
+    if (!isHome() || !sceneElement) return;
+    if (window[HOME_DIORAMA_ACTIVE_SCENE_KEY] === sceneElement) return;
+
+    window[HOME_DIORAMA_MODULE_KEY] ??= import("./diorama");
+    const { initDiorama } = await window[HOME_DIORAMA_MODULE_KEY];
+
+    if (!isHome() || document.querySelector("[data-home-scene]") !== sceneElement) return;
+    if (window[HOME_DIORAMA_ACTIVE_SCENE_KEY] === sceneElement) return;
+    window[HOME_DIORAMA_ACTIVE_SCENE_KEY] = sceneElement;
+    initDiorama();
   };
 
   maybeInit();
   document.addEventListener("astro:page-load", maybeInit);
   document.addEventListener("swup:page:view", maybeInit);
+  document.addEventListener("astro:before-swap", resetDioramaState);
+  document.addEventListener("swup:visit:start", resetDioramaState);
 </script>

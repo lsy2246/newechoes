@@ -147,7 +147,11 @@ function normalizeRepositoryUrl(remoteUrl) {
 
 function normalizeRepositoryProvider(provider, repositoryUrl) {
   const explicitProvider = String(provider ?? "").trim().toLowerCase();
-  if (explicitProvider && explicitProvider !== "auto") {
+  if (explicitProvider === "auto") {
+    return "";
+  }
+
+  if (explicitProvider) {
     return explicitProvider;
   }
 
@@ -237,7 +241,7 @@ export function parseGitHistoryLog({
   publishedAt,
   logOutput,
   repositoryUrl = "",
-  repositoryProvider = "auto",
+  repositoryProvider = "",
 }) {
   const revisions = [];
   const blocks = String(logOutput ?? "")
@@ -336,7 +340,7 @@ export function getArticleHistory(article, repositoryConfig = {}) {
   const sourcePath = getArticleSourcePath(article);
   const publishedAt = article.data.date;
   const repositoryUrl = repositoryConfig?.url ?? "";
-  const repositoryProvider = repositoryConfig?.provider ?? "auto";
+  const repositoryProvider = repositoryConfig?.provider ?? "";
   const cacheKey = [
     articleIdentity,
     sourcePath,

@@ -91,11 +91,10 @@ tags: ["标签1", "标签2"]
 ```typescript
 export const SOURCE_REPOSITORY_CONFIG = {
   url: "",
-  provider: "auto",
 };
 ```
 
-未配置 url 时，页面仍会读取本地 Git 历史，但不会生成提交或历史快照外链。`provider` 可以保持 `auto`，也可以显式填写 `github`、`gitee`、`gitlab`、`gitea`、`forgejo` 或 `bitbucket`。
+未配置 url 时，页面仍会读取本地 Git 历史，但不会生成提交或历史快照外链。GitHub、Gitee、GitLab、Bitbucket 等常见平台会根据 `url` 识别；自建 Gitea、Forgejo 或私有 GitLab 域名无法识别时，可以额外填写 `provider: "gitea"`、`provider: "forgejo"` 或 `provider: "gitlab"`。
 
 ### RSS 订阅
 

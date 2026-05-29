@@ -25,6 +25,9 @@ pub struct ArticleMetadata {
     pub summary: String,
     /// 发布日期
     pub date: DateTime<Utc>,
+    /// 最后修改时间。旧索引没有该字段时默认回退为空。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<DateTime<Utc>>,
     /// 文章标签列表
     pub tags: Vec<String>,
     /// 文章URL路径

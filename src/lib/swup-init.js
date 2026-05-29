@@ -227,6 +227,65 @@ function syncPageShellState() {
   clearHomePageState();
 }
 
+const ROUTE_STYLESHEET_SELECTOR = 'link[rel="stylesheet"][href]';
+const PERSISTED_STYLESHEET_ATTRIBUTE = 'data-swup-persisted-stylesheet';
+
+function normalizeStylesheetHref(stylesheet) {
+  const href = stylesheet?.getAttribute('href') || stylesheet?.href;
+  if (!href) return '';
+
+  try {
+    return new URL(href, window.location.origin).href;
+  } catch (error) {
+    return stylesheet.href || href;
+  }
+}
+
+function getTargetStylesheetHrefs(visit) {
+  const targetHead = visit?.to?.document?.head;
+  if (!targetHead) return null;
+
+  return new Set(
+    Array.from(targetHead.querySelectorAll(ROUTE_STYLESHEET_SELECTOR))
+      .map(normalizeStylesheetHref)
+      .filter(Boolean)
+  );
+}
+
+function prepareStylesheetPersistenceForHeadSync(visit) {
+  const targetStylesheetHrefs = getTargetStylesheetHrefs(visit);
+  if (!targetStylesheetHrefs) return;
+
+  document.head.querySelectorAll(ROUTE_STYLESHEET_SELECTOR).forEach((stylesheet) => {
+    const href = normalizeStylesheetHref(stylesheet);
+    if (!href || targetStylesheetHrefs.has(href)) return;
+
+    stylesheet.setAttribute(PERSISTED_STYLESHEET_ATTRIBUTE, '');
+  });
+}
+
+function shouldPersistStylesheetDuringHeadSync(tag) {
+  return tag.matches?.(ROUTE_STYLESHEET_SELECTOR) &&
+    tag.hasAttribute(PERSISTED_STYLESHEET_ATTRIBUTE);
+}
+
+function cleanupPersistedStylesheetsForHeadSync(visit) {
+  const targetStylesheetHrefs = getTargetStylesheetHrefs(visit);
+  const persistedSelector = `${ROUTE_STYLESHEET_SELECTOR}[${PERSISTED_STYLESHEET_ATTRIBUTE}]`;
+
+  document.head.querySelectorAll(persistedSelector).forEach((stylesheet) => {
+    const href = normalizeStylesheetHref(stylesheet);
+    const isStillNeeded = targetStylesheetHrefs?.has(href);
+
+    if (!targetStylesheetHrefs || isStillNeeded) {
+      stylesheet.removeAttribute(PERSISTED_STYLESHEET_ATTRIBUTE);
+      return;
+    }
+
+    stylesheet.remove();
+  });
+}
+
 function preserveViteDevStylesForHeadSync(visit) {
   const viteStyleSelector = 'style[data-vite-dev-id]';
 
@@ -497,13 +556,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   swup.use(preloadPlugin);
 
+  swup.hooks.before('content:replace', prepareStylesheetPersistenceForHeadSync, {
+    priority: -110
+  });
+
   swup.hooks.before('content:replace', preserveViteDevStylesForHeadSync, {
     priority: -100
   });
   
   // 创建并注册Head插件，用于解决CSS丢失问题
   const headPlugin = new SwupHeadPlugin({
-    persistTags: false,
+    persistTags: shouldPersistStylesheetDuringHeadSync,
     persistAssets: false,
     keepScrollOnReload: true, // 保持滚动位置
     awaitAssets: true // 等待资源加载完成再显示页面
@@ -660,6 +723,8 @@ document.addEventListener('DOMContentLoaded', () => {
       setupTransition();
     }, 10);
   });
+
+  swup.hooks.on('content:replace', cleanupPersistedStylesheetsForHeadSync);
   
   // 5. 页面进入动画开始 - 控制新内容的显示
   swup.hooks.on('animation:in:start', () => {

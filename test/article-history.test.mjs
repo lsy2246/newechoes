@@ -147,6 +147,23 @@ test("git history parser supports common repository hosting url patterns", () =>
   }
 });
 
+test("git history parser no longer treats auto as a public provider mode", () => {
+  const history = parseGitHistoryLog({
+    articleIdentity: "CDN配置",
+    sourcePath: "src/content/server/CDN配置.md",
+    publishedAt: new Date("2023-12-25T12:07:21+08:00"),
+    repositoryUrl: "https://github.com/lsy2246/newechoes",
+    repositoryProvider: "auto",
+    logOutput: [
+      "\u001eabc123456789\u001fabc1234\u001f2026-05-29T10:00:00+08:00\u001flsy\u001fupdate CDN notes",
+      "M\tsrc/content/server/CDN配置.md",
+    ].join("\n"),
+  });
+
+  assert.equal(history.revisions[0].commitUrl, undefined);
+  assert.equal(history.revisions[0].snapshotUrl, undefined);
+});
+
 test("git history parser decodes quoted unicode paths before building snapshot links", () => {
   const history = parseGitHistoryLog({
     articleIdentity: "echoes博客使用说明",

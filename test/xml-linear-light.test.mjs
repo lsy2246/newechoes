@@ -49,3 +49,13 @@ test("sitemap and RSS render as linear rows instead of cards or boxed tables", (
   assert.equal(rssIntegration.includes("class=\"article\""), false);
   assert.equal(rssIntegration.includes("class=\"articles\""), false);
 });
+
+test("RSS XSL renders article descriptions as text so clipped HTML cannot corrupt later rows", () => {
+  assert.equal(rssIntegration.includes("disable-output-escaping"), false);
+  assert.ok(rssIntegration.includes('<xsl:value-of select="description"/>'));
+});
+
+test("XML lists do not draw an extra rule above the first row", () => {
+  assert.ok(xmlViewStyles.includes(".xml-list"));
+  assert.equal(xmlViewStyles.includes("border-top: 1px solid var(--xml-line);"), false);
+});

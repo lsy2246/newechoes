@@ -1,7 +1,28 @@
 ---
 import Layout from "@/components/Layout.astro";
 import ArticleFilter from "@/components/ArticleFilter";
+import { SOURCE_REPOSITORY_CONFIG } from "@/consts";
+import { getCanonicalArticleUrl } from "@/lib/article-links";
+import {
+  getArticleHistoryMap,
+  resolveArticleIdentity,
+} from "@/lib/article-history.js";
+import { getCollection, type CollectionEntry } from "astro:content";
+
 const searchParams = Astro.url.searchParams;
+const articles: CollectionEntry<"articles">[] = await getCollection("articles");
+const articleHistoryMap = getArticleHistoryMap(articles, SOURCE_REPOSITORY_CONFIG);
+const articleUpdatedAt = Object.fromEntries(
+  articles.map((article) => {
+    const articleIdentity = resolveArticleIdentity(article);
+    const history = articleHistoryMap.get(articleIdentity);
+
+    return [
+      getCanonicalArticleUrl(articleIdentity),
+      (history?.updatedAt ?? article.data.date).toISOString(),
+    ];
+  }),
+);
 ---
 
 <Layout title="文章筛选" pageType="directory" description="文章筛选页面" skipSrTitle={false}>
@@ -9,6 +30,7 @@ const searchParams = Astro.url.searchParams;
     <div id="article-content">
       <ArticleFilter
         searchParams={searchParams}
+        articleUpdatedAt={articleUpdatedAt}
         client:load
       />
     </div>

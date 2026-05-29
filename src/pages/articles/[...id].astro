@@ -107,7 +107,7 @@ const backlinkArticles = allArticles
   );
 const visibleBacklinkArticles = backlinkArticles.slice(0, 6);
 const hiddenBacklinkCount = Math.max(backlinkArticles.length - visibleBacklinkArticles.length, 0);
-const articlePreviewPayload = JSON.stringify({
+const articleLinkPayload = JSON.stringify({
   entries: allArticles.map((entry: ArticleEntry) => {
     const routeId = resolveArticleIdentity(entry);
 
@@ -369,6 +369,7 @@ const tableOfContents = generateTableOfContents(headings);
   title={article.data.title}
   description={description}
   date={article.data.date}
+  updatedDate={articleHistory.updatedAt ?? undefined}
   tags={article.data.tags}
   pageType="article"
   previewMode={isCardPreview ? "card" : "default"}
@@ -504,7 +505,7 @@ const tableOfContents = generateTableOfContents(headings);
             <footer class="article-footer">
               <section class="article-history" aria-label="文章修订历史">
                 <div class="article-history-head">
-                  <h2>History</h2>
+                  <h2>历史版本</h2>
                 </div>
                 <ol class="article-history-list">
                   {visibleHistoryEvents.map((event) => (
@@ -684,26 +685,9 @@ const tableOfContents = generateTableOfContents(headings);
         <Fragment>
           <script
             type="application/json"
-            data-article-preview-index
-            set:html={articlePreviewPayload}
+            data-article-link-index
+            set:html={articleLinkPayload}
           ></script>
-
-          <div
-            id="article-link-preview"
-            class="article-link-preview"
-            data-loading="true"
-            hidden
-          >
-            <div class="article-link-preview-loading-scrim" data-preview-loading>
-              <span class="article-link-preview-loading">正在加载页面预览...</span>
-            </div>
-            <iframe
-              class="article-link-preview-frame"
-              data-preview-frame
-              title="文章预览"
-              loading="lazy"
-            ></iframe>
-          </div>
 
           <aside class="article-side" id="toc-panel">
             <section class="side-block">
@@ -951,34 +935,27 @@ const tableOfContents = generateTableOfContents(headings);
           updateReadingProgress();
         }
 
-        // 3. 文章内部链接预览
-        function setupArticleLinkPreviews() {
-          const previewIndexElement = document.querySelector("[data-article-preview-index]");
-          const previewCard = document.getElementById("article-link-preview");
+        // 3. 内部文章链接规范化
+        function setupArticleReferenceLinks() {
+          const linkIndexElement = document.querySelector("[data-article-link-index]");
 
-          if (!previewIndexElement || !previewCard) {
+          if (!linkIndexElement) {
             return;
           }
 
-          let previewPayload;
+          let linkPayload;
           try {
-            previewPayload = JSON.parse(previewIndexElement.textContent || "{}");
+            linkPayload = JSON.parse(linkIndexElement.textContent || "{}");
           } catch (error) {
-            console.error("解析文章预览索引失败:", error);
+            console.error("解析文章链接索引失败:", error);
             return;
           }
 
-          const entries = Array.isArray(previewPayload.entries)
-            ? previewPayload.entries
+          const entries = Array.isArray(linkPayload.entries)
+            ? linkPayload.entries
             : [];
 
           if (entries.length === 0) {
-            return;
-          }
-
-          const previewFrame = previewCard.querySelector("[data-preview-frame]");
-
-          if (!(previewFrame instanceof HTMLIFrameElement)) {
             return;
           }
 
@@ -1028,178 +1005,43 @@ const tableOfContents = generateTableOfContents(headings);
             return normalized || null;
           }
 
-          const previewMap = new Map();
+          const referenceMap = new Map();
           entries.forEach((entry) => {
+            const route = typeof entry.route === "string" ? entry.route : "";
+            if (!route) {
+              return;
+            }
+
             const variants = Array.isArray(entry.variants) ? entry.variants : [];
-            variants.forEach((variant) => {
+            [...variants, route].forEach((variant) => {
               const normalized = normalizeArticleReference(variant);
               if (normalized) {
-                previewMap.set(normalized.toLowerCase(), entry);
+                referenceMap.set(normalized.toLowerCase(), route);
               }
             });
           });
 
-          let activeLink = null;
-          let hideTimer = null;
-
-          function resolvePreview(href) {
+          function resolveArticleRoute(href) {
             const normalized = normalizeArticleReference(href);
-            return normalized ? previewMap.get(normalized.toLowerCase()) || null : null;
+            return normalized ? referenceMap.get(normalized.toLowerCase()) || null : null;
           }
 
-          function clearHideTimer() {
-            if (hideTimer) {
-              window.clearTimeout(hideTimer);
-              hideTimer = null;
-            }
-          }
-
-          function createPreviewUrl(preview, hashSuffix = "") {
-            const previewUrl = new URL(preview.route, window.location.origin);
-            previewUrl.searchParams.set("preview", "card");
-            return `${previewUrl.pathname}${previewUrl.search}${hashSuffix}`;
-          }
-
-          function syncIframeTheme() {
-            try {
-              const frameDocument = previewFrame.contentDocument;
-              if (!frameDocument?.documentElement) {
-                return;
-              }
-
-              const theme =
-                document.documentElement.dataset.theme ||
-                frameDocument.documentElement.dataset.theme ||
-                "light";
-              frameDocument.documentElement.dataset.theme = theme;
-            } catch (error) {
-              console.warn("同步预览主题失败:", error);
-            }
-          }
-
-          function setLoadingState(isLoading) {
-            previewCard.dataset.loading = isLoading ? "true" : "false";
-          }
-
-          function positionPreview(link) {
-            const cardRect = previewCard.getBoundingClientRect();
-            const linkRect = link.getBoundingClientRect();
-            const gap = 18;
-            const maxLeft = Math.max(12, window.innerWidth - cardRect.width - 12);
-            const maxTop = Math.max(12, window.innerHeight - cardRect.height - 12);
-            const rightSpace = window.innerWidth - linkRect.right;
-
-            let left =
-              rightSpace >= cardRect.width + gap
-                ? linkRect.right + gap
-                : linkRect.left - cardRect.width - gap;
-            let top = linkRect.top + linkRect.height / 2 - cardRect.height / 2;
-
-            left = Math.min(Math.max(12, left), maxLeft);
-            top = Math.min(Math.max(12, top), maxTop);
-
-            previewCard.style.left = `${left}px`;
-            previewCard.style.top = `${top}px`;
-          }
-
-          function showPreview(link, previewUrl) {
-            clearHideTimer();
-            previewCard.hidden = false;
-
-            if (activeLink && activeLink !== link) {
-              activeLink.classList.remove("is-preview-active");
-            }
-
-            activeLink = link;
-            activeLink.classList.add("is-preview-active");
-            positionPreview(link);
-
-            if (previewFrame.dataset.currentSrc !== previewUrl) {
-              setLoadingState(true);
-              previewFrame.dataset.currentSrc = previewUrl;
-              previewFrame.src = previewUrl;
-            }
-          }
-
-          function hidePreview() {
-            clearHideTimer();
-            previewCard.hidden = true;
-            if (activeLink) {
-              activeLink.classList.remove("is-preview-active");
-            }
-            activeLink = null;
-          }
-
-          function scheduleHide() {
-            clearHideTimer();
-            hideTimer = window.setTimeout(() => {
-              hidePreview();
-            }, 140);
-          }
-
-          addListener(previewFrame, "load", () => {
-            setLoadingState(false);
-            syncIframeTheme();
-          });
-
-          addListener(previewCard, "mouseenter", () => {
-            clearHideTimer();
-          });
-          addListener(previewCard, "mouseleave", () => {
-            scheduleHide();
-          });
-
-          const linkSelectors = [
-            "article a[href]",
-            ".backlink-link[href]",
-          ];
-          const articleLinks = document.querySelectorAll(linkSelectors.join(", "));
+          const articleLinks = document.querySelectorAll("article a[href]");
 
           articleLinks.forEach((link) => {
             const rawHref = link.getAttribute("href");
-            const preview = resolvePreview(rawHref);
+            const articleRoute = resolveArticleRoute(rawHref);
 
-            if (!preview) {
+            if (!articleRoute) {
               return;
             }
 
             const hashIndex = rawHref?.indexOf("#") ?? -1;
             const hashSuffix = hashIndex >= 0 ? rawHref.slice(hashIndex) : "";
-            const previewUrl = createPreviewUrl(preview, hashSuffix);
 
-            link.setAttribute("href", `${preview.route}${hashSuffix}`);
-            link.setAttribute("data-astro-prefetch", "hover");
-            link.classList.add("article-preview-link");
-
-            const handleShowPreview = () => {
-              showPreview(link, previewUrl);
-            };
-
-            addListener(link, "mouseenter", handleShowPreview);
-            addListener(link, "mouseleave", scheduleHide);
-            addListener(link, "focus", handleShowPreview);
-            addListener(link, "blur", scheduleHide);
+            link.setAttribute("href", `${articleRoute}${hashSuffix}`);
+            link.setAttribute("data-astro-prefetch", "viewport");
           });
-
-          addListener(window, "scroll", hidePreview, { passive: true });
-          addListener(window, "resize", () => {
-            if (!previewCard.hidden && activeLink) {
-              positionPreview(activeLink);
-            }
-          });
-
-          const themeObserver = new MutationObserver(() => {
-            syncIframeTheme();
-          });
-          themeObserver.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ["data-theme"],
-          });
-
-          customCleanupTasks.push(() => {
-            themeObserver.disconnect();
-          });
-          customCleanupTasks.push(hidePreview);
         }
 
         // 4. 目录交互
@@ -1443,7 +1285,7 @@ const tableOfContents = generateTableOfContents(headings);
         // 启动所有功能
         setupCodeCopy();
         setupProgressBar();
-        setupArticleLinkPreviews();
+        setupArticleReferenceLinks();
         setupTableOfContents();
       }
 

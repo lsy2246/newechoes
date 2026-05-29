@@ -4,10 +4,10 @@ export const SITE_DESCRIPTION = "记录生活，分享所思";
 // 可选：外部静态资源代理模板，使用 {url} 和 {headers} 作为占位符；未配置时使用站点内置后端代理。
 export const ASSET_RELAY_URL = "https://proxy.u.cd/download?url={url}&headers={headers}";
 // 可选：源码仓库地址。未配置 url 时，文章历史只显示本地 Git 信息，不生成提交或历史快照外链。
-// provider 可选：auto、github、gitee、gitlab、gitea、forgejo、bitbucket。
+// 常见平台会根据 url 识别；自建服务可额外配置 provider: "gitea" 等真实平台名。
 export const SOURCE_REPOSITORY_CONFIG = {
-    url: "",
-    provider: "auto",
+    url: "https://github.com/lsy2246/newechoes",
+    provider: "github",
 };
 // 新的导航结构 - 支持分层导航
 export const NAV_STRUCTURE = [

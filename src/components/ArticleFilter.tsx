@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   filterArticles as workerFilterArticles,
   getAllTags as workerGetAllTags,
@@ -31,6 +31,7 @@ interface FilterResult {
 
 interface ArticleFilterProps {
   searchParams?: Record<string, string> | URLSearchParams;
+  articleUpdatedAt?: Record<string, string>;
 }
 
 type FilterMenu = "tags" | "date" | "view";
@@ -46,6 +47,8 @@ const DEFAULT_FILTERS: FilterState = {
 const sortLabels: Record<string, string> = {
   newest: "最新发布",
   oldest: "最早发布",
+  updated_desc: "最近修改",
+  updated_asc: "最早修改",
   title_asc: "标题 A-Z",
   title_desc: "标题 Z-A",
 };
@@ -251,7 +254,53 @@ function articleLinkWithReturnFilter(articleUrl: string) {
   )}`;
 }
 
-const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
+function isUpdatedSort(sort: string) {
+  return sort === "updated_desc" || sort === "updated_asc";
+}
+
+function articleUpdatedAt(article: Article, updatedAtByUrl: Map<string, string>) {
+  const candidates = [
+    article.url,
+    decodeURI(article.url),
+    encodeURI(decodeURI(article.url)),
+  ];
+
+  const updatedAt = candidates
+    .map((url) => updatedAtByUrl.get(url))
+    .find(Boolean);
+  const updatedTime = Date.parse(updatedAt || "");
+  if (!Number.isNaN(updatedTime)) {
+    return updatedTime;
+  }
+
+  const publishedTime = Date.parse(article.date);
+  return Number.isNaN(publishedTime) ? 0 : publishedTime;
+}
+
+function sortArticlesByUpdatedTime(
+  articles: Article[],
+  sort: string,
+  updatedAtByUrl: Map<string, string>,
+) {
+  const direction = sort === "updated_asc" ? 1 : -1;
+
+  return [...articles].sort((leftArticle, rightArticle) => {
+    const updatedDifference =
+      articleUpdatedAt(leftArticle, updatedAtByUrl) -
+      articleUpdatedAt(rightArticle, updatedAtByUrl);
+
+    if (updatedDifference !== 0) {
+      return updatedDifference * direction;
+    }
+
+    return rightArticle.date.localeCompare(leftArticle.date);
+  });
+}
+
+const ArticleFilter: React.FC<ArticleFilterProps> = ({
+  searchParams = {},
+  articleUpdatedAt: articleUpdatedAtMap = {},
+}) => {
   const [filters, setFilters] = useState<FilterState>(() =>
     getInitialFilters(searchParams),
   );
@@ -263,7 +312,12 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openFilterMenu, setOpenFilterMenu] = useState<FilterMenu | null>(null);
+  const filterConsoleRef = useRef<HTMLDivElement | null>(null);
   const isReadyRef = useRef(false);
+  const updatedAtByUrl = useMemo(
+    () => new Map(Object.entries(articleUpdatedAtMap)),
+    [articleUpdatedAtMap],
+  );
 
   const runFilter = useCallback(async (nextFilters: FilterState) => {
     if (!isReadyRef.current) return;
@@ -274,23 +328,44 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     try {
       const result = (await workerFilterArticles({
         tags: nextFilters.tags,
-        sort: nextFilters.sort,
+        sort: isUpdatedSort(nextFilters.sort) ? "newest" : nextFilters.sort,
         date: nextFilters.date,
         page: nextFilters.currentPage,
         limit: nextFilters.pageSize,
       })) as FilterResult;
 
-      const nextArticles = Array.isArray(result?.articles)
-        ? result.articles
-        : [];
-
-      setArticles(nextArticles);
-      setTotalArticles(typeof result?.total === "number" ? result.total : nextArticles.length);
-      setTotalPages(
+      const total = typeof result?.total === "number"
+        ? result.total
+        : Array.isArray(result?.articles)
+          ? result.articles.length
+          : 0;
+      let nextArticles = Array.isArray(result?.articles) ? result.articles : [];
+      let nextTotalPages =
         typeof result?.total_pages === "number" && result.total_pages > 0
           ? result.total_pages
-          : Math.max(1, Math.ceil(nextArticles.length / nextFilters.pageSize)),
-      );
+          : Math.max(1, Math.ceil(total / nextFilters.pageSize));
+
+      if (isUpdatedSort(nextFilters.sort)) {
+        const allResult = (await workerFilterArticles({
+          tags: nextFilters.tags,
+          sort: isUpdatedSort(nextFilters.sort) ? "newest" : nextFilters.sort,
+          date: nextFilters.date,
+          page: 1,
+          limit: Math.max(total, 1),
+        })) as FilterResult;
+        const allArticles = Array.isArray(allResult?.articles)
+          ? allResult.articles
+          : [];
+        const sortedArticles = sortArticlesByUpdatedTime(allArticles, nextFilters.sort, updatedAtByUrl);
+        const pageStart = (nextFilters.currentPage - 1) * nextFilters.pageSize;
+
+        nextArticles = sortedArticles.slice(pageStart, pageStart + nextFilters.pageSize);
+        nextTotalPages = Math.max(1, Math.ceil(total / nextFilters.pageSize));
+      }
+
+      setArticles(nextArticles);
+      setTotalArticles(total);
+      setTotalPages(nextTotalPages);
     } catch (filterError) {
       console.error("[ArticleFilter] 筛选失败:", filterError);
       setError("筛选文章时出错，请刷新页面重试");
@@ -300,7 +375,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [updatedAtByUrl]);
 
   const updateFilters = useCallback(
     (patch: Partial<FilterState>, options: { resetPage?: boolean } = {}) => {
@@ -357,6 +432,37 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (!filterConsoleRef.current) {
+        return;
+      }
+
+      if (!filterConsoleRef.current.contains(target)) {
+        setOpenFilterMenu(null);
+        return;
+      }
+
+      const targetElement = target instanceof Element ? target : target.parentElement;
+      if (targetElement?.closest(".filter-disclosure")) {
+        return;
+      }
+
+      setOpenFilterMenu(null);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
     };
   }, []);
 
@@ -460,7 +566,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({ searchParams = {} }) => {
 
   return (
     <section className="filter-console-layout" aria-label="文章筛选">
-      <div className="filter-console">
+      <div className="filter-console" ref={filterConsoleRef}>
         <div className="filter-control-grid">
           <div className="filter-control-cell">
             <span className="filter-control-label">标签</span>

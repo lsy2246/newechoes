@@ -29,7 +29,7 @@ test("article guide documents title-backed identity and git-backed history", () 
 test("article guide documents the source repository config", () => {
   assert.ok(guide.includes("SOURCE_REPOSITORY_CONFIG"));
   assert.ok(guide.includes("url: \"\""));
-  assert.ok(guide.includes("provider: \"auto\""));
+  assert.equal(guide.includes("provider: \"auto\""), false);
   assert.ok(guide.includes("未配置 url 时"));
 });
 

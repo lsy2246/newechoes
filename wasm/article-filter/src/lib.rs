@@ -50,6 +50,9 @@ pub struct ArticleMetadata {
     pub summary: String,
     /// 发布日期
     pub date: DateTime<Utc>,
+    /// 最后修改时间。旧索引没有该字段时默认回退为空。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<DateTime<Utc>>,
     /// 文章标签列表
     pub tags: Vec<String>,
     /// 文章URL路径
@@ -139,6 +142,7 @@ impl ArticleFilter {
                     title: article.title,
                     summary: article.summary,
                     date: article.date,
+                    updated_at: article.updated_at,
                     tags: article.tags,
                     url: article.url,
                 }
@@ -322,6 +326,20 @@ impl ArticleFilter {
             Some("oldest") => {
                 articles.sort_by(|a, b| a.date.cmp(&b.date));
             }
+            Some("updated_desc") => {
+                articles.sort_by(|a, b| {
+                    let first_updated = a.updated_at.unwrap_or(a.date);
+                    let second_updated = b.updated_at.unwrap_or(b.date);
+                    second_updated.cmp(&first_updated)
+                });
+            }
+            Some("updated_asc") => {
+                articles.sort_by(|a, b| {
+                    let first_updated = a.updated_at.unwrap_or(a.date);
+                    let second_updated = b.updated_at.unwrap_or(b.date);
+                    first_updated.cmp(&second_updated)
+                });
+            }
             Some("title_asc") => {
                 articles.sort_by(|a, b| a.title.cmp(&b.title));
             }
@@ -380,5 +398,62 @@ impl ArticleFilterJS {
         // 序列化结果
         serde_wasm_bindgen::to_value(&result)
             .map_err(|e| JsValue::from_str(&format!("序列化结果失败: {}", e)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::DateTime;
+
+    fn utc(value: &str) -> DateTime<Utc> {
+        DateTime::parse_from_rfc3339(value).unwrap().with_timezone(&Utc)
+    }
+
+    fn article(id: &str, title: &str, published: &str, updated: &str) -> ArticleMetadata {
+        ArticleMetadata {
+            id: id.to_string(),
+            title: title.to_string(),
+            summary: String::new(),
+            date: utc(published),
+            updated_at: Some(utc(updated)),
+            tags: Vec::new(),
+            url: format!("/articles/{}", id),
+        }
+    }
+
+    #[test]
+    fn sorts_by_updated_time_descending_and_ascending() {
+        let mut newest_first = vec![
+            article("old", "Old", "2026-01-03T00:00:00Z", "2026-01-10T00:00:00Z"),
+            article("new", "New", "2026-01-01T00:00:00Z", "2026-02-10T00:00:00Z"),
+            article("middle", "Middle", "2026-01-02T00:00:00Z", "2026-02-01T00:00:00Z"),
+        ];
+
+        ArticleFilter::apply_sorting(
+            &mut newest_first,
+            &FilterParams {
+                sort: Some("updated_desc".to_string()),
+                ..Default::default()
+            },
+        );
+
+        assert_eq!(
+            newest_first.iter().map(|article| article.id.as_str()).collect::<Vec<_>>(),
+            vec!["new", "middle", "old"],
+        );
+
+        ArticleFilter::apply_sorting(
+            &mut newest_first,
+            &FilterParams {
+                sort: Some("updated_asc".to_string()),
+                ..Default::default()
+            },
+        );
+
+        assert_eq!(
+            newest_first.iter().map(|article| article.id.as_str()).collect::<Vec<_>>(),
+            vec!["old", "middle", "new"],
+        );
     }
 }
