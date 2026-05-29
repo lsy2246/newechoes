@@ -57,33 +57,83 @@ export function normalizeArticleReferenceTarget(target: string): string | null {
   return normalized || null;
 }
 
+type ArticleReferenceSource = string | {
+  id: string;
+  data?: {
+    title?: string;
+  };
+};
+
+function addArticleRouteVariants(variants: Set<string>, routeId: string) {
+  if (!routeId) {
+    return;
+  }
+
+  for (const candidate of [routeId, encodeURI(routeId)]) {
+    variants.add(candidate);
+    variants.add(`/${candidate}`);
+    variants.add(`articles/${candidate}`);
+    variants.add(`/articles/${candidate}`);
+  }
+}
+
 export function getArticleRouteVariants(articleId: string): string[] {
   const variants = new Set<string>();
-
-  for (const path of [articleId, getSpecialPath(articleId)]) {
-    for (const candidate of [path, encodeURI(path)]) {
-      variants.add(candidate);
-      variants.add(`/${candidate}`);
-      variants.add(`articles/${candidate}`);
-      variants.add(`/articles/${candidate}`);
-    }
-  }
+  addArticleRouteVariants(variants, articleId);
 
   return [...variants];
 }
 
 export function getCanonicalArticleUrl(articleId: string) {
-  return `/articles/${encodeURI(getSpecialPath(articleId))}`;
+  return `/articles/${encodeURI(articleId)}`;
 }
 
-export function createArticleReferenceResolver(articleIds: Iterable<string>) {
+function getReferenceSourceId(source: ArticleReferenceSource) {
+  return typeof source === "string" ? source : source.id;
+}
+
+function getReferenceCanonicalId(source: ArticleReferenceSource) {
+  if (typeof source === "string") {
+    return source;
+  }
+
+  const title = source.data?.title;
+  return typeof title === "string" && title.trim()
+    ? title.trim()
+    : source.id;
+}
+
+export function getArticleReferenceVariants(source: ArticleReferenceSource): string[] {
+  const variants = new Set<string>();
+  const sourceId = getReferenceSourceId(source);
+  const canonicalId = getReferenceCanonicalId(source);
+  const routeIds = new Set([
+    canonicalId,
+    sourceId,
+    getSpecialPath(sourceId),
+  ]);
+
+  if (canonicalId !== sourceId) {
+    routeIds.add(getSpecialPath(canonicalId));
+  }
+
+  for (const routeId of routeIds) {
+    addArticleRouteVariants(variants, routeId);
+  }
+
+  return [...variants];
+}
+
+export function createArticleReferenceResolver(articleSources: Iterable<ArticleReferenceSource>) {
   const routeMap = new Map<string, string>();
 
-  for (const articleId of articleIds) {
-    for (const variant of getArticleRouteVariants(articleId)) {
+  for (const source of articleSources) {
+    const canonicalId = getReferenceCanonicalId(source);
+
+    for (const variant of getArticleReferenceVariants(source)) {
       const normalized = normalizeArticleReferenceTarget(variant);
       if (normalized) {
-        routeMap.set(normalized.toLowerCase(), articleId);
+        routeMap.set(normalized.toLowerCase(), canonicalId);
       }
     }
   }

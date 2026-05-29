@@ -88,6 +88,16 @@ test("global graph text index is rendered with Astro components instead of strin
   assert.equal(existsSync("src/components/GlobalGraphTreeArticle.astro"), false);
 });
 
+test("global graph text index maps source article paths to title article routes", () => {
+  assert.match(modal, /articleRouteIdMap\?: Map<string,\s*string>;/);
+  assert.match(modal, /function getTreeArticleRouteId\(articleId: string\)/);
+  assert.match(modal, /const articleRouteId = articleId \? getTreeArticleRouteId\(articleId\) : "";/);
+  assert.match(modal, /data-node-target=\{`article:\$\{articleRouteId\}`\}/);
+  assert.match(modal, /articleId=\{getTreeArticleRouteId\(childArticleId\)\}/);
+  assert.match(modal, /articleId=\{getTreeArticleRouteId\(rootArticleId\)\}/);
+  assert.equal(modal.includes("currentArticleId={currentArticle?.id}"), false);
+});
+
 test("global graph keeps the text index expanded after canvas navigation", () => {
   assert.match(runtime, /function syncTreeOpenState/);
   assert.match(runtime, /node\.sectionPath/);

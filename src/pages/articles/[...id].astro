@@ -1,19 +1,29 @@
 ---
 import { getCollection, render } from "astro:content";
 import type { CollectionEntry } from "astro:content";
-import { getSpecialPath } from "@/content.config";
 import {
+  getArticleReferenceVariants,
   createArticleReferenceResolver,
   extractArticleReferences,
-  getArticleRouteVariants,
   getCanonicalArticleUrl,
 } from "@/lib/article-links";
+import {
+  assertUniqueArticleIdentities,
+  formatArticleHistoryPath,
+  getArticleHistory,
+  resolveArticleIdentity,
+} from "@/lib/article-history.js";
 import Layout from "@/components/Layout.astro";
-import { ARTICLE_EXPIRY_CONFIG } from "@/consts";
+import { ARTICLE_EXPIRY_CONFIG, SOURCE_REPOSITORY_CONFIG } from "@/consts";
 import "@/styles/articles.css";
 
 // 定义文章类型
 type ArticleEntry = CollectionEntry<"articles">;
+
+type ArticlePageProps = {
+  article: ArticleEntry;
+  section: string;
+};
 
 // 定义标题类型
 interface Heading {
@@ -53,72 +63,43 @@ function generateArticleSummary(article: ArticleEntry): string {
 }
 
 export async function getStaticPaths() {
-  const articles = await getCollection("articles");
+  const articles: ArticleEntry[] = await getCollection("articles");
+  assertUniqueArticleIdentities(articles);
 
-  // 为每篇文章生成路由参数
-  const paths = [];
-  for (const article of articles) {
-    // 获取所有可能的路径形式
-    const possiblePaths = new Set([
-      article.id, // 只保留原始路径
-    ]);
-
-    // 如果是多级目录，检查是否需要特殊处理
-    if (article.id.includes("/")) {
-      const parts = article.id.split("/");
-      const fileName = parts[parts.length - 1];
-      const dirName = parts[parts.length - 2];
-
-      // 只有当文件名与其父目录名相同时才添加特殊路径
-      if (fileName === dirName) {
-        possiblePaths.add(getSpecialPath(article.id));
-      }
-    }
-
-    // 为每个可能的路径生成路由
-    for (const path of possiblePaths) {
-      paths.push({
-        params: { id: path },
-        props: {
-          article,
-          section: article.id.includes("/")
-            ? article.id.split("/").slice(0, -1).join("/")
-            : "",
-          originalId: path !== article.id ? article.id : undefined,
-        },
-      });
-    }
-  }
-
-  return paths;
+  return articles.map((article: ArticleEntry) => ({
+    params: { id: resolveArticleIdentity(article) },
+    props: {
+      article,
+      section: article.id.includes("/")
+        ? article.id.split("/").slice(0, -1).join("/")
+        : "",
+    },
+  }));
 }
 
 // 获取文章内容
-const { article, section, originalId } = Astro.props;
+const { article, section } = Astro.props as ArticlePageProps;
 
 // 获取搜索参数
 const searchParams = new URLSearchParams(Astro.url.search);
 const isCardPreview = searchParams.get("preview") === "card";
 
-// 如果有原始ID，使用它来渲染内容
-const articleToRender = originalId ? { ...article, id: originalId } : article;
-
 // 渲染文章内容
-const { Content, headings } = await render(articleToRender);
+const { Content, headings } = await render(article);
 
 // 获取面包屑路径段
 const pathSegments: string[] = section ? section.split("/") : [];
 
 // 获取相关文章
 const allArticles = await getCollection("articles");
-const resolveArticleReference = createArticleReferenceResolver(
-  allArticles.map((entry: ArticleEntry) => entry.id),
-);
+assertUniqueArticleIdentities(allArticles);
+const articleIdentity = resolveArticleIdentity(article);
+const resolveArticleReference = createArticleReferenceResolver(allArticles);
 const backlinkArticles = allArticles
   .filter(
     (candidate: ArticleEntry) =>
-      candidate.id !== article.id &&
-      extractArticleReferences(candidate.body, resolveArticleReference).has(article.id),
+      resolveArticleIdentity(candidate) !== articleIdentity &&
+      extractArticleReferences(candidate.body, resolveArticleReference).has(articleIdentity),
   )
   .sort(
     (a: ArticleEntry, b: ArticleEntry) =>
@@ -127,14 +108,18 @@ const backlinkArticles = allArticles
 const visibleBacklinkArticles = backlinkArticles.slice(0, 6);
 const hiddenBacklinkCount = Math.max(backlinkArticles.length - visibleBacklinkArticles.length, 0);
 const articlePreviewPayload = JSON.stringify({
-  entries: allArticles.map((entry: ArticleEntry) => ({
-    id: entry.id,
-    title: entry.data.title,
-    summary: generateArticleSummary(entry),
-    date: entry.data.date.toLocaleDateString("zh-CN"),
-    route: getCanonicalArticleUrl(entry.id),
-    variants: getArticleRouteVariants(entry.id),
-  })),
+  entries: allArticles.map((entry: ArticleEntry) => {
+    const routeId = resolveArticleIdentity(entry);
+
+    return {
+      id: routeId,
+      title: entry.data.title,
+      summary: generateArticleSummary(entry),
+      date: entry.data.date.toLocaleDateString("zh-CN"),
+      route: getCanonicalArticleUrl(routeId),
+      variants: getArticleReferenceVariants(entry),
+    };
+  }),
 });
 
 // 1. 尝试通过标签匹配相关文章
@@ -218,15 +203,13 @@ if (relatedArticles.length < 3) {
 // 准备文章描述
 const description = generateArticleSummary(article);
 
-// 处理特殊ID的函数 - 确保返回的是未编码的路径
-function getArticleUrl(articleId: string) {
-  // 获取特殊路径
-  const path = getSpecialPath(articleId);
+function getArticleUrl(article: ArticleEntry) {
+  const path = resolveArticleIdentity(article);
   // 添加搜索参数（如果有）
   const searchSuffix = searchParams.toString()
     ? `?${searchParams.toString()}`
     : "";
-  return `/articles/${path}${searchSuffix}`;
+  return `${getCanonicalArticleUrl(path)}${searchSuffix}`;
 }
 
 function formatArticleDate(date: Date) {
@@ -235,6 +218,20 @@ function formatArticleDate(date: Date) {
     month: "2-digit",
     day: "2-digit",
   });
+}
+
+function formatRevisionDate(date: Date) {
+  return date.toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function getRevisionLabel(kind: string) {
+  if (kind === "moved") return "moved";
+  if (kind === "published") return "published";
+  return "updated";
 }
 
 function getRelatedTitle(matchType: string) {
@@ -255,6 +252,9 @@ const shouldShowArticleWarning = (() => {
     daysDiff > ARTICLE_EXPIRY_CONFIG.expiryDays
   );
 })();
+
+const articleHistory = getArticleHistory(article, SOURCE_REPOSITORY_CONFIG);
+const visibleHistoryEvents: any[] = articleHistory.events.slice(0, 6);
 
 // 预先生成目录结构
 function generateTableOfContents(headings: Heading[]) {
@@ -442,12 +442,24 @@ const tableOfContents = generateTableOfContents(headings);
       <article class="article-main">
         <header class="article-head">
           <div class="article-meta-line">
-            <time
-              datetime={article.data.date.toISOString()}
-              class="article-date"
-            >
-              {formatArticleDate(article.data.date)}
-            </time>
+            <div class="article-date-stack">
+              <time
+                datetime={article.data.date.toISOString()}
+                class="article-date"
+              >
+                published {formatArticleDate(article.data.date)}
+              </time>
+              {
+                articleHistory.updatedAt && (
+                  <time
+                    datetime={articleHistory.updatedAt.toISOString()}
+                    class="article-date article-updated-date"
+                  >
+                    updated {formatArticleDate(articleHistory.updatedAt)}
+                  </time>
+                )
+              }
+            </div>
             {
               article.data.tags && article.data.tags.length > 0 && (
                 <div class="article-tags" aria-label="文章标签">
@@ -490,6 +502,61 @@ const tableOfContents = generateTableOfContents(headings);
         {
           !isCardPreview && (
             <footer class="article-footer">
+              <section class="article-history" aria-label="文章修订历史">
+                <div class="article-history-head">
+                  <h2>History</h2>
+                </div>
+                <ol class="article-history-list">
+                  {visibleHistoryEvents.map((event) => (
+                    <li class:list={["article-history-item", `is-${event.kind}`]}>
+                      <span class="article-history-rail" aria-hidden="true"></span>
+                      <span class="article-history-version">
+                        {
+                          event.commitUrl ? (
+                            <a
+                              class="article-history-hash"
+                              href={event.commitUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {event.shortHash}
+                            </a>
+                          ) : (
+                            <span class="article-history-hash">{event.shortHash}</span>
+                          )
+                        }
+                        {
+                          event.snapshotUrl && (
+                            <a
+                              class="article-history-snapshot"
+                              href={event.snapshotUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              历史快照
+                            </a>
+                          )
+                        }
+                      </span>
+                      <span class="article-history-copy">
+                        <strong>{getRevisionLabel(event.kind)}</strong>
+                        <span>{event.subject}</span>
+                        {
+                          event.kind === "moved" && event.previousPath && event.currentPath && (
+                            <small>
+                              {formatArticleHistoryPath(event.previousPath)} → {formatArticleHistoryPath(event.currentPath)}
+                            </small>
+                          )
+                        }
+                      </span>
+                      <time datetime={event.date.toISOString()}>
+                        {formatRevisionDate(event.date)}
+                      </time>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+
               <div class="article-relations" aria-label="文章关系">
                 {
                   relatedArticles.length > 0 && (
@@ -510,7 +577,7 @@ const tableOfContents = generateTableOfContents(headings);
                             <li>
                               <a
                                 class="article-relation-link related-item"
-                                href={getArticleUrl(relatedArticle.id)}
+                                href={getArticleUrl(relatedArticle)}
                                 data-astro-prefetch="viewport"
                               >
                                 <span class="article-relation-index related-index">
@@ -550,7 +617,7 @@ const tableOfContents = generateTableOfContents(headings);
                           {visibleBacklinkArticles.map((backlinkArticle: ArticleEntry, index: number) => (
                             <li>
                               <a
-                                href={getArticleUrl(backlinkArticle.id)}
+                                href={getArticleUrl(backlinkArticle)}
                                 class="article-relation-link backlink-link"
                                 data-astro-prefetch="hover"
                               >

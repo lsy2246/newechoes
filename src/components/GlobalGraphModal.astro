@@ -7,9 +7,11 @@ import {
   getArticleRouteVariants,
   getCanonicalArticleUrl,
 } from "@/lib/article-links";
+import { resolveArticleIdentity } from "@/lib/article-history.js";
 
 interface Props {
   articleId?: string;
+  articleRouteIdMap?: Map<string, string>;
   articleTitleMap?: Map<string, string>;
   contentStructure?: ContentStructure;
   currentArticleId?: string;
@@ -39,6 +41,7 @@ type GraphLink = {
 
 const {
   articleId,
+  articleRouteIdMap: providedArticleRouteIdMap,
   articleTitleMap: providedArticleTitleMap,
   contentStructure: providedContentStructure,
   currentArticleId: providedCurrentArticleId,
@@ -69,16 +72,38 @@ const normalizedCurrentPath = normalizeRoute(currentPath);
 
 const articleTitleMap =
   providedArticleTitleMap ??
-  new Map(articles.map((article) => [article.id, article.data.title]));
+  new Map<string, string>(
+    articles.flatMap((article) => {
+      const articleIdentity = resolveArticleIdentity(article);
+
+      return [
+        [article.id, article.data.title],
+        [articleIdentity, article.data.title],
+      ] as [string, string][];
+    }),
+  );
+
+const articleRouteIdMap =
+  providedArticleRouteIdMap ??
+  new Map<string, string>(
+    articles.flatMap((article) => {
+      const articleIdentity = resolveArticleIdentity(article);
+
+      return [
+        [article.id, articleIdentity],
+        [articleIdentity, articleIdentity],
+      ] as [string, string][];
+    }),
+  );
 
 const currentArticle =
   isTreeRender
     ? null
     : articles.find((article) =>
-        getArticleRouteVariants(article.id).includes(normalizedCurrentPath),
+        getArticleRouteVariants(resolveArticleIdentity(article)).includes(normalizedCurrentPath),
       ) ?? null;
 
-const currentArticleId = isTreeRender ? providedCurrentArticleId : currentArticle?.id;
+const currentArticleId = isTreeRender ? providedCurrentArticleId : currentArticle ? resolveArticleIdentity(currentArticle) : undefined;
 const currentSectionPath = isTreeRender
   ? providedCurrentSectionPath
   : currentArticle
@@ -101,12 +126,18 @@ function isSectionActive(sectionPath: string) {
 }
 
 function getArticleTitle(articleId: string) {
-  return articleTitleMap.get(articleId) ?? articleId.split("/").at(-1) ?? articleId;
+  const routeId = getTreeArticleRouteId(articleId);
+  return articleTitleMap.get(articleId) ?? articleTitleMap.get(routeId) ?? articleId;
 }
 
-const articleHref = articleId ? articleUrl(articleId) : "";
+function getTreeArticleRouteId(articleId: string) {
+  return articleRouteIdMap.get(articleId) ?? articleId;
+}
+
+const articleRouteId = articleId ? getTreeArticleRouteId(articleId) : "";
+const articleHref = articleRouteId ? articleUrl(articleRouteId) : "";
 const articleTitle = articleId ? getArticleTitle(articleId) : "";
-const isCurrent = currentArticleId === articleId;
+const isCurrent = currentArticleId === articleRouteId;
 
 const open = section ? isSectionActive(section.path) : false;
 const isSectionCurrent = section
@@ -153,42 +184,43 @@ if (!isTreeRender) {
   collectSections(contentStructure.sections);
 
   articles.forEach((article) => {
+    const articleIdentity = resolveArticleIdentity(article);
     const sectionPath = article.id.includes("/")
       ? article.id.slice(0, article.id.lastIndexOf("/"))
       : "";
     const topSectionPath = article.id.includes("/") ? article.id.split("/")[0] : "";
 
     graphNodes.push({
-      id: `article:${article.id}`,
+      id: `article:${articleIdentity}`,
       label: article.data.title,
       type: "article",
-      route: articleUrl(article.id),
+      route: articleUrl(articleIdentity),
       sectionPath,
       topSectionPath,
     });
 
     graphLinks.push({
       source: sectionPath ? `section:${sectionPath}` : "root",
-      target: `article:${article.id}`,
+      target: `article:${articleIdentity}`,
       kind: "structure",
     });
   });
 
-  const resolveArticleReference = createArticleReferenceResolver(
-    articles.map((article) => article.id),
-  );
+  const resolveArticleReference = createArticleReferenceResolver(articles);
 
   for (const sourceArticle of articles) {
+    const sourceIdentity = resolveArticleIdentity(sourceArticle);
     for (const targetArticle of articles) {
-      if (sourceArticle.id === targetArticle.id) continue;
+      const targetIdentity = resolveArticleIdentity(targetArticle);
+      if (sourceIdentity === targetIdentity) continue;
       if (
         extractArticleReferences(sourceArticle.body, resolveArticleReference).has(
-          targetArticle.id,
+          targetIdentity,
         )
       ) {
         graphLinks.push({
-          source: `article:${sourceArticle.id}`,
-          target: `article:${targetArticle.id}`,
+          source: `article:${sourceIdentity}`,
+          target: `article:${targetIdentity}`,
           kind: "reference",
         });
       }
@@ -207,7 +239,7 @@ const graphPayload = JSON.stringify({
     articleId ? (
       <li
         class="graph-tree-item graph-tree-item-article"
-        data-article-id={articleId}
+        data-article-id={articleRouteId}
         style={`--tree-level:${level};`}
       >
         <a
@@ -218,7 +250,7 @@ const graphPayload = JSON.stringify({
             { "is-current": isCurrent },
           ]}
           data-route-target={articleHref}
-          data-node-target={`article:${articleId}`}
+          data-node-target={`article:${articleRouteId}`}
           data-astro-prefetch="hover"
         >
           <span class="graph-tree-label">{articleTitle}</span>
@@ -283,6 +315,7 @@ const graphPayload = JSON.stringify({
                   section.sections.map((child) => (
                     <Astro.self
                       renderAs="tree"
+                      articleRouteIdMap={articleRouteIdMap}
                       articleTitleMap={articleTitleMap}
                       currentArticleId={currentArticleId}
                       currentSectionPath={currentSectionPath}
@@ -295,7 +328,8 @@ const graphPayload = JSON.stringify({
                   section.articles.map((childArticleId) => (
                     <Astro.self
                       renderAs="tree"
-                      articleId={childArticleId}
+                      articleId={getTreeArticleRouteId(childArticleId)}
+                      articleRouteIdMap={articleRouteIdMap}
                       articleTitleMap={articleTitleMap}
                       currentArticleId={currentArticleId}
                       currentSectionPath={currentSectionPath}
@@ -321,7 +355,8 @@ const graphPayload = JSON.stringify({
                   structure.articles.map((rootArticleId) => (
                     <Astro.self
                       renderAs="tree"
-                      articleId={rootArticleId}
+                      articleId={getTreeArticleRouteId(rootArticleId)}
+                      articleRouteIdMap={articleRouteIdMap}
                       articleTitleMap={articleTitleMap}
                       currentArticleId={currentArticleId}
                       currentSectionPath={currentSectionPath}
@@ -338,6 +373,7 @@ const graphPayload = JSON.stringify({
           structure.sections.map((rootSection) => (
             <Astro.self
               renderAs="tree"
+              articleRouteIdMap={articleRouteIdMap}
               articleTitleMap={articleTitleMap}
               currentArticleId={currentArticleId}
               currentSectionPath={currentSectionPath}
@@ -410,9 +446,10 @@ const graphPayload = JSON.stringify({
             <div class="global-graph-tree-shell">
               <Astro.self
                 renderAs="tree"
+                articleRouteIdMap={articleRouteIdMap}
                 articleTitleMap={articleTitleMap}
                 contentStructure={contentStructure}
-                currentArticleId={currentArticle?.id}
+                currentArticleId={currentArticleId}
                 currentSectionPath={currentSectionPath}
               />
             </div>

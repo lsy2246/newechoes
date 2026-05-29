@@ -66,12 +66,36 @@ src/content/
 ```markdown
 ---
 title: "文章标题"
-date: YYYY-MM-DD
+date: 2026-05-29
 tags: ["标签1", "标签2"]
 ---
 
 文章内容...
 ```
+
+`title` 是文章身份，也是文章 URL 的唯一来源。标题不能重复；移动文件、修改文件名或调整目录时，只要 `title` 不变，文章 URL 和历史归属就不会变化。
+
+旧的文件路径详情页不会生成；文章正文里残留的旧链接只会被解析到新的标题地址，避免同时存在两套访问规则。
+
+### Git 修订历史
+
+文章的发布时间来自 frontmatter 的 `date`。文章的最后更新时间和修订记录来自 Git 历史，不需要手写 `updatedDate`。
+
+- 文件移动或改名时会优先通过 `git log --follow` 追踪
+- `title` 用来保证文章身份稳定，作为 Git rename 推断失败时的长期锚点
+- 文章页会展示 commit-like 的修订记录
+- 时间轴保留发布时间轴，并提供修订时间轴查看文章维护历史
+
+如果希望修订记录里的提交和历史快照可以跳转到源码托管平台，在 `src/consts.ts` 中配置源码仓库地址：
+
+```typescript
+export const SOURCE_REPOSITORY_CONFIG = {
+  url: "",
+  provider: "auto",
+};
+```
+
+未配置 url 时，页面仍会读取本地 Git 历史，但不会生成提交或历史快照外链。`provider` 可以保持 `auto`，也可以显式填写 `github`、`gitee`、`gitlab`、`gitea`、`forgejo` 或 `bitbucket`。
 
 ### RSS 订阅
 

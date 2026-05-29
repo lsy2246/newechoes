@@ -3,6 +3,8 @@ import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import { contentStructure } from "../../content.config";
 import Layout from "@/components/Layout.astro";
+import { getCanonicalArticleUrl } from "@/lib/article-links";
+import { resolveArticleIdentity } from "@/lib/article-history.js";
 import "@/styles/articles.css";
 
 export const prerender = true;
@@ -59,8 +61,8 @@ function getPrimaryTag(article: ArticleEntry) {
   return tag ? `#${tag}` : "#note";
 }
 
-function getArticleHref(articleId: string) {
-  return `/articles/${articleId}`;
+function getArticleHref(article: ArticleEntry) {
+  return getCanonicalArticleUrl(resolveArticleIdentity(article));
 }
 
 const {
@@ -192,7 +194,7 @@ const parentHref = parentPath ? `/articles/${parentPath}/` : "/articles/";
 
               return (
                 <a
-                  href={getArticleHref(article.id)}
+                  href={getArticleHref(article)}
                   class:list={["node", { "no-summary": !hasSummary }]}
                   data-article-detail-link
                   data-astro-prefetch="viewport"
