@@ -597,10 +597,11 @@ async function createGraphRuntime(options: {
   canvas.setAttribute("aria-hidden", "true");
   mount.appendChild(canvas);
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
+  const canvasContext = canvas.getContext("2d");
+  if (!canvasContext) {
     throw new Error("Canvas 2D context is unavailable.");
   }
+  const ctx: CanvasRenderingContext2D = canvasContext;
 
   const labelLayer = document.createElement("div");
   labelLayer.className = "global-graph-label-layer";
@@ -741,11 +742,11 @@ async function createGraphRuntime(options: {
     };
   }
 
-  function getNodeAtPoint(x: number, y: number) {
+  function getNodeAtPoint(x: number, y: number): RuntimeNode | null {
     let bestNode: RuntimeNode | null = null;
     let bestDistance = Infinity;
 
-    runtimeNodes.forEach((node) => {
+    for (const node of runtimeNodes) {
       const point = worldToScreen(node.x, node.y);
       const radius = Math.max(12, node.radius * view.zoom + GRAPH_NODE_HIT_PADDING_PX);
       const distance = Math.hypot(point.x - x, point.y - y);
@@ -753,7 +754,7 @@ async function createGraphRuntime(options: {
         bestNode = node;
         bestDistance = distance;
       }
-    });
+    }
 
     return bestNode;
   }

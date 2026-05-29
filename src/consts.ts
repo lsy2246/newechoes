@@ -40,20 +40,3 @@ export const ARTICLE_EXPIRY_CONFIG = {
     warningMessage: '这篇文章已经发布超过一年了，内容可能已经过时，请谨慎参考。' // 提醒消息
 };
 
-
-// 主页 diorama —— 笔记本屏幕上显示的个人信息
-// 所有字段都可以改。rows 可加可减；typewriter 列表里的每一条都会被轮播打字-删除。
-export const HOME_PROFILE = {
-    title: 'lsy',                               // 屏幕上的大字
-    subtitle: 'full-stack & AI',                // 大字下方副标题
-    rows: [
-        { label: 'stack', value: 'React · TypeScript · Rust' },
-        { label: 'contact', value: 'lsy22@vip.qq.com' },
-    ] as { label: string; value: string }[],
-    typewriter: [
-        'today in echoes',
-        'local workspace',
-        'updating',
-    ] as string[],
-};
-

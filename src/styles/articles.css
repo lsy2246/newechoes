@@ -1001,22 +1001,6 @@
   color: var(--article-ink);
 }
 
-.article-tag {
-  color: var(--article-ink);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  text-decoration: none;
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.article-tag:hover {
-  color: var(--article-signal);
-  background: transparent;
-}
-
 .article-expiry-note {
   border: 0;
   border-radius: 0;
@@ -1027,38 +1011,6 @@
 .article-expiry-icon,
 .article-expiry-text {
   color: var(--article-warning);
-}
-
-.article-prose {
-  color: var(--article-ink);
-}
-
-.article-prose :where(h1, h2, h3, h4, h5, h6) {
-  color: var(--article-ink);
-}
-
-.article-prose h1,
-.article-prose h2 {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.article-prose h1::after,
-.article-prose h3::before {
-  background: var(--article-ink);
-}
-
-.article-prose h1::after,
-.article-prose h2::after {
-  display: none;
-}
-
-.article-prose h3 {
-  padding-left: 0;
-}
-
-.article-prose h3::before {
-  display: none;
 }
 
 .article-prose :where(p, li, td, th) {
@@ -1612,7 +1564,7 @@ tbody tr:hover,
   color: var(--article-ink);
   font-family: var(--font-reading);
   font-size: var(--type-reader-body);
-  line-height: 1.78;
+  line-height: 1.74;
 }
 
 .article-warning + .article-prose {
@@ -1651,6 +1603,12 @@ tbody tr:hover,
   font-size: var(--type-reader-h3);
   font-weight: var(--weight-strong);
   line-height: 1.38;
+}
+
+.article-prose h1::after,
+.article-prose h2::after,
+.article-prose h3::before {
+  display: none;
 }
 
 .article-prose h4 {

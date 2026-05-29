@@ -1353,13 +1353,14 @@ const drawMobileStory = (
   const groupPairs = STORY_TRACKS.map((_, group) =>
     STORY_MATERIALS.map((item, index) => {
       if (item.group !== group) return null;
-      return {
+      const pair: MobileClassifyMorphPair = {
         sourceRect: moveRect(mobileIntroSlots[index], inputRects[index], introToInput),
         targetRect: mobileClassifyMaterialSlots[index],
         item: inputCards[index],
         material: item,
         index,
       };
+      return pair;
     }).filter((pair): pair is MobileClassifyMorphPair => pair !== null)
   );
 
@@ -2212,11 +2213,11 @@ const drawDesktopStory = (
   const buildIndexAlpha = phase(progress, 0.78, 0.82);
   const workSceneAlpha = 1 - buildIndexAlpha;
 
-  const inputHeaderReadability = 1 - phase(progress, 0.4, 0.46);
-  const classifyHeaderReadability = 1 - phase(progress, 0.64, 0.7);
-  const workHeaderReadability = phase(progress, 0.66, 0.74) * workSceneAlpha;
-  const inputHeaderAlpha = phase(progress, 0.16, 0.26) * inputHeaderReadability;
-  const classifyAlpha = phase(progress, 0.44, 0.54) * classifyHeaderReadability;
+  const inputHeaderReadability = 1 - phase(progress, 0.34, 0.4);
+  const classifyHeaderReadability = 1 - phase(progress, 0.6, 0.66);
+  const workHeaderReadability = phase(progress, 0.62, 0.7) * workSceneAlpha;
+  const inputHeaderAlpha = phase(progress, 0.12, 0.22) * inputHeaderReadability;
+  const classifyAlpha = phase(progress, 0.38, 0.48) * classifyHeaderReadability;
   const centerWorkAlpha = phase(progress, 0.44, 0.56) * workSceneAlpha;
   const sideTrackAlpha = (index: number) => classifyAlpha * (index === 1 ? 0 : 1 - centerWorkMorph);
   const workHeaderAlpha = workHeaderReadability;

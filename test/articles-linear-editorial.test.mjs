@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
-const globalCss = readFileSync("src/styles/global.css", "utf8");
-const articlesCss = readFileSync("src/styles/articles.css", "utf8");
-const articlesCodeCss = readFileSync("src/styles/articles-code.css", "utf8");
-const articlesMermaidCss = readFileSync("src/styles/articles-mermaid.css", "utf8");
+const normalizeNewlines = (source) => source.replace(/\r\n/g, "\n");
+
+const globalCss = normalizeNewlines(readFileSync("src/styles/global.css", "utf8"));
+const articlesCss = normalizeNewlines(readFileSync("src/styles/articles.css", "utf8"));
+const articlesCodeCss = normalizeNewlines(readFileSync("src/styles/articles-code.css", "utf8"));
+const articlesMermaidCss = normalizeNewlines(readFileSync("src/styles/articles-mermaid.css", "utf8"));
 const articleIndex = readFileSync("src/pages/articles/index.astro", "utf8");
 const articleDirectoryRoute = readFileSync("src/pages/articles/[...path].astro", "utf8");
 const articleDetail = readFileSync("src/pages/articles/[...id].astro", "utf8");

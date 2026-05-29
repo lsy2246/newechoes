@@ -164,7 +164,7 @@ test("home first-screen diorama hands directly into the 2D input story", () => {
   assert.doesNotMatch(homeScreenStoryTs, /dioramaInputRects/);
   assert.match(homeScreenStoryTs, /const collected = moveRect\(orbit, inputRects\[index\], gather\);/);
   assert.match(homeScreenStoryTs, /const classify = phase\(progress, 0\.34, 0\.56\);/);
-  assert.match(homeScreenStoryTs, /const inputHeaderAlpha = phase\(progress, 0\.16, 0\.26\) \* inputHeaderReadability;/);
+  assert.match(homeScreenStoryTs, /const inputHeaderAlpha = phase\(progress, 0\.12, 0\.22\) \* inputHeaderReadability;/);
   assert.doesNotMatch(dioramaTs, /rawProgress/);
 });
 
@@ -279,7 +279,7 @@ test("home 3D desk figure presents the final scene from an elevated rear angle",
 
 test("home first-screen 3D component stays small enough to support the lsy hero", () => {
   assert.match(dioramaTs, /const componentFov = useMobileCarrier \? 42 : 49;/);
-  assert.match(dioramaTs, /const CENTER_DIORAMA_FADE_START = 0\.16;/);
+  assert.match(dioramaTs, /const CENTER_DIORAMA_FADE_START = 0\.08;/);
   assert.match(dioramaTs, /const CENTER_DIORAMA_PROGRESS_END = 0\.24;/);
   assert.match(dioramaTs, /const centerDioramaProgress = clamp\(visualProgress \/ STORY_PROGRESS_END\);/);
   assert.match(dioramaTs, /const componentAlpha = 1 - easeInOutSine\(clamp\(\(centerDioramaProgress - CENTER_DIORAMA_FADE_START\) \/ \(CENTER_DIORAMA_PROGRESS_END - CENTER_DIORAMA_FADE_START\)\)\);/);

@@ -107,7 +107,7 @@ const articleToRender = originalId ? { ...article, id: originalId } : article;
 const { Content, headings } = await render(articleToRender);
 
 // 获取面包屑路径段
-const pathSegments = section ? section.split("/") : [];
+const pathSegments: string[] = section ? section.split("/") : [];
 
 // 获取相关文章
 const allArticles = await getCollection("articles");

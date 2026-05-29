@@ -66,7 +66,7 @@ test("home and graph runtime fallbacks use the same Carbon A palette", () => {
   assert.match(homeStory, /bg:\s*"#111315"/);
   assert.match(homeStory, /text:\s*"#f5f7fa"/);
   assert.match(homeDiorama, /screenBg:\s*"#111315"/);
-  assert.match(homeDioramaCss, /background:\s*#111315;/);
+  assert.match(homeDioramaCss, /background:\s*var\(--site-bg,\s*#111315\);/);
 });
 
 test("footer and explorer pages avoid fixed black-white and blue-gray haze", () => {

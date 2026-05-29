@@ -10,7 +10,7 @@ export const prerender = true;
 type ArticleEntry = CollectionEntry<"articles">;
 
 const path = Astro.props.path || "";
-const pathSegments = path ? path.split("/").filter(Boolean) : [];
+const pathSegments: string[] = path ? path.split("/").filter(Boolean) : [];
 const articles: ArticleEntry[] = await getCollection("articles");
 const { sections } = contentStructure;
 

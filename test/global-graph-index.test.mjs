@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const modal = readFileSync("src/components/GlobalGraphModal.astro", "utf8");
-const tree = readFileSync("src/components/GlobalGraphTree.astro", "utf8");
+const tree = modal;
 const headerCss = readFileSync("src/styles/header.css", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 const runtime = readFileSync("src/lib/global-graph-modal.ts", "utf8");
@@ -51,7 +51,7 @@ test("global graph section rows keep disclosure, label, and count aligned", () =
 
 test("global graph text index expands only the current path", () => {
   assert.match(tree, /const open\s*=\s*section \? isSectionActive\(section\.path\) : false;/);
-  assert.match(tree, /open=\{open\}/);
+  assert.match(tree, /data-open=\{open \? "true" : "false"\}/);
   assert.equal(modal.includes("const open = level === 0"), false);
   assert.equal(modal.includes("active || level === 0"), false);
   assert.match(tree, /class:list=\{\[\s*"graph-tree-link"/);
@@ -63,7 +63,7 @@ test("global graph text index expands only the current path", () => {
 });
 
 test("global graph section summaries do not contain interactive links", () => {
-  const summaryBlocks = tree.match(/<summary[\s\S]*?<\/summary>/g) ?? [];
+  const summaryBlocks = tree.match(/<button[\s\S]*?data-tree-disclosure[\s\S]*?<\/button>/g) ?? [];
 
   assert.ok(summaryBlocks.length > 0);
   summaryBlocks.forEach((summary) => {
@@ -73,12 +73,15 @@ test("global graph section summaries do not contain interactive links", () => {
 });
 
 test("global graph text index is rendered with Astro components instead of string HTML", () => {
-  assert.match(modal, /import GlobalGraphTree from "\.\/GlobalGraphTree\.astro";/);
-  assert.match(modal, /<GlobalGraphTree/);
+  assert.equal(modal.includes('import GlobalGraphTree from "./GlobalGraphTree.astro";'), false);
+  assert.equal(modal.includes("<GlobalGraphTree"), false);
+  assert.match(modal, /renderAs\?: "modal" \| "tree";/);
+  assert.match(modal, /<Astro\.self[\s\S]*renderAs="tree"/);
   assert.equal(modal.includes("set:html={treeHtml}"), false);
   assert.equal(modal.includes("const treeHtml"), false);
   assert.equal(modal.includes("function renderSection"), false);
   assert.equal(modal.includes("function renderArticleItem"), false);
+  assert.equal(existsSync("src/components/GlobalGraphTree.astro"), false);
   assert.equal(tree.includes("GlobalGraphTreeSection.astro"), false);
   assert.equal(tree.includes("GlobalGraphTreeArticle.astro"), false);
   assert.equal(existsSync("src/components/GlobalGraphTreeSection.astro"), false);
@@ -89,7 +92,8 @@ test("global graph keeps the text index expanded after canvas navigation", () =>
   assert.match(runtime, /function syncTreeOpenState/);
   assert.match(runtime, /node\.sectionPath/);
   assert.match(runtime, /openSectionPaths/);
-  assert.match(runtime, /details\.open\s*=\s*openSectionPaths\.has\(sectionPath\);/);
+  assert.match(runtime, /group\.classList\.toggle\("is-open", isOpen\);/);
+  assert.match(runtime, /children\.hidden = !isOpen;/);
   assert.match(runtime, /syncTreeOpenState\(currentNodeId\);/);
   assert.match(runtime, /applyCurrentInfo\(getNodeTargetByRoute\(payload\.nodes,\s*normalizedRoute\)\)/);
 });

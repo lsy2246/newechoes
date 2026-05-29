@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { HOME_PROFILE } from "@/consts";
 import {
   drawHomeScreenBackdrop,
   drawHomeScreenStory,
@@ -11,6 +10,15 @@ import {
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
 const HOME_DIORAMA_PIXEL_RATIO_CAP = 2;
+const HOME_TYPEWRITER_LINES = [
+  "today in echoes",
+  "local workspace",
+  "updating",
+];
+const HOME_PROFILE_ROWS = {
+  stack: "React · TypeScript · Rust",
+  contact: "lsy22@vip.qq.com",
+};
 const DESK_TOP_FIXED_COLOR = 0xf8f8f6;
 const FLOOR_FIXED_COLOR = DESK_TOP_FIXED_COLOR;
 const DESK_LEG_FIXED_COLOR = 0xc6c9c8;
@@ -1071,7 +1079,7 @@ export function initDiorama() {
   const STORY_FRAME_CACHE_LIMIT = useMobileCarrier ? 3 : 5;
   const STORY_CANVAS_DPR = HOME_DIORAMA_PIXEL_RATIO_CAP;
   const STORY_LAYOUT_DPR_CAP = useMobileCarrier ? 1.35 : 1.5;
-  const CENTER_DIORAMA_FADE_START = 0.16;
+  const CENTER_DIORAMA_FADE_START = 0.08;
   const CENTER_DIORAMA_PROGRESS_END = 0.24;
   const SCREEN_TEXTURE_PROGRESS_END = STORY_MODE_END;
   const STORY_FADE_START = 0.695;
@@ -1437,9 +1445,7 @@ export function initDiorama() {
 
   // ===== Typewriter state (rotating status line at bottom of screen) =====
   type TyperPhase = "typing" | "hold" | "deleting" | "idle";
-  const TYPEWRITER_LINES: string[] = HOME_PROFILE.typewriter.length
-    ? HOME_PROFILE.typewriter
-    : ["now building ·"];
+  const TYPEWRITER_LINES: string[] = HOME_TYPEWRITER_LINES;
   const TYPER_SPEED_TYPE = 55;    // ms per char while typing
   const TYPER_SPEED_DELETE = 26;  // ms per char while deleting
   const TYPER_HOLD_MS = 1800;     // pause after finishing typing
@@ -1562,7 +1568,6 @@ export function initDiorama() {
     const ctx = screenCtx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const storyAutoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
-    const profileRows = Object.fromEntries(HOME_PROFILE.rows.map((row) => [row.label, row.value]));
     const storyProgress = reduceMotion ? 1 : clamp(visualProgress / STORY_PROGRESS_END);
     const storyInput: Parameters<typeof drawHomeScreenStory>[1] = {
       device: deviceClass,
@@ -1573,8 +1578,8 @@ export function initDiorama() {
       revealCenterDiorama: centerDioramaActive,
       motion: now * 0.001,
       now: formatNowBeijing(),
-      stack: profileRows.stack ?? "Rust · TypeScript",
-      contact: profileRows.contact ?? "lsy22@vip.qq.com",
+      stack: HOME_PROFILE_ROWS.stack,
+      contact: HOME_PROFILE_ROWS.contact,
       postsLabel: storyAutoPosts ?? "ongoing",
     };
 

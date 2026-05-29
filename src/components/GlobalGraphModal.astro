@@ -1,7 +1,6 @@
 ---
 import { getCollection, type CollectionEntry } from "astro:content";
-import { contentStructure, type SectionStructure } from "@/content.config";
-import GlobalGraphTree from "./GlobalGraphTree.astro";
+import { contentStructure, type ContentStructure, type SectionStructure } from "@/content.config";
 import {
   createArticleReferenceResolver,
   extractArticleReferences,
@@ -10,7 +9,15 @@ import {
 } from "@/lib/article-links";
 
 interface Props {
+  articleId?: string;
+  articleTitleMap?: Map<string, string>;
+  contentStructure?: ContentStructure;
+  currentArticleId?: string;
   currentPath?: string;
+  currentSectionPath?: string;
+  level?: number;
+  renderAs?: "modal" | "tree";
+  section?: SectionStructure;
 }
 
 type ArticleRecord = CollectionEntry<"articles">;
@@ -30,8 +37,20 @@ type GraphLink = {
   kind: "structure" | "reference";
 };
 
-const { currentPath = "/" } = Astro.props;
-const articles: ArticleRecord[] = await getCollection("articles");
+const {
+  articleId,
+  articleTitleMap: providedArticleTitleMap,
+  contentStructure: providedContentStructure,
+  currentArticleId: providedCurrentArticleId,
+  currentPath = "/",
+  currentSectionPath: providedCurrentSectionPath = "",
+  level = 0,
+  renderAs = "modal",
+  section,
+} = Astro.props;
+
+const isTreeRender = renderAs === "tree";
+const articles: ArticleRecord[] = isTreeRender ? [] : await getCollection("articles");
 
 function normalizeRoute(path: string) {
   if (!path) return "/";
@@ -46,37 +65,58 @@ function sectionUrl(sectionPath: string) {
   return `/articles/${encodeURI(sectionPath)}`;
 }
 
-const resolveArticleReference = createArticleReferenceResolver(
-  articles.map((article) => article.id),
-);
-
 const normalizedCurrentPath = normalizeRoute(currentPath);
 
-const articleTitleMap = new Map(
-  articles.map((article) => [article.id, article.data.title]),
-);
+const articleTitleMap =
+  providedArticleTitleMap ??
+  new Map(articles.map((article) => [article.id, article.data.title]));
 
 const currentArticle =
-  articles.find((article) =>
-    getArticleRouteVariants(article.id).includes(normalizedCurrentPath),
-  ) ?? null;
+  isTreeRender
+    ? null
+    : articles.find((article) =>
+        getArticleRouteVariants(article.id).includes(normalizedCurrentPath),
+      ) ?? null;
 
-const currentSectionPath = currentArticle
-  ? currentArticle.id.includes("/")
-    ? currentArticle.id.slice(0, currentArticle.id.lastIndexOf("/"))
-    : ""
-  : normalizedCurrentPath.startsWith("/articles/")
-    ? decodeURI(normalizedCurrentPath.replace(/^\/articles\//, ""))
-    : "";
+const currentArticleId = isTreeRender ? providedCurrentArticleId : currentArticle?.id;
+const currentSectionPath = isTreeRender
+  ? providedCurrentSectionPath
+  : currentArticle
+    ? currentArticle.id.includes("/")
+      ? currentArticle.id.slice(0, currentArticle.id.lastIndexOf("/"))
+      : ""
+    : normalizedCurrentPath.startsWith("/articles/")
+      ? decodeURI(normalizedCurrentPath.replace(/^\/articles\//, ""))
+      : "";
 
-const graphNodes: GraphNode[] = [
-  {
-    id: "root",
-    label: "全部文章",
-    type: "root",
-    route: "/articles",
-  },
-];
+const structure = providedContentStructure ?? contentStructure;
+
+function isSectionActive(sectionPath: string) {
+  if (!sectionPath) return false;
+  return (
+    currentSectionPath === sectionPath ||
+    currentSectionPath.startsWith(`${sectionPath}/`) ||
+    (currentArticleId ? currentArticleId.startsWith(`${sectionPath}/`) : false)
+  );
+}
+
+function getArticleTitle(articleId: string) {
+  return articleTitleMap.get(articleId) ?? articleId.split("/").at(-1) ?? articleId;
+}
+
+const articleHref = articleId ? articleUrl(articleId) : "";
+const articleTitle = articleId ? getArticleTitle(articleId) : "";
+const isCurrent = currentArticleId === articleId;
+
+const open = section ? isSectionActive(section.path) : false;
+const isSectionCurrent = section
+  ? currentSectionPath === section.path && !currentArticleId
+  : false;
+const sectionHref = section ? sectionUrl(section.path) : "";
+const childCount = section ? section.articles.length + section.sections.length : 0;
+const hasChildren = childCount > 0;
+
+const graphNodes: GraphNode[] = [];
 const graphLinks: GraphLink[] = [];
 
 function collectSections(sections: SectionStructure[], parentPath = "") {
@@ -102,43 +142,56 @@ function collectSections(sections: SectionStructure[], parentPath = "") {
   });
 }
 
-collectSections(contentStructure.sections);
-
-articles.forEach((article) => {
-  const sectionPath = article.id.includes("/")
-    ? article.id.slice(0, article.id.lastIndexOf("/"))
-    : "";
-  const topSectionPath = article.id.includes("/") ? article.id.split("/")[0] : "";
-
+if (!isTreeRender) {
   graphNodes.push({
-    id: `article:${article.id}`,
-    label: article.data.title,
-    type: "article",
-    route: articleUrl(article.id),
-    sectionPath,
-    topSectionPath,
+    id: "root",
+    label: "全部文章",
+    type: "root",
+    route: "/articles",
   });
 
-  graphLinks.push({
-    source: sectionPath ? `section:${sectionPath}` : "root",
-    target: `article:${article.id}`,
-    kind: "structure",
-  });
-});
+  collectSections(contentStructure.sections);
 
-for (const sourceArticle of articles) {
-  for (const targetArticle of articles) {
-    if (sourceArticle.id === targetArticle.id) continue;
-    if (
-      extractArticleReferences(sourceArticle.body, resolveArticleReference).has(
-        targetArticle.id,
-      )
-    ) {
-      graphLinks.push({
-        source: `article:${sourceArticle.id}`,
-        target: `article:${targetArticle.id}`,
-        kind: "reference",
-      });
+  articles.forEach((article) => {
+    const sectionPath = article.id.includes("/")
+      ? article.id.slice(0, article.id.lastIndexOf("/"))
+      : "";
+    const topSectionPath = article.id.includes("/") ? article.id.split("/")[0] : "";
+
+    graphNodes.push({
+      id: `article:${article.id}`,
+      label: article.data.title,
+      type: "article",
+      route: articleUrl(article.id),
+      sectionPath,
+      topSectionPath,
+    });
+
+    graphLinks.push({
+      source: sectionPath ? `section:${sectionPath}` : "root",
+      target: `article:${article.id}`,
+      kind: "structure",
+    });
+  });
+
+  const resolveArticleReference = createArticleReferenceResolver(
+    articles.map((article) => article.id),
+  );
+
+  for (const sourceArticle of articles) {
+    for (const targetArticle of articles) {
+      if (sourceArticle.id === targetArticle.id) continue;
+      if (
+        extractArticleReferences(sourceArticle.body, resolveArticleReference).has(
+          targetArticle.id,
+        )
+      ) {
+        graphLinks.push({
+          source: `article:${sourceArticle.id}`,
+          target: `article:${targetArticle.id}`,
+          kind: "reference",
+        });
+      }
     }
   }
 }
@@ -149,111 +202,264 @@ const graphPayload = JSON.stringify({
 });
 ---
 
-<div
-  id="global-graph-modal"
-  class="global-graph-modal hidden"
-  aria-hidden="true"
->
-  <script
-    type="application/json"
-    data-global-graph-json
-    set:html={graphPayload}
-  ></script>
-
-  <div
-    class="global-graph-backdrop"
-    data-close-global-graph
-  ></div>
-
-  <section
-    class="global-graph-dialog"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="global-graph-title"
-  >
-    <header class="global-graph-header">
-      <div>
-        <p class="global-graph-eyebrow">Site Index</p>
-        <h2 id="global-graph-title">全站索引点群</h2>
-        <p class="global-graph-subtitle">
-          左边按文件树精确定位，右边用会轻微游动的点呈现文章关系。拖动节点时，相邻节点会被轻轻带动。
-        </p>
-      </div>
-      <button
-        type="button"
-        class="global-graph-close"
-        data-close-global-graph
-        aria-label="关闭全局图谱"
+{
+  isTreeRender ? (
+    articleId ? (
+      <li
+        class="graph-tree-item graph-tree-item-article"
+        data-article-id={articleId}
+        style={`--tree-level:${level};`}
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+        <a
+          href={articleHref}
+          class:list={[
+            "graph-tree-link",
+            "graph-tree-link-article",
+            { "is-current": isCurrent },
+          ]}
+          data-route-target={articleHref}
+          data-node-target={`article:${articleId}`}
+          data-astro-prefetch="hover"
         >
-          <path d="M18 6 6 18"></path>
-          <path d="m6 6 12 12"></path>
-        </svg>
-      </button>
-    </header>
-
-    <div class="global-graph-body global-graph-body-split">
-      <aside class="global-graph-tree-panel">
-        <div class="global-graph-panel-header">
-          <div>
-            <h3>文字索引</h3>
-          </div>
-        </div>
-
-        <div class="global-graph-tree-shell">
-          <GlobalGraphTree
-            articleTitleMap={articleTitleMap}
-            contentStructure={contentStructure}
-            currentArticleId={currentArticle?.id}
-            currentSectionPath={currentSectionPath}
-          />
-        </div>
-      </aside>
-
-      <section class="global-graph-stage">
-        <div class="global-graph-panel-header">
-          <div>
-            <h3>2D 点群</h3>
-            <p>拖动画布浏览关系，拖动节点微调位置，点击节点进入文章。</p>
-          </div>
-          <span class="global-graph-drag-hint">Drag / Zoom</span>
-        </div>
-
+          <span class="graph-tree-label">{articleTitle}</span>
+        </a>
+      </li>
+    ) : section ? (
+      <li
+        class="graph-tree-item graph-tree-item-section"
+        data-section-path={section.path}
+        style={`--tree-level:${level};`}
+      >
         <div
-          class="global-graph-stage-canvas"
-          data-graph-stage
+          class:list={["graph-tree-group", { "is-open": open }]}
+          data-section-path={section.path}
+          data-open={open ? "true" : "false"}
         >
-          <div
-            class="global-graph-canvas"
-            data-graph-canvas
-          ></div>
-          <div
-            class="global-graph-status"
-            data-graph-status
+          <button
+            type="button"
+            class="graph-tree-summary"
+            aria-label={`展开或折叠 ${section.name}`}
+            aria-expanded={open ? "true" : "false"}
+            data-tree-disclosure
           >
-          正在准备 2D 点群...
+            <span
+              class="graph-tree-disclosure"
+              aria-hidden="true"
+            >
+              <svg
+                viewBox="0 0 12 12"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m4 2 4 4-4 4"></path>
+              </svg>
+            </span>
+          </button>
+
+          <a
+            href={sectionHref}
+            class:list={[
+              "graph-tree-link",
+              "graph-tree-link-section",
+              { "is-current": isSectionCurrent },
+            ]}
+            data-route-target={sectionHref}
+            data-section-path={section.path}
+            data-node-target={`section:${section.path}`}
+            data-astro-prefetch="hover"
+          >
+            <span class="graph-tree-label">{section.name}</span>
+          </a>
+
+          <span class="graph-tree-count">{childCount}</span>
+
+          {
+            hasChildren ? (
+              <ul class="graph-tree-children" hidden={!open}>
+                {
+                  section.sections.map((child) => (
+                    <Astro.self
+                      renderAs="tree"
+                      articleTitleMap={articleTitleMap}
+                      currentArticleId={currentArticleId}
+                      currentSectionPath={currentSectionPath}
+                      level={level + 1}
+                      section={child}
+                    />
+                  ))
+                }
+                {
+                  section.articles.map((childArticleId) => (
+                    <Astro.self
+                      renderAs="tree"
+                      articleId={childArticleId}
+                      articleTitleMap={articleTitleMap}
+                      currentArticleId={currentArticleId}
+                      currentSectionPath={currentSectionPath}
+                      level={level + 1}
+                    />
+                  ))
+                }
+              </ul>
+            ) : (
+              <div class="graph-tree-empty" hidden={!open}>这个目录下暂时没有更多分支</div>
+            )
+          }
+        </div>
+      </li>
+    ) : (
+      <ul class="global-graph-tree">
+        {
+          structure.articles.length > 0 && (
+            <li class="graph-tree-item graph-tree-item-top">
+              <div class="graph-tree-top-label">根目录文章</div>
+              <ul class="graph-tree-children">
+                {
+                  structure.articles.map((rootArticleId) => (
+                    <Astro.self
+                      renderAs="tree"
+                      articleId={rootArticleId}
+                      articleTitleMap={articleTitleMap}
+                      currentArticleId={currentArticleId}
+                      currentSectionPath={currentSectionPath}
+                      level={0}
+                    />
+                  ))
+                }
+              </ul>
+            </li>
+          )
+        }
+
+        {
+          structure.sections.map((rootSection) => (
+            <Astro.self
+              renderAs="tree"
+              articleTitleMap={articleTitleMap}
+              currentArticleId={currentArticleId}
+              currentSectionPath={currentSectionPath}
+              section={rootSection}
+            />
+          ))
+        }
+      </ul>
+    )
+  ) : (
+    <div
+      id="global-graph-modal"
+      class="global-graph-modal hidden"
+      aria-hidden="true"
+    >
+      <script
+        type="application/json"
+        data-global-graph-json
+        set:html={graphPayload}
+      ></script>
+
+      <div
+        class="global-graph-backdrop"
+        data-close-global-graph
+      ></div>
+
+      <section
+        class="global-graph-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="global-graph-title"
+      >
+        <header class="global-graph-header">
+          <div>
+            <p class="global-graph-eyebrow">Site Index</p>
+            <h2 id="global-graph-title">全站索引点群</h2>
+            <p class="global-graph-subtitle">
+              左边按文件树精确定位，右边用会轻微游动的点呈现文章关系。拖动节点时，相邻节点会被轻轻带动。
+            </p>
           </div>
-          <div
-            class="global-graph-tooltip"
-            data-graph-tooltip
-            hidden
-          ></div>
+          <button
+            type="button"
+            class="global-graph-close"
+            data-close-global-graph
+            aria-label="关闭全局图谱"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </header>
+
+        <div class="global-graph-body global-graph-body-split">
+          <aside class="global-graph-tree-panel">
+            <div class="global-graph-panel-header">
+              <div>
+                <h3>文字索引</h3>
+              </div>
+            </div>
+
+            <div class="global-graph-tree-shell">
+              <Astro.self
+                renderAs="tree"
+                articleTitleMap={articleTitleMap}
+                contentStructure={contentStructure}
+                currentArticleId={currentArticle?.id}
+                currentSectionPath={currentSectionPath}
+              />
+            </div>
+          </aside>
+
+          <section class="global-graph-stage">
+            <div class="global-graph-panel-header">
+              <div>
+                <h3>2D 点群</h3>
+                <p>拖动画布浏览关系，拖动节点微调位置，点击节点进入文章。</p>
+              </div>
+              <span class="global-graph-drag-hint">Drag / Zoom</span>
+            </div>
+
+            <div
+              class="global-graph-stage-canvas"
+              data-graph-stage
+            >
+              <div
+                class="global-graph-canvas"
+                data-graph-canvas
+              ></div>
+              <div
+                class="global-graph-status"
+                data-graph-status
+              >
+              正在准备 2D 点群...
+              </div>
+              <div
+                class="global-graph-tooltip"
+                data-graph-tooltip
+                hidden
+              ></div>
+            </div>
+          </section>
         </div>
       </section>
     </div>
-  </section>
-</div>
+  )
+}
 
-<script>
-  import { initGlobalGraphModal } from "@/lib/global-graph-modal";
+{
+  !isTreeRender && (
+    <script>
+      import { initGlobalGraphModal } from "@/lib/global-graph-modal";
 
-  initGlobalGraphModal();
-</script>
+      initGlobalGraphModal();
+    </script>
+  )
+}
