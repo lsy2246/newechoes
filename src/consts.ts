@@ -1,4 +1,4 @@
-export const SITE_URL = 'https://blog.lsy22.com';
+export const SITE_URL = 'https://b.u.cd';
 export const SITE_TITLE = "echoes";
 export const SITE_DESCRIPTION = "记录生活，分享所思";
 // 可选：外部静态资源代理模板，使用 {url} 和 {headers} 作为占位符；未配置时使用站点内置后端代理。
