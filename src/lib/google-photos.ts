@@ -190,6 +190,16 @@ const toAlbum = (album: unknown[]): GooglePhotoAlbum => {
   };
 };
 
+const getShareKey = (initData: InitData, resolvedUrl: string) => {
+  const albumShareKey = initData[3]?.[19];
+
+  if (typeof albumShareKey === "string" && albumShareKey) {
+    return albumShareKey;
+  }
+
+  return new URL(resolvedUrl).searchParams.get("key");
+};
+
 export async function fetchSharedAlbumHtml(shareUrl: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -281,8 +291,12 @@ export function parseBatchExecuteResponse(text: string) {
     }
 
     const entry = payload.find((item: unknown[]) => item?.[0] === "wrb.fr" && item?.[1] === RPC_ID);
-    if (entry?.[2]) {
+    if (typeof entry?.[2] === "string") {
       return JSON.parse(entry[2]);
+    }
+
+    if (entry?.[5]?.[0] === 5) {
+      throw new Error("Google Photos pagination token was rejected");
     }
   }
 
@@ -364,7 +378,7 @@ export async function fetchGooglePhotosPage({
     throw new Error("Could not find Google Photos album id");
   }
 
-  const shareKey = new URL(resolvedUrl).searchParams.get("key");
+  const shareKey = getShareKey(initData, resolvedUrl);
   const nextToken = initData[2] || "";
 
   return {
