@@ -1,10 +1,18 @@
-export const SITE_URL = 'https://b.u.cd';
-export const SITE_TITLE = "echoes";
-export const SITE_DESCRIPTION = "记录生活，分享所思";
+/**
+ * 站点元信息。
+ *
+ * - url: 站点根地址。用于 canonical、sitemap、RSS、Open Graph、JSON-LD URL。
+ * - title: 站点名。用于默认网页标题、RSS 标题、JSON-LD WebSite.name。
+ * - author: 作者名。用于 Article.author、RSS author、JSON-LD Person.name。
+ */
+export const SITE_META = {
+    url: "https://b.u.cd",
+    title: "echoes",
+    author: "lsy",
+} as const;
 // 可选：外部静态资源代理模板，使用 {url} 和 {headers} 作为占位符；未配置时使用站点内置后端代理。
 export const ASSET_RELAY_URL = "https://proxy.u.cd/download?url={url}&headers={headers}";
 // 可选：源码仓库地址。未配置 url 时，文章历史只显示本地 Git 信息，不生成提交或历史快照外链。
-// 常见平台会根据 url 识别；自建服务可额外配置 provider: "gitea" 等真实平台名。
 export const SOURCE_REPOSITORY_CONFIG = {
     url: "https://github.com/lsy2246/newechoes",
     provider: "github",

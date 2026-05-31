@@ -4,8 +4,9 @@
 import fs from 'node:fs/promises';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { SITE_URL } from '../consts';
+import { SITE_META } from '../consts';
 import { generateXmlViewStyles } from './xml-view-styles.js';
+import { normalizeCanonicalPath } from '../lib/canonical-url.js';
 
 // 转义XML特殊字符
 function escapeXml(unsafe) {
@@ -32,9 +33,45 @@ function generateXmlWithXslt(entries) {
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 ${entries.map(entry => `  <url>
     <loc>${entry.url}</loc>
+    <lastmod>${entry.lastmod}</lastmod>
     <priority>${entry.priority}</priority>
   </url>`).join('\n')}
 </urlset>`;
+}
+
+function resolveHtmlPath(buildDirPath, pagePathname) {
+  const normalizedPath = normalizeCanonicalPath(pagePathname);
+  if (normalizedPath === '/') {
+    return path.join(buildDirPath, 'index.html');
+  }
+
+  const withoutLeading = normalizedPath.replace(/^\//, '');
+  const filePath = path.join(buildDirPath, `${withoutLeading}.html`);
+  if (existsSync(filePath)) {
+    return filePath;
+  }
+
+  return path.join(buildDirPath, withoutLeading, 'index.html');
+}
+
+async function resolvePageLastmod(buildDirPath, pagePathname) {
+  const htmlPath = resolveHtmlPath(buildDirPath, pagePathname);
+
+  try {
+    const content = await fs.readFile(htmlPath, 'utf-8');
+    const modifiedTime = content.match(/<meta property="article:modified_time" content="(.*?)"/)?.[1];
+    const publishedTime = content.match(/<meta property="article:published_time" content="(.*?)"/)?.[1];
+    const candidate = modifiedTime || publishedTime;
+
+    if (candidate && !Number.isNaN(new Date(candidate).getTime())) {
+      return new Date(candidate).toISOString();
+    }
+
+    const stat = await fs.stat(htmlPath);
+    return stat.mtime.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
 }
 
 // 生成XSLT样式表 - 简化版直接嵌入解码后的URL
@@ -224,7 +261,7 @@ export function customSitemapIntegration() {
               continue;
             }
             
-            const url = new URL(page.pathname, SITE_URL).toString();
+            const url = new URL(normalizeCanonicalPath(page.pathname), SITE_META.url).toString();
             
             // 解码URL
             const urlObj = new URL(url);
@@ -239,17 +276,24 @@ export function customSitemapIntegration() {
               priority = 1.0;
             }
             // 文章列表页次高优先级
-            else if (page.pathname === '/articles/' || decodedPathname === '/articles/') {
+            else if (
+              normalizeCanonicalPath(page.pathname) === '/articles' ||
+              normalizeCanonicalPath(decodedPathname) === '/articles'
+            ) {
               priority = 0.9;
             }
             // 文章页面
-            else if (page.pathname.startsWith('/articles/') || decodedPathname.startsWith('/articles/')) {
+            else if (
+              normalizeCanonicalPath(page.pathname).startsWith('/articles/') ||
+              normalizeCanonicalPath(decodedPathname).startsWith('/articles/')
+            ) {
               priority = 0.8;
             }
             
             sitemapEntries.push({
               url,
               decodedUrl,
+              lastmod: await resolvePageLastmod(buildDirPath, page.pathname),
               priority
             });
           }

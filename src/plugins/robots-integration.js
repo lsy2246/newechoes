@@ -4,7 +4,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { SITE_URL } from '../consts';
+import { SITE_META } from '../consts';
 
 // 生成 robots.txt 内容
 function generateRobotsTxt(siteUrl) {
@@ -47,7 +47,7 @@ export function robotsIntegration() {
               }
             } else {
               // 如果文件不存在，则动态生成
-              const content = generateRobotsTxt(SITE_URL);
+              const content = generateRobotsTxt(SITE_META.url);
               res.setHeader('Content-Type', 'text/plain; charset=UTF-8');
               res.end(content);
             }
@@ -79,7 +79,7 @@ export function robotsIntegration() {
           }
           
           // 生成 robots.txt 内容
-          const content = generateRobotsTxt(SITE_URL);
+          const content = generateRobotsTxt(SITE_META.url);
           
           // 写入 robots.txt (使用 UTF-8 编码)
           const filePath = path.join(buildDirPath, 'robots.txt');

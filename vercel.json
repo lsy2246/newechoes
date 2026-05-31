@@ -5,6 +5,8 @@
   "framework": "astro",
   "outputDirectory": "dist",
   "public": false,
+  "cleanUrls": true,
+  "trailingSlash": false,
   "github": {
     "silent": true
   }

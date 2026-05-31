@@ -8,7 +8,9 @@ const globalCss = readFileSync("src/styles/global.css", "utf8");
 
 const cssBlock = (selector) => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return headerCss.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
+  return headerCss
+    .replace(/\r\n/g, "\n")
+    .match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
 };
 
 test("desktop navigation keeps labels at a regular weight in every state", () => {

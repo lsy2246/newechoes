@@ -2,7 +2,8 @@
 import "@/styles/global.css";
 import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
-import { SITE_TITLE, SITE_DESCRIPTION } from "@/consts";
+import { SITE_META } from "@/consts";
+import { createCanonicalUrl, normalizeCanonicalPath } from "@/lib/canonical-url.js";
 
 // 定义Props接口
 interface Props {
@@ -11,6 +12,8 @@ interface Props {
   date?: Date;
   updatedDate?: Date;
   tags?: string[];
+  keywords?: string[];
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
   skipSrTitle?: boolean; // 控制是否跳过屏幕阅读器标题
   pageType?: "page" | "article" | "directory"; // 更有语义的页面类型
   rssLink?: string; // 文章的RSS链接
@@ -22,16 +25,15 @@ interface Props {
   backgroundMode?: "default" | "starry";
 }
 
-// 获取完整的 URL
-const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-
 // 从props中获取页面特定信息
 const {
-  title = SITE_TITLE,
-  description = SITE_DESCRIPTION,
+  title = SITE_META.title,
+  description,
   date,
   updatedDate,
   tags,
+  keywords,
+  jsonLd,
   skipSrTitle = true,
   pageType = "page", // 默认为普通页面
   rssLink,
@@ -45,8 +47,27 @@ const {
 
 const isCardPreview = previewMode === "card";
 const useOverlayHeader = headerMode === "overlay";
-const pageDescription = description || `${SITE_TITLE} - 个人博客`;
-const canonicalHref = rssLink || canonicalURL.toString();
+const pageDescription = description || title || SITE_META.title;
+const canonicalPath = normalizeCanonicalPath(Astro.url.pathname);
+const canonicalHref = createCanonicalUrl(canonicalPath, Astro.site);
+const ogType = pageType === "article" ? "article" : "website";
+const pageKeywords = Array.from(new Set([...(keywords ?? []), ...(tags ?? [])]))
+  .map((keyword) => keyword.trim())
+  .filter(Boolean);
+const siteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_META.title,
+  url: SITE_META.url,
+};
+const personJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  name: SITE_META.author,
+  url: SITE_META.url,
+};
+const pageJsonLdItems = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
+const jsonLdItems = [siteJsonLd, personJsonLd, ...pageJsonLdItems];
 ---
 
 <!doctype html>
@@ -83,7 +104,7 @@ const canonicalHref = rssLink || canonicalURL.toString();
     <link
       rel="alternate"
       type="application/rss+xml"
-      title={`${SITE_TITLE} - RSS订阅`}
+      title={`${SITE_META.title} - RSS订阅`}
       href="/rss.xml"
     />
     {
@@ -102,17 +123,29 @@ const canonicalHref = rssLink || canonicalURL.toString();
       name="description"
       content={pageDescription}
     />
+    {
+      pageKeywords.length > 0 && (
+        <meta
+          name="keywords"
+          content={pageKeywords.join(", ")}
+        />
+      )
+    }
+    <meta
+      name="robots"
+      content="index, follow"
+    />
     <link
       rel="canonical"
       href={canonicalHref}
     />
     <meta
       property="og:type"
-      content={pageType}
+      content={ogType}
     />
     <meta
       property="og:url"
-      content={canonicalURL.toString()}
+      content={canonicalHref}
     />
     <meta
       property="og:title"
@@ -128,11 +161,11 @@ const canonicalHref = rssLink || canonicalURL.toString();
     />
     <meta
       name="twitter:site"
-      content={SITE_TITLE}
+      content={SITE_META.title}
     />
     <meta
       name="twitter:creator"
-      content={SITE_TITLE}
+      content={SITE_META.author}
     />
     {
       date && pageType === "article" && (
@@ -141,6 +174,14 @@ const canonicalHref = rssLink || canonicalURL.toString();
           content={date.toISOString()}
         />
       )
+    }
+    {
+      jsonLdItems.map((item) => (
+        <script
+          type="application/ld+json"
+          set:html={JSON.stringify(item)}
+        />
+      ))
     }
     {
       updatedDate && pageType === "article" && (

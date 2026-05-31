@@ -1,12 +1,12 @@
 ---
 import Layout from "@/components/Layout.astro";
 import HomeDiorama from "@/components/home/HomeDiorama.astro";
-import { SITE_TITLE, SITE_DESCRIPTION } from "@/consts";
+import { SITE_META } from "@/consts";
 ---
 
 <Layout
-  title={`lsy | ${SITE_TITLE}`}
-  description={SITE_DESCRIPTION}
+  title={`lsy | ${SITE_META.title}`}
+  description="记录生活，分享所思"
   fullBleed={true}
   hideFooter={true}
   headerMode="overlay"

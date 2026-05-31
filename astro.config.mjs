@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import mdx from "@astrojs/mdx";
 import react from "@astrojs/react";
 import rehypeExternalLinks from "rehype-external-links";
-import { SITE_URL } from "./src/consts";
+import { SITE_META } from "./src/consts";
 import vercel from "@astrojs/vercel";
 import { articleIndexerIntegration } from "./src/plugins/build-article-index.js";
 import { compressionIntegration } from "./src/plugins/compression-integration.js";
@@ -14,20 +14,21 @@ import { rehypeTables } from "./src/plugins/rehype-tables.js";
 import { customSitemapIntegration } from "./src/plugins/sitemap-integration.js";
 import { rssIntegration } from "./src/plugins/rss-integration.js";
 import { robotsIntegration } from "./src/plugins/robots-integration.js";
+import { llmsIntegration } from "./src/plugins/llms-integration.js";
 import mermaid from 'astro-mermaid';
 
 
 // https://astro.build/config
 export default defineConfig({
-  site: SITE_URL,
+  site: SITE_META.url,
   output: "static",
-  trailingSlash: "ignore",
+  trailingSlash: "never",
   devToolbar: {
     enabled: false,
   },
 
   build: {
-    format: "directory",
+    format: "file",
   },
 
   vite: {
@@ -82,6 +83,7 @@ export default defineConfig({
     customSitemapIntegration(),
     robotsIntegration(),
     rssIntegration(),
+    llmsIntegration(),
     // 添加压缩插件 (必须放在最后位置)
     compressionIntegration()
   ],

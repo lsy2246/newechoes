@@ -124,9 +124,11 @@ graph TD;
 编辑 `src/consts.ts` 配置网站信息：
 
 ```typescript
-export const SITE_URL = "https://your-domain.com";
-export const SITE_TITLE = "你的网站名称";
-export const SITE_DESCRIPTION = "网站描述";
+export const SITE_META = {
+  url: "https://your-domain.com",
+  title: "你的网站名称",
+  author: "作者名",
+} as const;
 
 // 导航结构
 export const NAV_STRUCTURE = [

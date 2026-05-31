@@ -14,7 +14,8 @@ import {
   resolveArticleIdentity,
 } from "@/lib/article-history.js";
 import Layout from "@/components/Layout.astro";
-import { ARTICLE_EXPIRY_CONFIG, SOURCE_REPOSITORY_CONFIG } from "@/consts";
+import { ARTICLE_EXPIRY_CONFIG, SITE_META, SOURCE_REPOSITORY_CONFIG } from "@/consts";
+import { createCanonicalUrl } from "@/lib/canonical-url.js";
 import "@/styles/articles.css";
 
 // 定义文章类型
@@ -255,6 +256,63 @@ const shouldShowArticleWarning = (() => {
 
 const articleHistory = getArticleHistory(article, SOURCE_REPOSITORY_CONFIG);
 const visibleHistoryEvents: any[] = articleHistory.events.slice(0, 6);
+const articleCanonicalPath = getCanonicalArticleUrl(articleIdentity);
+const articleCanonicalUrl = createCanonicalUrl(articleCanonicalPath, SITE_META.url);
+const articleUpdatedAt = articleHistory.updatedAt ?? article.data.date;
+const articleSection = section || "articles";
+const articleJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  headline: article.data.title,
+  description,
+  url: articleCanonicalUrl,
+  mainEntityOfPage: articleCanonicalUrl,
+  datePublished: article.data.date.toISOString(),
+  dateModified: articleUpdatedAt.toISOString(),
+  articleSection,
+  keywords: article.data.tags ?? [],
+  author: {
+    "@type": "Person",
+    name: SITE_META.author,
+  },
+  publisher: {
+    "@type": "Organization",
+    name: SITE_META.title,
+    url: SITE_META.url,
+  },
+};
+const breadcrumbItems = [
+  {
+    name: SITE_META.title,
+    item: SITE_META.url,
+  },
+  {
+    name: "文章",
+    item: new URL("/articles", SITE_META.url).toString(),
+  },
+  ...pathSegments.map((segment, index) => {
+    const segmentPath = pathSegments.slice(0, index + 1).join("/");
+
+    return {
+      name: segment,
+      item: createCanonicalUrl(`/articles/${segmentPath}`, SITE_META.url),
+    };
+  }),
+  {
+    name: article.data.title,
+    item: articleCanonicalUrl,
+  },
+];
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: breadcrumbItems.map((item, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: item.name,
+    item: item.item,
+  })),
+};
 
 // 预先生成目录结构
 function generateTableOfContents(headings: Heading[]) {
@@ -371,6 +429,8 @@ const tableOfContents = generateTableOfContents(headings);
   date={article.data.date}
   updatedDate={articleHistory.updatedAt ?? undefined}
   tags={article.data.tags}
+  keywords={article.data.tags}
+  jsonLd={[articleJsonLd, breadcrumbJsonLd]}
   pageType="article"
   previewMode={isCardPreview ? "card" : "default"}
 >
@@ -396,7 +456,7 @@ const tableOfContents = generateTableOfContents(headings);
         <nav class="article-topbar" aria-label="文章路径">
           <div class="article-breadcrumb">
             <a
-              href="/articles/"
+              href="/articles"
               data-article-directory-link
               data-astro-prefetch="hover"
             >
@@ -409,7 +469,7 @@ const tableOfContents = generateTableOfContents(headings);
                 <>
                   <span aria-hidden="true">/</span>
                   <a
-                    href={`/articles/${segmentPath}/`}
+                    href={`/articles/${segmentPath}`}
                     data-article-directory-link
                     data-astro-prefetch="hover"
                   >
@@ -423,7 +483,7 @@ const tableOfContents = generateTableOfContents(headings);
           </div>
           <a
             class="article-return-link"
-            href={section ? `/articles/${section}/` : "/articles/"}
+            href={section ? `/articles/${section}` : "/articles"}
             data-article-directory-link
             data-astro-prefetch="hover"
           >

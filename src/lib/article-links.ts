@@ -1,4 +1,5 @@
 import { getSpecialPath } from "@/content.config";
+import { normalizeCanonicalPath } from "@/lib/canonical-url.js";
 
 const MARKDOWN_LINK_RE = /(?<!!)\[[^\]]*]\(([^)]+)\)/g;
 const HTML_HREF_RE = /href\s*=\s*["']([^"']+)["']/g;
@@ -85,7 +86,7 @@ export function getArticleRouteVariants(articleId: string): string[] {
 }
 
 export function getCanonicalArticleUrl(articleId: string) {
-  return `/articles/${encodeURI(articleId)}`;
+  return normalizeCanonicalPath(`/articles/${encodeURI(articleId)}`);
 }
 
 function getReferenceSourceId(source: ArticleReferenceSource) {

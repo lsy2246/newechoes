@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { SITE_URL, SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+import { SITE_META } from '../consts';
+import { createCanonicalUrl, normalizeCanonicalPath } from '../lib/canonical-url.js';
 import * as cheerio from 'cheerio';
 import { generateXmlViewStyles } from './xml-view-styles.js';
 
@@ -28,12 +29,13 @@ function generateRssXml(entries) {
 <?xml-stylesheet type="text/xsl" href="/rss.xsl"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${escapeXml(SITE_TITLE)}</title>
-    <link>${SITE_URL}</link>
-    <description>${escapeXml(SITE_DESCRIPTION)}</description>
+    <title>${escapeXml(SITE_META.title)}</title>
+    <link>${SITE_META.url}</link>
+    <description>${escapeXml(SITE_META.title)}</description>
     <language>zh-CN</language>
+    <managingEditor>${escapeXml(SITE_META.author)}</managingEditor>
     <lastBuildDate>${now}</lastBuildDate>
-    <atom:link href="${SITE_URL}/rss.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="${SITE_META.url}/rss.xml" rel="self" type="application/rss+xml" />
     ${entries.map(entry => {
       // 确保描述内容中的HTML标签安全
       const safeDescription = entry.description || '';
@@ -105,6 +107,21 @@ function generateRssXslt() {
     </html>
   </xsl:template>
 </xsl:stylesheet>`;
+}
+
+function resolveHtmlPath(buildDirPath, pagePathname) {
+  const normalizedPath = normalizeCanonicalPath(pagePathname);
+  if (normalizedPath === '/') {
+    return path.join(buildDirPath, 'index.html');
+  }
+
+  const withoutLeading = normalizedPath.replace(/^\//, '');
+  const filePath = path.join(buildDirPath, `${withoutLeading}.html`);
+  if (existsSync(filePath)) {
+    return filePath;
+  }
+
+  return path.join(buildDirPath, withoutLeading, 'index.html');
 }
 
 // 主集成函数
@@ -212,7 +229,7 @@ export function rssIntegration() {
             }
             
             // 从构建目录读取文章的HTML文件
-            const htmlPath = path.join(buildDirPath, page.pathname, 'index.html');
+            const htmlPath = resolveHtmlPath(buildDirPath, page.pathname);
             let content = '';
             try {
               content = await fs.readFile(htmlPath, 'utf-8');
@@ -241,7 +258,7 @@ export function rssIntegration() {
               ? new Date(dateMatch[1]).toUTCString()
               : new Date().toUTCString();
 
-            const url = new URL(page.pathname, SITE_URL).toString();
+            const url = createCanonicalUrl(page.pathname, SITE_META.url);
             
             // 构造文章信息
             const articleInfo = {

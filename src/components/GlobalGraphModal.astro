@@ -8,6 +8,7 @@ import {
   getCanonicalArticleUrl,
 } from "@/lib/article-links";
 import { resolveArticleIdentity } from "@/lib/article-history.js";
+import { normalizeCanonicalPath } from "@/lib/canonical-url.js";
 
 interface Props {
   articleId?: string;
@@ -56,8 +57,7 @@ const isTreeRender = renderAs === "tree";
 const articles: ArticleRecord[] = isTreeRender ? [] : await getCollection("articles");
 
 function normalizeRoute(path: string) {
-  if (!path) return "/";
-  return path === "/" ? "/" : path.replace(/\/$/, "");
+  return normalizeCanonicalPath(path);
 }
 
 function articleUrl(articleId: string) {
@@ -65,7 +65,7 @@ function articleUrl(articleId: string) {
 }
 
 function sectionUrl(sectionPath: string) {
-  return `/articles/${encodeURI(sectionPath)}`;
+  return normalizeCanonicalPath(`/articles/${encodeURI(sectionPath)}`);
 }
 
 const normalizedCurrentPath = normalizeRoute(currentPath);

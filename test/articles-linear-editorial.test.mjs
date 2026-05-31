@@ -261,7 +261,7 @@ test("article pages expose git updated time for filter indexing", () => {
 
 test("article detail routes are generated only from title identities", () => {
   const articleRouteVariantsBlock =
-    articleLinksSource.match(/export function getArticleRouteVariants[\s\S]*?\n}\n/)?.[0] ?? "";
+    articleLinksSource.match(/export function getArticleRouteVariants[\s\S]*?\r?\n}\r?\n/)?.[0] ?? "";
 
   assert.ok(articleDetail.includes("params: { id: resolveArticleIdentity(article) }"));
   assert.equal(articleDetail.includes("possiblePaths"), false);
@@ -287,7 +287,7 @@ test("article detail top path bar spans the reader grid with a return link", () 
   assert.ok(topbarIndex < articleContentIndex);
   assert.ok(topbarBlock.includes('aria-label="文章路径"'));
   assert.ok(topbarBlock.includes('class="article-breadcrumb"'));
-  assert.ok(topbarBlock.includes('href="/articles/"'));
+  assert.ok(topbarBlock.includes('href="/articles"'));
   assert.ok(topbarBlock.includes("data-article-directory-link"));
   assert.ok(topbarBlock.includes("pathSegments.map"));
   assert.ok(topbarBlock.includes("article.data.title"));

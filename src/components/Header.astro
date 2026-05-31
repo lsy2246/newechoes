@@ -1,8 +1,9 @@
 ---
-import { SITE_TITLE, NAV_STRUCTURE } from "@/consts.ts";
+import { SITE_META, NAV_STRUCTURE } from "@/consts.ts";
 import ThemeToggle from "@/components/ThemeToggle.astro";
 import Search from "@/components/Search.tsx";
 import GlobalGraphModal from "@/components/GlobalGraphModal.astro";
+import { normalizeCanonicalPath } from "@/lib/canonical-url.js";
 import "@/styles/header.css";
 
 interface Props {
@@ -28,15 +29,7 @@ const navItems = NAV_STRUCTURE as NavItem[];
 const iconButtonClass =
   "nav-icon-button inline-flex items-center justify-center h-8 w-8 cursor-pointer rounded-md transition-colors duration-200";
 // 获取当前路径
-const currentPath = Astro.url.pathname;
-
-// 移除结尾的斜杠以统一路径格式（保留根路径的斜杠）
-const normalizedPath =
-  currentPath === "/"
-    ? "/"
-    : currentPath.endsWith("/")
-      ? currentPath.slice(0, -1)
-      : currentPath;
+const normalizedPath = normalizeCanonicalPath(Astro.url.pathname);
 const isHomeHeader = normalizedPath === "/";
 const headerBgClass =
   isHomeHeader
@@ -103,7 +96,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             href="/"
             class="site-wordmark text-xl md:text-2xl font-bold tracking-tight"
           >
-            {SITE_TITLE}
+            {SITE_META.title}
           </a>
         </div>
 

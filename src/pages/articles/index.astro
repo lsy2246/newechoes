@@ -5,6 +5,8 @@ import { contentStructure } from "../../content.config";
 import Layout from "@/components/Layout.astro";
 import { getCanonicalArticleUrl } from "@/lib/article-links";
 import { resolveArticleIdentity } from "@/lib/article-history.js";
+import { createCanonicalUrl, normalizeCanonicalPath } from "@/lib/canonical-url.js";
+import { SITE_META } from "@/consts";
 import "@/styles/articles.css";
 
 export const prerender = true;
@@ -65,28 +67,117 @@ function getArticleHref(article: ArticleEntry) {
   return getCanonicalArticleUrl(resolveArticleIdentity(article));
 }
 
+function getDirectoryPath(directoryPath: string) {
+  return normalizeCanonicalPath(directoryPath ? `/articles/${directoryPath}` : "/articles");
+}
+
+function getArticleTitle(articlePath: string) {
+  const article = articles.find((entry) => entry.id === articlePath);
+  return article?.data.title ?? articlePath.split("/").at(-1) ?? articlePath;
+}
+
+function createDirectorySeo(
+  currentPath: string,
+  currentSections: typeof sections,
+  currentArticles: string[],
+) {
+  const displayName = currentPath || "文章";
+  const childNames = currentSections.map((section) => section.name);
+  const articleNames = currentArticles.map(getArticleTitle);
+  const sampleNames = [...childNames, ...articleNames].slice(0, 4);
+  const countParts = [
+    currentSections.length > 0 ? `${currentSections.length} 个子目录` : "",
+    currentArticles.length > 0 ? `${currentArticles.length} 篇文章` : "",
+  ].filter(Boolean);
+  const sampleText = sampleNames.length > 0
+    ? `，包括 ${sampleNames.join("、")} 等内容`
+    : "";
+  const description = countParts.length > 0
+    ? `${SITE_META.title} 的 ${displayName} 目录收录 ${countParts.join("、")}${sampleText}。`
+    : `${SITE_META.title} 的 ${displayName} 目录暂未收录内容。`;
+  const keywords = Array.from(new Set([displayName, ...childNames, ...articleNames])).filter(Boolean);
+
+  return {
+    title: currentPath ? `${displayName} - 文章目录` : `文章 - ${SITE_META.title}`,
+    description,
+    keywords,
+    displayName,
+  };
+}
+
 const {
   sections: currentSections,
   articles: currentArticles,
   currentPath,
 } = getCurrentSection(pathSegments);
 
-const pageTitle = currentPath || "文章列表";
+const pageSeo = createDirectorySeo(currentPath, currentSections, currentArticles);
+const pageTitle = pageSeo.title;
+const pageDescription = pageSeo.description;
+const pageKeywords = pageSeo.keywords;
 const parentPath = pathSegments.slice(0, -1).join("/");
-const parentHref = parentPath ? `/articles/${parentPath}/` : "/articles/";
+const parentHref = parentPath ? `/articles/${parentPath}` : "/articles";
+const pagePath = currentPath ? `/articles/${currentPath}` : "/articles";
+const pageUrl = createCanonicalUrl(pagePath, SITE_META.url);
+const collectionJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: pageSeo.displayName,
+  description: pageDescription,
+  url: pageUrl,
+  isPartOf: {
+    "@type": "WebSite",
+    name: SITE_META.title,
+    url: SITE_META.url,
+  },
+};
+const itemListJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: `${pageTitle}内容索引`,
+  itemListElement: [
+    ...currentSections.map((section, index) => {
+      const dirLink = currentPath
+        ? `${currentPath}/${section.name}`
+        : section.name;
+
+      return {
+        "@type": "ListItem",
+        position: index + 1,
+        name: section.name,
+        url: createCanonicalUrl(getDirectoryPath(dirLink), SITE_META.url),
+      };
+    }),
+    ...currentArticles.map((articlePath, index) => {
+      const article = articles.find((entry) => entry.id === articlePath);
+
+      return {
+        "@type": "ListItem",
+        position: currentSections.length + index + 1,
+        name: article?.data.title ?? articlePath,
+        url: createCanonicalUrl(
+          article ? getArticleHref(article) : `/articles/${encodeURI(articlePath)}`,
+          SITE_META.url,
+        ),
+      };
+    }),
+  ],
+};
 ---
 
 <Layout
   title={pageTitle}
   pageType="directory"
-  description="文章列表"
+  description={pageDescription}
+  keywords={pageKeywords}
+  jsonLd={[collectionJsonLd, itemListJsonLd]}
   skipSrTitle={false}
 >
   <div class="article-index-shell">
     <div class="browser">
       <nav class="article-topbar article-index-topbar" aria-label="文章路径">
         <div class="article-breadcrumb">
-          <a href="/articles/" data-astro-prefetch="hover">文章</a>
+          <a href="/articles" data-astro-prefetch="hover">文章</a>
           {
             pathSegments.map((segment, index) => {
               const segmentPath = pathSegments.slice(0, index + 1).join("/");
@@ -99,7 +190,7 @@ const parentHref = parentPath ? `/articles/${parentPath}/` : "/articles/";
                     isCurrentSegment ? (
                       <span aria-current="page">{segment}</span>
                     ) : (
-                      <a href={`/articles/${segmentPath}/`} data-astro-prefetch="hover">
+                      <a href={`/articles/${segmentPath}`} data-astro-prefetch="hover">
                         {segment}
                       </a>
                     )
@@ -152,7 +243,7 @@ const parentHref = parentPath ? `/articles/${parentPath}/` : "/articles/";
 
               return (
                 <a
-                  href={`/articles/${dirLink}/`}
+                  href={`/articles/${dirLink}`}
                   class="node node-folder no-summary"
                   data-astro-prefetch="viewport"
                 >
