@@ -24,6 +24,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "@types/react": "^19.2.15",
     "@types/three": "^0.184.1",
+    "@vercel/speed-insights": "^2.0.0",
     "astro": "^6.3.7",
     "astro-mermaid": "^2.0.1",
     "cheerio": "^1.2.0",
