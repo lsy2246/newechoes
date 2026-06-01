@@ -25,6 +25,11 @@
 **行为**: `astro.config.mjs` 根据 `DEPLOY_TARGET` 切换 adapter；`package.json` 提供 `build:vercel`、`build:edgeone`、`build:cloudflare` 三个构建脚本；Cloudflare 额外使用 `prerenderEnvironment: "node"` 避免内容页预渲染阶段被 workerd 的 Node 限制阻断；平台专属监控能力再通过运行时平台层注入。
 **结果**: 同一代码库可按目标平台产出对应构建结果，同时保留统一业务代码，并为平台专属监控优化保留稳定接线方式。
 
+### pnpm workspace 兼容
+**条件**: 部署平台使用 `pnpm install --frozen-lockfile`，且仓库根目录存在 `pnpm-workspace.yaml`。
+**行为**: `pnpm-workspace.yaml` 必须显式声明 `packages`，即使当前项目只有根包，也至少声明 `packages: ['.']`。
+**结果**: `pnpm@10` 不会因为 workspace 配置缺少 `packages` 而在依赖安装阶段直接失败。
+
 ## 依赖关系
 
 ```yaml
