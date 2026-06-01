@@ -62,6 +62,10 @@ body[data-swup-loading='true'] .home-diorama__loading {
   visibility: hidden;
 }
 
+body[data-swup-loading='true'] #header-bg {
+  transition: none !important;
+}
+
 /* 旋转动画元素 */
 .loading-spinner {
   width: 50px;

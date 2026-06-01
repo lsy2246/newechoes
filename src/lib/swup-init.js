@@ -107,22 +107,26 @@ function hideLoadingSpinner(spinner) {
   loadingSpinnerHideTimer = window.setTimeout(() => {
     loadingSpinnerHideTimer = 0;
     spinner.classList.remove('is-active');
-    setSwupLoadingState(false);
   
     // 添加淡出效果后移除
     setTimeout(() => {
       if (spinner && document.body.contains(spinner)) {
         spinner.style.display = 'none';
       }
+      setSwupLoadingState(false);
     }, 300);
   }, hideDelay);
 }
 
 // 根据当前路径同步首页专属的 body class
 // (home page 走 overlay header + full-bleed；其他页面不能带这些 class)
-function isHomePath() {
-  const path = window.location.pathname;
+function isHomeUrl(url = window.location.pathname) {
+  const path = getUrlPathname(url);
   return path === '/' || path === '';
+}
+
+function isHomePath() {
+  return isHomeUrl(window.location.pathname);
 }
 
 function readLayoutFlag(element, attribute, fallback = false) {
@@ -152,14 +156,14 @@ function syncLayoutHeaderVisibility(hideHeader = false) {
   header.setAttribute('aria-hidden', hideHeader ? 'true' : 'false');
 }
 
-function readPageShellState() {
-  const mainElement = document.querySelector('main[data-layout-background]');
+function readPageShellStateFromRoot(root = document, url = window.location.pathname) {
+  const mainElement = root.querySelector?.('main[data-layout-background]');
   const backgroundMode = mainElement?.getAttribute('data-layout-background') || 'default';
-  const headerMode = mainElement?.getAttribute('data-layout-header-mode') || (isHomePath() ? 'overlay' : 'default');
+  const headerMode = mainElement?.getAttribute('data-layout-header-mode') || (isHomeUrl(url) ? 'overlay' : 'default');
   const pageType = mainElement?.getAttribute('data-layout-page-type') || 'page';
   const isCardPreview = readLayoutFlag(mainElement, 'data-layout-card-preview');
-  const isFullBleed = readLayoutFlag(mainElement, 'data-layout-full-bleed', isHomePath());
-  const hideFooter = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomePath());
+  const isFullBleed = readLayoutFlag(mainElement, 'data-layout-full-bleed', isHomeUrl(url));
+  const hideFooter = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomeUrl(url));
   const hideHeader = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-header');
   const useOverlayHeader = headerMode === 'overlay';
 
@@ -171,12 +175,16 @@ function readPageShellState() {
     hideFooter,
     hideHeader,
     useOverlayHeader,
-    useHomeHeader: isHomePath()
+    useHomeHeader: isHomeUrl(url)
   };
 }
 
-function clearHomePageState() {
-  if (isHomePath()) return;
+function readPageShellState() {
+  return readPageShellStateFromRoot(document, window.location.pathname);
+}
+
+function clearHomePageState(shellState = readPageShellState()) {
+  if (shellState.useHomeHeader) return;
 
   const docEl = document.documentElement;
   docEl.removeAttribute("data-home-header-phase");
@@ -187,11 +195,11 @@ function clearHomePageState() {
   docEl.style.removeProperty("--story-local");
 }
 
-function updateHeaderScrollState() {
+function updateHeaderScrollState(shellState = readPageShellState()) {
   const headerBg = document.getElementById('header-bg');
   if (!headerBg) return;
 
-  const shouldUseScrolledHeader = !isHomePath() && window.scrollY > 8;
+  const shouldUseScrolledHeader = !shellState.useHomeHeader && window.scrollY > 8;
   headerBg.classList.toggle('scrolled', shouldUseScrolledHeader);
 }
 
@@ -210,7 +218,7 @@ function syncHeaderShellState(shellState = readPageShellState()) {
 
   headerBg.classList.add('absolute', 'inset-0');
   headerBg.classList.toggle('header-bg-surface', !shellState.useHomeHeader);
-  updateHeaderScrollState();
+  updateHeaderScrollState(shellState);
 }
 
 // Swup only replaces page containers, so body/header-level layout state needs syncing.
@@ -226,11 +234,18 @@ function syncLayoutBodyClasses(shellState = readPageShellState()) {
   syncLayoutFooterVisibility(shellState.hideFooter);
 }
 
-function syncPageShellState() {
-  const shellState = readPageShellState();
+function syncPageShellState(shellState = readPageShellState()) {
   syncLayoutBodyClasses(shellState);
   syncHeaderShellState(shellState);
-  clearHomePageState();
+  clearHomePageState(shellState);
+}
+
+function getVisitShellState(visit) {
+  const nextDocument = visit?.to?.document;
+  const nextUrl = visit?.to?.url || window.location.pathname;
+  if (!nextDocument) return null;
+
+  return readPageShellStateFromRoot(nextDocument, nextUrl);
 }
 
 const ROUTE_STYLESHEET_SELECTOR = 'link[rel="stylesheet"][href]';
@@ -680,6 +695,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. 内容已加载但尚未替换 - 设置内容状态
   swup.hooks.on('page:load', (visit) => {
     contentReady = true;
+    const nextShellState = getVisitShellState(visit);
+    if (nextShellState) {
+      syncPageShellState(nextShellState);
+    }
+
     // 如果是载入文章页面但Fragment插件未加载，则加载它
     if (isArticleShellPageUrl(visit.to.url) &&
         !swup.findPlugin('fragment')) {

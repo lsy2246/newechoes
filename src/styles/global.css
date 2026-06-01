@@ -76,14 +76,14 @@
 
 .layout-overlay-header #main-header[data-home-header] #header-bg {
   opacity: 1;
-  background: #ffffff;
+  background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
 }
 
 [data-theme="dark"] .layout-overlay-header #main-header[data-home-header] #header-bg {
-  background: var(--site-bg);
+  background: transparent;
 }
 
 [data-home-header-phase="room"] .layout-overlay-header #main-header[data-home-header] #header-bg {
@@ -179,6 +179,11 @@ body {
   transition:
     opacity 0.32s ease,
     visibility 0.32s ease;
+}
+
+body[data-swup-loading="true"] .home-diorama__loading {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .home-diorama__loading.is-ready {
