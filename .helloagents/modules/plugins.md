@@ -25,6 +25,11 @@
 **行为**: `build-article-index.js` 将索引统一输出到 `dist/client/assets/index/`，开发态虚拟路由也只响应 `/assets/index/*`。
 **结果**: 搜索与筛选索引既符合静态资源路径约定，也能避开 `EdgeOne` 对 `/index/*` 的函数路由冲突。
 
+### 无 cargo 的 CI 索引兜底
+**条件**: `Cloudflare`、`EdgeOne` 等构建环境没有安装 `cargo`，但仓库内已经提交预构建的 wasm 资产与文章索引器。
+**行为**: `build-article-index.js` 优先尝试重建运行时产物；若环境缺少 `cargo`，则改为复用仓库里的预构建 wasm 与索引器二进制，只在关键产物缺失时才中断。
+**结果**: 构建机不会因为 `cargo ENOENT` 直接跳过整条搜索索引链路，搜索与筛选索引可以继续生成。
+
 ## 依赖关系
 
 ```yaml

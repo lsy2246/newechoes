@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "@/lib/google-photos";
+import { createServerRequestLog, summarizeUrl } from "@/lib/server-request-log";
 import { fetchAssetDirect } from "@/lib/server-asset-relay";
 import { supportsGooglePhotosParsing } from "@/lib/runtime/platform";
 
@@ -22,9 +23,17 @@ export const GET: APIRoute = async ({ request }) => {
   const shareUrl = url.searchParams.get("shareUrl");
   const cursor = url.searchParams.get("cursor");
   const loadedCount = Number.parseInt(url.searchParams.get("loadedCount") || "0", 10);
+  const log = createServerRequestLog("api.google-photos", request, {
+    hasMediaUrl: Boolean(mediaUrl),
+    mediaUrl: summarizeUrl(mediaUrl),
+    shareUrl: summarizeUrl(shareUrl),
+    hasCursor: Boolean(cursor),
+    loadedCount,
+  });
 
   if (mediaUrl) {
     if (!isAllowedGooglePhotosMediaUrl(mediaUrl)) {
+      log.respond(400, { reason: "invalid_media_url" });
       return new Response("Invalid Google Photos media URL", {
         status: 400,
         headers: {
@@ -34,16 +43,27 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     try {
+      log.info("media.proxy.fetch.start", {
+        mediaUrl: summarizeUrl(mediaUrl),
+      });
       const response = await fetchAssetDirect(mediaUrl, {
         headers: GOOGLE_PHOTOS_MEDIA_HEADERS,
       });
 
       if (!response.ok) {
+        log.warn("media.proxy.fetch.non_ok", {
+          mediaUrl: summarizeUrl(mediaUrl),
+          upstreamStatus: response.status,
+        });
         return new Response("Failed to fetch Google Photos media", { status: response.status });
       }
 
       const mediaBuffer = await response.arrayBuffer();
       const contentType = response.headers.get("content-type") || "application/octet-stream";
+      log.respond(200, {
+        reason: "media_proxy_success",
+        mediaUrl: summarizeUrl(mediaUrl),
+      });
 
       return new Response(mediaBuffer, {
         headers: {
@@ -52,12 +72,17 @@ export const GET: APIRoute = async ({ request }) => {
           "CDN-Cache-Control": "public, max-age=31536000, immutable",
         },
       });
-    } catch {
+    } catch (error) {
+      log.error("media.proxy.fetch.error", error, {
+        mediaUrl: summarizeUrl(mediaUrl),
+      });
+      log.respond(500, { reason: "media_proxy_failed" });
       return new Response("Error fetching Google Photos media", { status: 500 });
     }
   }
 
   if (!shareUrl) {
+    log.respond(400, { reason: "missing_share_url" });
     return new Response(JSON.stringify({ error: "缺少 Google Photos 分享链接" }), {
       status: 400,
       headers: {
@@ -68,6 +93,7 @@ export const GET: APIRoute = async ({ request }) => {
   }
 
   if (!supportsGooglePhotosParsing()) {
+    log.respond(501, { reason: "platform_parsing_disabled" });
     return new Response(
       JSON.stringify({
         error: "当前平台暂未启用相册解析",
@@ -84,11 +110,24 @@ export const GET: APIRoute = async ({ request }) => {
   }
 
   try {
+    log.info("share.fetch.start", {
+      shareUrl: summarizeUrl(shareUrl),
+      hasCursor: Boolean(cursor),
+    });
     const { fetchGooglePhotosPage } = await import("@/lib/google-photos");
     const data = await fetchGooglePhotosPage({
       shareUrl,
       cursor,
       loadedCount: Number.isNaN(loadedCount) ? 0 : loadedCount,
+    });
+
+    const itemsCount = Array.isArray((data as { items?: unknown[] }).items)
+      ? ((data as { items: unknown[] }).items.length)
+      : undefined;
+    log.respond(200, {
+      reason: "share_fetch_success",
+      items: itemsCount,
+      hasNextCursor: Boolean((data as { nextCursor?: string | null }).nextCursor),
     });
 
     return new Response(JSON.stringify(data), {
@@ -99,6 +138,11 @@ export const GET: APIRoute = async ({ request }) => {
       },
     });
   } catch (error) {
+    log.error("share.fetch.error", error, {
+      shareUrl: summarizeUrl(shareUrl),
+      hasCursor: Boolean(cursor),
+    });
+    log.respond(500, { reason: "share_fetch_failed" });
     return new Response(
       JSON.stringify({
         error: "获取相册数据失败",

@@ -1,5 +1,6 @@
 import type { APIContext } from 'astro';
 import { GitPlatform } from '@/components/GitProjectCollection';
+import { createServerRequestLog } from '@/lib/server-request-log';
 
 interface GitProject {
   name: string;
@@ -24,6 +25,7 @@ interface Pagination {
 export const prerender = false;
 
 export async function GET({ request }: APIContext) {
+  const log = createServerRequestLog('api.git-projects', request);
   try {
     const url = new URL(request.url);
     
@@ -39,8 +41,16 @@ export async function GET({ request }: APIContext) {
     const username = url.searchParams.get('username') || '';
     const organization = url.searchParams.get('organization') || '';
     const configStr = url.searchParams.get('config');
+    log.info('request.parsed', {
+      platform: platformParam,
+      page,
+      hasUsername: Boolean(username),
+      hasOrganization: Boolean(organization),
+      hasConfig: Boolean(configStr),
+    });
 
     if (!platformParam) {
+      log.respond(400, { reason: 'missing_platform' });
       return new Response(JSON.stringify({ 
         error: '无效的平台参数',
         receivedPlatform: platformParam,
@@ -48,6 +58,7 @@ export async function GET({ request }: APIContext) {
     }
 
     if (!configStr) {
+      log.respond(400, { reason: 'missing_config' });
       return new Response(JSON.stringify({ 
         error: '缺少配置参数'
       }), { status: 400, headers });
@@ -56,6 +67,7 @@ export async function GET({ request }: APIContext) {
     const config = JSON.parse(configStr);
 
     if (!Object.values(GitPlatform).includes(platformParam as GitPlatform)) {
+      log.respond(400, { reason: 'invalid_platform', platform: platformParam });
       return new Response(JSON.stringify({ 
         error: '无效的平台参数',
         receivedPlatform: platformParam,
@@ -79,14 +91,22 @@ export async function GET({ request }: APIContext) {
       projects = result.projects;
       pagination = result.pagination;
     }
+    log.respond(200, {
+      platform,
+      page,
+      projects: projects.length,
+      pagination,
+    });
     
     return new Response(JSON.stringify({ projects, pagination }), {
       status: 200,
       headers
     });
   } catch (error) {
+    log.error('request.failed', error);
     // 检查是否为请求中止错误
     if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+      log.respond(499, { reason: 'request_aborted' });
       return new Response(JSON.stringify({ 
         error: '请求被用户中止',
         message: error.message,
@@ -101,6 +121,7 @@ export async function GET({ request }: APIContext) {
     }
     
     // 处理其他类型的错误
+    log.respond(500, { reason: 'request_failed' });
     return new Response(JSON.stringify({ 
       error: '处理请求错误',
       message: error instanceof Error ? error.message : '未知错误',

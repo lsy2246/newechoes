@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { load } from 'cheerio';
+import { createServerRequestLog, summarizeUrl } from '@/lib/server-request-log';
 import { fetchAssetDirect, relayAssetUrl } from '@/lib/server-asset-relay';
 
 // 添加服务器渲染标记
@@ -72,21 +73,38 @@ export const GET: APIRoute = async ({ request }) => {
   const start = parseInt(url.searchParams.get('start') || '0');
   const doubanId = url.searchParams.get('doubanId');
   const imageUrl = url.searchParams.get('imageUrl'); // 图片代理参数
+  const log = createServerRequestLog('api.douban', request, {
+    type,
+    start,
+    doubanId: doubanId || null,
+    hasImageProxy: Boolean(imageUrl),
+    imageHost: imageUrl ? summarizeUrl(imageUrl) : null,
+  });
 
   // 如果是图片代理请求
   if (imageUrl) {
     try {
+      log.info('image.proxy.fetch.start', {
+        imageUrl: summarizeUrl(imageUrl),
+      });
       const response = await fetchAssetDirect(imageUrl, {
         headers: DOUBAN_IMAGE_HEADERS,
       });
 
       if (!response.ok) {
-        console.error('[图片代理] 请求失败:', response.status);
+        log.warn('image.proxy.fetch.failed', {
+          imageUrl: summarizeUrl(imageUrl),
+          upstreamStatus: response.status,
+        });
         return new Response('Failed to fetch image', { status: response.status });
       }
 
       const imageBuffer = await response.arrayBuffer();
       const contentType = response.headers.get('content-type') || 'image/webp';
+      log.respond(200, {
+        reason: 'image_proxy_success',
+        imageUrl: summarizeUrl(imageUrl),
+      });
 
       return new Response(imageBuffer, {
         headers: {
@@ -95,12 +113,16 @@ export const GET: APIRoute = async ({ request }) => {
         },
       });
     } catch (error) {
-      console.error('[图片代理] 错误:', error);
+      log.error('image.proxy.fetch.error', error, {
+        imageUrl: summarizeUrl(imageUrl),
+      });
+      log.respond(500, { reason: 'image_proxy_failed' });
       return new Response('Error fetching image', { status: 500 });
     }
   }
 
   if (!doubanId) {
+    log.respond(400, { reason: 'missing_douban_id' });
     return new Response(JSON.stringify({ error: '缺少豆瓣ID' }), {
       status: 400,
       headers: {
@@ -127,6 +149,11 @@ export const GET: APIRoute = async ({ request }) => {
           doubanUrl = `https://movie.douban.com/people/${doubanId}/collect?start=${start}`;
         }
 
+        log.info('upstream.fetch.start', {
+          attempt: retries + 1,
+          upstreamUrl: summarizeUrl(doubanUrl),
+        });
+
         // 使用带超时的fetch发送请求
         const response = await fetchWithTimeout(doubanUrl, {
           headers: {
@@ -139,6 +166,11 @@ export const GET: APIRoute = async ({ request }) => {
         }, REQUEST_TIMEOUT);
 
         if (!response.ok) {
+          log.warn('upstream.fetch.non_ok', {
+            attempt: retries + 1,
+            upstreamUrl: summarizeUrl(doubanUrl),
+            upstreamStatus: response.status,
+          });
           // 根据状态码提供更详细的错误信息
           let errorMessage = `豆瓣请求失败，状态码: ${response.status}`;
 
@@ -170,11 +202,19 @@ export const GET: APIRoute = async ({ request }) => {
         }
 
         const html = await response.text();
+        log.info('upstream.fetch.success', {
+          attempt: retries + 1,
+          upstreamUrl: summarizeUrl(doubanUrl),
+          htmlLength: html.length,
+        });
 
         // 检查是否包含验证码页面的特征
         if (html.includes('验证码') || html.includes('captcha') || html.includes('too many requests')) {
           const errorMessage = '请求被豆瓣限制，需要验证码';
-          console.error(errorMessage);
+          log.warn('upstream.fetch.captcha', {
+            upstreamUrl: summarizeUrl(doubanUrl),
+          });
+          log.respond(403, { reason: 'upstream_captcha' });
 
           // 返回更友好的错误信息
           return new Response(JSON.stringify({
@@ -218,7 +258,11 @@ export const GET: APIRoute = async ({ request }) => {
 
         if (itemCount === 0) {
           // 如果两个选择器都没有找到内容，可能是页面结构变化或被封锁
-          console.error('未找到内容，页面结构可能已变化');
+          log.warn('parse.empty_items', {
+            attempt: retries + 1,
+            selector: itemSelector,
+            upstreamUrl: summarizeUrl(doubanUrl),
+          });
 
           if (retries < MAX_RETRIES) {
             retries++;
@@ -228,6 +272,7 @@ export const GET: APIRoute = async ({ request }) => {
           } else {
             // 检查页面内容，判断是否是访问限制
             if (html.includes('禁止访问') || html.includes('访问受限') || html.includes('频繁')) {
+              log.respond(403, { reason: 'upstream_access_denied' });
               return new Response(JSON.stringify({
                 error: '豆瓣接口访问受限',
                 message: '您的访问请求过于频繁，豆瓣已暂时限制访问',
@@ -337,6 +382,12 @@ export const GET: APIRoute = async ({ request }) => {
           hasPrev: $('.paginator .prev a').length > 0
         };
 
+        log.respond(200, {
+          items: items.length,
+          selector: itemSelector,
+          pagination,
+        });
+
         // 如果有缓存系统，可以在这里保存数据到缓存
 
         return new Response(JSON.stringify({ items, pagination }), {
@@ -347,12 +398,18 @@ export const GET: APIRoute = async ({ request }) => {
           }
         });
       } catch (error) {
-        console.error(`尝试第 ${retries + 1}/${MAX_RETRIES + 1} 次失败:`, error);
+        log.error('upstream.fetch.attempt_failed', error, {
+          attempt: retries + 1,
+          maxAttempts: MAX_RETRIES + 1,
+        });
 
         // 判断是否是请求被中止
         if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
-          console.warn('请求被中止:', error.message);
+          log.warn('request.aborted', {
+            message: error.message,
+          });
           // 对于中止请求，我们可以直接返回404
+          log.respond(499, { reason: 'request_aborted' });
           return new Response(JSON.stringify({
             error: '请求被中止',
             message: '请求已被用户或服务器中止',
@@ -379,13 +436,18 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     // 所有尝试都失败了
-    console.error('所有尝试都失败了:', lastError);
+    log.error('request.failed', lastError, {
+      type,
+      doubanId,
+      start,
+    });
 
     // 检查是否是常见错误类型并返回对应错误信息
     const errorMessage = lastError?.message || '未知错误';
 
     // 检查是否是中止错误
     if (lastError && (lastError.name === 'AbortError' || errorMessage.includes('aborted'))) {
+      log.respond(499, { reason: 'request_aborted_final' });
       return new Response(JSON.stringify({
         error: '请求被中止',
         message: '请求已被用户或系统中止',
@@ -401,6 +463,7 @@ export const GET: APIRoute = async ({ request }) => {
 
     // 根据错误信息判断错误类型
     if (errorMessage.includes('403') || errorMessage.includes('禁止访问') || errorMessage.includes('频繁')) {
+      log.respond(403, { reason: 'upstream_rate_limited' });
       return new Response(JSON.stringify({
         error: '豆瓣接口访问受限',
         message: '请求频率过高，豆瓣服务器已限制访问，请稍后再试',
@@ -415,6 +478,7 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     if (errorMessage.includes('404') || errorMessage.includes('未找到')) {
+      log.respond(404, { reason: 'content_not_found' });
       return new Response(JSON.stringify({
         error: '未找到豆瓣内容',
         message: `未找到ID为 ${doubanId} 的${type === 'movie' ? '电影' : '图书'}内容`,
@@ -429,6 +493,7 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     if (errorMessage.includes('超时')) {
+      log.respond(408, { reason: 'upstream_timeout' });
       return new Response(JSON.stringify({
         error: '豆瓣接口请求超时',
         message: '请求豆瓣服务器超时，请稍后再试',
@@ -442,6 +507,7 @@ export const GET: APIRoute = async ({ request }) => {
       });
     }
 
+    log.respond(500, { reason: 'request_failed', message: errorMessage });
     return new Response(JSON.stringify({
       error: '获取豆瓣数据失败',
       message: errorMessage
@@ -453,10 +519,15 @@ export const GET: APIRoute = async ({ request }) => {
       }
     });
   } catch (error) {
-    console.error('处理请求时出错:', error);
+    log.error('request.unhandled_error', error, {
+      type,
+      start,
+      doubanId,
+    });
 
     // 判断是否是中止错误
     if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+      log.respond(499, { reason: 'request_aborted_unhandled' });
       return new Response(JSON.stringify({
         error: '请求被中止',
         message: '请求已被用户或系统中止',
@@ -470,6 +541,7 @@ export const GET: APIRoute = async ({ request }) => {
       });
     }
 
+    log.respond(500, { reason: 'unhandled_error' });
     return new Response(JSON.stringify({
       error: '获取豆瓣数据失败',
       message: error instanceof Error ? error.message : '未知错误'

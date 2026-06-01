@@ -64,6 +64,20 @@ const wasmPackages = [
   },
 ];
 
+function hasCargo() {
+  try {
+    const output = execFileSync('cargo', ['--version'], {
+      cwd: rootDir,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+
+    return typeof output === 'string' && output.includes('cargo');
+  } catch {
+    return false;
+  }
+}
+
 function getNewestMtimeMs(targetPath) {
   if (!fs.existsSync(targetPath)) {
     return 0;
@@ -124,6 +138,10 @@ function ensureWasmBindgenCli() {
     return;
   }
 
+  if (!hasCargo()) {
+    throw new Error('当前环境未安装 cargo，无法自动安装 wasm-bindgen-cli');
+  }
+
   console.log('检测到 wasm-bindgen CLI 缺失，开始安装...');
   execFileSync(
     'cargo',
@@ -143,6 +161,10 @@ function ensureWasmBindgenCli() {
 function buildWasmPackage(pkg) {
   if (!shouldRebuildWasmPackage(pkg)) {
     return;
+  }
+
+  if (!hasCargo()) {
+    throw new Error(`检测到 ${pkg.crateName} 前端 wasm 产物缺失或过期，但当前环境未安装 cargo`);
   }
 
   ensureWasmBindgenCli();
@@ -198,6 +220,10 @@ function ensureArticleIndexerBinary() {
     return;
   }
 
+  if (!hasCargo()) {
+    throw new Error('检测到文章索引器缺失或过期，但当前环境未安装 cargo');
+  }
+
   console.log('检测到文章索引器已过期，开始重新编译...');
 
   execFileSync(
@@ -227,6 +253,22 @@ function ensureArticleIndexerBinary() {
 function ensureWasmAssets() {
   for (const pkg of wasmPackages) {
     buildWasmPackage(pkg);
+  }
+}
+
+function ensureStaticIndexRuntimeArtifacts() {
+  const runtimePaths = [
+    path.join(wasmAssetDir, 'search', 'search_wasm.js'),
+    path.join(wasmAssetDir, 'search', 'search_wasm_bg.wasm'),
+    path.join(wasmAssetDir, 'article-filter', 'article_filter.js'),
+    path.join(wasmAssetDir, 'article-filter', 'article_filter_bg.wasm'),
+    binaryPath,
+  ];
+
+  const missingPaths = runtimePaths.filter((targetPath) => !fs.existsSync(targetPath));
+
+  if (missingPaths.length > 0) {
+    throw new Error(`缺少静态索引运行时产物: ${missingPaths.join(', ')}`);
   }
 }
 
@@ -329,7 +371,14 @@ export async function generateArticleIndex(options = {}) {
   console.log('开始生成文章索引...');
   
   try {
-    ensureWasmAssets();
+    try {
+      ensureWasmAssets();
+      ensureArticleIndexerBinary();
+    } catch (runtimeBuildError) {
+      console.warn(`[索引构建] 跳过运行时重编译，改用仓库内预构建产物: ${runtimeBuildError.message}`);
+    }
+
+    ensureStaticIndexRuntimeArtifacts();
 
     // 使用提供的目录或默认目录
     const buildDirPath = options.buildDir || buildDir;
@@ -343,8 +392,6 @@ export async function generateArticleIndex(options = {}) {
       console.log(`创建索引输出目录: ${outputDirPath}`);
       fs.mkdirSync(outputDirPath, { recursive: true });
     }
-    
-    ensureArticleIndexerBinary();
     
     // 检查二进制文件是否存在
     if (!fs.existsSync(binaryPath)) {

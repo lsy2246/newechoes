@@ -35,6 +35,18 @@ function resolveAdapter(target) {
   return vercel();
 }
 
+function resolveImageConfig(target) {
+  if (target === "edgeone") {
+    return {
+      service: {
+        entrypoint: "astro/assets/services/noop",
+      },
+    };
+  }
+
+  return undefined;
+}
+
 // https://astro.build/config
 export default defineConfig({
   site: SITE_META.url,
@@ -133,4 +145,5 @@ export default defineConfig({
   },
 
   adapter: resolveAdapter(DEPLOY_TARGET),
+  image: resolveImageConfig(DEPLOY_TARGET),
 });

@@ -13,6 +13,11 @@ interface DoubanItem {
   link: string;
 }
 
+interface DoubanErrorPayload {
+  error?: string;
+  message?: string;
+}
+
 const DoubanCollection: React.FC<DoubanCollectionProps> = ({
   type,
   doubanId,
@@ -88,7 +93,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
             type === "movie" ? "电影" : "图书"
           }数据失败`;
           try {
-            const errorData = await response.json();
+            const errorData = (await response.json()) as DoubanErrorPayload;
             if (errorData && errorData.error) {
               errorMessage = errorData.error;
               if (errorData.message) {
@@ -100,7 +105,9 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
           }
 
           // 针对不同错误提供更友好的提示
-          if (response.status === 403) {
+          if (response.status === 401) {
+            errorMessage = "当前站点仍处于受限预览状态，接口请求被平台拦截";
+          } else if (response.status === 403) {
             errorMessage = "豆瓣接口访问受限，可能是请求过于频繁，请稍后再试";
           } else if (response.status === 404) {
             // 对于404错误，如果是追加模式，说明已经到了最后一页，设置hasMoreContent为false
@@ -126,34 +133,51 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
           throw new Error(errorMessage);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as {
+          items?: DoubanItem[];
+          pagination?: {
+            current?: number;
+            hasNext?: boolean;
+          };
+        };
         // 再次检查组件是否已卸载
         if (!isMountedRef.current) {
           return;
         }
 
-        if (data.items.length === 0) {
+        const nextItems = Array.isArray(data.items) ? data.items : [];
+
+        if (nextItems.length === 0) {
           // 如果返回的项目为空，则认为已经没有更多内容
           setHasMoreContent(false);
           stateRef.current.hasMoreContent = false;
+
+          if (!append && page === 1) {
+            const emptyStateMessage =
+              "未读取到豆瓣内容，可能是平台预览访问受限、服务端出网受限，或豆瓣页面结构发生变化";
+            setError(emptyStateMessage);
+            stateRef.current.error = emptyStateMessage;
+          }
+
           if (!append) {
             setItems([]);
           }
         } else {
           if (append) {
             setItems((prev) => {
-              const newItems = [...prev, ...data.items];
+              const newItems = [...prev, ...nextItems];
               return newItems;
             });
           } else {
-            setItems(data.items);
+            setItems(nextItems);
           }
           // 更新页码状态和ref
-          setCurrentPage(data.pagination.current);
-          stateRef.current.currentPage = data.pagination.current;
+          const nextPage = data.pagination?.current || page;
+          setCurrentPage(nextPage);
+          stateRef.current.currentPage = nextPage;
 
           // 更新是否有更多内容的状态和ref
-          const newHasMoreContent = data.pagination.hasNext;
+          const newHasMoreContent = Boolean(data.pagination?.hasNext);
           setHasMoreContent(newHasMoreContent);
           stateRef.current.hasMoreContent = newHasMoreContent;
         }

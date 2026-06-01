@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { load } from 'cheerio';
+import { createServerRequestLog, summarizeUrl } from '@/lib/server-request-log';
 
 // 添加服务器渲染标记
 export const prerender = false;
@@ -135,8 +136,12 @@ function extractBooksFromScript(html: string): { title: string; author: string; 
 export const GET: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
   const listId = url.searchParams.get('listId');  // 从查询参数获取微信读书书单ID
+  const log = createServerRequestLog('api.weread', request, {
+    listId: listId || null,
+  });
 
   if (!listId) {
+    log.respond(400, { reason: 'missing_list_id' });
     return new Response(JSON.stringify({ error: '缺少微信读书书单ID' }), {
       status: 400,
       headers: {
@@ -155,6 +160,10 @@ export const GET: APIRoute = async ({ request }) => {
     while (retries <= MAX_RETRIES) {
       try {
         const wereadUrl = `https://weread.qq.com/misc/booklist/${listId}`;
+        log.info('upstream.fetch.start', {
+          attempt: retries + 1,
+          upstreamUrl: summarizeUrl(wereadUrl),
+        });
 
         // 使用带超时的fetch发送请求
         const response = await fetchWithTimeout(wereadUrl, {
@@ -166,6 +175,11 @@ export const GET: APIRoute = async ({ request }) => {
         }, REQUEST_TIMEOUT);
 
         if (!response.ok) {
+          log.warn('upstream.fetch.non_ok', {
+            attempt: retries + 1,
+            upstreamUrl: summarizeUrl(wereadUrl),
+            upstreamStatus: response.status,
+          });
           // 根据状态码提供更详细的错误信息
           let errorMessage = `微信读书请求失败，状态码: ${response.status}`;
 
@@ -197,11 +211,19 @@ export const GET: APIRoute = async ({ request }) => {
         }
 
         const html = await response.text();
+        log.info('upstream.fetch.success', {
+          attempt: retries + 1,
+          upstreamUrl: summarizeUrl(wereadUrl),
+          htmlLength: html.length,
+        });
 
         // 检查是否包含验证码页面的特征
         if (html.includes('验证码') || html.includes('captcha')) {
           const errorMessage = '请求被微信读书限制，需要验证码';
-          console.error(errorMessage);
+          log.warn('upstream.fetch.captcha', {
+            upstreamUrl: summarizeUrl(wereadUrl),
+          });
+          log.respond(403, { reason: 'upstream_captcha' });
 
           // 返回更友好的错误信息
           return new Response(JSON.stringify({
@@ -228,6 +250,10 @@ export const GET: APIRoute = async ({ request }) => {
             imageUrl: book.cover,
             link: `https://weread.qq.com/web/search/books?keyword=${encodeURIComponent(book.title)}`
           }));
+          log.respond(200, {
+            books: books.length,
+            source: 'script_payload',
+          });
 
           return new Response(JSON.stringify({ books }), {
             headers: {
@@ -277,6 +303,10 @@ export const GET: APIRoute = async ({ request }) => {
         });
 
         if (books.length > 0) {
+          log.respond(200, {
+            books: books.length,
+            source: 'html_fallback',
+          });
           return new Response(JSON.stringify({ books }), {
             headers: {
               'Content-Type': 'application/json',
@@ -285,15 +315,24 @@ export const GET: APIRoute = async ({ request }) => {
             }
           });
         } else {
+          log.warn('parse.empty_books', {
+            upstreamUrl: summarizeUrl(wereadUrl),
+          });
           throw new Error('未能从页面中提取书籍数据');
         }
       } catch (error) {
-        console.error(`尝试第 ${retries + 1}/${MAX_RETRIES + 1} 次失败:`, error);
+        log.error('upstream.fetch.attempt_failed', error, {
+          attempt: retries + 1,
+          maxAttempts: MAX_RETRIES + 1,
+        });
 
         // 判断是否是请求被中止
         if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
-          console.warn('请求被中止:', error.message);
+          log.warn('request.aborted', {
+            message: error.message,
+          });
           // 对于中止请求，我们可以直接返回404
+          log.respond(499, { reason: 'request_aborted' });
           return new Response(JSON.stringify({
             error: '请求被中止',
             message: '请求已被用户或服务器中止',
@@ -320,13 +359,16 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     // 所有尝试都失败了
-    console.error('所有尝试都失败了:', lastError);
+    log.error('request.failed', lastError, {
+      listId,
+    });
 
     // 检查是否是常见错误类型并返回对应错误信息
     const errorMessage = lastError?.message || '未知错误';
 
     // 检查是否是中止错误
     if (lastError && (lastError.name === 'AbortError' || errorMessage.includes('aborted'))) {
+      log.respond(499, { reason: 'request_aborted_final' });
       return new Response(JSON.stringify({
         error: '请求被中止',
         message: '请求已被用户或系统中止',
@@ -342,6 +384,7 @@ export const GET: APIRoute = async ({ request }) => {
 
     // 根据错误信息判断错误类型
     if (errorMessage.includes('403') || errorMessage.includes('禁止访问') || errorMessage.includes('频繁')) {
+      log.respond(403, { reason: 'upstream_rate_limited' });
       return new Response(JSON.stringify({
         error: '微信读书接口访问受限',
         message: '请求频率过高，服务器已限制访问，请稍后再试',
@@ -356,6 +399,7 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     if (errorMessage.includes('404') || errorMessage.includes('未找到')) {
+      log.respond(404, { reason: 'list_not_found' });
       return new Response(JSON.stringify({
         error: '未找到微信读书书单',
         message: `未找到ID为 ${listId} 的书单内容`,
@@ -370,6 +414,7 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     if (errorMessage.includes('超时')) {
+      log.respond(408, { reason: 'upstream_timeout' });
       return new Response(JSON.stringify({
         error: '微信读书接口请求超时',
         message: '请求微信读书服务器超时，请稍后再试',
@@ -383,6 +428,7 @@ export const GET: APIRoute = async ({ request }) => {
       });
     }
 
+    log.respond(500, { reason: 'request_failed', message: errorMessage });
     return new Response(JSON.stringify({
       error: '获取微信读书数据失败',
       message: errorMessage
@@ -394,10 +440,13 @@ export const GET: APIRoute = async ({ request }) => {
       }
     });
   } catch (error) {
-    console.error('处理请求时出错:', error);
+    log.error('request.unhandled_error', error, {
+      listId,
+    });
 
     // 判断是否是中止错误
     if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+      log.respond(499, { reason: 'request_aborted_unhandled' });
       return new Response(JSON.stringify({
         error: '请求被中止',
         message: '请求已被用户或系统中止',
@@ -411,6 +460,7 @@ export const GET: APIRoute = async ({ request }) => {
       });
     }
 
+    log.respond(500, { reason: 'unhandled_error' });
     return new Response(JSON.stringify({
       error: '获取微信读书数据失败',
       message: error instanceof Error ? error.message : '未知错误'
