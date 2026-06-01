@@ -1,5 +1,3 @@
-/* @ts-self-types="./search_wasm.d.ts" */
-
 /**
  * 初始化搜索索引缓存
  * @param {Uint8Array} index_data

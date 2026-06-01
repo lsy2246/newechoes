@@ -1,5 +1,3 @@
-/* @ts-self-types="./article_filter.d.ts" */
-
 /**
  * 文章过滤器JS接口 - 提供给JavaScript使用的筛选API
  */

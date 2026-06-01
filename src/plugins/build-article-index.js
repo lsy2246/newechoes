@@ -7,15 +7,228 @@ import { execFileSync } from 'node:child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // 获取项目根目录
 const rootDir = path.resolve(__dirname, '../..');
+const wasmRootDir = path.join(rootDir, 'wasm');
+const wasmAssetDir = path.join(rootDir, 'src', 'assets', 'wasm');
 // 构建目录在根目录下
 const buildDir = path.resolve(rootDir, 'dist');
 // 索引文件存储位置
 const indexDir = path.join(buildDir, 'client', 'index');
 
+const binaryName = process.platform === 'win32'
+  ? 'article-indexer-cli.exe'
+  : 'article-indexer-cli';
 // 二进制可执行文件路径
-const binaryPath = path.join(rootDir, 'src', 'assets', 'article-index', process.platform === 'win32' 
-  ? 'article-indexer-cli.exe' 
-  : 'article-indexer-cli');
+const binaryPath = path.join(rootDir, 'src', 'assets', 'article-index', binaryName);
+const builtBinaryPath = path.join(
+  wasmRootDir,
+  'target',
+  'release',
+  binaryName,
+);
+const cargoBinDir = path.join(process.env.USERPROFILE || '', '.cargo', 'bin');
+const wasmBindgenCli = path.join(cargoBinDir, process.platform === 'win32'
+  ? 'wasm-bindgen.exe'
+  : 'wasm-bindgen');
+const indexerSourcePaths = [
+  path.join(wasmRootDir, 'Cargo.toml'),
+  path.join(wasmRootDir, 'Cargo.lock'),
+  path.join(wasmRootDir, 'article-indexer'),
+  path.join(wasmRootDir, 'article-filter'),
+  path.join(wasmRootDir, 'search'),
+  path.join(wasmRootDir, 'utils-common'),
+];
+const wasmPackages = [
+  {
+    crateName: 'search-wasm',
+    pkgDir: path.join(wasmRootDir, 'search'),
+    sourcePaths: [
+      path.join(wasmRootDir, 'Cargo.toml'),
+      path.join(wasmRootDir, 'Cargo.lock'),
+      path.join(wasmRootDir, 'search'),
+      path.join(wasmRootDir, 'utils-common'),
+    ],
+    wasmName: 'search_wasm',
+    outputDir: path.join(wasmAssetDir, 'search'),
+  },
+  {
+    crateName: 'article-filter',
+    pkgDir: path.join(wasmRootDir, 'article-filter'),
+    sourcePaths: [
+      path.join(wasmRootDir, 'Cargo.toml'),
+      path.join(wasmRootDir, 'Cargo.lock'),
+      path.join(wasmRootDir, 'article-filter'),
+      path.join(wasmRootDir, 'utils-common'),
+    ],
+    wasmName: 'article_filter',
+    outputDir: path.join(wasmAssetDir, 'article-filter'),
+  },
+];
+
+function getNewestMtimeMs(targetPath) {
+  if (!fs.existsSync(targetPath)) {
+    return 0;
+  }
+
+  const stat = fs.statSync(targetPath);
+  if (!stat.isDirectory()) {
+    return stat.mtimeMs;
+  }
+
+  let newestMtimeMs = stat.mtimeMs;
+  const entries = fs.readdirSync(targetPath, { withFileTypes: true });
+
+  for (const entry of entries) {
+    newestMtimeMs = Math.max(
+      newestMtimeMs,
+      getNewestMtimeMs(path.join(targetPath, entry.name)),
+    );
+  }
+
+  return newestMtimeMs;
+}
+
+function shouldRebuildIndexerBinary() {
+  if (!fs.existsSync(binaryPath)) {
+    return true;
+  }
+
+  const binaryMtimeMs = fs.statSync(binaryPath).mtimeMs;
+  const sourceMtimeMs = Math.max(
+    ...indexerSourcePaths.map((sourcePath) => getNewestMtimeMs(sourcePath)),
+  );
+
+  return sourceMtimeMs > binaryMtimeMs;
+}
+
+function shouldRebuildWasmPackage(pkg) {
+  const jsAssetPath = path.join(pkg.outputDir, `${pkg.wasmName}.js`);
+  const wasmAssetPath = path.join(pkg.outputDir, `${pkg.wasmName}_bg.wasm`);
+
+  if (!fs.existsSync(jsAssetPath) || !fs.existsSync(wasmAssetPath)) {
+    return true;
+  }
+
+  const builtAt = Math.min(
+    fs.statSync(jsAssetPath).mtimeMs,
+    fs.statSync(wasmAssetPath).mtimeMs,
+  );
+  const sourceMtimeMs = Math.max(
+    ...pkg.sourcePaths.map((sourcePath) => getNewestMtimeMs(sourcePath)),
+  );
+
+  return sourceMtimeMs > builtAt;
+}
+
+function ensureWasmBindgenCli() {
+  if (fs.existsSync(wasmBindgenCli)) {
+    return;
+  }
+
+  console.log('检测到 wasm-bindgen CLI 缺失，开始安装...');
+  execFileSync(
+    'cargo',
+    ['install', 'wasm-bindgen-cli', '--version', '0.2.121'],
+    {
+      cwd: wasmRootDir,
+      encoding: 'utf8',
+      stdio: 'inherit',
+    },
+  );
+
+  if (!fs.existsSync(wasmBindgenCli)) {
+    throw new Error(`安装 wasm-bindgen CLI 失败: ${wasmBindgenCli}`);
+  }
+}
+
+function buildWasmPackage(pkg) {
+  if (!shouldRebuildWasmPackage(pkg)) {
+    return;
+  }
+
+  ensureWasmBindgenCli();
+
+  console.log(`检测到 ${pkg.crateName} 前端 wasm 产物已过期，开始重新编译...`);
+
+  execFileSync(
+    'cargo',
+    ['build', '--release', '--target', 'wasm32-unknown-unknown', '--package', pkg.crateName],
+    {
+      cwd: wasmRootDir,
+      encoding: 'utf8',
+      stdio: 'inherit',
+    },
+  );
+
+  const builtWasmPath = path.join(
+    wasmRootDir,
+    'target',
+    'wasm32-unknown-unknown',
+    'release',
+    `${pkg.wasmName}.wasm`,
+  );
+
+  if (!fs.existsSync(builtWasmPath)) {
+    throw new Error(`未找到 ${pkg.crateName} 编译产物: ${builtWasmPath}`);
+  }
+
+  fs.mkdirSync(pkg.outputDir, { recursive: true });
+
+  execFileSync(
+    wasmBindgenCli,
+    [
+      builtWasmPath,
+      '--out-dir',
+      pkg.outputDir,
+      '--target',
+      'web',
+      '--no-typescript',
+    ],
+    {
+      cwd: rootDir,
+      encoding: 'utf8',
+      stdio: 'inherit',
+    },
+  );
+
+  console.log(`${pkg.crateName} 前端 wasm 已更新: ${pkg.outputDir}`);
+}
+
+function ensureArticleIndexerBinary() {
+  if (!shouldRebuildIndexerBinary()) {
+    return;
+  }
+
+  console.log('检测到文章索引器已过期，开始重新编译...');
+
+  execFileSync(
+    'cargo',
+    ['build', '--release', '--package', 'article-indexer', '--bin', 'article-indexer-cli'],
+    {
+      cwd: wasmRootDir,
+      encoding: 'utf8',
+      stdio: 'inherit',
+    },
+  );
+
+  if (!fs.existsSync(builtBinaryPath)) {
+    throw new Error(`重新编译后仍未找到索引工具: ${builtBinaryPath}`);
+  }
+
+  fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
+  fs.copyFileSync(builtBinaryPath, binaryPath);
+
+  if (process.platform !== 'win32') {
+    fs.chmodSync(binaryPath, 0o755);
+  }
+
+  console.log(`文章索引器已更新: ${binaryPath}`);
+}
+
+function ensureWasmAssets() {
+  for (const pkg of wasmPackages) {
+    buildWasmPackage(pkg);
+  }
+}
 
 /**
  * 创建Astro构建后钩子插件，用于生成文章索引
@@ -116,6 +329,8 @@ export async function generateArticleIndex(options = {}) {
   console.log('开始生成文章索引...');
   
   try {
+    ensureWasmAssets();
+
     // 使用提供的目录或默认目录
     const buildDirPath = options.buildDir || buildDir;
     const outputDirPath = options.outputDir || indexDir;
@@ -128,6 +343,8 @@ export async function generateArticleIndex(options = {}) {
       console.log(`创建索引输出目录: ${outputDirPath}`);
       fs.mkdirSync(outputDirPath, { recursive: true });
     }
+    
+    ensureArticleIndexerBinary();
     
     // 检查二进制文件是否存在
     if (!fs.existsSync(binaryPath)) {
