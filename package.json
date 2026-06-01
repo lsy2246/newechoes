@@ -3,13 +3,14 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "build:vercel": "cross-env DEPLOY_TARGET=vercel astro build",
-    "build:edgeone": "cross-env DEPLOY_TARGET=edgeone astro build",
-    "build:cloudflare": "cross-env DEPLOY_TARGET=cloudflare astro build",
-    "preview": "astro preview",
-    "astro": "astro",
+    "dev": "pnpm exec astro dev",
+    "build": "node scripts/astro-build.mjs",
+    "build:vercel": "node scripts/astro-build.mjs vercel",
+    "build:edgeone": "node scripts/astro-build.mjs edgeone",
+    "build:cloudflare": "node scripts/astro-build.mjs cloudflare",
+    "deploy:cloudflare": "pnpm exec wrangler deploy --config dist/server/wrangler.json",
+    "preview": "pnpm exec astro preview",
+    "astro": "pnpm exec astro",
     "new-post": "node src/plugins/new-post.mjs",
     "test": "node --test"
   },
@@ -49,9 +50,9 @@
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "binaryen": "129.0.0",
-    "cross-env": "^7.0.3",
     "playwright": "^1.60.0",
     "rehype-external-links": "^3.0.0",
+    "wrangler": "^4.96.0",
     "zod": "4.3.6"
   }
 }

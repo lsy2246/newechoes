@@ -12,7 +12,7 @@ const wasmAssetDir = path.join(rootDir, 'src', 'assets', 'wasm');
 // 构建目录在根目录下
 const buildDir = path.resolve(rootDir, 'dist');
 // 索引文件存储位置
-const indexDir = path.join(buildDir, 'client', 'index');
+const indexDir = path.join(buildDir, 'client', 'assets', 'index');
 
 const binaryName = process.platform === 'win32'
   ? 'article-indexer-cli.exe'
@@ -243,8 +243,8 @@ export function articleIndexerIntegration() {
         // 为index目录下的文件提供虚拟API路由
         server.middlewares.use((req, res, next) => {
           // 检查请求路径是否是索引文件
-          if (req.url.startsWith('/index/') && req.method === 'GET') {
-            const requestedFile = req.url.slice(7); // 移除 '/index/'
+          if (req.url.startsWith('/assets/index/') && req.method === 'GET') {
+            const requestedFile = req.url.slice('/assets/index/'.length);
             const filePath = path.join(indexDir, requestedFile);
             
             console.log(`虚拟API请求: ${req.url} -> ${filePath}`);
@@ -306,7 +306,7 @@ export function articleIndexerIntegration() {
         }
         
         // 索引输出目录
-        const outputDirPath = path.join(clientDirPath, 'index');
+        const outputDirPath = path.join(clientDirPath, 'assets', 'index');
         
         await generateArticleIndex({ 
           buildDir: clientDirPath, 

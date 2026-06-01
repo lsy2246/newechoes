@@ -28,6 +28,44 @@ type GlobalData = {
   cfb2h: string;
 };
 
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
+function encodeBase64Url(value: string) {
+  return bytesToBase64(textEncoder.encode(value))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function decodeBase64Url(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4 || 4)) % 4), "=");
+  return textDecoder.decode(base64ToBytes(padded));
+}
+
 async function fetchWithTimeout(url: URL | string, options: RequestInit = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -48,11 +86,9 @@ async function fetchWithTimeout(url: URL | string, options: RequestInit = {}) {
   }
 }
 
-const encodeCursor = (cursor: CursorPayload) =>
-  Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+const encodeCursor = (cursor: CursorPayload) => encodeBase64Url(JSON.stringify(cursor));
 
-const decodeCursor = (cursor: string): CursorPayload =>
-  JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+const decodeCursor = (cursor: string): CursorPayload => JSON.parse(decodeBase64Url(cursor));
 
 const getShareKey = (initData: InitData, resolvedUrl: string) => {
   const albumShareKey = initData[3]?.[19];

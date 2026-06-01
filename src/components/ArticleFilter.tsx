@@ -410,7 +410,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({
     async function bootFilter() {
       try {
         setIsLoading(true);
-        await initFilterIndex("/index/filter_index.bin");
+        await initFilterIndex("/assets/index/filter_index.bin");
         if (cancelled) return;
 
         isReadyRef.current = true;

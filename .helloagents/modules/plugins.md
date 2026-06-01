@@ -20,6 +20,11 @@
 **行为**: `new-post.mjs` 生成 `src/content` 下的 Markdown 文件。
 **结果**: 新文章可被内容系统识别。
 
+### 文章索引资源路径
+**条件**: 构建文章搜索/筛选索引，或开发态通过中间件读取索引二进制资源。
+**行为**: `build-article-index.js` 将索引统一输出到 `dist/client/assets/index/`，开发态虚拟路由也只响应 `/assets/index/*`。
+**结果**: 搜索与筛选索引既符合静态资源路径约定，也能避开 `EdgeOne` 对 `/index/*` 的函数路由冲突。
+
 ## 依赖关系
 
 ```yaml

@@ -1,5 +1,4 @@
 import type { APIContext } from 'astro';
-import { Octokit } from 'octokit';
 import { GitPlatform } from '@/components/GitProjectCollection';
 
 interface GitProject {
@@ -276,13 +275,31 @@ function parseGithubPagination(linkHeader: string | undefined, currentPage: numb
   return { hasNext, totalPages };
 }
 
-async function fetchGithubPrimaryLanguage(octokit: Octokit, owner: string, repo: string) {
-  try {
-    const { data: languages } = await octokit.request('GET /repos/{owner}/{repo}/languages', {
-      owner,
-      repo
-    });
+function createGithubHeaders() {
+  const token = process.env.GITHUB_TOKEN?.trim();
+  return {
+    'Accept': 'application/vnd.github+json',
+    'User-Agent': 'newechoes-git-projects',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
 
+async function fetchGithubPrimaryLanguage(owner: string, repo: string) {
+  try {
+    const response = await fetchWithRetry(
+      `https://api.github.com/repos/${owner}/${repo}/languages`,
+      {
+        headers: createGithubHeaders(),
+      },
+      2,
+      10000,
+    );
+
+    if (!response.ok) {
+      throw new Error(`GitHub languages API 请求失败: ${response.status} ${response.statusText}`);
+    }
+
+    const languages = await response.json() as Record<string, number>;
     const [primaryLanguage] = Object.entries(languages)
       .sort((left, right) => Number(right[1]) - Number(left[1]))
       .map(([language]) => language);
@@ -300,48 +317,26 @@ async function fetchGithubProjects(username: string, organization: string, page:
   
   while (retryCount < maxRetries) {
     try {
-      const octokit = new Octokit({
-        auth: process.env.GITHUB_TOKEN,
-        request: {
-          timeout: 10000
-        }
-      });
-      
       const perPage = config.perPage || 10;
-      let repos;
-      let linkHeader: string | undefined;
+      const headers = createGithubHeaders();
+      const apiUrl = organization
+        ? `https://api.github.com/orgs/${organization}/repos?per_page=${perPage}&page=${page}&sort=updated&direction=desc`
+        : `https://api.github.com/users/${username || config.username}/repos?per_page=${perPage}&page=${page}&sort=updated&direction=desc`;
+      const response = await fetchWithRetry(
+        apiUrl,
+        {
+          headers,
+        },
+        3,
+        10000,
+      );
       
-      if (organization) {
-        const { data, headers } = await octokit.request('GET /orgs/{org}/repos', {
-          org: organization,
-          per_page: perPage,
-          page: page,
-          sort: 'updated',
-          direction: 'desc'
-        });
-        repos = data;
-        linkHeader = headers.link;
-      } else if (username) {
-        const { data, headers } = await octokit.request('GET /users/{username}/repos', {
-          username: username,
-          per_page: perPage,
-          page: page,
-          sort: 'updated',
-          direction: 'desc'
-        });
-        repos = data;
-        linkHeader = headers.link;
-      } else {
-        const { data, headers } = await octokit.request('GET /users/{username}/repos', {
-          username: config.username,
-          per_page: perPage,
-          page: page,
-          sort: 'updated',
-          direction: 'desc'
-        });
-        repos = data;
-        linkHeader = headers.link;
+      if (!response.ok) {
+        throw new Error(`GitHub API 请求失败: ${response.status} ${response.statusText}`);
       }
+
+      const repos = await response.json() as any[];
+      const linkHeader = response.headers.get('link') || undefined;
       
       const hasPrev = page > 1;
       const { hasNext, totalPages } = parseGithubPagination(linkHeader, page);
@@ -352,7 +347,7 @@ async function fetchGithubProjects(username: string, organization: string, page:
         url: repo.html_url,
         stars: repo.stargazers_count,
         forks: repo.forks_count,
-        language: repo.language || await fetchGithubPrimaryLanguage(octokit, repo.owner.login, repo.name),
+        language: repo.language || await fetchGithubPrimaryLanguage(repo.owner.login, repo.name),
         updatedAt: repo.updated_at,
         owner: repo.owner.login,
         avatarUrl: repo.owner.avatar_url,

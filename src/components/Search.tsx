@@ -146,7 +146,7 @@ const Search: React.FC<SearchProps> = ({
       try {
         setLoadingState((prev) => ({ ...prev, status: "loading_index" }));
 
-        await initSearchIndex("/index/search_index.bin");
+        await initSearchIndex("/assets/index/search_index.bin");
 
         if (!isMountedRef.current || cancelled) return;
 

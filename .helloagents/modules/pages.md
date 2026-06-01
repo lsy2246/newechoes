@@ -25,6 +25,11 @@
 **行为**: 基于 GitHub Link header 解析是否有下一页与总页数。
 **结果**: 分页准确，避免出现空的第二页。
 
+### GitHub 项目 API 边缘兼容
+**条件**: `/api/git-projects` 运行在 `EdgeOne`、`Cloudflare` 等对 Node SDK 兼容性较弱的平台。
+**行为**: GitHub 项目数据通过原生 `fetch` 请求 GitHub REST API，并按需请求 `/languages` 补足主语言，而不是在运行时依赖 `Octokit`。
+**结果**: API 路由对边缘运行时更稳健，减少因 Node 包兼容差异导致的 500 错误。
+
 ### 多平台 API 运行模式
 **条件**: 站点部署到 `Vercel`、`EdgeOne`、`Cloudflare` 中任一平台。
 **行为**: 页面层统一基于 `output: "server"` 承接 `/api/*`，同时对首页、文章、筛选、时间线、相册、项目等主要内容页显式保留 `prerender = true`。
@@ -32,8 +37,8 @@
 
 ### 相册 API 平台降级
 **条件**: 访问 `/api/google-photos` 且当前平台未启用 Google Photos 服务端解析能力。
-**行为**: API 返回明确的降级响应而不是在运行时直接崩溃；Node 平台再动态加载 `google-photos-node` 实现。
-**结果**: Cloudflare 先具备可部署骨架，后续可以在不影响其他平台的前提下补齐相册兼容实现。
+**行为**: API 返回明确的降级响应而不是在运行时直接崩溃；当前 `Vercel / EdgeOne / Cloudflare` 均走统一的 `google-photos` 入口，平台能力层仅保留开关与兜底。
+**结果**: 相册接口在主部署平台上共用一套服务端解析逻辑，若后续某个平台再次受限，也能在能力层集中降级。
 
 ### 文章页关系侧栏
 **条件**: 访问文章详情页且右侧目录面板可见。
