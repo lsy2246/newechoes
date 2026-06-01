@@ -57,6 +57,11 @@ html.is-changing #article-content {
   visibility: visible;
 }
 
+body[data-swup-loading='true'] .home-diorama__loading {
+  opacity: 0;
+  visibility: hidden;
+}
+
 /* 旋转动画元素 */
 .loading-spinner {
   width: 50px;

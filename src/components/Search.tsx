@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useId } from "react";
 import {
   initSearchIndex,
   search as workerSearch,
@@ -116,6 +116,7 @@ const Search: React.FC<SearchProps> = ({
   // 添加当前选中建议的索引
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] =
     useState<number>(0);
+  const statusMessageId = useId();
 
   // refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1111,6 +1112,9 @@ const Search: React.FC<SearchProps> = ({
     }
     return placeholder; // 默认占位符
   };
+  const searchStatusMessage = isLoadingIndex
+    ? "搜索索引准备中，稍等就能开始检索。"
+    : error;
 
   // 递归渲染标题树
   const renderHeadingTree = (
@@ -1388,6 +1392,7 @@ const Search: React.FC<SearchProps> = ({
     <div
       ref={containerRef}
       className="relative search-mark-scope"
+      aria-busy={isLoadingIndex}
     >
       <form
         onSubmit={handleSubmit}
@@ -1409,6 +1414,8 @@ const Search: React.FC<SearchProps> = ({
             placeholder={getCurrentPlaceholder()}
             className="search-input-control w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base border rounded-lg md:rounded-lg lg:rounded-xl focus:outline-none transition-all duration-200 relative z-10"
             disabled={isLoadingIndex || !isIndexLoaded}
+            aria-busy={isLoadingIndex}
+            aria-describedby={searchStatusMessage ? statusMessageId : undefined}
             style={{ backgroundColor: "transparent" }} // 确保背景是透明的，这样可以看到下面的建议
           />
 
@@ -1617,6 +1624,21 @@ const Search: React.FC<SearchProps> = ({
           </div>
         </div>
       </form>
+
+      {searchStatusMessage && (
+        <div
+          id={statusMessageId}
+          className="mt-2 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs md:text-[11px] lg:text-xs"
+          aria-live="polite"
+        >
+          {isLoadingIndex ? (
+            <div className="search-loading-spinner animate-spin rounded-full h-3.5 w-3.5 border-2 border-t-transparent shrink-0"></div>
+          ) : (
+            <div className="rounded-full h-2.5 w-2.5 bg-red-500 shadow-sm shadow-red-500/50 shrink-0"></div>
+          )}
+          <span className="min-w-0 leading-5">{searchStatusMessage}</span>
+        </div>
+      )}
 
       {/* 搜索结果 */}
       {renderSearchResults()}

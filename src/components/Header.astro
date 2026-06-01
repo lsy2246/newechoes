@@ -904,6 +904,18 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     // 设置History API监控
     setupHistoryMonitoring();
   }
+
+  function navigateWithinSite(targetHref) {
+    if (!targetHref) return;
+
+    const swup = window.swup;
+    if (swup && typeof swup.navigate === 'function') {
+      swup.navigate(targetHref);
+      return;
+    }
+
+    window.location.href = targetHref;
+  }
   
   // 监听history API的方法
   function setupHistoryMonitoring() {
@@ -1435,9 +1447,11 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         e.preventDefault();
         
         const itemId = item.dataset.itemId;
+        const targetHref = item.getAttribute('href');
         
         // 设置高亮
         setActiveItem(itemId);
+        navigateWithinSite(targetHref);
       });
       
       // 添加悬停事件
@@ -1468,9 +1482,11 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         e.preventDefault();
         
         const subItemId = item.dataset.subitemId;
+        const targetHref = item.getAttribute('href');
         
         // 设置高亮
         setActiveSubItem(subItemId);
+        navigateWithinSite(targetHref);
       });
       
       // 添加悬停事件

@@ -170,6 +170,22 @@ test("search hydrates early without blocking the initial navigation paint", () =
   assert.equal(header.includes("<Search client:load"), false);
 });
 
+test("header nav clicks hand off immediately to swup navigation instead of only consuming the event", () => {
+  assert.ok(header.includes("function navigateWithinSite(targetHref)"));
+  assert.ok(header.includes("const swup = window.swup;"));
+  assert.ok(header.includes("if (swup && typeof swup.navigate === 'function')"));
+  assert.ok(header.includes("swup.navigate(targetHref);"));
+  assert.ok(header.includes("window.location.href = targetHref;"));
+  assert.match(
+    header,
+    /navItems\.forEach\(item => \{[\s\S]*e\.preventDefault\(\);[\s\S]*setActiveItem\(itemId\);[\s\S]*navigateWithinSite\(targetHref\);/,
+  );
+  assert.match(
+    header,
+    /navSubItems\.forEach\(item => \{[\s\S]*e\.preventDefault\(\);[\s\S]*setActiveSubItem\(subItemId\);[\s\S]*navigateWithinSite\(targetHref\);/,
+  );
+});
+
 test("swup keeps early navigation active without aggressive first-paint preloading", () => {
   assert.ok(swupInit.includes("preloadHoveredLinks: true"));
   assert.ok(swupInit.includes("preloadInitialPage: false"));
@@ -190,10 +206,16 @@ test("swup route loader stays viewport centered for the tall homepage shell", ()
   assert.ok(swupInit.includes("spinner.style.top = '50%'"));
   assert.ok(swupInit.includes("spinner.style.left = '50%'"));
   assert.ok(swupInit.includes("const hideDelay = Math.max(0, LOADING_SPINNER_MIN_VISIBLE_MS - visibleFor);"));
+  assert.ok(swupInit.includes("setSwupLoadingState(true)"));
+  assert.ok(swupInit.includes("setSwupLoadingState(false)"));
   assert.equal(swupInit.includes("const centerY = rect.top + rect.height / 2"), false);
   assert.match(
     swupTransitionsCss,
     /\.loading-spinner-container\s*\{[\s\S]*position:\s*fixed;/,
+  );
+  assert.match(
+    swupTransitionsCss,
+    /body\[data-swup-loading='true'\] \.home-diorama__loading \{\s*opacity:\s*0;/,
   );
 });
 

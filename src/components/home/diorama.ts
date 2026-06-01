@@ -217,6 +217,8 @@ export function initDiorama() {
   const sceneEl = document.querySelector<HTMLElement>("[data-home-scene]");
   const storyEl = document.querySelector<HTMLElement>("[data-home-story]");
   const storyCanvasEl = document.querySelector<HTMLCanvasElement>("[data-story-canvas]");
+  const homeLoadingEl = document.querySelector<HTMLElement>("[data-home-loading]");
+  const homeLoadingDetailEl = document.querySelector<HTMLElement>("[data-home-loading-detail]");
   const storyCtx = storyCanvasEl?.getContext("2d") ?? null;
   const hintEl = document.querySelector<HTMLElement>("[data-diorama-hint]");
   const cueEl = document.querySelector<HTMLElement>("[data-home-scroll-cue]");
@@ -599,6 +601,8 @@ export function initDiorama() {
       });
       fitKeyboardModel(model);
       keyboardModelMount.add(model);
+      startupResourceState.keyboard = true;
+      updateHomeLoadingDetail();
       keyboardModelLoaded = true;
       syncKeyboardModelOpacity(mats.key.opacity);
       releaseStartupGate();
@@ -607,6 +611,7 @@ export function initDiorama() {
     () => {
       if (disposed) return;
       console.info(`Home diorama keyboard model unavailable: add ${KEYBOARD_MODEL_URL}.`);
+      markStartupResourceReady("keyboard");
     },
   );
 
@@ -934,6 +939,8 @@ export function initDiorama() {
       typingCharacterLoaded = true;
       typingCharacterMount.visible = true;
       syncTypingCharacterOpacity(renderMode === "story" && !useMobileCarrier ? 1 : 0);
+      startupResourceState.character = true;
+      updateHomeLoadingDetail();
 
       if (gltf.animations.length) {
         const typingCharacterMixer = new THREE.AnimationMixer(model);
@@ -950,6 +957,7 @@ export function initDiorama() {
       console.info(
         `Home diorama model unavailable: add ${TYPING_CHARACTER_MODEL_URL} from ${TYPING_CHARACTER_MODEL_SOURCE}. ${TYPING_CHARACTER_MODEL_ATTRIBUTION}.`,
       );
+      markStartupResourceReady("character");
     },
   );
   deskFigure.add(person);
@@ -1116,6 +1124,39 @@ export function initDiorama() {
   let renderMode = getRenderMode(homeProgress);
   let startupGateReleased = reduceMotion;
   let startupGatePendingScroll = false;
+  let startupGateHideTimer = 0;
+  let startupGateForcedOpen = reduceMotion;
+  const startupResourceState = {
+    keyboard: false,
+    character: false,
+    fonts: !("fonts" in document),
+  };
+  const startupResourceTotal = Object.keys(startupResourceState).length;
+  const getStartupReadyCount = () => Object.values(startupResourceState).filter(Boolean).length;
+  const isStartupReady = () => Object.values(startupResourceState).every(Boolean);
+  const updateHomeLoadingDetail = () => {
+    if (!homeLoadingDetailEl) return;
+    const readyCount = getStartupReadyCount();
+    homeLoadingDetailEl.textContent =
+      readyCount >= startupResourceTotal
+        ? "关键资源已就绪，正在进入场景..."
+        : `正在准备 ${readyCount}/${startupResourceTotal} 项关键资源...`;
+  };
+  const syncHomeLoadingState = () => {
+    if (!homeLoadingEl) return;
+    homeLoadingEl.classList.toggle("is-ready", startupGateReleased);
+    homeLoadingEl.setAttribute("aria-hidden", startupGateReleased ? "true" : "false");
+  };
+  const markStartupResourceReady = (resource: keyof typeof startupResourceState) => {
+    if (startupResourceState[resource]) return;
+    startupResourceState[resource] = true;
+    updateHomeLoadingDetail();
+    releaseStartupGate();
+  };
+  syncHomeLoadingState();
+  updateHomeLoadingDetail();
+  startupGateReleased = false;
+  startupGateForcedOpen = false;
   let cameraRejoinActive = false;
   let cameraInertialCatchup = false;
   let initialCameraSyncPending = true;
@@ -1300,7 +1341,14 @@ export function initDiorama() {
   };
   const releaseStartupGate = () => {
     if (startupGateReleased) return;
+    if (!startupGateForcedOpen && !isStartupReady()) return;
     startupGateReleased = true;
+    syncHomeLoadingState();
+    if (homeLoadingEl) {
+      startupGateHideTimer = window.setTimeout(() => {
+        homeLoadingEl.hidden = true;
+      }, 320);
+    }
     syncScrollProgress();
     needScreenRedraw = true;
   };
@@ -2051,17 +2099,28 @@ export function initDiorama() {
       storyFrameCache.clear();
       lastStoryOverlayKey = "";
       drawScreen();
-    }).catch(() => {});
+      markStartupResourceReady("fonts");
+    }).catch(() => {
+      markStartupResourceReady("fonts");
+    });
+  } else {
+    markStartupResourceReady("fonts");
   }
 
   drawScreen();
   const startupGateTimer = window.setTimeout(releaseStartupGate, STARTUP_GATE_TIMEOUT_MS);
+  const startupGateForceTimer = window.setTimeout(() => {
+    startupGateForcedOpen = true;
+    releaseStartupGate();
+  }, 5000);
   rafId = requestAnimationFrame(animate);
 
   // ===== Cleanup =====
   const cleanup = () => {
     disposed = true;
     window.clearTimeout(startupGateTimer);
+    window.clearTimeout(startupGateForceTimer);
+    if (startupGateHideTimer) window.clearTimeout(startupGateHideTimer);
     if (rafId) cancelAnimationFrame(rafId);
     window.removeEventListener("scroll", syncScrollProgress);
     window.removeEventListener("wheel", loopBackwardWheelHandler, { capture: true });
@@ -2111,6 +2170,11 @@ export function initDiorama() {
     cueEl?.removeAttribute("data-home-visible");
     cueEl?.removeAttribute("data-cue-mode");
     if (cuePercentEl) cuePercentEl.textContent = "0%";
+    if (homeLoadingEl) {
+      homeLoadingEl.hidden = false;
+      homeLoadingEl.classList.remove("is-ready");
+      homeLoadingEl.setAttribute("aria-hidden", "false");
+    }
 
     const w = window as unknown as Record<string, unknown>;
     if (w[CLEANUP_KEY] === cleanup) delete w[CLEANUP_KEY];

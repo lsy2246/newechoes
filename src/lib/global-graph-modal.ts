@@ -1267,6 +1267,8 @@ export function initGlobalGraphModal() {
   const mountEl = mount;
   const tooltipEl = tooltip;
   const statusEl = status instanceof HTMLElement ? status : null;
+  const statusText = statusEl?.querySelector("[data-global-graph-status-text]");
+  const statusTextEl = statusText instanceof HTMLElement ? statusText : null;
 
   const payload = JSON.parse(
     dataElement.textContent || '{"nodes":[],"links":[]}',
@@ -1427,14 +1429,21 @@ export function initGlobalGraphModal() {
     applyCurrentInfo(currentInfo);
   }
 
+  function setStatusMessage(message: string) {
+    if (!statusEl) return;
+    statusEl.hidden = false;
+    if (statusTextEl) {
+      statusTextEl.textContent = message;
+    } else {
+      statusEl.textContent = message;
+    }
+  }
+
   async function ensureGraphRuntime() {
     if (graphRuntime) return graphRuntime;
     if (graphRuntimePromise) return graphRuntimePromise;
 
-    if (statusEl) {
-      statusEl.hidden = false;
-      statusEl.textContent = "正在加载 2D 点群图谱...";
-    }
+    setStatusMessage("正在加载 2D 点群图谱...");
 
     graphRuntimePromise = createGraphRuntime({
       stage: stageEl,
@@ -1452,10 +1461,7 @@ export function initGlobalGraphModal() {
       })
       .catch((error) => {
         console.error("2D 图谱加载失败:", error);
-        if (statusEl) {
-          statusEl.hidden = false;
-          statusEl.textContent = "2D 图谱初始化失败，请稍后刷新重试。";
-        }
+        setStatusMessage("2D 图谱初始化失败，请稍后刷新重试。");
         graphRuntimePromise = null;
         throw error;
       });

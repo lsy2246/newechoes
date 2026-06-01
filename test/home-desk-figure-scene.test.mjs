@@ -315,6 +315,17 @@ test("home startup cue changes progress bar state while the opening scroll is ga
   assert.match(dioramaCss, /@keyframes home-cue-loading-bar/);
 });
 
+test("home diorama self-hosts its display fonts instead of using a Google Fonts import", () => {
+  assert.equal(dioramaCss.includes("fonts.googleapis.com"), false);
+  assert.match(dioramaCss, /font-family:\s*"Fraunces";[\s\S]*src:\s*url\("\/fonts\/home\/fraunces-latin\.woff2"\)/);
+  assert.match(dioramaCss, /font-family:\s*"JetBrains Mono";[\s\S]*src:\s*url\("\/fonts\/home\/jetbrains-mono-latin\.woff2"\)/);
+  assert.match(dioramaCss, /@import "@fontsource\/noto-serif-sc\/400\.css";/);
+});
+
+test("home startup loader stays non-blocking while swup owns page-transition loading", () => {
+  assert.match(dioramaCss, /\.home-diorama__loading\s*\{[\s\S]*pointer-events:\s*none;/);
+});
+
 test("home 3D renderer sizes from the untransformed canvas box", () => {
   assert.match(dioramaTs, /const w = Math\.max\(1, canvasEl\.clientWidth \|\| window\.innerWidth\);/);
   assert.match(dioramaTs, /const h = Math\.max\(1, canvasEl\.clientHeight \|\| window\.innerHeight\);/);

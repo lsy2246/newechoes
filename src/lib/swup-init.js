@@ -12,6 +12,10 @@ const LOADING_SPINNER_MIN_VISIBLE_MS = 360;
 let loadingSpinnerHideTimer = 0;
 let loadingSpinnerShownAt = 0;
 
+function setSwupLoadingState(isLoading) {
+  document.body?.setAttribute('data-swup-loading', isLoading ? 'true' : 'false');
+}
+
 // 创建加载动画元素
 function createLoadingSpinner() {
   // 检查是否已存在加载动画元素
@@ -83,6 +87,7 @@ function showLoadingSpinner(spinner, forceNew = false) {
   spinner.style.display = 'flex';
   spinner.classList.add('is-active');
   loadingSpinnerShownAt = Date.now();
+  setSwupLoadingState(true);
 }
 
 // 隐藏加载动画
@@ -102,6 +107,7 @@ function hideLoadingSpinner(spinner) {
   loadingSpinnerHideTimer = window.setTimeout(() => {
     loadingSpinnerHideTimer = 0;
     spinner.classList.remove('is-active');
+    setSwupLoadingState(false);
   
     // 添加淡出效果后移除
     setTimeout(() => {
@@ -633,6 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
   syncPageShellState();
   timelineYearSpy.init();
   window.addEventListener('scroll', updateHeaderScrollState, { passive: true });
+  setSwupLoadingState(false);
 
   
   // 1. 访问开始 - 显示加载动画，准备页面退出
@@ -766,6 +773,7 @@ document.addEventListener('DOMContentLoaded', () => {
     contentReady = false;
     animationInProgress = false;
     hideLoadingSpinner(spinner);
+    setSwupLoadingState(false);
     
     console.error('Fetch error:', error);
     
@@ -833,6 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 发送页面切换事件
     sendPageTransitionEvent();
     window.console.error = originalErrorHandler;
+    setSwupLoadingState(false);
     
     if (swup) {
       // 移除所有已使用的插件

@@ -878,8 +878,10 @@
   inset: 0;
   z-index: 3;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.85rem;
   padding: 1.5rem;
   text-align: center;
   font-size: 0.92rem;
@@ -889,6 +891,28 @@
 
 [data-theme="dark"] .global-graph-status {
   color: var(--graph-text-soft);
+}
+
+.global-graph-status__spinner {
+  width: 2.8rem;
+  height: 2.8rem;
+  border: 2.5px solid rgba(16, 16, 16, 0.08);
+  border-top-color: rgba(16, 16, 16, 0.88);
+  border-right-color: rgba(116, 74, 196, 0.58);
+  border-radius: 999px;
+  animation: spin 0.9s linear infinite;
+}
+
+[data-theme="dark"] .global-graph-status__spinner {
+  border-color: rgba(255, 255, 255, 0.08);
+  border-top-color: rgba(238, 242, 246, 0.92);
+  border-right-color: rgba(170, 138, 255, 0.72);
+}
+
+.global-graph-status__text {
+  margin: 0;
+  max-width: 18rem;
+  line-height: 1.7;
 }
 
 .global-graph-tooltip {

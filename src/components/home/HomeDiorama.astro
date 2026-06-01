@@ -26,6 +26,11 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
         <canvas class="home-story__canvas" data-story-canvas></canvas>
       </div>
       <div class="home-diorama__veil" aria-hidden="true"></div>
+      <div class="home-diorama__loading" data-home-loading aria-live="polite">
+        <div class="home-diorama__loading-spinner" aria-hidden="true"></div>
+        <p class="home-diorama__loading-title">首页场景加载中</p>
+        <p class="home-diorama__loading-detail" data-home-loading-detail>正在准备 3D 模型与字体...</p>
+      </div>
 
       <div class="diorama-sr-nav" aria-label="quick navigation">
         <a href="/articles" data-astro-prefetch="hover">文章</a>
