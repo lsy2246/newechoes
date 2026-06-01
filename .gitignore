@@ -42,3 +42,5 @@ tmp/
 .superpowers/
 test-artifacts/
 diorama-checks/
+.edgeone/
+.wrangler/
