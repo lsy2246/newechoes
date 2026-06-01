@@ -48,6 +48,7 @@ const {
 
 const isCardPreview = previewMode === "card";
 const useOverlayHeader = headerMode === "overlay";
+const initialTheme = "light";
 const pageDescription = description || title || SITE_META.title;
 const canonicalPath = normalizeCanonicalPath(Astro.url.pathname);
 const canonicalHref = createCanonicalUrl(canonicalPath, Astro.site);
@@ -74,6 +75,7 @@ const jsonLdItems = [siteJsonLd, personJsonLd, ...pageJsonLdItems];
 <!doctype html>
 <html
   lang="zh-CN"
+  data-theme={initialTheme}
   class:list={[
     "m-0 w-full h-full",
     {
@@ -317,24 +319,14 @@ const jsonLdItems = [siteJsonLd, personJsonLd, ...pageJsonLdItems];
               : "light";
           };
 
-          const storedTheme =
-            typeof localStorage !== "undefined"
+          const nextTheme =
+            typeof localStorage !== "undefined" && localStorage.getItem("theme")
               ? localStorage.getItem("theme")
-              : null;
-          const systemTheme = getSystemTheme();
-          let theme = "light"; // 默认浅色主题
+              : getSystemTheme();
 
-          // 按照逻辑优先级应用主题
-          if (storedTheme) {
-            // 如果有存储的主题设置，则应用它
-            theme = storedTheme;
-          } else if (systemTheme) {
-            // 如果没有存储的设置，检查系统主题
-            theme = systemTheme;
+          if (nextTheme && document.documentElement.dataset.theme !== nextTheme) {
+            document.documentElement.dataset.theme = nextTheme;
           }
-
-          // 立即设置文档主题，在DOM渲染前应用，避免闪烁
-          document.documentElement.dataset.theme = theme;
 
           // 监听系统主题变化（只有当主题设为跟随系统时才响应）
           const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");

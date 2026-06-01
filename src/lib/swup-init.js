@@ -118,6 +118,19 @@ function hideLoadingSpinner(spinner) {
   }, hideDelay);
 }
 
+function hideLoadingSpinnerImmediately(spinner) {
+  if (!spinner) return;
+
+  if (loadingSpinnerHideTimer) {
+    clearTimeout(loadingSpinnerHideTimer);
+    loadingSpinnerHideTimer = 0;
+  }
+
+  spinner.classList.remove('is-active');
+  spinner.style.display = 'none';
+  setSwupLoadingState(false);
+}
+
 // 根据当前路径同步首页专属的 body class
 // (home page 走 overlay header + full-bleed；其他页面不能带这些 class)
 function isHomeUrl(url = window.location.pathname) {
@@ -219,6 +232,26 @@ function syncHeaderShellState(shellState = readPageShellState()) {
   headerBg.classList.add('absolute', 'inset-0');
   headerBg.classList.toggle('header-bg-surface', !shellState.useHomeHeader);
   updateHeaderScrollState(shellState);
+}
+
+function primeIncomingHeaderBackground(shellState) {
+  const headerBg = document.getElementById('header-bg');
+  if (!headerBg || !shellState) return;
+
+  if (shellState.useHomeHeader) {
+    headerBg.classList.remove('scrolled');
+    headerBg.classList.remove('header-bg-surface');
+    headerBg.style.background = 'transparent';
+    headerBg.style.backdropFilter = 'none';
+    headerBg.style.webkitBackdropFilter = 'none';
+    headerBg.style.boxShadow = 'none';
+    return;
+  }
+
+  headerBg.style.removeProperty('background');
+  headerBg.style.removeProperty('backdrop-filter');
+  headerBg.style.removeProperty('-webkit-backdrop-filter');
+  headerBg.style.removeProperty('box-shadow');
 }
 
 // Swup only replaces page containers, so body/header-level layout state needs syncing.
@@ -663,6 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
     contentReady = false;
     animationInProgress = true;
     timelineYearSpy.cleanup?.();
+    primeIncomingHeaderBackground(getVisitShellState(visit));
     
     // 发送页面切换事件
     sendPageTransitionEvent();
@@ -698,6 +732,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextShellState = getVisitShellState(visit);
     if (nextShellState) {
       syncPageShellState(nextShellState);
+    }
+
+    if (isHomeUrl(visit?.to?.url)) {
+      hideLoadingSpinnerImmediately(spinner);
     }
 
     // 如果是载入文章页面但Fragment插件未加载，则加载它
