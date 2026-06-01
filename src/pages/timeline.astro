@@ -7,9 +7,11 @@ import { getCanonicalArticleUrl } from "@/lib/article-links";
 import {
   assertUniqueArticleIdentities,
   formatArticleHistoryPath,
-  getArticleHistoryMap,
   resolveArticleIdentity,
-} from "@/lib/article-history.js";
+} from "@/lib/article-history";
+import {
+  getArticleHistoryMap,
+} from "@/lib/article-history";
 
 export const prerender = true;
 
@@ -23,7 +25,7 @@ const articles = (await getCollection("articles"))
   );
 assertUniqueArticleIdentities(articles);
 
-const articleHistoryMap = getArticleHistoryMap(articles, SOURCE_REPOSITORY_CONFIG);
+const articleHistoryMap = await getArticleHistoryMap(articles, SOURCE_REPOSITORY_CONFIG);
 
 const monthNames = [
   "一月",

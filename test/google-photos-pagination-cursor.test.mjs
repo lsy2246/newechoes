@@ -4,17 +4,34 @@ import test from "node:test";
 import ts from "typescript";
 
 async function loadGooglePhotosModule(fetchAssetWithRelayFallback) {
-  const sourcePath = "src/lib/google-photos.ts";
+  const sourcePath = "src/lib/google-photos/node.ts";
   const source = readFileSync(sourcePath, "utf8");
-  const patchedSource = source.replace(
-    'import { fetchAssetWithRelayFallback, relayAssetUrl } from "./server-asset-relay";',
-    `const fetchAssetWithRelayFallback = globalThis.__googlePhotosTestFetchAssetWithRelayFallback;
-const relayAssetUrl = () => null;`,
-  );
+  const patchedSource = source
+    .replace(
+      'import { supportsGooglePhotosParsing } from "@/lib/runtime/platform";',
+      "const supportsGooglePhotosParsing = () => true;",
+    )
+    .replace(
+      'import type { GooglePhotoAlbum, GooglePhotoItem } from "./shared";\nimport { fetchSharedAlbumHtml, toAlbum, toPhotoItems } from "./shared";',
+      `const fetchSharedAlbumHtml = globalThis.__googlePhotosTestFetchSharedAlbumHtml;
+const toAlbum = (album) => ({
+  id: typeof album?.[0] === "string" ? album[0] : null,
+  title: typeof album?.[1] === "string" ? album[1] : null,
+  coverUrl: null,
+  fallbackCoverUrl: null,
+});
+const toPhotoItems = () => [];`,
+    );
 
   assert.notEqual(patchedSource, source, "test module import shim was not applied");
 
-  globalThis.__googlePhotosTestFetchAssetWithRelayFallback = fetchAssetWithRelayFallback;
+  globalThis.__googlePhotosTestFetchSharedAlbumHtml = async (shareUrl) => {
+    const response = await fetchAssetWithRelayFallback(shareUrl);
+    return {
+      html: await response.text(),
+      resolvedUrl: response.url,
+    };
+  };
 
   const { outputText } = ts.transpileModule(patchedSource, {
     compilerOptions: {

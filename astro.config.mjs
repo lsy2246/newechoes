@@ -7,6 +7,8 @@ import react from "@astrojs/react";
 import rehypeExternalLinks from "rehype-external-links";
 import { SITE_META } from "./src/consts";
 import vercel from "@astrojs/vercel";
+import cloudflare from "@astrojs/cloudflare";
+import edgeone from "@edgeone/astro";
 import { articleIndexerIntegration } from "./src/plugins/build-article-index.js";
 import { compressionIntegration } from "./src/plugins/compression-integration.js";
 import { rehypeCodeBlocks } from "./src/plugins/rehype-code-blocks.js";
@@ -17,11 +19,26 @@ import { robotsIntegration } from "./src/plugins/robots-integration.js";
 import { llmsIntegration } from "./src/plugins/llms-integration.js";
 import mermaid from 'astro-mermaid';
 
+const DEPLOY_TARGET = process.env.DEPLOY_TARGET || "vercel";
+
+function resolveAdapter(target) {
+  if (target === "cloudflare") {
+    return cloudflare({
+      prerenderEnvironment: "node",
+    });
+  }
+
+  if (target === "edgeone") {
+    return edgeone();
+  }
+
+  return vercel();
+}
 
 // https://astro.build/config
 export default defineConfig({
   site: SITE_META.url,
-  output: "static",
+  output: "server",
   trailingSlash: "never",
   devToolbar: {
     enabled: false,
@@ -115,5 +132,5 @@ export default defineConfig({
     gfm: true,
   },
 
-  adapter: vercel(),
+  adapter: resolveAdapter(DEPLOY_TARGET),
 });

@@ -10,13 +10,15 @@ import {
 import {
   assertUniqueArticleIdentities,
   formatArticleHistoryPath,
-  getArticleHistory,
   resolveArticleIdentity,
-} from "@/lib/article-history.js";
+} from "@/lib/article-history";
+import { getArticleHistory } from "@/lib/article-history";
 import Layout from "@/components/Layout.astro";
 import { ARTICLE_EXPIRY_CONFIG, SITE_META, SOURCE_REPOSITORY_CONFIG } from "@/consts";
 import { createCanonicalUrl } from "@/lib/canonical-url.js";
 import "@/styles/articles.css";
+
+export const prerender = true;
 
 // 定义文章类型
 type ArticleEntry = CollectionEntry<"articles">;
@@ -254,7 +256,7 @@ const shouldShowArticleWarning = (() => {
   );
 })();
 
-const articleHistory = getArticleHistory(article, SOURCE_REPOSITORY_CONFIG);
+const articleHistory = await getArticleHistory(article, SOURCE_REPOSITORY_CONFIG);
 const visibleHistoryEvents: any[] = articleHistory.events.slice(0, 6);
 const articleCanonicalPath = getCanonicalArticleUrl(articleIdentity);
 const articleCanonicalUrl = createCanonicalUrl(articleCanonicalPath, SITE_META.url);

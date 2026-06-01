@@ -1,6 +1,5 @@
 import type { APIContext } from 'astro';
 import { Octokit } from 'octokit';
-import fetch from 'node-fetch';
 import { GitPlatform } from '@/components/GitProjectCollection';
 
 interface GitProject {

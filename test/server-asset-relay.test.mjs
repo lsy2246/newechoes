@@ -8,7 +8,7 @@ const constsSource = readSource("src/consts.ts");
 const serverRelaySource = readSource("src/lib/server-asset-relay.ts");
 const doubanRouteSource = readSource("src/pages/api/douban.ts");
 const doubanComponentSource = readSource("src/components/DoubanCollection.tsx");
-const googlePhotosSource = readSource("src/lib/google-photos.ts");
+const googlePhotosSource = readSource("src/lib/google-photos/shared.ts");
 const googlePhotosRouteSource = readSource("src/pages/api/google-photos.ts");
 const photoAlbumSource = readSource("src/components/PhotoAlbumMasonry.tsx");
 

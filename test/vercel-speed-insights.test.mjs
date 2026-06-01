@@ -9,7 +9,9 @@ test("Vercel Speed Insights is installed as a runtime dependency", () => {
   assert.ok(packageJson.dependencies["@vercel/speed-insights"]);
 });
 
-test("the shared Astro layout renders Vercel Speed Insights on every page", () => {
+test("the shared Astro layout consumes platform observability config for Vercel Speed Insights", () => {
   assert.ok(layoutSource.includes('@vercel/speed-insights/astro'));
+  assert.ok(layoutSource.includes("getPlatformObservability"));
+  assert.ok(layoutSource.includes("showVercelInsights"));
   assert.ok(layoutSource.includes("<SpeedInsights"));
 });

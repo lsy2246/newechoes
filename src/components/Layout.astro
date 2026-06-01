@@ -4,6 +4,7 @@ import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
 import { SITE_META } from "@/consts";
 import { createCanonicalUrl, normalizeCanonicalPath } from "@/lib/canonical-url.js";
+import { getPlatformObservability } from "@/lib/runtime/platform";
 import SpeedInsights from "@vercel/speed-insights/astro";
 
 // 定义Props接口
@@ -70,6 +71,8 @@ const personJsonLd = {
 };
 const pageJsonLdItems = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
 const jsonLdItems = [siteJsonLd, personJsonLd, ...pageJsonLdItems];
+const observability = getPlatformObservability();
+const showVercelInsights = observability.speedInsights;
 ---
 
 <!doctype html>
@@ -432,6 +435,16 @@ const jsonLdItems = [siteJsonLd, personJsonLd, ...pageJsonLdItems];
       <slot />
     </main>
     {!isCardPreview && <Footer isHidden={hideFooter} />}
-    <SpeedInsights />
+    {
+      observability.bodyScripts.map((script) => (
+        <script
+          src={script.src}
+          async={script.async}
+          defer={script.defer}
+          {...script.dataAttributes}
+        />
+      ))
+    }
+    {showVercelInsights && <SpeedInsights />}
   </body>
 </html>

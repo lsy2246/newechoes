@@ -3,15 +3,17 @@ import Layout from "@/components/Layout.astro";
 import ArticleFilter from "@/components/ArticleFilter";
 import { SOURCE_REPOSITORY_CONFIG } from "@/consts";
 import { getCanonicalArticleUrl } from "@/lib/article-links";
+import { resolveArticleIdentity } from "@/lib/article-history";
 import {
   getArticleHistoryMap,
-  resolveArticleIdentity,
-} from "@/lib/article-history.js";
+} from "@/lib/article-history";
 import { getCollection, type CollectionEntry } from "astro:content";
+
+export const prerender = true;
 
 const searchParams = Astro.url.searchParams;
 const articles: CollectionEntry<"articles">[] = await getCollection("articles");
-const articleHistoryMap = getArticleHistoryMap(articles, SOURCE_REPOSITORY_CONFIG);
+const articleHistoryMap = await getArticleHistoryMap(articles, SOURCE_REPOSITORY_CONFIG);
 const articleUpdatedAt = Object.fromEntries(
   articles.map((article) => {
     const articleIdentity = resolveArticleIdentity(article);

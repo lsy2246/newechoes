@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
-import { fetchGooglePhotosPage, GOOGLE_PHOTOS_MEDIA_HEADERS } from "@/lib/google-photos";
+import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "@/lib/google-photos";
 import { fetchAssetDirect } from "@/lib/server-asset-relay";
+import { supportsGooglePhotosParsing } from "@/lib/runtime/platform";
 
 export const prerender = false;
 
@@ -66,7 +67,24 @@ export const GET: APIRoute = async ({ request }) => {
     });
   }
 
+  if (!supportsGooglePhotosParsing()) {
+    return new Response(
+      JSON.stringify({
+        error: "当前平台暂未启用相册解析",
+        message: "Cloudflare 版本已保留相册页面骨架，但服务端解析需改为兼容实现后才能启用。",
+      }),
+      {
+        status: 501,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store, max-age=0",
+        },
+      },
+    );
+  }
+
   try {
+    const { fetchGooglePhotosPage } = await import("@/lib/google-photos");
     const data = await fetchGooglePhotosPage({
       shareUrl,
       cursor,

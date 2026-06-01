@@ -1,43 +1,10 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { formatArticleHistoryPath, resolveArticleIdentity } from "./shared.js";
 
 const COMMIT_SEPARATOR = "\x1e";
 const FIELD_SEPARATOR = "\x1f";
 const historyCache = new Map();
-
-export function resolveArticleIdentity(article) {
-  const title = article?.data?.title;
-  if (typeof title === "string" && title.trim()) {
-    return title.trim();
-  }
-  return article?.id ?? "";
-}
-
-export function assertUniqueArticleIdentities(articles) {
-  const articleIdsByTitle = new Map();
-
-  for (const article of articles) {
-    const identity = resolveArticleIdentity(article);
-    if (!identity) {
-      continue;
-    }
-
-    const articleIds = articleIdsByTitle.get(identity) ?? [];
-    articleIds.push(article.id);
-    articleIdsByTitle.set(identity, articleIds);
-  }
-
-  const duplicate = [...articleIdsByTitle.entries()].find(([, articleIds]) => articleIds.length > 1);
-  if (duplicate) {
-    const [identity, articleIds] = duplicate;
-    throw new Error(`Duplicate article title "${identity}": ${articleIds.join(", ")}`);
-  }
-}
-
-export function formatArticleHistoryPath(gitPath) {
-  const normalized = normalizeGitPath(gitPath);
-  return normalized.replace(/^src\/content\//, "");
-}
 
 function decodeGitQuotedPath(gitPath) {
   const value = String(gitPath ?? "").trim();
@@ -386,3 +353,5 @@ export function getArticleHistoryMap(articles, repositoryConfig = {}) {
     ]),
   );
 }
+
+export { formatArticleHistoryPath };

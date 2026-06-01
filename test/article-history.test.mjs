@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  formatArticleHistoryPath,
-  parseGitHistoryLog,
   resolveArticleIdentity,
-} from "../src/lib/article-history.js";
+  formatArticleHistoryPath,
+} from "../src/lib/article-history/shared.js";
+import { parseGitHistoryLog } from "../src/lib/article-history/node.js";
 
 test("article identity uses the frontmatter title", () => {
   assert.equal(
