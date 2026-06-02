@@ -97,6 +97,27 @@ function shouldRebuildArtifact({ missing, stale }) {
   return missing;
 }
 
+export function assertFreshPrebuiltArtifact({
+  artifactLabel,
+  artifactPath,
+  sourceLabel,
+  sourcePath,
+  strategy,
+  missing,
+  stale,
+}) {
+  if (strategy !== 'prebuilt' || missing || !stale) {
+    return;
+  }
+
+  throw new Error(
+    `${artifactLabel} 预构建产物已过期，当前策略(prebuilt)不能继续使用旧产物。`
+    + ` 请重新编译并提交更新后的产物。`
+    + ` 产物: ${artifactPath}`
+    + `；源码: ${sourceLabel} (${sourcePath})`,
+  );
+}
+
 function hasCargo() {
   try {
     const output = execFileSync('cargo', ['--version'], {
@@ -242,6 +263,15 @@ function ensureWasmBindgenCli() {
 function buildWasmPackage(pkg) {
   const status = shouldRebuildWasmPackage(pkg);
 
+  assertFreshPrebuiltArtifact({
+    artifactLabel: `${pkg.crateName} wasm`,
+    artifactPath: pkg.outputDir,
+    sourceLabel: pkg.crateName,
+    sourcePath: pkg.pkgDir,
+    strategy: runtimeBuildStrategy,
+    ...status,
+  });
+
   if (!shouldRebuildArtifact(status)) {
     if (status.stale) {
       console.log(`[索引构建] ${pkg.crateName} 检测到源码较新，当前策略(${runtimeBuildStrategy})继续使用仓库内预构建 wasm 产物`);
@@ -309,6 +339,15 @@ function buildWasmPackage(pkg) {
 
 function ensureArticleIndexerBinary() {
   const status = shouldRebuildIndexerBinary();
+
+  assertFreshPrebuiltArtifact({
+    artifactLabel: 'article-indexer',
+    artifactPath: binaryPath,
+    sourceLabel: 'Rust sources',
+    sourcePath: path.join(wasmRootDir, 'article-indexer'),
+    strategy: runtimeBuildStrategy,
+    ...status,
+  });
 
   if (!shouldRebuildArtifact(status)) {
     if (status.stale) {
