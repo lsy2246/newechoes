@@ -5,7 +5,7 @@ import Footer from "@/components/Footer.astro";
 import { SITE_META } from "@/consts";
 import { createCanonicalUrl, normalizeCanonicalPath } from "@/lib/canonical-url.js";
 import { getPlatformObservability } from "@/lib/runtime/platform";
-import SpeedInsights from "@vercel/speed-insights/astro";
+import VercelSpeedInsights from "@/components/VercelSpeedInsights.astro";
 
 // 定义Props接口
 interface Props {
@@ -445,6 +445,6 @@ const showVercelInsights = observability.speedInsights;
         />
       ))
     }
-    {showVercelInsights && <SpeedInsights />}
+    {showVercelInsights && <VercelSpeedInsights />}
   </body>
 </html>

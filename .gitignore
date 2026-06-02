@@ -44,3 +44,4 @@ test-artifacts/
 diorama-checks/
 .edgeone/
 .wrangler/
+.pnpm-verify-store

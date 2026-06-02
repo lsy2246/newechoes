@@ -630,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 添加Scripts插件 - 确保页面转场后脚本能重新执行
   const scriptsPlugin = new SwupScriptsPlugin({
     // 以下选项确定哪些脚本会被重新执行
-    head: true,         // 重新执行head中的脚本
+    head: false,        // head 由 HeadPlugin 同步，重复执行容易造成全局脚本二次注册
     body: true,         // 重新执行body中的脚本
     optin: false        // 是否只执行带有[data-swup-reload-script]属性的脚本
   });

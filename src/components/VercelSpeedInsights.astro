@@ -1,0 +1,70 @@
+---
+import { computeRoute, injectSpeedInsights } from "@vercel/speed-insights";
+
+type Props = {
+  sampleRate?: number;
+  debug?: boolean;
+  dsn?: string;
+  endpoint?: string;
+  scriptSrc?: string;
+};
+
+const propsStr = JSON.stringify(Astro.props);
+const paramsStr = JSON.stringify(Astro.params);
+---
+
+<vercel-speed-insights
+  data-props={propsStr}
+  data-params={paramsStr}
+  data-pathname={Astro.url.pathname}
+></vercel-speed-insights>
+
+<script>
+  function getBasePath() {
+    try {
+      return import.meta.env.PUBLIC_VERCEL_OBSERVABILITY_BASEPATH;
+    } catch {
+      return undefined;
+    }
+  }
+
+  function getConfigString() {
+    try {
+      return import.meta.env.PUBLIC_VERCEL_OBSERVABILITY_CLIENT_CONFIG;
+    } catch {
+      return undefined;
+    }
+  }
+
+  const tagName = "vercel-speed-insights";
+
+  if (!customElements.get(tagName)) {
+    customElements.define(
+      tagName,
+      class VercelSpeedInsights extends HTMLElement {
+        constructor() {
+          super();
+
+          try {
+            const props = JSON.parse(this.dataset.props ?? "{}");
+            const params = JSON.parse(this.dataset.params ?? "{}");
+            const route = computeRoute(this.dataset.pathname ?? "", params);
+
+            injectSpeedInsights(
+              {
+                route,
+                ...props,
+                framework: "astro",
+                basePath: getBasePath(),
+                beforeSend: window.speedInsightsBeforeSend,
+              },
+              getConfigString(),
+            );
+          } catch (error) {
+            throw new Error(`Failed to parse SpeedInsights properties: ${error}`);
+          }
+        }
+      },
+    );
+  }
+</script>
