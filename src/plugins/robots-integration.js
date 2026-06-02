@@ -7,6 +7,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { SITE_META } from '../consts';
 import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/index.js';
 
+function getLocalBuildFilePath(...segments) {
+  return path.join(resolveBuildDir(path.join(process.cwd(), 'dist')), ...segments);
+}
+
 // 生成 robots.txt 内容
 function generateRobotsTxt(siteUrl) {
   return `# robots.txt 文件
@@ -35,7 +39,7 @@ export function robotsIntegration() {
             console.log(`虚拟路由请求: ${req.url}`);
             
             // 尝试返回已构建好的 robots.txt 文件
-            const distPath = path.join(process.cwd(), 'dist/client/robots.txt');
+            const distPath = getLocalBuildFilePath('robots.txt');
             
             if (existsSync(distPath)) {
               try {

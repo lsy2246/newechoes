@@ -14,14 +14,108 @@ tags: []
 ### 三步启动
 
 ```bash
-git clone https://github.com/your-username/echoes.git
+git clone https://github.com/lsy2246/newechoes.git
 cd echoes && pnpm i
 pnpm run dev  # 访问 http://localhost:4321
 ```
 
-### 一键部署
+### 快捷部署
+
+#### Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/lsy2246/newechoes)
+
+- 构建命令：`pnpm run build:vercel`
+- 输出目录：`dist`
+- 后端目录：`api/`
+
+#### Cloudflare Pages
+
+1. 打开 Cloudflare Dashboard，进入 `Workers & Pages`
+2. 选择 `Create application` -> `Pages` -> `Import an existing Git repository`
+3. 连接 GitHub，并选择 `lsy2246/newechoes`
+4. 构建命令填写：`pnpm run build:cloudflare`
+5. 构建输出目录填写：`dist`
+6. 保持仓库根目录下的 `functions/` 一起提交
+
+如果你用本地 CLI 直传，命令是：
+
+```bash
+pnpm exec wrangler pages deploy dist
+```
+
+这个方式适合纯静态资源更新；如果项目依赖 `functions/`，优先用 Git 集成，或者确认在项目根目录执行 Wrangler，让 Pages Functions 一起被识别。
+
+#### EdgeOne Pages
+
+EdgeOne 目前更适合直接通过控制台导入 Git 仓库快速部署。
+
+1. 打开 EdgeOne Pages，选择“导入 Git 仓库”
+2. 连接 GitHub，并选择 `lsy2246/newechoes`
+3. 构建命令填写：`pnpm run build:edgeone`
+4. 根目录填写：`/`
+5. 保持仓库根目录下的 `edgeone.json` 与 `cloud-functions/` 一起提交
+
+部署完成后，静态页面会从 `dist/` 发布，后端函数会从 `cloud-functions/api/` 自动识别。
+
+参考文档：
+
+- [导入 Git 仓库](https://pages.edgeone.ai/zh/document/importing-a-git-repository)
+- [直接上传](https://pages.edgeone.ai/zh/document/direct-upload)
+- [Cloudflare Pages Git 集成](https://developers.cloudflare.com/pages/get-started/git-integration/)
+- [Cloudflare Pages Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/)
+
+## 部署说明
+
+### 部署架构
+
+当前项目统一采用这套结构：
+
+- 前端：Astro 输出纯静态文件到 `dist/`
+- 共享后端逻辑：`src/server/api/`
+- Vercel 函数入口：`api/`
+- Cloudflare Pages 函数入口：`functions/api/`
+- EdgeOne Cloud Functions 入口：`cloud-functions/api/`
+
+也就是说，三个平台现在都是同一套思路：
+
+- 页面本身只输出静态文件
+- 搜索索引、文章页、列表页都来自静态产物
+- 豆瓣、微信读书、Git 项目、相册这些动态数据，通过各平台自己的函数目录接到同一份共享处理器上
+
+这不是“某个平台单独走 SSR”，而是“统一静态前端 + 平台函数后端”。
+
+### Vercel
+
+- 构建命令：`pnpm run build:vercel`
+- 输出目录：`dist`
+- 函数目录：`api/`
+- 配置文件：`vercel.json`
+
+### Cloudflare Pages
+
+- 构建命令：`pnpm run build:cloudflare`
+- 输出目录：`dist`
+- 函数目录：`functions/api/`
+- CLI 部署命令：`pnpm exec wrangler pages deploy dist`
+
+Cloudflare Pages 可以同时托管静态站点和 Pages Functions。  
+如果项目里有 `functions/`，函数文件必须放在仓库根目录，不能放进 `dist/` 里。
+
+### EdgeOne Pages
+
+- 构建命令：`pnpm run build:edgeone`
+- 输出目录：`dist`
+- 函数目录：`cloud-functions/api/`
+- 配置文件：`edgeone.json`
+
+EdgeOne Pages 也是静态前端和平台函数并存的模式。  
+它读取 `dist/` 里的静态站点，同时读取仓库根目录下的 `cloud-functions/` 和 `edgeone.json`。
+
+### 路由备注
+
+文章页现在统一输出为 `articles/*.html`，不是旧的目录式 `articles/*/index.html`。  
+如果后面再改平台路由或重写规则，这个点要保持一致。
 
 ## 核心功能
 

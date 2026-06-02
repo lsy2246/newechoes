@@ -14,13 +14,12 @@ import { customSitemapIntegration } from "./src/plugins/sitemap-integration.js";
 import { rssIntegration } from "./src/plugins/rss-integration.js";
 import { robotsIntegration } from "./src/plugins/robots-integration.js";
 import { llmsIntegration } from "./src/plugins/llms-integration.js";
+import { localDevApiIntegration } from "./src/plugins/local-dev-api-integration.js";
 import mermaid from "astro-mermaid";
 import {
   getPlatformIntegrations,
   getPlatformVitePlugins,
-  resolvePlatformAdapter,
   resolvePlatformImageConfig,
-  resolvePlatformSsrConfig,
 } from "./src/platform/build/index.js";
 
 const DEPLOY_TARGET = process.env.DEPLOY_TARGET || "vercel";
@@ -28,7 +27,7 @@ const DEPLOY_TARGET = process.env.DEPLOY_TARGET || "vercel";
 // https://astro.build/config
 export default defineConfig({
   site: SITE_META.url,
-  output: "server",
+  output: "static",
   trailingSlash: "never",
   devToolbar: {
     enabled: false,
@@ -73,7 +72,6 @@ export default defineConfig({
         },
       },
     },
-    ssr: resolvePlatformSsrConfig(DEPLOY_TARGET),
   },
 
   integrations: [
@@ -88,6 +86,7 @@ export default defineConfig({
     robotsIntegration(),
     rssIntegration(),
     llmsIntegration(),
+    localDevApiIntegration(),
     ...getPlatformIntegrations(DEPLOY_TARGET),
     compressionIntegration(),
   ],
@@ -111,7 +110,5 @@ export default defineConfig({
     ],
     gfm: true,
   },
-
-  adapter: resolvePlatformAdapter(DEPLOY_TARGET),
   image: resolvePlatformImageConfig(DEPLOY_TARGET),
 });

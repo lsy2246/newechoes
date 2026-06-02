@@ -10,7 +10,7 @@
     "build:cloudflare": "node scripts/astro-build.mjs cloudflare",
     "verify:index-runtime": "node scripts/article-index-runtime.mjs verify",
     "rebuild:index-runtime": "node scripts/article-index-runtime.mjs rebuild",
-    "deploy:cloudflare": "pnpm exec wrangler deploy --config dist/server/wrangler.json",
+    "deploy:cloudflare": "pnpm exec wrangler pages deploy dist",
     "preview": "pnpm exec astro preview",
     "astro": "pnpm exec astro",
     "new-post": "node src/plugins/new-post.mjs",

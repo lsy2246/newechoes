@@ -4,6 +4,10 @@ import { SITE_META, NAV_STRUCTURE } from "../consts";
 import { createCanonicalUrl, normalizeCanonicalPath } from "../lib/canonical-url.js";
 import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from "../platform/build/index.js";
 
+function getLocalBuildFilePath(...segments) {
+  return path.join(resolveBuildDir(path.join(process.cwd(), "dist")), ...segments);
+}
+
 function flattenNavigation(items, level = 0) {
   return items.flatMap((item) => {
     const current = item.href
@@ -178,7 +182,7 @@ export function llmsIntegration() {
       "astro:server:setup": ({ server }) => {
         server.middlewares.use((req, res, next) => {
           if (req.url === "/llms.txt" && req.method === "GET") {
-            const distPath = path.join(process.cwd(), "dist/client/llms.txt");
+            const distPath = getLocalBuildFilePath("llms.txt");
 
             fs.readFile(distPath, "utf-8")
               .then((content) => {

@@ -1,9 +1,5 @@
-import type { APIRoute } from 'astro';
 import { load } from 'cheerio/slim';
-import { createServerRequestLog, summarizeUrl } from '@/lib/server-request-log';
-
-// 添加服务器渲染标记
-export const prerender = false;
+import { createServerRequestLog, summarizeUrl } from '../../lib/server-request-log';
 
 // 请求配置常量
 const MAX_RETRIES = 1;        // 最大重试次数
@@ -133,7 +129,7 @@ function extractBooksFromScript(html: string): { title: string; author: string; 
   }
 }
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET = async ({ request }: { request: Request }) => {
   const url = new URL(request.url);
   const listId = url.searchParams.get('listId');  // 从查询参数获取微信读书书单ID
   const log = createServerRequestLog('api.weread', request, {

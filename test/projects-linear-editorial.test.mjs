@@ -5,7 +5,7 @@ import test from "node:test";
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 const projectsPage = readFileSync("src/pages/projects.astro", "utf8");
 const gitProjectCollection = readFileSync("src/components/GitProjectCollection.tsx", "utf8");
-const gitProjectsApi = readFileSync("src/pages/api/git-projects.ts", "utf8");
+const gitProjectsApi = readFileSync("src/server/api/git-projects.ts", "utf8");
 
 const cssBlock = (source, selector) => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

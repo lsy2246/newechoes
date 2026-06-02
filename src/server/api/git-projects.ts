@@ -1,6 +1,5 @@
-import type { APIContext } from 'astro';
-import { GitPlatform } from '@/lib/git-projects-shared';
-import { createServerRequestLog } from '@/lib/server-request-log';
+import { GitPlatform } from '../../lib/git-projects-shared';
+import { createServerRequestLog } from '../../lib/server-request-log';
 
 interface GitProject {
   name: string;
@@ -22,9 +21,7 @@ interface Pagination {
   hasPrev: boolean;
 }
 
-export const prerender = false;
-
-export async function GET({ request }: APIContext) {
+export async function GET({ request }: { request: Request }) {
   const log = createServerRequestLog('api.git-projects', request);
   try {
     const url = new URL(request.url);

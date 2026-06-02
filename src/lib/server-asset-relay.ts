@@ -1,4 +1,4 @@
-import { ASSET_RELAY_URL } from "@/consts";
+import { ASSET_RELAY_URL } from "../consts";
 
 const ASSET_RELAY_URL_PLACEHOLDER = "{url}";
 const ASSET_RELAY_HEADERS_PLACEHOLDER = "{headers}";

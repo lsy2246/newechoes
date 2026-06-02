@@ -1,10 +1,7 @@
-import type { APIRoute } from "astro";
-import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "@/lib/google-photos/shared";
-import { createServerRequestLog, summarizeUrl } from "@/lib/server-request-log";
-import { fetchAssetDirect } from "@/lib/server-asset-relay";
-import { supportsGooglePhotosParsing } from "@/platform/runtime/index.js";
-
-export const prerender = false;
+import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "../../lib/google-photos/shared";
+import { createServerRequestLog, summarizeUrl } from "../../lib/server-request-log";
+import { fetchAssetDirect } from "../../lib/server-asset-relay";
+import { supportsGooglePhotosParsing } from "../../platform/runtime/index.js";
 
 const GOOGLE_PHOTOS_MEDIA_HOST = "lh3.googleusercontent.com";
 
@@ -17,7 +14,7 @@ function isAllowedGooglePhotosMediaUrl(mediaUrl: string) {
   }
 }
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET = async ({ request }: { request: Request }) => {
   const url = new URL(request.url);
   const mediaUrl = url.searchParams.get("mediaUrl");
   const shareUrl = url.searchParams.get("shareUrl");
@@ -114,7 +111,7 @@ export const GET: APIRoute = async ({ request }) => {
       shareUrl: summarizeUrl(shareUrl),
       hasCursor: Boolean(cursor),
     });
-    const { fetchGooglePhotosPage } = await import("@/lib/google-photos/node");
+    const { fetchGooglePhotosPage } = await import("../../lib/google-photos/node");
     const data = await fetchGooglePhotosPage({
       shareUrl,
       cursor,

@@ -6,15 +6,15 @@ const readSource = (path) => readFileSync(path, "utf8");
 
 const constsSource = readSource("src/consts.ts");
 const serverRelaySource = readSource("src/lib/server-asset-relay.ts");
-const doubanRouteSource = readSource("src/pages/api/douban.ts");
+const doubanRouteSource = readSource("src/server/api/douban.ts");
 const doubanComponentSource = readSource("src/components/DoubanCollection.tsx");
 const googlePhotosSource = readSource("src/lib/google-photos/shared.ts");
-const googlePhotosRouteSource = readSource("src/pages/api/google-photos.ts");
+const googlePhotosRouteSource = readSource("src/server/api/google-photos.ts");
 const photoAlbumSource = readSource("src/components/PhotoAlbumMasonry.tsx");
 
 test("asset relay template stays in shared consts with encoded headers support", () => {
   assert.match(constsSource, /export const ASSET_RELAY_URL = "https:\/\/proxy\.u\.cd\/download\?url=\{url\}&headers=\{headers\}"/);
-  assert.match(serverRelaySource, /import \{ ASSET_RELAY_URL \} from "@\/consts"/);
+  assert.match(serverRelaySource, /import \{ ASSET_RELAY_URL \} from "\.\.\/consts"/);
   assert.doesNotMatch(serverRelaySource, /process\.env\.ASSET_RELAY_URL/);
   assert.doesNotMatch(serverRelaySource, /import\.meta\.env\.PUBLIC_/);
   assert.doesNotMatch(doubanComponentSource, /ASSET_RELAY|server-asset-relay/);

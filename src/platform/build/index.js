@@ -1,9 +1,8 @@
 export {
   getPlatformIntegrations,
   getPlatformVitePlugins,
-  resolvePlatformAdapter,
   resolvePlatformImageConfig,
-  resolvePlatformSsrConfig,
+  resolvePlatformOutput,
 } from "./astro-config.js";
 export {
   getStaticOutputMirrorRoots,

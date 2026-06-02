@@ -13,7 +13,7 @@ const wasmAssetDir = path.join(rootDir, 'src', 'assets', 'wasm');
 // 构建目录在根目录下
 const buildDir = path.resolve(rootDir, 'dist');
 // 索引文件存储位置
-const indexDir = path.join(buildDir, 'client', 'assets', 'index');
+const indexDir = path.join(resolveBuildDir(buildDir), 'assets', 'index');
 const binaryName = process.platform === 'win32'
   ? 'article-indexer-cli.exe'
   : 'article-indexer-cli';

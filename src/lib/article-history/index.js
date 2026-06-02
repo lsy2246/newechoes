@@ -48,4 +48,4 @@ export {
   formatArticleHistoryPath,
   resolveArticleIdentity,
 } from "./shared.js";
-export { parseGitHistoryLog } from "./node.js";
+export { parseGitHistoryLog } from "./parser.js";

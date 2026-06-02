@@ -9,6 +9,10 @@ import { generateXmlViewStyles } from './xml-view-styles.js';
 import { normalizeCanonicalPath } from '../lib/canonical-url.js';
 import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/index.js';
 
+function getLocalBuildFilePath(...segments) {
+  return path.join(resolveBuildDir(path.join(process.cwd(), 'dist')), ...segments);
+}
+
 // 转义XML特殊字符
 function escapeXml(unsafe) {
   if (!unsafe) return '';
@@ -186,7 +190,7 @@ export function customSitemapIntegration() {
             console.log(`虚拟路由请求: ${req.url}`);
             
             // 尝试返回已构建好的sitemap.xml文件
-            const distPath = path.join(process.cwd(), 'dist/client/sitemap.xml');
+            const distPath = getLocalBuildFilePath('sitemap.xml');
             
             if (existsSync(distPath)) {
               try {
@@ -207,7 +211,7 @@ export function customSitemapIntegration() {
             console.log(`虚拟路由请求: ${req.url}`);
             
             // 尝试返回已构建好的sitemap.xsl文件
-            const distPath = path.join(process.cwd(), 'dist/client/sitemap.xsl');
+            const distPath = getLocalBuildFilePath('sitemap.xsl');
             
             if (existsSync(distPath)) {
               try {

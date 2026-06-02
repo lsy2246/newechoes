@@ -28,10 +28,6 @@ export function getStaticOutputMirrorRoots({ cwd = process.cwd(), env = process.
     return [path.join(cwd, ".vercel", "output", "static")];
   }
 
-  if (deployTarget === "cloudflare") {
-    return [path.join(cwd, "dist", "server")];
-  }
-
   return [];
 }
 

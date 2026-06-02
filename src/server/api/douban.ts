@@ -1,10 +1,6 @@
-import type { APIRoute } from 'astro';
 import { load } from 'cheerio/slim';
-import { createServerRequestLog, summarizeUrl } from '@/lib/server-request-log';
-import { fetchAssetDirect, relayAssetUrl } from '@/lib/server-asset-relay';
-
-// 添加服务器渲染标记
-export const prerender = false;
+import { createServerRequestLog, summarizeUrl } from '../../lib/server-request-log';
+import { fetchAssetDirect, relayAssetUrl } from '../../lib/server-asset-relay';
 
 // 请求配置常量
 const MAX_RETRIES = 0;        // 最大重试次数
@@ -67,7 +63,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: nu
   }
 }
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET = async ({ request }: { request: Request }) => {
   const url = new URL(request.url);
   const type = url.searchParams.get('type') || 'movie';
   const start = parseInt(url.searchParams.get('start') || '0');

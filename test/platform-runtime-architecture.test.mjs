@@ -4,6 +4,7 @@ import test from "node:test";
 
 const astroConfigSource = readFileSync("astro.config.mjs", "utf8");
 const legacyRuntimeBridgeSource = readFileSync("src/lib/runtime/platform.ts", "utf8");
+const articleHistoryBridgeSource = readFileSync("src/lib/article-history/index.js", "utf8");
 const buildOutputBridgeSource = readFileSync("src/plugins/build-output.js", "utf8");
 const buildArticleIndexSource = readFileSync("src/plugins/build-article-index.js", "utf8");
 const sitemapIntegrationSource = readFileSync("src/plugins/sitemap-integration.js", "utf8");
@@ -26,6 +27,11 @@ test("legacy runtime module is a thin bridge to the new platform runtime entrypo
   assert.match(legacyRuntimeBridgeSource, /from "@\/platform\/runtime\/index\.js"/);
   assert.doesNotMatch(legacyRuntimeBridgeSource, /createCloudflareAnalyticsScripts/);
   assert.doesNotMatch(legacyRuntimeBridgeSource, /PLATFORM_CAPABILITIES/);
+});
+
+test("article history bridge keeps node-only helpers out of the public runtime entry", () => {
+  assert.match(articleHistoryBridgeSource, /await import\("\.\/node\.js"\)/);
+  assert.doesNotMatch(articleHistoryBridgeSource, /export\s*\{\s*parseGitHistoryLog\s*\}\s*from\s*"\.\/node\.js"/);
 });
 
 test("astro config delegates platform-specific build behavior to platform build modules", () => {

@@ -18,6 +18,8 @@ const llmsIntegration = readFileSync("src/plugins/llms-integration.js", "utf8");
 test("Astro and Vercel build canonical routes without trailing slashes", () => {
   assert.match(astroConfig, /trailingSlash:\s*"never"/);
   assert.match(astroConfig, /format:\s*"file"/);
+  assert.equal(vercelConfig.buildCommand, "pnpm run build:vercel");
+  assert.equal(vercelConfig.outputDirectory, "dist");
   assert.equal(vercelConfig.cleanUrls, true);
   assert.equal(vercelConfig.trailingSlash, false);
 });

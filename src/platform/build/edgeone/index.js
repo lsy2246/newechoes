@@ -1,16 +1,7 @@
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-
-const EDGEONE_SLASH_REWRITE_SOURCE = "^/([^.]+[^/.])$";
-const EDGEONE_SAFE_SLASH_REWRITE_SOURCE =
-  "^/(?!api(?:/|$)|_image$|_server-islands(?:/|$))([^.]+[^/.])$";
-const EDGEONE_SLASH_REWRITE_DEST = "/$1/";
-const EDGEONE_STATIC_INDEX_REWRITE_DEST = "/$1/index.html";
-
-function normalizeRelativePathForRoutes(relativeDir) {
-  return relativeDir.split(path.sep).filter(Boolean).join("/");
-}
+import { resolveBuildDir } from "../index.js";
 
 function isAlreadyUriEncodedPath(relativeDir) {
   if (!relativeDir.includes("%")) {
@@ -32,70 +23,25 @@ function encodePathSegments(relativeDir) {
     .join(path.sep);
 }
 
-async function collectArticleDirectories(articlesDir, currentDir = articlesDir, result = []) {
+async function collectArticleHtmlFiles(articlesDir, currentDir = articlesDir, result = []) {
   const entries = await fs.readdir(currentDir, { withFileTypes: true });
 
   for (const entry of entries) {
-    if (!entry.isDirectory()) {
+    const sourcePath = path.join(currentDir, entry.name);
+
+    if (entry.isDirectory()) {
+      await collectArticleHtmlFiles(articlesDir, sourcePath, result);
       continue;
     }
 
-    const sourceDir = path.join(currentDir, entry.name);
-    result.push(sourceDir);
-    await collectArticleDirectories(articlesDir, sourceDir, result);
+    if (!entry.name.endsWith(".html")) {
+      continue;
+    }
+
+    result.push(sourcePath);
   }
 
   return result;
-}
-
-export function createEdgeoneCompatPlugin(deployTarget) {
-  const virtualId = "\0edgeone-server-entrypoint-shim";
-
-  return {
-    name: "edgeone-server-entrypoint-compat",
-    resolveId(source) {
-      if (
-        deployTarget === "edgeone" &&
-        /@edgeone[\/\\]astro[\/\\]dist[\/\\]server\.js$/.test(source)
-      ) {
-        return virtualId;
-      }
-
-      return null;
-    },
-    load(id) {
-      if (id !== virtualId) {
-        return null;
-      }
-
-      return `
-export { createExports } from "@edgeone/astro/server";
-const edgeoneServerEntrypointShim = {};
-export default edgeoneServerEntrypointShim;
-`;
-    },
-  };
-}
-
-export function patchEdgeoneConfigText(configText) {
-  const parsed = JSON.parse(configText);
-  if (!Array.isArray(parsed.routes)) {
-    return configText;
-  }
-
-  for (const route of parsed.routes) {
-    if (
-      route
-      && route.src === EDGEONE_SLASH_REWRITE_SOURCE
-      && route.dest === EDGEONE_SLASH_REWRITE_DEST
-      && route.continue === true
-    ) {
-      route.src = EDGEONE_SAFE_SLASH_REWRITE_SOURCE;
-      route.dest = EDGEONE_STATIC_INDEX_REWRITE_DEST;
-    }
-  }
-
-  return `${JSON.stringify(parsed, null, 2)}\n`;
 }
 
 export async function collectEdgeoneEncodedArticleRouteMirrors(assetsDir) {
@@ -104,24 +50,24 @@ export async function collectEdgeoneEncodedArticleRouteMirrors(assetsDir) {
     return [];
   }
 
-  const sourceDirs = await collectArticleDirectories(articlesDir);
+  const sourceFiles = await collectArticleHtmlFiles(articlesDir);
   const mirrors = [];
 
-  for (const sourceDir of sourceDirs) {
-    const relativeDir = path.relative(articlesDir, sourceDir);
-    if (isAlreadyUriEncodedPath(relativeDir)) {
+  for (const sourceFile of sourceFiles) {
+    const relativeFile = path.relative(articlesDir, sourceFile);
+    if (isAlreadyUriEncodedPath(relativeFile)) {
       continue;
     }
 
-    const encodedRelativeDir = encodePathSegments(relativeDir);
+    const encodedRelativeFile = encodePathSegments(relativeFile);
 
-    if (!encodedRelativeDir || encodedRelativeDir === relativeDir) {
+    if (!encodedRelativeFile || encodedRelativeFile === relativeFile) {
       continue;
     }
 
     mirrors.push({
-      relativeDir,
-      encodedRelativeDir,
+      relativeFile,
+      encodedRelativeFile,
     });
   }
 
@@ -137,60 +83,39 @@ export async function syncEdgeoneEncodedArticleAssetPaths(assetsDir) {
   const routeMirrors = await collectEdgeoneEncodedArticleRouteMirrors(assetsDir);
   const mirroredPaths = [];
 
-  for (const { relativeDir, encodedRelativeDir } of routeMirrors) {
-    const sourceDir = path.join(articlesDir, relativeDir);
-    const targetDir = path.join(articlesDir, encodedRelativeDir);
-    await fs.mkdir(path.dirname(targetDir), { recursive: true });
-    await fs.cp(sourceDir, targetDir, { recursive: true, force: true });
-    mirroredPaths.push(path.join(targetDir, "index.html"));
+  for (const { relativeFile, encodedRelativeFile } of routeMirrors) {
+    const sourceFile = path.join(articlesDir, relativeFile);
+    const targetFile = path.join(articlesDir, encodedRelativeFile);
+    await fs.mkdir(path.dirname(targetFile), { recursive: true });
+    await fs.copyFile(sourceFile, targetFile);
+    mirroredPaths.push(targetFile);
   }
 
   return mirroredPaths;
-}
-
-export async function patchEdgeoneBuildConfig(rootDir = process.cwd()) {
-  const configPath = path.join(
-    rootDir,
-    ".edgeone",
-    "cloud-functions",
-    "ssr-node",
-    "config.json",
-  );
-
-  if (!existsSync(configPath)) {
-    return false;
-  }
-
-  const originalConfig = await fs.readFile(configPath, "utf8");
-  const patchedConfig = patchEdgeoneConfigText(originalConfig);
-
-  if (patchedConfig === originalConfig) {
-    return false;
-  }
-
-  await fs.writeFile(configPath, patchedConfig, "utf8");
-  return true;
 }
 
 export function edgeoneRoutingIntegration() {
   return {
     name: "edgeone-routing-integration",
     hooks: {
-      "astro:build:done": async () => {
+      "astro:build:done": async ({ dir }) => {
         if ((process.env.DEPLOY_TARGET || "").trim().toLowerCase() !== "edgeone") {
           return;
         }
 
-        const mirroredArticlePaths = await syncEdgeoneEncodedArticleAssetPaths(
+        const candidateDirs = [
+          resolveBuildDir(dir),
           path.join(process.cwd(), ".edgeone", "assets"),
-        );
-        if (mirroredArticlePaths.length > 0) {
-          console.log(`已补齐 EdgeOne 编码文章路径镜像: ${mirroredArticlePaths.length} 个`);
+        ];
+        let mirroredCount = 0;
+
+        for (const candidateDir of candidateDirs) {
+          const mirroredArticlePaths = await syncEdgeoneEncodedArticleAssetPaths(candidateDir);
+          mirroredCount += mirroredArticlePaths.length;
         }
 
-        const patched = await patchEdgeoneBuildConfig();
-        if (patched) {
-          console.log("已修正 EdgeOne 路由规则，统一无尾斜杠 URL 并避免 clean-url 重写误伤 API");
+        if (mirroredCount > 0) {
+          console.log(`已补齐 EdgeOne 编码文章路径镜像: ${mirroredCount} 个`);
         }
       },
     },

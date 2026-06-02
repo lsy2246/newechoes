@@ -7,6 +7,10 @@ import * as cheerio from 'cheerio';
 import { generateXmlViewStyles } from './xml-view-styles.js';
 import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/index.js';
 
+function getLocalBuildFilePath(...segments) {
+  return path.join(resolveBuildDir(path.join(process.cwd(), 'dist')), ...segments);
+}
+
 // 转义XML特殊字符
 function escapeXml(unsafe) {
   if (!unsafe) return '';
@@ -135,7 +139,7 @@ export function rssIntegration() {
         server.middlewares.use(async (req, res, next) => {
           // 处理主RSS索引
           if (req.url === '/rss.xml' && req.method === 'GET') {
-            const distPath = path.join(process.cwd(), 'dist/client/rss.xml');
+            const distPath = getLocalBuildFilePath('rss.xml');
             
             if (existsSync(distPath)) {
               try {
@@ -174,7 +178,7 @@ export function rssIntegration() {
             const articlePath = decodeURIComponent(encodedPath);
             
             // 因为我们的目录结构要求路径以/结尾，所以要确保保留末尾斜杠
-            const distPath = path.join(process.cwd(), 'dist/client', articlePath, 'rss.xml');
+            const distPath = getLocalBuildFilePath(articlePath, 'rss.xml');
             
             console.log(`尝试读取RSS文件: ${distPath}`);
             

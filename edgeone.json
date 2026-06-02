@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/articles/*",
-      "destination": "/articles/:splat/index.html"
+      "destination": "/articles/:splat.html"
     }
   ]
 }
