@@ -312,6 +312,38 @@ function ensureStaticIndexRuntimeArtifacts() {
   }
 }
 
+function formatArtifactTimestamp(targetPath) {
+  const timestamp = fs.statSync(targetPath).mtime;
+  return Number.isNaN(timestamp.getTime()) ? 'unknown' : timestamp.toISOString();
+}
+
+function logRuntimeArtifactSummary() {
+  const runtimeArtifacts = [
+    {
+      label: 'search wasm',
+      path: path.join(wasmAssetDir, 'search', 'search_wasm_bg.wasm'),
+    },
+    {
+      label: 'article filter wasm',
+      path: path.join(wasmAssetDir, 'article-filter', 'article_filter_bg.wasm'),
+    },
+    {
+      label: `article indexer (${process.platform})`,
+      path: binaryPath,
+    },
+  ];
+
+  console.log('[索引构建] 当前运行时产物:');
+  for (const artifact of runtimeArtifacts) {
+    if (!fs.existsSync(artifact.path)) {
+      console.log(`- ${artifact.label}: 缺失 (${artifact.path})`);
+      continue;
+    }
+
+    console.log(`- ${artifact.label}: ${artifact.path} (mtime=${formatArtifactTimestamp(artifact.path)})`);
+  }
+}
+
 /**
  * 创建Astro构建后钩子插件，用于生成文章索引
  * @returns {import('astro').AstroIntegration} Astro集成对象
@@ -392,12 +424,18 @@ export async function generateArticleIndex(options = {}) {
   try {
     try {
       ensureWasmAssets();
+    } catch (wasmBuildError) {
+      console.warn(`[索引构建] wasm 前端产物未完成重编译，继续使用仓库内预构建产物: ${wasmBuildError.message}`);
+    }
+
+    try {
       ensureArticleIndexerBinary();
-    } catch (runtimeBuildError) {
-      console.warn(`[索引构建] 跳过运行时重编译，改用仓库内预构建产物: ${runtimeBuildError.message}`);
+    } catch (indexerBuildError) {
+      console.warn(`[索引构建] native 索引器未完成重编译，继续使用仓库内预构建产物: ${indexerBuildError.message}`);
     }
 
     ensureStaticIndexRuntimeArtifacts();
+    logRuntimeArtifactSummary();
 
     // 使用提供的目录或默认目录
     const buildDirPath = options.buildDir || buildDir;
