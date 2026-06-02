@@ -4,6 +4,7 @@
   "exclude": ["dist", "helloagents"],
   "compilerOptions": {
     "baseUrl": ".",
+    "types": ["node"],
     "paths": {
       "@/*": ["./src/*"]
     },

@@ -1,6 +1,6 @@
-import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "../../lib/google-photos/shared";
-import { createServerRequestLog, summarizeUrl } from "../../lib/server-request-log";
-import { fetchAssetDirect } from "../../lib/server-asset-relay";
+import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "../../lib/google-photos/shared.js";
+import { createServerRequestLog, summarizeUrl } from "../../lib/server-request-log.js";
+import { fetchAssetDirect } from "../../lib/server-asset-relay.js";
 import { supportsGooglePhotosParsing } from "../../platform/runtime/index.js";
 
 const GOOGLE_PHOTOS_MEDIA_HOST = "lh3.googleusercontent.com";
@@ -111,7 +111,7 @@ export const GET = async ({ request }: { request: Request }) => {
       shareUrl: summarizeUrl(shareUrl),
       hasCursor: Boolean(cursor),
     });
-    const { fetchGooglePhotosPage } = await import("../../lib/google-photos/node");
+    const { fetchGooglePhotosPage } = await import("../../lib/google-photos/node.js");
     const data = await fetchGooglePhotosPage({
       shareUrl,
       cursor,

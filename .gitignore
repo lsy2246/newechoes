@@ -49,5 +49,3 @@ diorama-checks/
 .env
 .edgeone/*
 .tef_dist/*
-cloud-functions/*
-functions/*

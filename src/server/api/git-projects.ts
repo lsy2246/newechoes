@@ -1,5 +1,5 @@
-import { GitPlatform } from '../../lib/git-projects-shared';
-import { createServerRequestLog } from '../../lib/server-request-log';
+import { GitPlatform } from '../../lib/git-projects-shared.js';
+import { createServerRequestLog } from '../../lib/server-request-log.js';
 
 interface GitProject {
   name: string;

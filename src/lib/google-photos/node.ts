@@ -1,6 +1,6 @@
 import { supportsGooglePhotosParsing } from "../../platform/runtime/index.js";
-import type { GooglePhotoAlbum, GooglePhotoItem } from "./shared";
-import { fetchSharedAlbumHtml, toAlbum, toPhotoItems } from "./shared";
+import type { GooglePhotoAlbum, GooglePhotoItem } from "./shared.js";
+import { fetchSharedAlbumHtml, toAlbum, toPhotoItems } from "./shared.js";
 
 const RPC_ID = "snAcKc";
 const REQUEST_TIMEOUT_MS = 10000;

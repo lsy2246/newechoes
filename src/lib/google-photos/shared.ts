@@ -1,4 +1,4 @@
-import { fetchAssetWithRelayFallback, relayAssetUrl } from "../server-asset-relay";
+import { fetchAssetWithRelayFallback, relayAssetUrl } from "../server-asset-relay.js";
 
 export type GooglePhotoItem = {
   index: number;

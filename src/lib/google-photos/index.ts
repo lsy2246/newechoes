@@ -4,6 +4,6 @@ export {
   GOOGLE_PHOTOS_PAGE_HEADERS,
   toAlbum,
   toPhotoItems,
-} from "./shared";
-export type { GooglePhotoAlbum, GooglePhotoItem } from "./shared";
-export { fetchGooglePhotosPage } from "./node";
+} from "./shared.js";
+export type { GooglePhotoAlbum, GooglePhotoItem } from "./shared.js";
+export { fetchGooglePhotosPage } from "./node.js";

@@ -1,5 +1,5 @@
 import { load } from 'cheerio/slim';
-import { createServerRequestLog, summarizeUrl } from '../../lib/server-request-log';
+import { createServerRequestLog, summarizeUrl } from '../../lib/server-request-log.js';
 
 // 请求配置常量
 const MAX_RETRIES = 1;        // 最大重试次数

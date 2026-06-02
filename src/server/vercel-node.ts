@@ -1,4 +1,4 @@
-import { dispatchFunctionRequest } from "./function-dispatch";
+import { dispatchFunctionRequest } from "./function-dispatch.js";
 
 function getRequestOrigin(req: {
   headers?: Record<string, string | string[] | undefined>;
