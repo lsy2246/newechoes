@@ -8,8 +8,11 @@ const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
 const articleLinksSource = readFileSync("src/lib/article-links.ts", "utf8");
 const articleIndexSource = readFileSync("src/pages/articles/index.astro", "utf8");
 const articleDetailSource = readFileSync("src/pages/articles/[...id].astro", "utf8");
+const buildOutputSource = readFileSync("src/plugins/build-output.js", "utf8");
 const sitemapIntegration = readFileSync("src/plugins/sitemap-integration.js", "utf8");
 const rssIntegration = readFileSync("src/plugins/rss-integration.js", "utf8");
+const robotsIntegration = readFileSync("src/plugins/robots-integration.js", "utf8");
+const llmsIntegration = readFileSync("src/plugins/llms-integration.js", "utf8");
 
 test("Astro and Vercel build canonical routes without trailing slashes", () => {
   assert.match(astroConfig, /trailingSlash:\s*"never"/);
@@ -62,4 +65,13 @@ test("XML generators normalize URL output and resolve Astro HTML output paths", 
 
   assert.match(sitemapIntegration, /new URL\(normalizeCanonicalPath\(page\.pathname\), SITE_META\.url\)/);
   assert.ok(rssIntegration.includes("createCanonicalUrl(page.pathname, SITE_META.url)"));
+});
+
+test("post-build metadata files mirror into platform static outputs", () => {
+  assert.match(buildOutputSource, /export function syncStaticGeneratedFileToPlatformOutputs/);
+  assert.match(buildOutputSource, /\.edgeone/);
+
+  for (const source of [sitemapIntegration, rssIntegration, robotsIntegration, llmsIntegration]) {
+    assert.match(source, /syncStaticGeneratedFileToPlatformOutputs/);
+  }
 });

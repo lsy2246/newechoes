@@ -5,7 +5,7 @@ import { SITE_META } from '../consts';
 import { createCanonicalUrl, normalizeCanonicalPath } from '../lib/canonical-url.js';
 import * as cheerio from 'cheerio';
 import { generateXmlViewStyles } from './xml-view-styles.js';
-import { resolveBuildDir } from './build-output.js';
+import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from './build-output.js';
 
 // 转义XML特殊字符
 function escapeXml(unsafe) {
@@ -272,13 +272,23 @@ export function rssIntegration() {
           
           // 生成主RSS XML
           const rssContent = generateRssXml(rssEntries);
-          await fs.writeFile(path.join(buildDirPath, 'rss.xml'), BOM + rssContent, 'utf8');
+          const rssFilePath = path.join(buildDirPath, 'rss.xml');
+          await fs.writeFile(rssFilePath, BOM + rssContent, 'utf8');
           console.log('已生成 rss.xml (UTF-8 with BOM)');
+          const mirroredRssFiles = syncStaticGeneratedFileToPlatformOutputs(buildDirPath, rssFilePath);
+          if (mirroredRssFiles.length > 0) {
+            console.log(`已同步 rss.xml 到平台静态目录: ${mirroredRssFiles.join(', ')}`);
+          }
           
           // 生成索引页XSLT样式表
           const indexXsl = generateRssXslt();
-          await fs.writeFile(path.join(buildDirPath, 'rss.xsl'), BOM + indexXsl, 'utf8');
+          const rssStylesheetPath = path.join(buildDirPath, 'rss.xsl');
+          await fs.writeFile(rssStylesheetPath, BOM + indexXsl, 'utf8');
           console.log('已生成 rss.xsl (UTF-8 with BOM)');
+          const mirroredRssStylesheets = syncStaticGeneratedFileToPlatformOutputs(buildDirPath, rssStylesheetPath);
+          if (mirroredRssStylesheets.length > 0) {
+            console.log(`已同步 rss.xsl 到平台静态目录: ${mirroredRssStylesheets.join(', ')}`);
+          }
           
         } catch (error) {
           console.error('生成 RSS 时出错:', error);

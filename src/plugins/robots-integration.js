@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { SITE_META } from '../consts';
-import { resolveBuildDir } from './build-output.js';
+import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from './build-output.js';
 
 // 生成 robots.txt 内容
 function generateRobotsTxt(siteUrl) {
@@ -79,6 +79,10 @@ export function robotsIntegration() {
           const BOM = '\uFEFF';
           await fs.writeFile(filePath, BOM + content, 'utf8');
           console.log('已生成 robots.txt (UTF-8 with BOM)');
+          const mirroredRobotsFiles = syncStaticGeneratedFileToPlatformOutputs(buildDirPath, filePath);
+          if (mirroredRobotsFiles.length > 0) {
+            console.log(`已同步 robots.txt 到平台静态目录: ${mirroredRobotsFiles.join(', ')}`);
+          }
           
         } catch (error) {
           console.error('生成 robots.txt 时出错:', error);

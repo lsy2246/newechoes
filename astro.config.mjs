@@ -17,6 +17,7 @@ import { customSitemapIntegration } from "./src/plugins/sitemap-integration.js";
 import { rssIntegration } from "./src/plugins/rss-integration.js";
 import { robotsIntegration } from "./src/plugins/robots-integration.js";
 import { llmsIntegration } from "./src/plugins/llms-integration.js";
+import { edgeoneRoutingIntegration } from "./src/plugins/edgeone-routing-integration.js";
 import mermaid from 'astro-mermaid';
 
 const DEPLOY_TARGET = process.env.DEPLOY_TARGET || "vercel";
@@ -150,6 +151,7 @@ export default defineConfig({
     robotsIntegration(),
     rssIntegration(),
     llmsIntegration(),
+    edgeoneRoutingIntegration(),
     // 添加压缩插件 (必须放在最后位置)
     compressionIntegration()
   ],

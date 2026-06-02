@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { SITE_META, NAV_STRUCTURE } from "../consts";
 import { createCanonicalUrl, normalizeCanonicalPath } from "../lib/canonical-url.js";
-import { resolveBuildDir } from "./build-output.js";
+import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from "./build-output.js";
 
 function flattenNavigation(items, level = 0) {
   return items.flatMap((item) => {
@@ -202,8 +202,13 @@ export function llmsIntegration() {
         const buildDirPath = resolveBuildDir(dir);
         await fs.mkdir(buildDirPath, { recursive: true });
 
-        await fs.writeFile(path.join(buildDirPath, "llms.txt"), llmsTxtContent, "utf8");
+        const llmsFilePath = path.join(buildDirPath, "llms.txt");
+        await fs.writeFile(llmsFilePath, llmsTxtContent, "utf8");
         console.log("已生成 llms.txt");
+        const mirroredLlmsFiles = syncStaticGeneratedFileToPlatformOutputs(buildDirPath, llmsFilePath);
+        if (mirroredLlmsFiles.length > 0) {
+          console.log(`已同步 llms.txt 到平台静态目录: ${mirroredLlmsFiles.join(", ")}`);
+        }
       },
     },
   };

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { SITE_META } from '../consts';
 import { generateXmlViewStyles } from './xml-view-styles.js';
 import { normalizeCanonicalPath } from '../lib/canonical-url.js';
-import { resolveBuildDir } from './build-output.js';
+import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from './build-output.js';
 
 // 转义XML特殊字符
 function escapeXml(unsafe) {
@@ -299,12 +299,22 @@ export function customSitemapIntegration() {
           const BOM = '\uFEFF';
           
           // 写入sitemap.xml
-          await fs.writeFile(path.join(buildDirPath, 'sitemap.xml'), BOM + xmlContent, 'utf8');
+          const sitemapFilePath = path.join(buildDirPath, 'sitemap.xml');
+          await fs.writeFile(sitemapFilePath, BOM + xmlContent, 'utf8');
           console.log('已生成 sitemap.xml (UTF-8 with BOM)');
+          const mirroredSitemapFiles = syncStaticGeneratedFileToPlatformOutputs(buildDirPath, sitemapFilePath);
+          if (mirroredSitemapFiles.length > 0) {
+            console.log(`已同步 sitemap.xml 到平台静态目录: ${mirroredSitemapFiles.join(', ')}`);
+          }
           
           // 写入XSLT样式表文件
-          await fs.writeFile(path.join(buildDirPath, 'sitemap.xsl'), BOM + generateXsltStylesheet(sitemapEntries), 'utf8');
+          const sitemapStylesheetPath = path.join(buildDirPath, 'sitemap.xsl');
+          await fs.writeFile(sitemapStylesheetPath, BOM + generateXsltStylesheet(sitemapEntries), 'utf8');
           console.log('已生成 sitemap.xsl (UTF-8 with BOM)');
+          const mirroredSitemapStylesheets = syncStaticGeneratedFileToPlatformOutputs(buildDirPath, sitemapStylesheetPath);
+          if (mirroredSitemapStylesheets.length > 0) {
+            console.log(`已同步 sitemap.xsl 到平台静态目录: ${mirroredSitemapStylesheets.join(', ')}`);
+          }
           
         } catch (error) {
           console.error('生成 Sitemap 时出错:', error);
