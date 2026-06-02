@@ -220,6 +220,10 @@
   -webkit-backdrop-filter: blur(16px);
 }
 
+.mobile-search-shell {
+  overflow: visible;
+}
+
 .mobile-nav-link,
 .mobile-nav-group-toggle,
 .mobile-theme-row {
