@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { load } from 'cheerio';
+import { load } from 'cheerio/slim';
 import { createServerRequestLog, summarizeUrl } from '@/lib/server-request-log';
 
 // 添加服务器渲染标记

@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 test("EdgeOne route patch excludes API and internal endpoints from clean-url slash rewrites", async () => {
@@ -29,4 +33,23 @@ test("EdgeOne route patch excludes API and internal endpoints from clean-url sla
     slashRewriteRoute.src,
     "^/(?!api(?:/|$)|_image$|_server-islands(?:/|$))([^.]+[^/.])$",
   );
+});
+
+test("EdgeOne static article assets create encoded mirrors for unicode paths", async () => {
+  const { syncEdgeoneEncodedArticleAssetPaths } = await import("../src/platform/build/edgeone/routing-patch.js");
+
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "edgeone-articles-"));
+  try {
+    const unicodeArticleDir = path.join(tempRoot, "articles", "vibe-codoing指南");
+    await fs.mkdir(unicodeArticleDir, { recursive: true });
+    await fs.writeFile(path.join(unicodeArticleDir, "index.html"), "<h1>ok</h1>", "utf8");
+
+    const mirroredPaths = await syncEdgeoneEncodedArticleAssetPaths(tempRoot);
+    const encodedArticleIndex = path.join(tempRoot, "articles", "vibe-codoing%E6%8C%87%E5%8D%97", "index.html");
+
+    assert.equal(existsSync(encodedArticleIndex), true);
+    assert.ok(mirroredPaths.includes(encodedArticleIndex));
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
 });

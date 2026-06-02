@@ -26,9 +26,9 @@ test("about page uses the normal monochrome page background", () => {
 
 test("starry background does not change fixed header layout", () => {
   assert.equal(globalCss.includes('[data-theme="dark"] body.layout-bg-starry > header'), false);
-  assert.ok(globalCss.includes('[data-theme="dark"] body.layout-bg-starry > #main-header'));
-  assert.ok(globalCss.includes('[data-theme="dark"] body.layout-bg-starry > main'));
-  assert.ok(globalCss.includes('[data-theme="dark"] body.layout-bg-starry > footer'));
+  assert.ok(globalCss.includes('[data-theme="dark"] body.layout-bg-starry>#main-header'));
+  assert.ok(globalCss.includes('[data-theme="dark"] body.layout-bg-starry>main'));
+  assert.ok(globalCss.includes('[data-theme="dark"] body.layout-bg-starry>footer'));
   assert.ok(globalCss.includes("position: fixed;"));
   assert.ok(globalCss.includes("position: static;"));
 });
@@ -73,9 +73,13 @@ test("swup keeps route stylesheets through head sync before cleaning stale ones"
 
 test("swup preserves current Vite dev styles instead of swapping in stale fetched styles", () => {
   assert.ok(swupInit.includes("preserveViteDevStylesForHeadSync"));
-  assert.ok(swupInit.includes("style[data-vite-dev-id]"));
+  assert.ok(swupInit.includes("const VITE_DEV_STYLE_SELECTOR = 'style[data-vite-dev-id]'"));
   assert.ok(swupInit.includes("data-swup-theme"));
   assert.ok(swupInit.includes("priority: -100"));
+  assert.ok(swupInit.includes("const currentStyleIds = new Set("));
+  assert.ok(swupInit.includes(".map((style) => style.getAttribute('data-vite-dev-id'))"));
+  assert.ok(swupInit.includes("if (!viteDevStyleId || !currentStyleIds.has(viteDevStyleId))"));
+  assert.ok(swupInit.includes("style.remove();"));
 });
 
 test("swup can sync page-level layout body classes from the replaced main element", () => {
@@ -110,7 +114,7 @@ test("swup syncs header visibility from the replaced page shell", () => {
   assert.ok(header.includes('data-layout-header-hidden={hidden ? "true" : "false"}'));
   assert.ok(swupInit.includes("function syncLayoutHeaderVisibility"));
   assert.ok(swupInit.includes("const hideHeader = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-header')"));
-  assert.ok(swupInit.includes("const hideFooter = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomePath())"));
+  assert.ok(swupInit.includes("const hideFooter = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomeUrl(url))"));
   assert.ok(swupInit.includes("syncLayoutHeaderVisibility(shellState.hideHeader)"));
   assert.ok(swupInit.includes("header.hidden = hideHeader"));
   assert.ok(swupInit.includes("header.classList.toggle('hidden', hideHeader)"));
@@ -119,7 +123,7 @@ test("swup syncs header visibility from the replaced page shell", () => {
 
 test("header scroll state restores frosted navigation outside home", () => {
   assert.ok(swupInit.includes("function updateHeaderScrollState"));
-  assert.ok(swupInit.includes("const shouldUseScrolledHeader = !isHomePath() && window.scrollY > 8;"));
+  assert.ok(swupInit.includes("const shouldUseScrolledHeader = !shellState.useHomeHeader && window.scrollY > 8;"));
   assert.ok(swupInit.includes("headerBg.classList.toggle('scrolled', shouldUseScrolledHeader)"));
   assert.ok(swupInit.includes("window.addEventListener('scroll', updateHeaderScrollState, { passive: true })"));
   assert.ok(swupInit.includes("window.removeEventListener('scroll', updateHeaderScrollState, { passive: true })"));

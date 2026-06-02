@@ -26,6 +26,56 @@ export function patchEdgeoneConfigText(configText) {
   return `${JSON.stringify(parsed, null, 2)}\n`;
 }
 
+function encodePathSegments(relativeDir) {
+  return relativeDir
+    .split(path.sep)
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join(path.sep);
+}
+
+async function collectArticleDirectories(articlesDir, currentDir = articlesDir, result = []) {
+  const entries = await fs.readdir(currentDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const sourceDir = path.join(currentDir, entry.name);
+    result.push(sourceDir);
+    await collectArticleDirectories(articlesDir, sourceDir, result);
+  }
+
+  return result;
+}
+
+export async function syncEdgeoneEncodedArticleAssetPaths(assetsDir) {
+  const articlesDir = path.join(assetsDir, "articles");
+  if (!existsSync(articlesDir)) {
+    return [];
+  }
+
+  const sourceDirs = await collectArticleDirectories(articlesDir);
+  const mirroredPaths = [];
+
+  for (const sourceDir of sourceDirs) {
+    const relativeDir = path.relative(articlesDir, sourceDir);
+    const encodedRelativeDir = encodePathSegments(relativeDir);
+
+    if (!encodedRelativeDir || encodedRelativeDir === relativeDir) {
+      continue;
+    }
+
+    const targetDir = path.join(articlesDir, encodedRelativeDir);
+    await fs.mkdir(path.dirname(targetDir), { recursive: true });
+    await fs.cp(sourceDir, targetDir, { recursive: true, force: true });
+    mirroredPaths.push(path.join(targetDir, "index.html"));
+  }
+
+  return mirroredPaths;
+}
+
 export async function patchEdgeoneBuildConfig(rootDir = process.cwd()) {
   const configPath = path.join(
     rootDir,

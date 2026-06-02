@@ -313,6 +313,7 @@ function getVisitShellState(visit) {
 
 const ROUTE_STYLESHEET_SELECTOR = 'link[rel="stylesheet"][href]';
 const PERSISTED_STYLESHEET_ATTRIBUTE = 'data-swup-persisted-stylesheet';
+const VITE_DEV_STYLE_SELECTOR = 'style[data-vite-dev-id]';
 
 function normalizeStylesheetHref(stylesheet) {
   const href = stylesheet?.getAttribute('href') || stylesheet?.href;
@@ -371,15 +372,26 @@ function cleanupPersistedStylesheetsForHeadSync(visit) {
 }
 
 function preserveViteDevStylesForHeadSync(visit) {
-  const viteStyleSelector = 'style[data-vite-dev-id]';
-
-  document.querySelectorAll(viteStyleSelector).forEach((style) => {
+  document.querySelectorAll(VITE_DEV_STYLE_SELECTOR).forEach((style) => {
     style.setAttribute('data-swup-theme', '');
   });
 
+  const currentStyleIds = new Set(
+    Array.from(document.querySelectorAll(VITE_DEV_STYLE_SELECTOR))
+      .map((style) => style.getAttribute('data-vite-dev-id'))
+      .filter(Boolean)
+  );
+
   visit?.to?.document?.head
-    ?.querySelectorAll(viteStyleSelector)
-    .forEach((style) => style.remove());
+    ?.querySelectorAll(VITE_DEV_STYLE_SELECTOR)
+    .forEach((style) => {
+      const viteDevStyleId = style.getAttribute('data-vite-dev-id');
+      if (!viteDevStyleId || !currentStyleIds.has(viteDevStyleId)) {
+        return;
+      }
+
+      style.remove();
+    });
 }
 
 function getUrlPathname(url = window.location.pathname) {
