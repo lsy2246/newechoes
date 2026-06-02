@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { GitPlatform } from '@/components/GitProjectCollection';
+import { GitPlatform } from '@/lib/git-projects-shared';
 import { createServerRequestLog } from '@/lib/server-request-log';
 
 interface GitProject {

@@ -1,35 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { FC } from "react";
-
-// Git 平台类型枚举
-export enum GitPlatform {
-  GITHUB = "github",
-  GITEA = "gitea",
-  GITEE = "gitee",
-}
-
-// 平台默认配置
-export const DEFAULT_GIT_CONFIG = {
-  perPage: 9,
-};
-
-// 内部使用的平台配置
-export const GIT_PLATFORM_CONFIG = {
-  platforms: {
-    [GitPlatform.GITHUB]: {
-      apiUrl: "https://api.github.com",
-    },
-    [GitPlatform.GITEA]: {},
-    [GitPlatform.GITEE]: {
-      apiUrl: "https://gitee.com/api/v5",
-    },
-  },
-  platformNames: {
-    [GitPlatform.GITHUB]: "GitHub",
-    [GitPlatform.GITEA]: "Gitea",
-    [GitPlatform.GITEE]: "Gitee",
-  },
-};
+import {
+  DEFAULT_GIT_CONFIG,
+  GIT_PLATFORM_CONFIG,
+  GitPlatform,
+} from "@/lib/git-projects-shared";
 
 interface GitProject {
   name: string;

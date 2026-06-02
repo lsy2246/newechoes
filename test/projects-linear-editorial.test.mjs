@@ -71,7 +71,7 @@ test("project metadata can not force horizontal overflow", () => {
 
 test("github projects resolve and render a language even when repo listing omits it", () => {
   assert.match(gitProjectsApi, /fetchGithubPrimaryLanguage/);
-  assert.match(gitProjectsApi, /GET \/repos\/\{owner\}\/\{repo\}\/languages/);
+  assert.match(gitProjectsApi, /repos\/\$\{owner\}\/\$\{repo\}\/languages/);
   assert.match(gitProjectsApi, /Object\.entries\(languages/);
   assert.match(gitProjectsApi, /repo\.language\s*\|\|\s*await fetchGithubPrimaryLanguage/);
   assert.match(gitProjectCollection, /const displayLanguage = project\.language\?\.trim\(\) \|\| "Unknown";/);
