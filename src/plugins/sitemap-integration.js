@@ -7,6 +7,7 @@ import path from 'node:path';
 import { SITE_META } from '../consts';
 import { generateXmlViewStyles } from './xml-view-styles.js';
 import { normalizeCanonicalPath } from '../lib/canonical-url.js';
+import { resolveBuildDir } from './build-output.js';
 
 // 转义XML特殊字符
 function escapeXml(unsafe) {
@@ -238,18 +239,8 @@ export function customSitemapIntegration() {
         
         try {
           // 获取构建目录路径
-          let buildDirPath;
-          
-          // 直接处理URL对象
-          if (dir instanceof URL) {
-            buildDirPath = dir.pathname;
-            // Windows路径修复
-            if (process.platform === 'win32' && buildDirPath.startsWith('/') && /^\/[A-Z]:/i.test(buildDirPath)) {
-              buildDirPath = buildDirPath.substring(1);
-            }
-          } else {
-            buildDirPath = String(dir);
-          }
+          const buildDirPath = resolveBuildDir(dir);
+          await fs.mkdir(buildDirPath, { recursive: true });
           
           
           // 收集所有页面信息

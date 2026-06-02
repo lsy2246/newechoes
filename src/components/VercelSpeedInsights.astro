@@ -1,6 +1,4 @@
 ---
-import { computeRoute, injectSpeedInsights } from "@vercel/speed-insights";
-
 type Props = {
   sampleRate?: number;
   debug?: boolean;
@@ -20,6 +18,8 @@ const paramsStr = JSON.stringify(Astro.params);
 ></vercel-speed-insights>
 
 <script>
+  import { computeRoute, injectSpeedInsights } from "@vercel/speed-insights";
+
   function getBasePath() {
     try {
       return import.meta.env.PUBLIC_VERCEL_OBSERVABILITY_BASEPATH;

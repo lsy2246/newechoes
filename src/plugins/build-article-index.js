@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { resolveBuildDir } from './build-output.js';
 
 // 获取当前文件的目录
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,10 +26,9 @@ const builtBinaryPath = path.join(
   'release',
   binaryName,
 );
-const cargoBinDir = path.join(process.env.USERPROFILE || '', '.cargo', 'bin');
-const wasmBindgenCli = path.join(cargoBinDir, process.platform === 'win32'
+const wasmBindgenBinaryName = process.platform === 'win32'
   ? 'wasm-bindgen.exe'
-  : 'wasm-bindgen');
+  : 'wasm-bindgen';
 const indexerSourcePaths = [
   path.join(wasmRootDir, 'Cargo.toml'),
   path.join(wasmRootDir, 'Cargo.lock'),
@@ -76,6 +76,42 @@ function hasCargo() {
   } catch {
     return false;
   }
+}
+
+function canExecute(command, args = ['--version']) {
+  try {
+    const output = execFileSync(command, args, {
+      cwd: rootDir,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+
+    return typeof output === 'string' && output.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function resolveWasmBindgenCli() {
+  const candidateDirs = [
+    process.env.CARGO_HOME ? path.join(process.env.CARGO_HOME, 'bin') : null,
+    process.env.HOME ? path.join(process.env.HOME, '.cargo', 'bin') : null,
+    process.env.USERPROFILE ? path.join(process.env.USERPROFILE, '.cargo', 'bin') : null,
+    process.platform === 'win32' ? null : '/rust/bin',
+  ].filter(Boolean);
+
+  for (const candidateDir of candidateDirs) {
+    const candidatePath = path.join(candidateDir, wasmBindgenBinaryName);
+    if (fs.existsSync(candidatePath)) {
+      return candidatePath;
+    }
+  }
+
+  if (canExecute(wasmBindgenBinaryName)) {
+    return wasmBindgenBinaryName;
+  }
+
+  return null;
 }
 
 function getNewestMtimeMs(targetPath) {
@@ -134,8 +170,9 @@ function shouldRebuildWasmPackage(pkg) {
 }
 
 function ensureWasmBindgenCli() {
-  if (fs.existsSync(wasmBindgenCli)) {
-    return;
+  const existingCli = resolveWasmBindgenCli();
+  if (existingCli) {
+    return existingCli;
   }
 
   if (!hasCargo()) {
@@ -153,9 +190,12 @@ function ensureWasmBindgenCli() {
     },
   );
 
-  if (!fs.existsSync(wasmBindgenCli)) {
-    throw new Error(`安装 wasm-bindgen CLI 失败: ${wasmBindgenCli}`);
+  const installedCli = resolveWasmBindgenCli();
+  if (!installedCli) {
+    throw new Error(`安装 wasm-bindgen CLI 失败: ${wasmBindgenBinaryName}`);
   }
+
+  return installedCli;
 }
 
 function buildWasmPackage(pkg) {
@@ -167,7 +207,7 @@ function buildWasmPackage(pkg) {
     throw new Error(`检测到 ${pkg.crateName} 前端 wasm 产物缺失或过期，但当前环境未安装 cargo`);
   }
 
-  ensureWasmBindgenCli();
+  const wasmBindgenCli = ensureWasmBindgenCli();
 
   console.log(`检测到 ${pkg.crateName} 前端 wasm 产物已过期，开始重新编译...`);
 
@@ -324,28 +364,7 @@ export function articleIndexerIntegration() {
         console.log('Astro构建完成，开始生成文章索引...');
         
         // 获取构建目录路径
-        let buildDirPath;
-        
-        // 直接处理URL对象
-        if (dir instanceof URL) {
-          buildDirPath = dir.pathname;
-          // Windows路径修复
-          if (process.platform === 'win32' && buildDirPath.startsWith('/') && /^\/[A-Z]:/i.test(buildDirPath)) {
-            buildDirPath = buildDirPath.substring(1);
-          }
-        } else {
-          buildDirPath = String(dir);
-        }
-        
-        // 确定客户端输出目录
-        let clientDirPath = buildDirPath;
-        const clientSuffix = path.sep + 'client';
-        
-        if (buildDirPath.endsWith(clientSuffix)) {
-          clientDirPath = buildDirPath;
-        } else if (fs.existsSync(path.join(buildDirPath, 'client'))) {
-          clientDirPath = path.join(buildDirPath, 'client');
-        }
+        const clientDirPath = resolveBuildDir(dir);
         
         // 索引输出目录
         const outputDirPath = path.join(clientDirPath, 'assets', 'index');

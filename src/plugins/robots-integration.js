@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { SITE_META } from '../consts';
+import { resolveBuildDir } from './build-output.js';
 
 // 生成 robots.txt 内容
 function generateRobotsTxt(siteUrl) {
@@ -65,18 +66,8 @@ export function robotsIntegration() {
         
         try {
           // 获取构建目录路径
-          let buildDirPath;
-          
-          // 直接处理URL对象
-          if (dir instanceof URL) {
-            buildDirPath = dir.pathname;
-            // Windows路径修复
-            if (process.platform === 'win32' && buildDirPath.startsWith('/') && /^\/[A-Z]:/i.test(buildDirPath)) {
-              buildDirPath = buildDirPath.substring(1);
-            }
-          } else {
-            buildDirPath = String(dir);
-          }
+          const buildDirPath = resolveBuildDir(dir);
+          await fs.mkdir(buildDirPath, { recursive: true });
           
           // 生成 robots.txt 内容
           const content = generateRobotsTxt(SITE_META.url);

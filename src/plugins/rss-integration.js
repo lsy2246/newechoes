@@ -5,6 +5,7 @@ import { SITE_META } from '../consts';
 import { createCanonicalUrl, normalizeCanonicalPath } from '../lib/canonical-url.js';
 import * as cheerio from 'cheerio';
 import { generateXmlViewStyles } from './xml-view-styles.js';
+import { resolveBuildDir } from './build-output.js';
 
 // 转义XML特殊字符
 function escapeXml(unsafe) {
@@ -205,17 +206,8 @@ export function rssIntegration() {
       'astro:build:done': async ({ pages, dir }) => {
         try {
           // 获取构建目录路径
-          let buildDirPath;
-          
-          if (dir instanceof URL) {
-            buildDirPath = dir.pathname;
-            // Windows路径修复
-            if (process.platform === 'win32' && buildDirPath.startsWith('/') && /^\/[A-Z]:/i.test(buildDirPath)) {
-              buildDirPath = buildDirPath.substring(1);
-            }
-          } else {
-            buildDirPath = String(dir);
-          }
+          const buildDirPath = resolveBuildDir(dir);
+          await fs.mkdir(buildDirPath, { recursive: true });
 
           // 收集文章信息
           const rssEntries = [];

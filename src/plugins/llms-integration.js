@@ -2,22 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { SITE_META, NAV_STRUCTURE } from "../consts";
 import { createCanonicalUrl, normalizeCanonicalPath } from "../lib/canonical-url.js";
-
-function resolveBuildDir(dir) {
-  if (dir instanceof URL) {
-    let buildDirPath = dir.pathname;
-    if (
-      process.platform === "win32" &&
-      buildDirPath.startsWith("/") &&
-      /^\/[A-Z]:/i.test(buildDirPath)
-    ) {
-      buildDirPath = buildDirPath.substring(1);
-    }
-    return buildDirPath;
-  }
-
-  return String(dir);
-}
+import { resolveBuildDir } from "./build-output.js";
 
 function flattenNavigation(items, level = 0) {
   return items.flatMap((item) => {
@@ -215,6 +200,7 @@ export function llmsIntegration() {
       },
       "astro:build:done": async ({ dir }) => {
         const buildDirPath = resolveBuildDir(dir);
+        await fs.mkdir(buildDirPath, { recursive: true });
 
         await fs.writeFile(path.join(buildDirPath, "llms.txt"), llmsTxtContent, "utf8");
         console.log("已生成 llms.txt");
