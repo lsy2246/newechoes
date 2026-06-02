@@ -101,6 +101,9 @@ importers:
       unist-util-visit:
         specifier: ^5.1.0
         version: 5.1.0
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
     devDependencies:
       '@tailwindcss/typography':
         specifier: ^0.5.19
@@ -117,9 +120,6 @@ importers:
       wrangler:
         specifier: ^4.96.0
         version: 4.96.0
-      zod:
-        specifier: 4.3.6
-        version: 4.3.6
 
 packages:
 

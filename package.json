@@ -8,6 +8,8 @@
     "build:vercel": "node scripts/astro-build.mjs vercel",
     "build:edgeone": "node scripts/astro-build.mjs edgeone",
     "build:cloudflare": "node scripts/astro-build.mjs cloudflare",
+    "verify:index-runtime": "node scripts/article-index-runtime.mjs verify",
+    "rebuild:index-runtime": "node scripts/article-index-runtime.mjs rebuild",
     "deploy:cloudflare": "pnpm exec wrangler deploy --config dist/server/wrangler.json",
     "preview": "pnpm exec astro preview",
     "astro": "pnpm exec astro",
@@ -45,14 +47,14 @@
     "tailwindcss": "^4.3.0",
     "three": "^0.184.0",
     "typescript": "^6.0.3",
-    "unist-util-visit": "^5.1.0"
+    "unist-util-visit": "^5.1.0",
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "binaryen": "129.0.0",
     "playwright": "^1.60.0",
     "rehype-external-links": "^3.0.0",
-    "wrangler": "^4.96.0",
-    "zod": "4.3.6"
+    "wrangler": "^4.96.0"
   }
 }

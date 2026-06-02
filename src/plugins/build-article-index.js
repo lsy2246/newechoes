@@ -30,6 +30,7 @@ const builtBinaryPath = path.join(
 const wasmBindgenBinaryName = process.platform === 'win32'
   ? 'wasm-bindgen.exe'
   : 'wasm-bindgen';
+const runtimeBuildStrategy = resolveRuntimeBuildStrategy();
 const indexerSourcePaths = [
   path.join(wasmRootDir, 'Cargo.toml'),
   path.join(wasmRootDir, 'Cargo.lock'),
@@ -64,6 +65,37 @@ const wasmPackages = [
     outputDir: path.join(wasmAssetDir, 'article-filter'),
   },
 ];
+
+function resolveRuntimeBuildStrategy() {
+  const rawValue = (
+    process.env.ARTICLE_INDEX_RUNTIME_BUILD
+    || process.env.ARTICLE_INDEX_RUNTIME_STRATEGY
+    || 'prebuilt'
+  ).trim().toLowerCase();
+
+  if (rawValue === 'always') {
+    return 'force';
+  }
+
+  if (rawValue === 'prebuilt' || rawValue === 'auto' || rawValue === 'force') {
+    return rawValue;
+  }
+
+  console.warn(`[索引构建] 未识别的运行时产物策略 "${rawValue}"，已回退到 prebuilt`);
+  return 'prebuilt';
+}
+
+function shouldRebuildArtifact({ missing, stale }) {
+  if (runtimeBuildStrategy === 'force') {
+    return true;
+  }
+
+  if (runtimeBuildStrategy === 'auto') {
+    return missing || stale;
+  }
+
+  return missing;
+}
 
 function hasCargo() {
   try {
@@ -139,35 +171,43 @@ function getNewestMtimeMs(targetPath) {
 }
 
 function shouldRebuildIndexerBinary() {
-  if (!fs.existsSync(binaryPath)) {
-    return true;
-  }
-
-  const binaryMtimeMs = fs.statSync(binaryPath).mtimeMs;
+  const missing = !fs.existsSync(binaryPath);
   const sourceMtimeMs = Math.max(
     ...indexerSourcePaths.map((sourcePath) => getNewestMtimeMs(sourcePath)),
   );
+  const binaryMtimeMs = missing ? 0 : fs.statSync(binaryPath).mtimeMs;
+  const stale = !missing && sourceMtimeMs > binaryMtimeMs;
 
-  return sourceMtimeMs > binaryMtimeMs;
+  return {
+    missing,
+    stale,
+    binaryMtimeMs,
+    sourceMtimeMs,
+  };
 }
 
 function shouldRebuildWasmPackage(pkg) {
   const jsAssetPath = path.join(pkg.outputDir, `${pkg.wasmName}.js`);
   const wasmAssetPath = path.join(pkg.outputDir, `${pkg.wasmName}_bg.wasm`);
+  const missing = !fs.existsSync(jsAssetPath) || !fs.existsSync(wasmAssetPath);
 
-  if (!fs.existsSync(jsAssetPath) || !fs.existsSync(wasmAssetPath)) {
-    return true;
-  }
-
-  const builtAt = Math.min(
-    fs.statSync(jsAssetPath).mtimeMs,
-    fs.statSync(wasmAssetPath).mtimeMs,
-  );
+  const builtAt = missing
+    ? 0
+    : Math.min(
+      fs.statSync(jsAssetPath).mtimeMs,
+      fs.statSync(wasmAssetPath).mtimeMs,
+    );
   const sourceMtimeMs = Math.max(
     ...pkg.sourcePaths.map((sourcePath) => getNewestMtimeMs(sourcePath)),
   );
+  const stale = !missing && sourceMtimeMs > builtAt;
 
-  return sourceMtimeMs > builtAt;
+  return {
+    missing,
+    stale,
+    builtAt,
+    sourceMtimeMs,
+  };
 }
 
 function ensureWasmBindgenCli() {
@@ -200,17 +240,28 @@ function ensureWasmBindgenCli() {
 }
 
 function buildWasmPackage(pkg) {
-  if (!shouldRebuildWasmPackage(pkg)) {
+  const status = shouldRebuildWasmPackage(pkg);
+
+  if (!shouldRebuildArtifact(status)) {
+    if (status.stale) {
+      console.log(`[索引构建] ${pkg.crateName} 检测到源码较新，当前策略(${runtimeBuildStrategy})继续使用仓库内预构建 wasm 产物`);
+    }
     return;
   }
 
   if (!hasCargo()) {
-    throw new Error(`检测到 ${pkg.crateName} 前端 wasm 产物缺失或过期，但当前环境未安装 cargo`);
+    const reason = status.missing ? '缺失' : '过期';
+    throw new Error(`检测到 ${pkg.crateName} 前端 wasm 产物${reason}，但当前环境未安装 cargo`);
   }
 
   const wasmBindgenCli = ensureWasmBindgenCli();
 
-  console.log(`检测到 ${pkg.crateName} 前端 wasm 产物已过期，开始重新编译...`);
+  const reason = status.missing
+    ? '缺失'
+    : runtimeBuildStrategy === 'force'
+      ? '收到强制重编指令'
+      : '已过期';
+  console.log(`[索引构建] ${pkg.crateName} 前端 wasm 产物${reason}，开始重新编译...`);
 
   execFileSync(
     'cargo',
@@ -257,15 +308,26 @@ function buildWasmPackage(pkg) {
 }
 
 function ensureArticleIndexerBinary() {
-  if (!shouldRebuildIndexerBinary()) {
+  const status = shouldRebuildIndexerBinary();
+
+  if (!shouldRebuildArtifact(status)) {
+    if (status.stale) {
+      console.log(`[索引构建] article-indexer 检测到源码较新，当前策略(${runtimeBuildStrategy})继续使用仓库内预构建 CLI`);
+    }
     return;
   }
 
   if (!hasCargo()) {
-    throw new Error('检测到文章索引器缺失或过期，但当前环境未安装 cargo');
+    const reason = status.missing ? '缺失' : '过期';
+    throw new Error(`检测到文章索引器${reason}，但当前环境未安装 cargo`);
   }
 
-  console.log('检测到文章索引器已过期，开始重新编译...');
+  const reason = status.missing
+    ? '缺失'
+    : runtimeBuildStrategy === 'force'
+      ? '收到强制重编指令'
+      : '已过期';
+  console.log(`[索引构建] 文章索引器${reason}，开始重新编译...`);
 
   execFileSync(
     'cargo',
@@ -335,6 +397,7 @@ function logRuntimeArtifactSummary() {
   ];
 
   console.log('[索引构建] 当前运行时产物:');
+  console.log(`- 运行时产物策略: ${runtimeBuildStrategy}`);
   for (const artifact of runtimeArtifacts) {
     if (!fs.existsSync(artifact.path)) {
       console.log(`- ${artifact.label}: 缺失 (${artifact.path})`);
@@ -343,6 +406,13 @@ function logRuntimeArtifactSummary() {
 
     console.log(`- ${artifact.label}: ${artifact.path} (mtime=${formatArtifactTimestamp(artifact.path)})`);
   }
+}
+
+export function prepareArticleIndexRuntimeArtifacts() {
+  ensureWasmAssets();
+  ensureArticleIndexerBinary();
+  ensureStaticIndexRuntimeArtifacts();
+  logRuntimeArtifactSummary();
 }
 
 function copyDirectoryContents(sourceDir, targetDir) {
@@ -493,19 +563,10 @@ export async function generateArticleIndex(options = {}) {
   
   try {
     try {
-      ensureWasmAssets();
-    } catch (wasmBuildError) {
-      console.warn(`[索引构建] wasm 前端产物未完成重编译，继续使用仓库内预构建产物: ${wasmBuildError.message}`);
+      prepareArticleIndexRuntimeArtifacts();
+    } catch (runtimeArtifactError) {
+      throw new Error(`[索引构建] 运行时产物准备失败: ${runtimeArtifactError.message}`);
     }
-
-    try {
-      ensureArticleIndexerBinary();
-    } catch (indexerBuildError) {
-      console.warn(`[索引构建] native 索引器未完成重编译，继续使用仓库内预构建产物: ${indexerBuildError.message}`);
-    }
-
-    ensureStaticIndexRuntimeArtifacts();
-    logRuntimeArtifactSummary();
 
     // 使用提供的目录或默认目录
     const buildDirPath = options.buildDir || buildDir;

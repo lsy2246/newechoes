@@ -58,7 +58,12 @@ function resolveAdapter(target) {
   }
 
   if (target === "edgeone") {
-    return edgeone();
+    return edgeone({
+      // EdgeOne's default SSR dependency trace misses Astro's transitive zod runtime import.
+      includeFiles: [
+        "node_modules/zod/**",
+      ],
+    });
   }
 
   return vercel();
