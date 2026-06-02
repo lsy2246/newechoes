@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "@/lib/google-photos/shared";
 import { createServerRequestLog, summarizeUrl } from "@/lib/server-request-log";
 import { fetchAssetDirect } from "@/lib/server-asset-relay";
-import { supportsGooglePhotosParsing } from "@/lib/runtime/platform";
+import { supportsGooglePhotosParsing } from "@/platform/runtime/index.js";
 
 export const prerender = false;
 

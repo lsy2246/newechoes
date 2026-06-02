@@ -8,11 +8,11 @@ async function loadGooglePhotosModule(fetchAssetWithRelayFallback) {
   const source = readFileSync(sourcePath, "utf8");
   const patchedSource = source
     .replace(
-      'import { supportsGooglePhotosParsing } from "@/lib/runtime/platform";',
+      'import { supportsGooglePhotosParsing } from "@/platform/runtime/index.js";',
       "const supportsGooglePhotosParsing = () => true;",
     )
     .replace(
-      'import type { GooglePhotoAlbum, GooglePhotoItem } from "./shared";\nimport { fetchSharedAlbumHtml, toAlbum, toPhotoItems } from "./shared";',
+      /import type \{ GooglePhotoAlbum, GooglePhotoItem \} from "\.\/shared";\s*import \{ fetchSharedAlbumHtml, toAlbum, toPhotoItems \} from "\.\/shared";/,
       `const fetchSharedAlbumHtml = globalThis.__googlePhotosTestFetchSharedAlbumHtml;
 const toAlbum = (album) => ({
   id: typeof album?.[0] === "string" ? album[0] : null,

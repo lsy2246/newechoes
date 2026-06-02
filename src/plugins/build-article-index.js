@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { resolveBuildDir } from './build-output.js';
+import { getStaticOutputMirrorRoots, resolveBuildDir } from '../platform/build/index.js';
 
 // 获取当前文件的目录
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -14,8 +14,6 @@ const wasmAssetDir = path.join(rootDir, 'src', 'assets', 'wasm');
 const buildDir = path.resolve(rootDir, 'dist');
 // 索引文件存储位置
 const indexDir = path.join(buildDir, 'client', 'assets', 'index');
-const deployTarget = process.env.DEPLOY_TARGET || 'vercel';
-
 const binaryName = process.platform === 'win32'
   ? 'article-indexer-cli.exe'
   : 'article-indexer-cli';
@@ -97,16 +95,22 @@ function shouldRebuildArtifact({ missing, stale }) {
   return missing;
 }
 
+export function isCiEnvironment(env = process.env) {
+  const value = `${env.CI || ''}`.trim().toLowerCase();
+  return value === '1' || value === 'true';
+}
+
 export function assertFreshPrebuiltArtifact({
   artifactLabel,
   artifactPath,
   sourceLabel,
   sourcePath,
   strategy,
+  runningInCi = isCiEnvironment(),
   missing,
   stale,
 }) {
-  if (strategy !== 'prebuilt' || missing || !stale) {
+  if (strategy !== 'prebuilt' || runningInCi || missing || !stale) {
     return;
   }
 
@@ -482,32 +486,9 @@ function getPlatformIndexMirrorDirs(buildDirPath, outputDirPath) {
     return [];
   }
 
-  const candidateMappings = [];
-
-  if (deployTarget === 'edgeone') {
-    candidateMappings.push({
-      rootDir: path.join(rootDir, '.edgeone', 'assets'),
-      targetDir: path.join(rootDir, '.edgeone', 'assets', relativeIndexDir),
-    });
-  }
-
-  if (deployTarget === 'vercel') {
-    candidateMappings.push({
-      rootDir: path.join(rootDir, '.vercel', 'output', 'static'),
-      targetDir: path.join(rootDir, '.vercel', 'output', 'static', relativeIndexDir),
-    });
-  }
-
-  if (deployTarget === 'cloudflare') {
-    candidateMappings.push({
-      rootDir: path.join(rootDir, 'dist', 'server'),
-      targetDir: path.join(rootDir, 'dist', 'server', relativeIndexDir),
-    });
-  }
-
-  return candidateMappings
-    .filter(({ rootDir: candidateRootDir }) => fs.existsSync(candidateRootDir))
-    .map(({ targetDir }) => targetDir);
+  return getStaticOutputMirrorRoots({ cwd: rootDir })
+    .filter((candidateRootDir) => fs.existsSync(candidateRootDir))
+    .map((rootDirPath) => path.join(rootDirPath, relativeIndexDir));
 }
 
 function syncIndexArtifactsToPlatformOutputs(buildDirPath, outputDirPath) {
@@ -690,10 +671,7 @@ export async function generateArticleIndex(options = {}) {
     // 更详细的错误信息
     if (error.stdout) console.log('标准输出:', error.stdout);
     if (error.stderr) console.log('错误输出:', error.stderr);
-    
-    return {
-      success: false,
-      error: error.message
-    };
+
+    throw error;
   }
 }

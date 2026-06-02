@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { SITE_META, NAV_STRUCTURE } from "../consts";
 import { createCanonicalUrl, normalizeCanonicalPath } from "../lib/canonical-url.js";
-import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from "./build-output.js";
+import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from "../platform/build/index.js";
 
 function flattenNavigation(items, level = 0) {
   return items.flatMap((item) => {

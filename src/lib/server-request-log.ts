@@ -1,4 +1,4 @@
-import { getDeployTarget } from "@/lib/runtime/platform";
+import { getDeployTarget } from "@/platform/runtime/index.js";
 
 type RequestLogLevel = "info" | "warn" | "error";
 type RequestLogDetails = Record<string, unknown>;

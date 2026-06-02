@@ -1,4 +1,4 @@
-import { supportsGooglePhotosParsing } from "@/lib/runtime/platform";
+import { supportsGooglePhotosParsing } from "@/platform/runtime/index.js";
 import type { GooglePhotoAlbum, GooglePhotoItem } from "./shared";
 import { fetchSharedAlbumHtml, toAlbum, toPhotoItems } from "./shared";
 

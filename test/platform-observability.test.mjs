@@ -7,7 +7,7 @@ const edgeoneTelemetrySrcEnv = process.env.PUBLIC_EDGEONE_TELEMETRY_SRC;
 const edgeoneTelemetryIdEnv = process.env.PUBLIC_EDGEONE_TELEMETRY_ID;
 
 async function loadPlatformModule() {
-  return import(`../src/lib/runtime/platform.ts?case=${Math.random()}`);
+  return import(`../src/platform/runtime/index.js?case=${Math.random()}`);
 }
 
 function restoreEnv() {

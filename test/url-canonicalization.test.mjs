@@ -9,6 +9,7 @@ const articleLinksSource = readFileSync("src/lib/article-links.ts", "utf8");
 const articleIndexSource = readFileSync("src/pages/articles/index.astro", "utf8");
 const articleDetailSource = readFileSync("src/pages/articles/[...id].astro", "utf8");
 const buildOutputSource = readFileSync("src/plugins/build-output.js", "utf8");
+const platformMirrorsSource = readFileSync("src/platform/build/mirrors.js", "utf8");
 const sitemapIntegration = readFileSync("src/plugins/sitemap-integration.js", "utf8");
 const rssIntegration = readFileSync("src/plugins/rss-integration.js", "utf8");
 const robotsIntegration = readFileSync("src/plugins/robots-integration.js", "utf8");
@@ -68,8 +69,9 @@ test("XML generators normalize URL output and resolve Astro HTML output paths", 
 });
 
 test("post-build metadata files mirror into platform static outputs", () => {
-  assert.match(buildOutputSource, /export function syncStaticGeneratedFileToPlatformOutputs/);
-  assert.match(buildOutputSource, /\.edgeone/);
+  assert.match(buildOutputSource, /from "\.\.\/platform\/build\/mirrors\.js"/);
+  assert.match(platformMirrorsSource, /export function syncStaticGeneratedFileToPlatformOutputs/);
+  assert.match(platformMirrorsSource, /\.edgeone/);
 
   for (const source of [sitemapIntegration, rssIntegration, robotsIntegration, llmsIntegration]) {
     assert.match(source, /syncStaticGeneratedFileToPlatformOutputs/);

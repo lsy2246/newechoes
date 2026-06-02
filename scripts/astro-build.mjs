@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { normalizeDeployTarget } from "../src/platform/shared/target.js";
 
-const target = process.argv[2]?.trim() || process.env.DEPLOY_TARGET || "vercel";
+const target = normalizeDeployTarget(process.argv[2]?.trim() || process.env.DEPLOY_TARGET);
 const env = {
   ...process.env,
   DEPLOY_TARGET: target,

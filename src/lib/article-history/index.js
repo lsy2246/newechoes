@@ -1,4 +1,4 @@
-import { supportsArticleHistory } from "../runtime/platform";
+import { supportsArticleHistory } from "@/platform/runtime/index.js";
 import { resolveArticleIdentity } from "./shared.js";
 
 function getEmptyHistory(article) {

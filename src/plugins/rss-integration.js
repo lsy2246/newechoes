@@ -5,7 +5,7 @@ import { SITE_META } from '../consts';
 import { createCanonicalUrl, normalizeCanonicalPath } from '../lib/canonical-url.js';
 import * as cheerio from 'cheerio';
 import { generateXmlViewStyles } from './xml-view-styles.js';
-import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from './build-output.js';
+import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/index.js';
 
 // 转义XML特殊字符
 function escapeXml(unsafe) {
