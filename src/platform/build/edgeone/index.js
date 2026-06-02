@@ -24,27 +24,6 @@ function isAlreadyUriEncodedPath(relativeDir) {
   }
 }
 
-export function patchEdgeoneConfigText(configText) {
-  const parsed = JSON.parse(configText);
-  if (!Array.isArray(parsed.routes)) {
-    return configText;
-  }
-
-  for (const route of parsed.routes) {
-    if (
-      route
-      && route.src === EDGEONE_SLASH_REWRITE_SOURCE
-      && route.dest === EDGEONE_SLASH_REWRITE_DEST
-      && route.continue === true
-    ) {
-      route.src = EDGEONE_SAFE_SLASH_REWRITE_SOURCE;
-      route.dest = EDGEONE_STATIC_INDEX_REWRITE_DEST;
-    }
-  }
-
-  return `${JSON.stringify(parsed, null, 2)}\n`;
-}
-
 function encodePathSegments(relativeDir) {
   return relativeDir
     .split(path.sep)
@@ -67,6 +46,56 @@ async function collectArticleDirectories(articlesDir, currentDir = articlesDir, 
   }
 
   return result;
+}
+
+export function createEdgeoneCompatPlugin(deployTarget) {
+  const virtualId = "\0edgeone-server-entrypoint-shim";
+
+  return {
+    name: "edgeone-server-entrypoint-compat",
+    resolveId(source) {
+      if (
+        deployTarget === "edgeone" &&
+        /@edgeone[\/\\]astro[\/\\]dist[\/\\]server\.js$/.test(source)
+      ) {
+        return virtualId;
+      }
+
+      return null;
+    },
+    load(id) {
+      if (id !== virtualId) {
+        return null;
+      }
+
+      return `
+export { createExports } from "@edgeone/astro/server";
+const edgeoneServerEntrypointShim = {};
+export default edgeoneServerEntrypointShim;
+`;
+    },
+  };
+}
+
+export function patchEdgeoneConfigText(configText) {
+  const parsed = JSON.parse(configText);
+  if (!Array.isArray(parsed.routes)) {
+    return configText;
+  }
+
+  for (const route of parsed.routes) {
+    if (
+      route
+      && route.src === EDGEONE_SLASH_REWRITE_SOURCE
+      && route.dest === EDGEONE_SLASH_REWRITE_DEST
+      && route.continue === true
+    ) {
+      route.src = EDGEONE_SAFE_SLASH_REWRITE_SOURCE;
+      route.dest = EDGEONE_STATIC_INDEX_REWRITE_DEST;
+    }
+  }
+
+  return `${JSON.stringify(parsed, null, 2)}\n`;
 }
 
 export async function collectEdgeoneEncodedArticleRouteMirrors(assetsDir) {
@@ -120,7 +149,6 @@ export async function syncEdgeoneEncodedArticleAssetPaths(assetsDir) {
 }
 
 export async function patchEdgeoneBuildConfig(rootDir = process.cwd()) {
-  const assetsDir = path.join(rootDir, ".edgeone", "assets");
   const configPath = path.join(
     rootDir,
     ".edgeone",
@@ -142,4 +170,29 @@ export async function patchEdgeoneBuildConfig(rootDir = process.cwd()) {
 
   await fs.writeFile(configPath, patchedConfig, "utf8");
   return true;
+}
+
+export function edgeoneRoutingIntegration() {
+  return {
+    name: "edgeone-routing-integration",
+    hooks: {
+      "astro:build:done": async () => {
+        if ((process.env.DEPLOY_TARGET || "").trim().toLowerCase() !== "edgeone") {
+          return;
+        }
+
+        const mirroredArticlePaths = await syncEdgeoneEncodedArticleAssetPaths(
+          path.join(process.cwd(), ".edgeone", "assets"),
+        );
+        if (mirroredArticlePaths.length > 0) {
+          console.log(`已补齐 EdgeOne 编码文章路径镜像: ${mirroredArticlePaths.length} 个`);
+        }
+
+        const patched = await patchEdgeoneBuildConfig();
+        if (patched) {
+          console.log("已修正 EdgeOne 路由规则，统一无尾斜杠 URL 并避免 clean-url 重写误伤 API");
+        }
+      },
+    },
+  };
 }

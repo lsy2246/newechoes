@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 test("EdgeOne route patch rewrites clean URLs to static index files and excludes API/internal endpoints", async () => {
-  const { patchEdgeoneConfigText } = await import("../src/plugins/edgeone-routing-integration.js");
+  const { patchEdgeoneConfigText } = await import("../src/platform/build/edgeone/index.js");
 
   const input = JSON.stringify({
     version: 3,
@@ -44,7 +44,7 @@ test("EdgeOne static article assets create encoded mirrors for unicode paths", a
   const {
     collectEdgeoneEncodedArticleRouteMirrors,
     syncEdgeoneEncodedArticleAssetPaths,
-  } = await import("../src/platform/build/edgeone/routing-patch.js");
+  } = await import("../src/platform/build/edgeone/index.js");
 
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "edgeone-articles-"));
   try {

@@ -5,7 +5,6 @@ import test from "node:test";
 const astroConfigSource = readFileSync("astro.config.mjs", "utf8");
 const legacyRuntimeBridgeSource = readFileSync("src/lib/runtime/platform.ts", "utf8");
 const buildOutputBridgeSource = readFileSync("src/plugins/build-output.js", "utf8");
-const edgeoneRoutingBridgeSource = readFileSync("src/plugins/edgeone-routing-integration.js", "utf8");
 const buildArticleIndexSource = readFileSync("src/plugins/build-article-index.js", "utf8");
 const sitemapIntegrationSource = readFileSync("src/plugins/sitemap-integration.js", "utf8");
 const rssIntegrationSource = readFileSync("src/plugins/rss-integration.js", "utf8");
@@ -39,9 +38,8 @@ test("astro config delegates platform-specific build behavior to platform build 
   assert.doesNotMatch(astroConfigSource, /function resolveSsrConfig/);
 });
 
-test("legacy build-output and edgeone routing files are compatibility bridges", () => {
+test("legacy build-output file remains a compatibility bridge", () => {
   assert.match(buildOutputBridgeSource, /from "\.\.\/platform\/build\/mirrors\.js"|from "\.\/\.\.\/platform\/build\/mirrors\.js"|from "\.\.\/platform\/build\/mirrors\.js"/);
-  assert.match(edgeoneRoutingBridgeSource, /from "\.\.\/platform\/build\/edgeone\/routing-patch\.js"|from "\.\/\.\.\/platform\/build\/edgeone\/routing-patch\.js"|from "\.\.\/platform\/build\/edgeone\/routing-patch\.js"/);
 });
 
 test("generic build plugins route platform path logic through platform build helpers", () => {

@@ -1,3 +1,9 @@
 {
-  "devCommand": "pnpm exec astro dev --host 127.0.0.1"
+  "devCommand": "pnpm exec astro dev --host 127.0.0.1",
+  "rewrites": [
+    {
+      "source": "/articles/*",
+      "destination": "/articles/:splat/index.html"
+    }
+  ]
 }

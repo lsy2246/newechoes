@@ -10,7 +10,3 @@ export {
   resolveBuildDir,
   syncStaticGeneratedFileToPlatformOutputs,
 } from "./mirrors.js";
-export {
-  patchEdgeoneBuildConfig,
-  patchEdgeoneConfigText,
-} from "./edgeone/routing-patch.js";

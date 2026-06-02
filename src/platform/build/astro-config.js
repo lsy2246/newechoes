@@ -1,8 +1,7 @@
 import cloudflare from "@astrojs/cloudflare";
 import vercel from "@astrojs/vercel";
 import edgeone from "@edgeone/astro";
-import { createEdgeoneCompatPlugin } from "./edgeone/compat-plugin.js";
-import { edgeoneRoutingIntegration } from "../../plugins/edgeone-routing-integration.js";
+import { createEdgeoneCompatPlugin, edgeoneRoutingIntegration } from "./edgeone/index.js";
 
 export function resolvePlatformAdapter(target) {
   if (target === "cloudflare") {
