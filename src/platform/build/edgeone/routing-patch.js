@@ -5,21 +5,11 @@ import path from "node:path";
 const EDGEONE_SLASH_REWRITE_SOURCE = "^/([^.]+[^/.])$";
 const EDGEONE_SAFE_SLASH_REWRITE_SOURCE =
   "^/(?!api(?:/|$)|_image$|_server-islands(?:/|$))([^.]+[^/.])$";
-
-function escapeRegexLiteral(value) {
-  return value.replace(/[|\\{}()[\]^$+*?.-]/g, "\\$&");
-}
+const EDGEONE_SLASH_REWRITE_DEST = "/$1/";
+const EDGEONE_STATIC_INDEX_REWRITE_DEST = "/$1/index.html";
 
 function normalizeRelativePathForRoutes(relativeDir) {
   return relativeDir.split(path.sep).filter(Boolean).join("/");
-}
-
-function decodeRoutePathIfPossible(relativeDir) {
-  try {
-    return decodeURIComponent(relativeDir);
-  } catch {
-    return relativeDir;
-  }
 }
 
 function isAlreadyUriEncodedPath(relativeDir) {
@@ -34,78 +24,22 @@ function isAlreadyUriEncodedPath(relativeDir) {
   }
 }
 
-function buildEncodedArticleRouteEntries(articleRouteMirrors = []) {
-  const routeEntries = [];
-  const seen = new Set();
-
-  for (const { encodedRelativeDir, relativeDir } of articleRouteMirrors) {
-    const normalizedEncodedRelativeDir = normalizeRelativePathForRoutes(encodedRelativeDir);
-    const normalizedDecodedRelativeDir = normalizeRelativePathForRoutes(
-      decodeRoutePathIfPossible(relativeDir),
-    );
-    const destination = `/articles/${normalizedEncodedRelativeDir}/`;
-
-    for (const sourcePath of [
-      normalizedEncodedRelativeDir,
-      normalizedDecodedRelativeDir,
-    ]) {
-      const source = `^/articles/${escapeRegexLiteral(sourcePath)}$`;
-      const routeKey = `${source}->${destination}`;
-
-      if (seen.has(routeKey)) {
-        continue;
-      }
-
-      routeEntries.push({
-        src: source,
-        dest: destination,
-        continue: true,
-      });
-      seen.add(routeKey);
-    }
-  }
-
-  return routeEntries;
-}
-
-export function patchEdgeoneConfigText(configText, articleRouteMirrors = []) {
+export function patchEdgeoneConfigText(configText) {
   const parsed = JSON.parse(configText);
   if (!Array.isArray(parsed.routes)) {
     return configText;
-  }
-
-  const encodedArticleRoutes = buildEncodedArticleRouteEntries(articleRouteMirrors);
-  const hasExplicitArticleRoutes = encodedArticleRoutes.length > 0;
-
-  if (hasExplicitArticleRoutes) {
-    parsed.routes = parsed.routes.filter((route) => {
-      if (!route?.src || !route?.dest || route.continue !== true) {
-        return true;
-      }
-
-      return !encodedArticleRoutes.some(
-        (articleRoute) => articleRoute.src === route.src && articleRoute.dest === route.dest,
-      );
-    });
   }
 
   for (const route of parsed.routes) {
     if (
       route
       && route.src === EDGEONE_SLASH_REWRITE_SOURCE
-      && route.dest === "/$1/"
+      && route.dest === EDGEONE_SLASH_REWRITE_DEST
       && route.continue === true
     ) {
       route.src = EDGEONE_SAFE_SLASH_REWRITE_SOURCE;
+      route.dest = EDGEONE_STATIC_INDEX_REWRITE_DEST;
     }
-  }
-
-  if (hasExplicitArticleRoutes) {
-    const slashRewriteIndex = parsed.routes.findIndex(
-      (route) => route?.dest === "/$1/" && route?.continue === true,
-    );
-    const insertionIndex = slashRewriteIndex >= 0 ? slashRewriteIndex : parsed.routes.length;
-    parsed.routes.splice(insertionIndex, 0, ...encodedArticleRoutes);
   }
 
   return `${JSON.stringify(parsed, null, 2)}\n`;
@@ -200,8 +134,7 @@ export async function patchEdgeoneBuildConfig(rootDir = process.cwd()) {
   }
 
   const originalConfig = await fs.readFile(configPath, "utf8");
-  const articleRouteMirrors = await collectEdgeoneEncodedArticleRouteMirrors(assetsDir);
-  const patchedConfig = patchEdgeoneConfigText(originalConfig, articleRouteMirrors);
+  const patchedConfig = patchEdgeoneConfigText(originalConfig);
 
   if (patchedConfig === originalConfig) {
     return false;

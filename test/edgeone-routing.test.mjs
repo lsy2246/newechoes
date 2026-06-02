@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-test("EdgeOne route patch excludes API and internal endpoints from clean-url slash rewrites", async () => {
+test("EdgeOne route patch rewrites clean URLs to static index files and excludes API/internal endpoints", async () => {
   const { patchEdgeoneConfigText } = await import("../src/plugins/edgeone-routing-integration.js");
 
   const input = JSON.stringify({
@@ -25,7 +25,7 @@ test("EdgeOne route patch excludes API and internal endpoints from clean-url sla
   const output = patchEdgeoneConfigText(input);
   const parsed = JSON.parse(output);
   const slashRewriteRoute = parsed.routes.find(
-    (route) => route.dest === "/$1/" && route.continue === true,
+    (route) => route.dest === "/$1/index.html" && route.continue === true,
   );
 
   assert.ok(slashRewriteRoute);
@@ -33,54 +33,11 @@ test("EdgeOne route patch excludes API and internal endpoints from clean-url sla
     slashRewriteRoute.src,
     "^/(?!api(?:/|$)|_image$|_server-islands(?:/|$))([^.]+[^/.])$",
   );
-});
-
-test("EdgeOne route patch adds explicit encoded article rewrites before the generic slash rewrite", async () => {
-  const { patchEdgeoneConfigText } = await import("../src/plugins/edgeone-routing-integration.js");
-
-  const input = JSON.stringify({
-    version: 3,
-    conf: { redirects: [] },
-    routes: [
-      { src: "^/(.+)/$", headers: { Location: "/$1" }, status: 308 },
-      { src: "^/([^.]+[^/.])$", dest: "/$1/", continue: true },
-      { handle: "filesystem" },
-      { src: "^/(.*)$" },
-    ],
-  });
-
-  const output = patchEdgeoneConfigText(input, [
-    {
-      relativeDir: "vibe-codoing指南",
-      encodedRelativeDir: "vibe-codoing%E6%8C%87%E5%8D%97",
-    },
-  ]);
-  const parsed = JSON.parse(output);
-  const encodedArticleRouteIndex = parsed.routes.findIndex(
-    (route) => route.src === "^/articles/vibe\\-codoing%E6%8C%87%E5%8D%97$",
+  const trailingSlashRedirectRoute = parsed.routes.find(
+    (route) => route.status === 308 && route.headers?.Location === "/$1",
   );
-  const decodedArticleRouteIndex = parsed.routes.findIndex(
-    (route) => route.src === "^/articles/vibe\\-codoing指南$",
-  );
-  const slashRewriteIndex = parsed.routes.findIndex(
-    (route) => route.dest === "/$1/" && route.continue === true,
-  );
-
-  assert.ok(encodedArticleRouteIndex >= 0);
-  assert.ok(decodedArticleRouteIndex >= 0);
-  assert.ok(slashRewriteIndex >= 0);
-  assert.ok(encodedArticleRouteIndex < slashRewriteIndex);
-  assert.ok(decodedArticleRouteIndex < slashRewriteIndex);
-  assert.deepEqual(parsed.routes[encodedArticleRouteIndex], {
-    src: "^/articles/vibe\\-codoing%E6%8C%87%E5%8D%97$",
-    dest: "/articles/vibe-codoing%E6%8C%87%E5%8D%97/",
-    continue: true,
-  });
-  assert.deepEqual(parsed.routes[decodedArticleRouteIndex], {
-    src: "^/articles/vibe\\-codoing指南$",
-    dest: "/articles/vibe-codoing%E6%8C%87%E5%8D%97/",
-    continue: true,
-  });
+  assert.ok(trailingSlashRedirectRoute);
+  assert.equal(trailingSlashRedirectRoute.src, "^/(.+)/$");
 });
 
 test("EdgeOne static article assets create encoded mirrors for unicode paths", async () => {
