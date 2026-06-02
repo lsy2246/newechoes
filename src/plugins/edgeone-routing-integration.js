@@ -25,7 +25,7 @@ export function edgeoneRoutingIntegration() {
 
         const patched = await patchEdgeoneBuildConfig();
         if (patched) {
-          console.log("已修正 EdgeOne SSR 路由规则，避免 clean-url 重写误伤 API");
+          console.log("已修正 EdgeOne SSR 路由规则，补齐文章编码路由并避免 clean-url 重写误伤 API");
         }
       },
     },
