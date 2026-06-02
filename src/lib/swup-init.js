@@ -11,9 +11,39 @@ import SwupScriptsPlugin from '@swup/scripts-plugin';
 const LOADING_SPINNER_MIN_VISIBLE_MS = 360;
 let loadingSpinnerHideTimer = 0;
 let loadingSpinnerShownAt = 0;
+let lastNavigationError = null;
 
 function setSwupLoadingState(isLoading) {
   document.body?.setAttribute('data-swup-loading', isLoading ? 'true' : 'false');
+}
+
+function setSwupNavigationError(targetUrl, reason) {
+  const detail = {
+    targetUrl: targetUrl || window.location.pathname,
+    reason,
+    timestamp: Date.now(),
+  };
+
+  lastNavigationError = detail;
+  document.documentElement?.setAttribute('data-swup-navigation-error', 'true');
+  window.dispatchEvent(new CustomEvent('swup:navigation-error', { detail }));
+}
+
+function clearSwupNavigationError() {
+  lastNavigationError = null;
+  document.documentElement?.removeAttribute('data-swup-navigation-error');
+}
+
+function formatSwupError(error) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'string' && error) {
+    return error;
+  }
+
+  return 'unknown_fetch_error';
 }
 
 // 创建加载动画元素
@@ -816,6 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isLoading = false;
     contentReady = false;
     animationInProgress = false;
+    clearSwupNavigationError();
 
     // 最终确保隐藏加载动画
     hideLoadingSpinner(spinner);
@@ -834,15 +865,17 @@ document.addEventListener('DOMContentLoaded', () => {
     setSwupLoadingState(false);
     
     console.error('Fetch error:', error);
-    
-    // 在严重错误时回退到页面刷新
-    try {
-      const targetUrl = error?.visit?.to?.url || window.location.pathname;
-      window.location.href = targetUrl;
-    } catch (e) {
-      // 如果获取目标URL失败，刷新当前页面
-      window.location.reload();
-    }
+
+    const targetUrl = error?.visit?.to?.url || window.location.pathname;
+    const reason = formatSwupError(error);
+    setSwupNavigationError(targetUrl, reason);
+
+    console.warn('Swup fetch fallback suppressed to avoid reload loops.', {
+      targetUrl,
+      currentUrl: window.location.pathname,
+      reason,
+      lastNavigationError,
+    });
   });
   
   // 处理容器不匹配错误

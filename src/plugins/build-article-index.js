@@ -14,6 +14,7 @@ const wasmAssetDir = path.join(rootDir, 'src', 'assets', 'wasm');
 const buildDir = path.resolve(rootDir, 'dist');
 // 索引文件存储位置
 const indexDir = path.join(buildDir, 'client', 'assets', 'index');
+const deployTarget = process.env.DEPLOY_TARGET || 'vercel';
 
 const binaryName = process.platform === 'win32'
   ? 'article-indexer-cli.exe'
@@ -344,6 +345,75 @@ function logRuntimeArtifactSummary() {
   }
 }
 
+function copyDirectoryContents(sourceDir, targetDir) {
+  if (!fs.existsSync(sourceDir)) {
+    return false;
+  }
+
+  fs.mkdirSync(targetDir, { recursive: true });
+
+  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirectoryContents(sourcePath, targetPath);
+      continue;
+    }
+
+    fs.copyFileSync(sourcePath, targetPath);
+  }
+
+  return true;
+}
+
+function getPlatformIndexMirrorDirs(buildDirPath, outputDirPath) {
+  const relativeIndexDir = path.relative(buildDirPath, outputDirPath);
+  if (!relativeIndexDir || relativeIndexDir.startsWith('..')) {
+    return [];
+  }
+
+  const candidateMappings = [];
+
+  if (deployTarget === 'edgeone') {
+    candidateMappings.push({
+      rootDir: path.join(rootDir, '.edgeone', 'assets'),
+      targetDir: path.join(rootDir, '.edgeone', 'assets', relativeIndexDir),
+    });
+  }
+
+  if (deployTarget === 'vercel') {
+    candidateMappings.push({
+      rootDir: path.join(rootDir, '.vercel', 'output', 'static'),
+      targetDir: path.join(rootDir, '.vercel', 'output', 'static', relativeIndexDir),
+    });
+  }
+
+  if (deployTarget === 'cloudflare') {
+    candidateMappings.push({
+      rootDir: path.join(rootDir, 'dist', 'server'),
+      targetDir: path.join(rootDir, 'dist', 'server', relativeIndexDir),
+    });
+  }
+
+  return candidateMappings
+    .filter(({ rootDir: candidateRootDir }) => fs.existsSync(candidateRootDir))
+    .map(({ targetDir }) => targetDir);
+}
+
+function syncIndexArtifactsToPlatformOutputs(buildDirPath, outputDirPath) {
+  const mirroredDirs = [];
+
+  for (const targetDir of getPlatformIndexMirrorDirs(buildDirPath, outputDirPath)) {
+    const copied = copyDirectoryContents(outputDirPath, targetDir);
+    if (copied) {
+      mirroredDirs.push(targetDir);
+    }
+  }
+
+  return mirroredDirs;
+}
+
 /**
  * 创建Astro构建后钩子插件，用于生成文章索引
  * @returns {import('astro').AstroIntegration} Astro集成对象
@@ -481,6 +551,12 @@ export async function generateArticleIndex(options = {}) {
       });
       
       console.log(result);
+      const mirroredDirs = syncIndexArtifactsToPlatformOutputs(buildDirPath, outputDirPath);
+      if (mirroredDirs.length > 0) {
+        console.log(`[索引构建] 已同步索引产物到平台目录: ${mirroredDirs.join(', ')}`);
+      } else {
+        console.log('[索引构建] 未检测到额外的平台索引镜像目录，保留默认输出目录');
+      }
       console.log('文章索引生成完成!');
       console.log(`索引文件保存在: ${outputDirPath}`);
       

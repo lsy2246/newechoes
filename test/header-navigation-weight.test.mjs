@@ -23,3 +23,9 @@ test("desktop navigation keeps labels at a regular weight in every state", () =>
   assert.equal(header.includes("\"font-medium\""), false);
   assert.equal(globalCss.includes(".layout-overlay-header #main-header a,\n.layout-overlay-header #main-header button {\n  font-weight: 600;\n}"), false);
 });
+
+test("mobile search panel allows the dropdown to escape the shell without changing menu clipping", () => {
+  assert.ok(header.includes('class="mobile-panel-shell mobile-search-shell"'));
+  assert.match(cssBlock(".mobile-panel-shell"), /overflow:\s*hidden;/);
+  assert.match(cssBlock(".mobile-search-shell"), /overflow:\s*visible;/);
+});

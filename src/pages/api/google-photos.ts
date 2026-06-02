@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "@/lib/google-photos";
+import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "@/lib/google-photos/shared";
 import { createServerRequestLog, summarizeUrl } from "@/lib/server-request-log";
 import { fetchAssetDirect } from "@/lib/server-asset-relay";
 import { supportsGooglePhotosParsing } from "@/lib/runtime/platform";
@@ -114,7 +114,7 @@ export const GET: APIRoute = async ({ request }) => {
       shareUrl: summarizeUrl(shareUrl),
       hasCursor: Boolean(cursor),
     });
-    const { fetchGooglePhotosPage } = await import("@/lib/google-photos");
+    const { fetchGooglePhotosPage } = await import("@/lib/google-photos/node");
     const data = await fetchGooglePhotosPage({
       shareUrl,
       cursor,

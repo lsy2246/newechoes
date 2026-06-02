@@ -21,6 +21,35 @@ import mermaid from 'astro-mermaid';
 
 const DEPLOY_TARGET = process.env.DEPLOY_TARGET || "vercel";
 
+function edgeoneCompatPlugin() {
+  const virtualId = "\0edgeone-server-entrypoint-shim";
+
+  return {
+    name: "edgeone-server-entrypoint-compat",
+    resolveId(source) {
+      if (
+        DEPLOY_TARGET === "edgeone" &&
+        /@edgeone[\/\\]astro[\/\\]dist[\/\\]server\.js$/.test(source)
+      ) {
+        return virtualId;
+      }
+
+      return null;
+    },
+    load(id) {
+      if (id !== virtualId) {
+        return null;
+      }
+
+      return `
+export { createExports } from "@edgeone/astro/server";
+const edgeoneServerEntrypointShim = {};
+export default edgeoneServerEntrypointShim;
+`;
+    },
+  };
+}
+
 function resolveAdapter(target) {
   if (target === "cloudflare") {
     return cloudflare({
@@ -61,7 +90,10 @@ export default defineConfig({
   },
 
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [
+      edgeoneCompatPlugin(),
+      tailwindcss(),
+    ],
     optimizeDeps: {
       include: [
         "d3-force-3d",

@@ -45,3 +45,8 @@ diorama-checks/
 .edgeone/
 .wrangler/
 .pnpm-verify-store
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*
+  
