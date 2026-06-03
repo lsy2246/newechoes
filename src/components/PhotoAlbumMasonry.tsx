@@ -136,6 +136,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   const [previewFullLoaded, setPreviewFullLoaded] = useState(false);
   const [previewVideoRequested, setPreviewVideoRequested] = useState(false);
   const [previewVideoReady, setPreviewVideoReady] = useState(false);
+  const [previewVideoPlayRequested, setPreviewVideoPlayRequested] = useState(false);
   const [previewVideoStarted, setPreviewVideoStarted] = useState(false);
   const [previewVideoBuffering, setPreviewVideoBuffering] = useState(false);
   const [previewVideoLoadProgress, setPreviewVideoLoadProgress] = useState<number | null>(null);
@@ -199,14 +200,18 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       ? "视频加载失败，请重试"
       : !previewVideoReady
         ? "正在加载视频..."
-        : !previewVideoStarted
+        : previewVideoPlayRequested && !previewVideoStarted
+          ? "正在缓冲视频..."
+          : !previewVideoStarted
           ? "已加载首帧，点击播放"
           : "正在缓冲视频...";
   const previewVideoProgressText =
     previewVideoLoadProgress !== null ? `已加载 ${previewVideoLoadProgress}%` : null;
   const isPreviewVideoOverlayVisible = !previewVideoStarted || previewVideoFailed;
   const isPreviewVideoSpinnerVisible =
-    previewVideoRequested && (!previewVideoReady || previewVideoBuffering);
+    previewVideoRequested &&
+    (!previewVideoReady || previewVideoBuffering || (previewVideoPlayRequested && !previewVideoStarted));
+  const isPreviewVideoPlayButtonVisible = !previewVideoPlayRequested || previewVideoFailed;
   const isPreviewVideoControlsVisible = previewVideoStarted;
 
   const abortImageRequest = useCallback((image: HTMLImageElement | null) => {
@@ -254,6 +259,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       return;
     }
 
+    setPreviewVideoPlayRequested(true);
     setPreviewVideoBuffering(true);
     const playResult = video.play();
 
@@ -263,8 +269,37 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
           return;
         }
 
+        setPreviewVideoPlayRequested(false);
         setPreviewVideoBuffering(false);
       });
+    }
+  }, []);
+
+  const syncPreviewVideoPlaybackStarted = useCallback((video: HTMLVideoElement | null) => {
+    if (!video) {
+      return;
+    }
+
+    try {
+      const hasAdvancedPlayback =
+        video.currentTime > 0 ||
+        (video.played.length > 0 && video.played.end(video.played.length - 1) > 0);
+
+      if (hasAdvancedPlayback) {
+        setPreviewThumbLoaded(true);
+        setPreviewVideoReady(true);
+        setPreviewVideoStarted(true);
+        setPreviewVideoBuffering(false);
+        setPreviewVideoFailed(false);
+      }
+    } catch {
+      if (video.currentTime > 0) {
+        setPreviewThumbLoaded(true);
+        setPreviewVideoReady(true);
+        setPreviewVideoStarted(true);
+        setPreviewVideoBuffering(false);
+        setPreviewVideoFailed(false);
+      }
     }
   }, []);
 
@@ -290,6 +325,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     }
 
     setPreviewVideoRequested(true);
+    setPreviewVideoPlayRequested(false);
     setPreviewVideoFailed(false);
     setPreviewVideoReady(false);
     setPreviewVideoStarted(false);
@@ -576,6 +612,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     setPreviewFullLoaded(false);
     setPreviewVideoRequested(false);
     setPreviewVideoReady(false);
+    setPreviewVideoPlayRequested(false);
     setPreviewVideoStarted(false);
     setPreviewVideoBuffering(false);
     setPreviewVideoLoadProgress(null);
@@ -869,28 +906,30 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
 
                   {isPreviewVideoOverlayVisible ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/35 px-4 text-white">
-                      <button
-                        type="button"
-                        onClick={requestPreviewVideo}
-                        className="flex h-16 w-16 items-center justify-center rounded-full bg-black/75 text-white shadow-lg transition hover:bg-black/90"
-                        aria-label={
-                          previewVideoFailed
-                            ? "重新加载视频"
-                            : previewVideoReady
-                              ? "播放视频"
-                              : "加载视频"
-                        }
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
-                          className="h-8 w-8"
-                          aria-hidden="true"
+                      {isPreviewVideoPlayButtonVisible ? (
+                        <button
+                          type="button"
+                          onClick={requestPreviewVideo}
+                          className="flex h-16 w-16 items-center justify-center rounded-full bg-black/75 text-white shadow-lg transition hover:bg-black/90"
+                          aria-label={
+                            previewVideoFailed
+                              ? "重新加载视频"
+                              : previewVideoReady
+                                ? "播放视频"
+                                : "加载视频"
+                          }
                         >
-                          <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z" />
-                        </svg>
-                      </button>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="h-8 w-8"
+                            aria-hidden="true"
+                          >
+                            <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z" />
+                          </svg>
+                        </button>
+                      ) : null}
 
                       <div className="rounded-2xl bg-black/70 px-4 py-3 text-center shadow-lg">
                         <div className="flex items-center justify-center gap-2 text-sm font-medium">
@@ -959,7 +998,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                     onCanPlay={(event) => {
                       setPreviewThumbLoaded(true);
                       setPreviewVideoReady(true);
-                      setPreviewVideoBuffering(false);
+                      setPreviewVideoBuffering(previewVideoPlayRequested && !previewVideoStarted);
                       setPreviewVideoFailed(false);
                       syncPreviewVideoLoadProgress(event.currentTarget);
                     }}
@@ -969,7 +1008,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                     onLoadedData={() => {
                       setPreviewThumbLoaded(true);
                       setPreviewVideoReady(true);
-                      setPreviewVideoBuffering(false);
+                      setPreviewVideoBuffering(previewVideoPlayRequested && !previewVideoStarted);
                       syncPreviewVideoLoadProgress(previewVideoRef.current);
                       setPreviewVideoFailed(false);
                     }}
@@ -979,10 +1018,13 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                     onPlaying={() => {
                       setPreviewThumbLoaded(true);
                       setPreviewVideoReady(true);
-                      setPreviewVideoStarted(true);
-                      setPreviewVideoBuffering(false);
+                      setPreviewVideoBuffering(!previewVideoStarted);
                       setPreviewVideoFailed(false);
                       syncPreviewVideoLoadProgress(previewVideoRef.current);
+                    }}
+                    onTimeUpdate={(event) => {
+                      syncPreviewVideoPlaybackStarted(event.currentTarget);
+                      syncPreviewVideoLoadProgress(event.currentTarget);
                     }}
                     onWaiting={() => {
                       if (!previewVideoFailed) {
@@ -1022,6 +1064,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                     onError={(event) => {
                       fallbackMediaSource(event, selectedPhoto.fallbackVideoUrl, () => {
                         setPreviewThumbLoaded(true);
+                        setPreviewVideoPlayRequested(false);
                         setPreviewVideoBuffering(false);
                         setPreviewVideoStarted(false);
                         setPreviewVideoFailed(true);
