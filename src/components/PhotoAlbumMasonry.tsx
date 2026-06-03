@@ -68,6 +68,29 @@ const formatDuration = (durationMs: number | null) => {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 };
 
+const getPreviewVideoLoadProgress = (
+  video: HTMLVideoElement,
+  fallbackDurationMs: number | null,
+) => {
+  const durationSeconds =
+    Number.isFinite(video.duration) && video.duration > 0
+      ? video.duration
+      : fallbackDurationMs
+        ? fallbackDurationMs / 1000
+        : null;
+
+  if (!durationSeconds || !video.buffered.length) {
+    return null;
+  }
+
+  try {
+    const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+    return Math.max(0, Math.min(100, Math.round((bufferedEnd / durationSeconds) * 100)));
+  } catch {
+    return null;
+  }
+};
+
 const getTakenAtValue = (takenAt: string | null) => {
   if (!takenAt) {
     return Number.NEGATIVE_INFINITY;
@@ -113,6 +136,9 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   const [previewFullLoaded, setPreviewFullLoaded] = useState(false);
   const [previewVideoRequested, setPreviewVideoRequested] = useState(false);
   const [previewVideoReady, setPreviewVideoReady] = useState(false);
+  const [previewVideoStarted, setPreviewVideoStarted] = useState(false);
+  const [previewVideoBuffering, setPreviewVideoBuffering] = useState(false);
+  const [previewVideoLoadProgress, setPreviewVideoLoadProgress] = useState<number | null>(null);
   const [previewVideoFailed, setPreviewVideoFailed] = useState(false);
 
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -159,10 +185,29 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     selectedPhoto?.width && selectedPhoto?.height
       ? `min(100%, calc(80vh * ${previewAspectRatio}))`
       : "100%";
+  const isPreviewVideoStatusVisible =
+    previewVideoRequested &&
+    !previewVideoFailed &&
+    (!previewVideoStarted || previewVideoBuffering);
   const shouldLoadFullPreviewImage =
     Boolean(previewFullImageUrl) &&
     previewFullImageUrl !== previewImageUrl &&
     previewThumbLoaded;
+  const previewVideoStatusText = !previewVideoRequested
+    ? "点击开始加载视频"
+    : previewVideoFailed
+      ? "视频加载失败，请重试"
+      : !previewVideoReady
+        ? "正在加载视频..."
+        : !previewVideoStarted
+          ? "已加载首帧，点击播放"
+          : "正在缓冲视频...";
+  const previewVideoProgressText =
+    previewVideoLoadProgress !== null ? `已加载 ${previewVideoLoadProgress}%` : null;
+  const isPreviewVideoOverlayVisible = !previewVideoStarted || previewVideoFailed;
+  const isPreviewVideoSpinnerVisible =
+    previewVideoRequested && (!previewVideoReady || previewVideoBuffering);
+  const isPreviewVideoControlsVisible = previewVideoStarted;
 
   const abortImageRequest = useCallback((image: HTMLImageElement | null) => {
     if (!image) {
@@ -190,14 +235,43 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     abortImageRequest(previewFullImageElementRef.current);
   }, [abortImageRequest]);
 
+  const syncPreviewVideoLoadProgress = useCallback(
+    (video: HTMLVideoElement | null) => {
+      if (!video) {
+        setPreviewVideoLoadProgress(null);
+        return;
+      }
+
+      setPreviewVideoLoadProgress(
+        getPreviewVideoLoadProgress(video, selectedPhoto?.durationMs || null),
+      );
+    },
+    [selectedPhoto?.durationMs],
+  );
+
+  const playPreviewVideo = useCallback((video: HTMLVideoElement | null) => {
+    if (!video) {
+      return;
+    }
+
+    setPreviewVideoBuffering(true);
+    const playResult = video.play();
+
+    if (typeof playResult?.catch === "function") {
+      playResult.catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setPreviewVideoBuffering(false);
+      });
+    }
+  }, []);
+
   const requestPreviewVideo = useCallback(() => {
     if (!selectedPhoto?.videoUrl) {
       return;
     }
-
-    setPreviewVideoRequested(true);
-    setPreviewVideoReady(false);
-    setPreviewVideoFailed(false);
 
     const video = previewVideoRef.current;
 
@@ -205,12 +279,35 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       return;
     }
 
+    const shouldReloadPreviewVideo =
+      !previewVideoRequested || previewVideoFailed || !video.currentSrc;
+
+    if (!shouldReloadPreviewVideo) {
+      if (previewVideoReady || video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        playPreviewVideo(video);
+      }
+      return;
+    }
+
+    setPreviewVideoRequested(true);
+    setPreviewVideoFailed(false);
+    setPreviewVideoReady(false);
+    setPreviewVideoStarted(false);
+    setPreviewVideoBuffering(true);
+    setPreviewVideoLoadProgress(null);
     delete video.dataset.fallbackApplied;
     video.src = selectedPhoto.videoUrl;
     video.poster = selectedPhoto.previewUrl || selectedPhoto.displayUrl;
     video.load();
-    video.play().catch(() => undefined);
-  }, [selectedPhoto?.displayUrl, selectedPhoto?.previewUrl, selectedPhoto?.videoUrl]);
+  }, [
+    playPreviewVideo,
+    previewVideoFailed,
+    previewVideoReady,
+    previewVideoRequested,
+    selectedPhoto?.displayUrl,
+    selectedPhoto?.previewUrl,
+    selectedPhoto?.videoUrl,
+  ]);
 
   const fetchPhotoPage = useCallback(
     async (cursor: string | null = null, loadedCount = 0) => {
@@ -479,6 +576,9 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     setPreviewFullLoaded(false);
     setPreviewVideoRequested(false);
     setPreviewVideoReady(false);
+    setPreviewVideoStarted(false);
+    setPreviewVideoBuffering(false);
+    setPreviewVideoLoadProgress(null);
     setPreviewVideoFailed(false);
   }, [selectedPhoto?.id]);
 
@@ -767,37 +867,80 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                     }`}
                   />
 
-                  {!previewVideoReady ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/35 px-4 text-white">
-                      {previewVideoRequested && !previewVideoFailed ? (
-                        <div
-                          className="flex items-center gap-3 rounded-full bg-black/70 px-4 py-3 text-sm font-medium shadow-lg"
-                          role="status"
+                  {isPreviewVideoOverlayVisible ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/35 px-4 text-white">
+                      <button
+                        type="button"
+                        onClick={requestPreviewVideo}
+                        className="flex h-16 w-16 items-center justify-center rounded-full bg-black/75 text-white shadow-lg transition hover:bg-black/90"
+                        aria-label={
+                          previewVideoFailed
+                            ? "重新加载视频"
+                            : previewVideoReady
+                              ? "播放视频"
+                              : "加载视频"
+                        }
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="h-8 w-8"
+                          aria-hidden="true"
                         >
-                          <span
-                            className="h-5 w-5 animate-spin rounded-full border-2 border-white/70 border-r-transparent"
-                            aria-hidden="true"
-                          />
-                          <span>正在加载视频...</span>
+                          <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z" />
+                        </svg>
+                      </button>
+
+                      <div className="rounded-2xl bg-black/70 px-4 py-3 text-center shadow-lg">
+                        <div className="flex items-center justify-center gap-2 text-sm font-medium">
+                          {isPreviewVideoSpinnerVisible ? (
+                            <span
+                              className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-r-transparent"
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                          <span>{previewVideoStatusText}</span>
                         </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={requestPreviewVideo}
-                          className="flex items-center gap-3 rounded-full bg-black/75 px-4 py-3 text-sm font-medium text-white shadow-lg transition hover:bg-black/90"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                            className="h-5 w-5"
-                            aria-hidden="true"
-                          >
-                            <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z" />
-                          </svg>
-                          <span>{previewVideoFailed ? "重新加载视频" : "加载并播放视频"}</span>
-                        </button>
-                      )}
+                        {previewVideoProgressText ? (
+                          <>
+                            <div className="mt-3 h-1.5 w-40 overflow-hidden rounded-full bg-white/20">
+                              <div
+                                className="h-full rounded-full bg-white/90 transition-[width] duration-300"
+                                style={{ width: `${previewVideoLoadProgress}%` }}
+                              />
+                            </div>
+                            <p className="mt-2 text-xs text-white/70">{previewVideoProgressText}</p>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {previewVideoStarted && isPreviewVideoStatusVisible ? (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-4 text-white">
+                      <div className="rounded-2xl bg-black/70 px-4 py-3 text-center shadow-lg">
+                        <div className="flex items-center justify-center gap-2 text-sm font-medium">
+                          {isPreviewVideoSpinnerVisible ? (
+                            <span
+                              className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-r-transparent"
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                          <span>{previewVideoStatusText}</span>
+                        </div>
+                        {previewVideoProgressText ? (
+                          <>
+                            <div className="mt-3 h-1.5 w-40 overflow-hidden rounded-full bg-white/20">
+                              <div
+                                className="h-full rounded-full bg-white/90 transition-[width] duration-300"
+                                style={{ width: `${previewVideoLoadProgress}%` }}
+                              />
+                            </div>
+                            <p className="mt-2 text-xs text-white/70">{previewVideoProgressText}</p>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
                   ) : null}
 
@@ -810,23 +953,77 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                         ? selectedPhoto.previewUrl || selectedPhoto.displayUrl
                         : undefined
                     }
-                    controls={previewVideoReady}
+                    controls={isPreviewVideoControlsVisible}
                     playsInline
                     preload={previewVideoRequested ? "auto" : "none"}
                     onCanPlay={(event) => {
                       setPreviewThumbLoaded(true);
                       setPreviewVideoReady(true);
+                      setPreviewVideoBuffering(false);
                       setPreviewVideoFailed(false);
-                      event.currentTarget.play().catch(() => undefined);
+                      syncPreviewVideoLoadProgress(event.currentTarget);
+                    }}
+                    onLoadedMetadata={(event) => {
+                      syncPreviewVideoLoadProgress(event.currentTarget);
                     }}
                     onLoadedData={() => {
                       setPreviewThumbLoaded(true);
                       setPreviewVideoReady(true);
+                      setPreviewVideoBuffering(false);
+                      syncPreviewVideoLoadProgress(previewVideoRef.current);
                       setPreviewVideoFailed(false);
+                    }}
+                    onProgress={(event) => {
+                      syncPreviewVideoLoadProgress(event.currentTarget);
+                    }}
+                    onPlaying={() => {
+                      setPreviewThumbLoaded(true);
+                      setPreviewVideoReady(true);
+                      setPreviewVideoStarted(true);
+                      setPreviewVideoBuffering(false);
+                      setPreviewVideoFailed(false);
+                      syncPreviewVideoLoadProgress(previewVideoRef.current);
+                    }}
+                    onWaiting={() => {
+                      if (!previewVideoFailed) {
+                        setPreviewVideoBuffering(true);
+                      }
+                    }}
+                    onStalled={() => {
+                      if (!previewVideoFailed) {
+                        setPreviewVideoBuffering(true);
+                      }
+                    }}
+                    onSuspend={() => {
+                      if (previewVideoRequested && !previewVideoFailed && !previewVideoStarted) {
+                        setPreviewVideoBuffering(true);
+                      }
+                    }}
+                    onPause={(event) => {
+                      if (event.currentTarget.ended) {
+                        return;
+                      }
+
+                      if (previewVideoStarted && event.currentTarget.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+                        setPreviewVideoBuffering(false);
+                      }
+                    }}
+                    onSeeked={() => {
+                      if (!previewVideoFailed) {
+                        setPreviewVideoBuffering(false);
+                      }
+                      syncPreviewVideoLoadProgress(previewVideoRef.current);
+                    }}
+                    onSeeking={() => {
+                      if (!previewVideoFailed) {
+                        setPreviewVideoBuffering(true);
+                      }
                     }}
                     onError={(event) => {
                       fallbackMediaSource(event, selectedPhoto.fallbackVideoUrl, () => {
                         setPreviewThumbLoaded(true);
+                        setPreviewVideoBuffering(false);
+                        setPreviewVideoStarted(false);
                         setPreviewVideoFailed(true);
                       });
                     }}
