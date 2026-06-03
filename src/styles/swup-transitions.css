@@ -14,24 +14,15 @@
   opacity: 1;
 }
 
-/* 直接为article-content元素设置动画 */
-#article-content {
-  transition: opacity 0.3s ease;
-  animation-duration: 0.3s;
-  opacity: 1;
-}
-
 /* 淡出状态 */
 html.is-animating .transition-fade,
-html.is-animating .swup-transition-article,
-html.is-animating #article-content {
+html.is-animating .swup-transition-article {
   opacity: 0;
 }
 
 /* 淡入状态 */
 html.is-changing .transition-fade,
-html.is-changing .swup-transition-article,
-html.is-changing #article-content {
+html.is-changing .swup-transition-article {
   opacity: 1;
 }
 

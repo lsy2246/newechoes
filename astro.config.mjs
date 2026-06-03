@@ -6,7 +6,7 @@ import mdx from "@astrojs/mdx";
 import react from "@astrojs/react";
 import rehypeExternalLinks from "rehype-external-links";
 import { SITE_META } from "./src/consts";
-import { articleIndexerIntegration } from "./src/plugins/build-article-index.js";
+import { articleIndexerIntegration } from "./src/plugins/article-index/integration.js";
 import { compressionIntegration } from "./src/plugins/compression-integration.js";
 import { rehypeCodeBlocks } from "./src/plugins/rehype-code-blocks.js";
 import { rehypeTables } from "./src/plugins/rehype-tables.js";
@@ -15,7 +15,7 @@ import { rssIntegration } from "./src/plugins/rss-integration.js";
 import { robotsIntegration } from "./src/plugins/robots-integration.js";
 import { llmsIntegration } from "./src/plugins/llms-integration.js";
 import { localDevApiIntegration } from "./src/plugins/local-dev-api-integration.js";
-import mermaid from "astro-mermaid";
+import { rehypeMermaid } from "./src/plugins/rehype-mermaid.js";
 import {
   getPlatformIntegrations,
   getPlatformVitePlugins,
@@ -77,10 +77,6 @@ export default defineConfig({
   integrations: [
     mdx(),
     react(),
-    mermaid({
-      theme: "neutral",
-      autoTheme: true,
-    }),
     articleIndexerIntegration(),
     customSitemapIntegration(),
     robotsIntegration(),
@@ -105,6 +101,7 @@ export default defineConfig({
     },
     rehypePlugins: [
       [rehypeExternalLinks, { target: "_blank", rel: ["nofollow", "noopener", "noreferrer"] }],
+      rehypeMermaid,
       rehypeCodeBlocks,
       rehypeTables,
     ],

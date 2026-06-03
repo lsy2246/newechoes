@@ -7,9 +7,9 @@ const component = readFileSync("src/components/PhotoAlbumMasonry.tsx", "utf8");
 test("PhotoAlbumMasonry keeps the Google Photos preview video button size consistent", () => {
   assert.match(
     component,
-    /className="flex h-16 w-16 items-center justify-center rounded-full bg-black\/75 text-white shadow-lg transition hover:bg-black\/90"/,
+    /className="flex h-16 w-16 items-center justify-center rounded-full border border-white\/10 bg-black\/72 text-white shadow-\[0_18px_38px_rgba\(0,0,0,0\.28\)\] transition hover:bg-black\/82"/,
   );
-  assert.match(component, /className="h-8 w-8"/);
+  assert.match(component, /className="h-6 w-6 translate-x-\[1px\]"/);
 });
 
 test("PhotoAlbumMasonry queues preview video playback from the first click", () => {
@@ -46,7 +46,7 @@ test("PhotoAlbumMasonry switches the preview flow to click, load, and auto-play"
   );
   assert.match(component, /controls=\{isPreviewVideoControlsVisible\}/);
   assert.match(component, /const isPreviewVideoControlsVisible = previewVideoStarted;/);
-  assert.match(component, /!previewVideoStarted \? "opacity-100" : "opacity-0"/);
+  assert.match(component, /!previewVideoStarted \? "opacity-100" : "pointer-events-none opacity-0"/);
   assert.match(component, /previewVideoStarted \? "opacity-100" : "pointer-events-none opacity-0"/);
   assert.match(component, /onPlaying=\{\(\) => \{\s*markPreviewVideoStarted\(\);/s);
 });
@@ -83,4 +83,19 @@ test("PhotoAlbumMasonry surfaces preview loading progress and buffering state", 
   );
   assert.ok(component.includes("已加载 "));
   assert.ok(component.includes("正在缓冲视频..."));
+});
+
+test("PhotoAlbumMasonry keeps native video seeking available inside the preview modal", () => {
+  assert.match(
+    component,
+    /touchAction:\s*selectedPhoto\?\.mediaType === "video" \? "auto" : "none"/,
+  );
+  assert.doesNotMatch(
+    component,
+    /style=\{\{\s*overscrollBehavior:\s*"contain",\s*touchAction:\s*"none",\s*\}\}/,
+  );
+  assert.match(
+    component,
+    /!previewVideoStarted \? "opacity-100" : "pointer-events-none opacity-0"/,
+  );
 });

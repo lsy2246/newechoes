@@ -77,9 +77,22 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
 
   const HOME_DIORAMA_MODULE_KEY = "__homeDioramaModule";
   const HOME_DIORAMA_ACTIVE_SCENE_KEY = "__homeDioramaActiveScene";
+  const HOME_DIORAMA_IDLE_KEY = "__homeDioramaIdleCallback";
+  const HOME_DIORAMA_TIMEOUT_KEY = "__homeDioramaIdleTimeout";
 
   const resetDioramaState = () => {
     window[HOME_DIORAMA_ACTIVE_SCENE_KEY] = null;
+  };
+
+  const cancelScheduledInit = () => {
+    if ("cancelIdleCallback" in window && typeof window[HOME_DIORAMA_IDLE_KEY] === "number") {
+      window.cancelIdleCallback(window[HOME_DIORAMA_IDLE_KEY]);
+    }
+    if (typeof window[HOME_DIORAMA_TIMEOUT_KEY] === "number") {
+      window.clearTimeout(window[HOME_DIORAMA_TIMEOUT_KEY]);
+    }
+    window[HOME_DIORAMA_IDLE_KEY] = null;
+    window[HOME_DIORAMA_TIMEOUT_KEY] = null;
   };
 
   const maybeInit = async () => {
@@ -96,9 +109,30 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
     initDiorama();
   };
 
-  maybeInit();
-  document.addEventListener("astro:page-load", maybeInit);
-  document.addEventListener("swup:page:view", maybeInit);
+  const scheduleInit = () => {
+    cancelScheduledInit();
+
+    const start = () => {
+      window[HOME_DIORAMA_IDLE_KEY] = null;
+      window[HOME_DIORAMA_TIMEOUT_KEY] = null;
+      void maybeInit();
+    };
+
+    if ("requestIdleCallback" in window) {
+      window[HOME_DIORAMA_IDLE_KEY] = window.requestIdleCallback(start, {
+        timeout: 1400,
+      });
+      return;
+    }
+
+    window[HOME_DIORAMA_TIMEOUT_KEY] = window.setTimeout(start, 220);
+  };
+
+  scheduleInit();
+  document.addEventListener("astro:page-load", scheduleInit);
+  document.addEventListener("swup:page:view", scheduleInit);
+  document.addEventListener("astro:before-swap", cancelScheduledInit);
   document.addEventListener("astro:before-swap", resetDioramaState);
+  document.addEventListener("swup:visit:start", cancelScheduledInit);
   document.addEventListener("swup:visit:start", resetDioramaState);
 </script>

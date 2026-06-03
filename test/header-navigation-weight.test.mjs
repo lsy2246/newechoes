@@ -29,3 +29,9 @@ test("mobile search panel allows the dropdown to escape the shell without changi
   assert.match(cssBlock(".mobile-panel-shell"), /overflow:\s*hidden;/);
   assert.match(cssBlock(".mobile-search-shell"), /overflow:\s*visible;/);
 });
+
+test("desktop header search has wider desktop width budget", () => {
+  assert.ok(header.includes('class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-[18rem] lg:max-w-[19.5rem] ml-auto mr-4"'));
+  assert.ok(header.includes("data-home-header-search"));
+  assert.equal(header.includes("max-w-xs"), false);
+});

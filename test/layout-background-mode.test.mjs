@@ -8,15 +8,15 @@ const swupTransitionsCss = readFileSync("src/styles/swup-transitions.css", "utf8
 const header = readFileSync("src/components/Header.astro", "utf8");
 const layout = readFileSync("src/components/Layout.astro", "utf8");
 const search = readFileSync("src/components/Search.tsx", "utf8");
-const swupInit = readFileSync("src/lib/swup-init.js", "utf8");
+const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
 const swupLifecycleFiles = [
-  "src/lib/swup-init.js",
+  "src/lib/navigation/swup-init.js",
   "src/components/Layout.astro",
   "src/components/Header.astro",
   "src/components/Breadcrumb.astro",
   "src/components/home/HomeDiorama.astro",
   "src/components/home/diorama.ts",
-  "src/lib/global-graph-modal.ts",
+  "src/lib/global-graph/modal.ts",
 ];
 
 test("about page uses the normal monochrome page background", () => {
@@ -243,6 +243,30 @@ test("swup fully replaces the page shell when entering or leaving filter", () =>
   );
   assert.equal(swupInit.includes("from: ['/articles', '/filtered']"), false);
   assert.equal(swupInit.includes("to: ['/articles', '/filtered']"), false);
+});
+
+test("filtered navigation does not reuse article-content transition state", () => {
+  assert.ok(swupInit.includes("function isArticleTransitionPageUrl"));
+  assert.ok(swupInit.includes("function isArticleTransitionPage()"));
+  assert.equal(swupInit.includes("return isArticleShellPageUrl();"), false);
+  assert.match(
+    swupInit,
+    /function getActiveElement\(\) \{\s*if \(isArticleTransitionPage\(\)\) \{\s*return document\.querySelector\('#article-content'\);\s*\}\s*return document\.querySelector\('main'\);\s*\}/,
+  );
+  assert.ok(swupInit.includes("const isTargetArticleTransitionPage = isArticleTransitionPageUrl(visit.to.url);"));
+  assert.ok(swupInit.includes("const isCurrentArticleTransitionPage = isArticleTransitionPage();"));
+  assert.equal(swupInit.includes("const isTargetArticlePage = isArticleShellPageUrl(visit.to.url);"), false);
+});
+
+test("swup does not hide incoming main content again after replacement", () => {
+  assert.match(
+    swupInit,
+    /swup\.hooks\.on\('animation:out:start', \(\) => \{[\s\S]*setElementOpacity\(activeElement, 0\);[\s\S]*\}\);/,
+  );
+  assert.equal(
+    /swup\.hooks\.on\('content:replace', \(\) => \{[\s\S]*setElementOpacity\(activeElement, 0\);[\s\S]*\}\);/.test(swupInit),
+    false,
+  );
 });
 
 test("article grid and detail navigation use swup history instead of same-path replacement", () => {

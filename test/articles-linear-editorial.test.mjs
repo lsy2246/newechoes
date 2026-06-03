@@ -24,7 +24,7 @@ const oldTimelinePath = "src/pages/articles/timeline.astro";
 const timelinePage = existsSync(timelinePath)
   ? readFileSync(timelinePath, "utf8")
   : "";
-const swupInit = readFileSync("src/lib/swup-init.js", "utf8");
+const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
 
 const cssBlock = (source, selector) => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

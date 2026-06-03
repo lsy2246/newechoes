@@ -8,7 +8,7 @@ const filterModelsSource = readFileSync("wasm/article-filter/src/models.rs", "ut
 const sharedModelsSource = readFileSync("wasm/utils-common/src/models.rs", "utf8");
 
 test("stale prebuilt Linux article indexer artifacts are rejected before build", async () => {
-  const { assertFreshPrebuiltArtifact } = await import("../src/plugins/build-article-index.js");
+  const { assertFreshPrebuiltArtifact } = await import("../src/plugins/article-index/integration.js");
 
   assert.throws(
     () =>
@@ -27,7 +27,7 @@ test("stale prebuilt Linux article indexer artifacts are rejected before build",
 });
 
 test("fresh prebuilt article indexer artifacts remain allowed", async () => {
-  const { assertFreshPrebuiltArtifact } = await import("../src/plugins/build-article-index.js");
+  const { assertFreshPrebuiltArtifact } = await import("../src/plugins/article-index/integration.js");
 
   assert.doesNotThrow(() =>
     assertFreshPrebuiltArtifact({
@@ -44,7 +44,7 @@ test("fresh prebuilt article indexer artifacts remain allowed", async () => {
 });
 
 test("CI builds do not reject prebuilt artifacts solely because checkout mtimes look stale", async () => {
-  const { assertFreshPrebuiltArtifact } = await import("../src/plugins/build-article-index.js");
+  const { assertFreshPrebuiltArtifact } = await import("../src/plugins/article-index/integration.js");
 
   assert.doesNotThrow(() =>
     assertFreshPrebuiltArtifact({
@@ -86,7 +86,7 @@ test("cross-target serialized index models avoid usize fields", () => {
 });
 
 test("generateArticleIndex throws when index generation cannot complete", async () => {
-  const { generateArticleIndex } = await import("../src/plugins/build-article-index.js");
+  const { generateArticleIndex } = await import("../src/plugins/article-index/integration.js");
 
   await assert.rejects(
     () =>

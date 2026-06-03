@@ -1,5 +1,5 @@
 import { GitPlatform } from '../../lib/git-projects-shared.js';
-import { createServerRequestLog } from '../../lib/server-request-log.js';
+import { createServerRequestLog } from '../../lib/server/request-log.js';
 
 interface GitProject {
   name: string;
@@ -311,33 +311,6 @@ function createGithubHeaders() {
   };
 }
 
-async function fetchGithubPrimaryLanguage(owner: string, repo: string) {
-  try {
-    const response = await fetchWithRetry(
-      `https://api.github.com/repos/${owner}/${repo}/languages`,
-      {
-        headers: createGithubHeaders(),
-      },
-      2,
-      10000,
-    );
-
-    if (!response.ok) {
-      throw new Error(`GitHub languages API 请求失败: ${response.status} ${response.statusText}`);
-    }
-
-    const languages = await response.json() as Record<string, number>;
-    const [primaryLanguage] = Object.entries(languages)
-      .sort((left, right) => Number(right[1]) - Number(left[1]))
-      .map(([language]) => language);
-
-    return primaryLanguage || '';
-  } catch (error) {
-    console.error(`获取 GitHub 仓库语言失败: ${owner}/${repo}`, error);
-    return '';
-  }
-}
-
 async function fetchGithubProjects(username: string, organization: string, page: number, config: any) {
   const maxRetries = 3;
   let retryCount = 0;
@@ -374,7 +347,7 @@ async function fetchGithubProjects(username: string, organization: string, page:
         url: repo.html_url,
         stars: repo.stargazers_count,
         forks: repo.forks_count,
-        language: repo.language || await fetchGithubPrimaryLanguage(repo.owner.login, repo.name),
+        language: repo.language || '',
         updatedAt: repo.updated_at,
         owner: repo.owner.login,
         avatarUrl: repo.owner.avatar_url,

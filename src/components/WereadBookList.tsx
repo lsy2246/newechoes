@@ -42,7 +42,7 @@ const applyNextImageFallback = (
 
 const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
   const [books, setBooks] = useState<WereadBook[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // 获取微信读书数据
@@ -144,7 +144,7 @@ const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
       ) : isLoading ? (
         <div className="text-center py-8">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-          <p className="mt-2 text-gray-600">加载中...</p>
+          <p className="mt-2 text-gray-600">正在从微信读书拉取书单...</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">

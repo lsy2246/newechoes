@@ -89,6 +89,7 @@ const isCardPreview = searchParams.get("preview") === "card";
 
 // 渲染文章内容
 const { Content, headings } = await render(article);
+const hasMermaidDiagrams = /(^|\n)```mermaid(?:\s|$)/.test(article.body);
 
 // 获取面包屑路径段
 const pathSegments: string[] = section ? section.split("/") : [];
@@ -1355,6 +1356,15 @@ const tableOfContents = generateTableOfContents(headings);
       registerCleanupEvents();
       initializeFeatures();
     })();
+      </script>
+    )
+  }
+  {
+    hasMermaidDiagrams && (
+      <script>
+        import { initArticleMermaid } from "../../lib/article-mermaid.ts";
+
+        initArticleMermaid();
       </script>
     )
   }

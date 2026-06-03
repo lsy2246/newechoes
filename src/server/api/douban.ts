@@ -1,6 +1,6 @@
 import { load } from 'cheerio/slim';
-import { createServerRequestLog, summarizeUrl } from '../../lib/server-request-log.js';
-import { fetchAssetDirect, relayAssetUrl } from '../../lib/server-asset-relay.js';
+import { createServerRequestLog, summarizeUrl } from '../../lib/server/request-log.js';
+import { fetchAssetDirect, relayAssetUrl } from '../../lib/server/asset-relay.js';
 
 // 请求配置常量
 const MAX_RETRIES = 0;        // 最大重试次数

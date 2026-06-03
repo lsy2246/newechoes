@@ -5,7 +5,7 @@ import test from "node:test";
 const readSource = (path) => readFileSync(path, "utf8");
 
 const constsSource = readSource("src/consts.ts");
-const serverRelaySource = readSource("src/lib/server-asset-relay.ts");
+const serverRelaySource = readSource("src/lib/server/asset-relay.ts");
 const doubanRouteSource = readSource("src/server/api/douban.ts");
 const doubanComponentSource = readSource("src/components/DoubanCollection.tsx");
 const wereadRouteSource = readSource("src/server/api/weread.ts");
@@ -16,11 +16,12 @@ const photoAlbumSource = readSource("src/components/PhotoAlbumMasonry.tsx");
 
 test("asset relay template stays in shared consts with encoded headers support", () => {
   assert.match(constsSource, /export const ASSET_RELAY_URL = "https:\/\/proxy\.u\.cd\/download\?url=\{url\}&headers=\{headers\}"/);
-  assert.match(serverRelaySource, /import \{ ASSET_RELAY_URL \} from "\.\.\/consts(\.js)?"/);
+  assert.match(serverRelaySource, /import \{ ASSET_RELAY_URL \} from "\.\.\/\.\.\/consts(\.js)?"/);
+  assert.doesNotMatch(serverRelaySource, /import \{ ASSET_RELAY_URL \} from "\.\.\/consts(\.js)?"/);
   assert.doesNotMatch(serverRelaySource, /process\.env\.ASSET_RELAY_URL/);
   assert.doesNotMatch(serverRelaySource, /import\.meta\.env\.PUBLIC_/);
-  assert.doesNotMatch(doubanComponentSource, /ASSET_RELAY|server-asset-relay/);
-  assert.doesNotMatch(photoAlbumSource, /ASSET_RELAY|server-asset-relay/);
+  assert.doesNotMatch(doubanComponentSource, /ASSET_RELAY|server\/asset-relay/);
+  assert.doesNotMatch(photoAlbumSource, /ASSET_RELAY|server\/asset-relay/);
 });
 
 test("server asset relay encodes source request headers into the relay URL", () => {
@@ -34,7 +35,7 @@ test("server asset relay encodes source request headers into the relay URL", () 
 });
 
 test("Douban prefers relay URLs in the frontend and falls back to the local image API", () => {
-  assert.match(doubanRouteSource, /server-asset-relay/);
+  assert.match(doubanRouteSource, /server\/asset-relay/);
   assert.match(doubanRouteSource, /DOUBAN_IMAGE_HEADERS/);
   assert.match(doubanRouteSource, /fetchAssetDirect\(\s*imageUrl,\s*\{[\s\S]*headers:\s*DOUBAN_IMAGE_HEADERS/);
   assert.match(doubanRouteSource, /const relayImageUrl = imageUrl/);
@@ -51,7 +52,7 @@ test("Douban prefers relay URLs in the frontend and falls back to the local imag
 });
 
 test("Weread keeps direct page fetches and uses direct -> relay -> local cover fallback", () => {
-  assert.match(wereadRouteSource, /server-asset-relay/);
+  assert.match(wereadRouteSource, /server\/asset-relay/);
   assert.match(wereadRouteSource, /WEREAD_PAGE_HEADERS/);
   assert.match(wereadRouteSource, /WEREAD_IMAGE_HEADERS/);
   assert.match(wereadRouteSource, /fetchAssetDirect\(\s*imageUrl,\s*\{[\s\S]*headers:\s*WEREAD_IMAGE_HEADERS/);
@@ -70,8 +71,8 @@ test("Weread keeps direct page fetches and uses direct -> relay -> local cover f
   assert.match(wereadComponentSource, /src=\{book\.imageUrl\}/);
 });
 
-test("Google Photos page/media flow keeps relay-first delivery with backend video fallback", () => {
-  assert.match(googlePhotosSource, /server-asset-relay/);
+test("Google Photos page/media flow keeps relay-first images and media-mode relay videos with backend fallback", () => {
+  assert.match(googlePhotosSource, /server\/asset-relay/);
   assert.match(googlePhotosSource, /GOOGLE_PHOTOS_MEDIA_HEADERS/);
   assert.match(googlePhotosSource, /const googlePhotosImageUrl = \(baseUrl: string, params: string\) =>/);
   assert.match(googlePhotosSource, /googlePhotosMediaUrl\(baseUrl, `\$\{params\}-no`\)/);
@@ -79,8 +80,9 @@ test("Google Photos page/media flow keeps relay-first delivery with backend vide
   assert.match(googlePhotosSource, /relayAssetUrl\(mediaUrl,\s*GOOGLE_PHOTOS_MEDIA_HEADERS\)\s*\|\|\s*fallbackUrl/);
   assert.match(googlePhotosSource, /const streamedGooglePhotosVideoUrl = \(baseUrl: string\) => \{/);
   assert.match(googlePhotosSource, /const relayUrl = relayAssetUrl\(mediaUrl,\s*GOOGLE_PHOTOS_MEDIA_HEADERS\);/);
-  assert.match(googlePhotosSource, /url:\s*relayUrl\s*\|\|\s*localUrl/);
-  assert.match(googlePhotosSource, /fallbackUrl:\s*relayUrl \? localUrl : null/);
+  assert.match(googlePhotosSource, /const mediaRelayUrl = relayUrl \? `\$\{relayUrl\}&mode=media` : null;/);
+  assert.match(googlePhotosSource, /url:\s*mediaRelayUrl\s*\|\|\s*localUrl/);
+  assert.match(googlePhotosSource, /fallbackUrl:\s*mediaRelayUrl \? localUrl : null/);
   assert.match(googlePhotosSource, /const thumbUrl = proxiedGooglePhotosMediaUrl\(baseUrl,\s*"w600"\)/);
   assert.match(googlePhotosSource, /const displayUrl = proxiedGooglePhotosMediaUrl\(baseUrl,\s*"w1600"\)/);
   assert.match(googlePhotosSource, /const previewUrl = proxiedGooglePhotosMediaUrl\(baseUrl,\s*"w2400"\)/);

@@ -4,7 +4,7 @@ import { normalizeDeployTarget } from "../src/platform/shared/target.js";
 const target = normalizeDeployTarget(process.argv[2]?.trim() || process.env.DEPLOY_TARGET);
 
 try {
-  const { prepareArticleIndexRuntimeArtifacts } = await import("../src/plugins/build-article-index.js");
+  const { prepareArticleIndexRuntimeArtifacts } = await import("../src/plugins/article-index/integration.js");
   prepareArticleIndexRuntimeArtifacts();
 } catch (error) {
   console.error(

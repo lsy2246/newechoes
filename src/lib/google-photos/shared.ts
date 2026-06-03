@@ -1,4 +1,4 @@
-import { fetchAssetWithRelayFallback, relayAssetUrl } from "../server-asset-relay.js";
+import { fetchAssetWithRelayFallback, relayAssetUrl } from "../server/asset-relay.js";
 
 export type GooglePhotoItem = {
   index: number;
@@ -61,10 +61,11 @@ const streamedGooglePhotosVideoUrl = (baseUrl: string) => {
   const mediaUrl = googlePhotosMediaUrl(baseUrl, "dv");
   const localUrl = localGooglePhotosMediaUrl(mediaUrl);
   const relayUrl = relayAssetUrl(mediaUrl, GOOGLE_PHOTOS_MEDIA_HEADERS);
+  const mediaRelayUrl = relayUrl ? `${relayUrl}&mode=media` : null;
 
   return {
-    url: relayUrl || localUrl,
-    fallbackUrl: relayUrl ? localUrl : null,
+    url: mediaRelayUrl || localUrl,
+    fallbackUrl: mediaRelayUrl ? localUrl : null,
   };
 };
 

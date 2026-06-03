@@ -319,7 +319,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
   const renderLoading = () => (
     <div className="git-project-loading flex justify-center items-center p-8">
       <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-      <p className="git-project-muted ml-2">加载中...</p>
+      <p className="git-project-muted ml-2">正在从 {displayTitle.includes("GitHub") ? "GitHub" : getPlatformName(platform)} 拉取项目...</p>
     </div>
   );
 

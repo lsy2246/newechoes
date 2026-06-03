@@ -7,12 +7,43 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
+  min-height: 12rem;
   justify-content: flex-start;
   padding: 1.25rem;
   overflow-x: auto;
   overflow-y: visible;
   border-radius: 0.6rem;
   scrollbar-gutter: stable;
+}
+
+.article-prose pre.mermaid[data-mermaid-state="loading"] {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--article-soft) 90%, transparent) 0%,
+      color-mix(in oklab, var(--article-soft-strong) 72%, transparent) 50%,
+      color-mix(in oklab, var(--article-soft) 90%, transparent) 100%
+    );
+  background-size: 220% 100%;
+  animation: mermaid-shimmer 1.5s linear infinite;
+}
+
+.article-prose pre.mermaid[data-mermaid-state="ready"] {
+  animation: none;
+  min-height: 0;
+}
+
+.article-prose .mermaid-error {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--article-warning);
+  font-size: var(--type-meta, 0.9rem);
+  line-height: 1.55;
+}
+
+.article-prose .mermaid-error strong {
+  color: var(--article-ink);
+  font-size: inherit;
 }
 
 .article-prose pre.mermaid svg {
@@ -81,4 +112,14 @@
 [data-theme="dark"] .mermaid :is(.section0, .section1, .section2, .section3) {
   fill: var(--article-bg) !important;
   stroke: var(--article-line-strong) !important;
+}
+
+@keyframes mermaid-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }

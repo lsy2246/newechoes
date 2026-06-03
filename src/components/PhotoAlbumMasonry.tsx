@@ -126,7 +126,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [visibleCount, setVisibleCount] = useState(REVEAL_BATCH_SIZE);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [hasMoreContent, setHasMoreContent] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -800,7 +800,9 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       {isLoading ? (
         <div className="py-8 text-center text-gray-600 dark:text-gray-400">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-current border-r-transparent align-[-0.125em]" />
-          <p className="mt-2">加载更多照片...</p>
+          <p className="mt-2">
+            {photos.length > 0 ? "正在继续从 Google Photos 拉取照片..." : "正在从 Google Photos 拉取相册..."}
+          </p>
         </div>
       ) : null}
 
@@ -822,7 +824,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
           onClick={closePreview}
           style={{
             overscrollBehavior: "contain",
-            touchAction: "none",
+            touchAction: selectedPhoto?.mediaType === "video" ? "auto" : "none",
           }}
         >
           <button
@@ -948,7 +950,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                       )
                     }
                     className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
-                      !previewVideoStarted ? "opacity-100" : "opacity-0"
+                      !previewVideoStarted ? "opacity-100" : "pointer-events-none opacity-0"
                     }`}
                   />
 

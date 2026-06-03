@@ -1,8 +1,7 @@
 ---
 import { SITE_META, NAV_STRUCTURE } from "@/consts.ts";
 import ThemeToggle from "@/components/ThemeToggle.astro";
-import Search from "@/components/Search.tsx";
-import GlobalGraphModal from "@/components/GlobalGraphModal.astro";
+import GlobalGraphLauncher from "@/components/GlobalGraphLauncher.astro";
 import { normalizeCanonicalPath } from "@/lib/canonical-url.js";
 import "@/styles/header.css";
 
@@ -102,10 +101,20 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
 
         <!-- 搜索框 - 桌面显示 -->
         <div
-          class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-xs ml-auto mr-4"
+          class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-[18rem] lg:max-w-[19.5rem] ml-auto mr-4"
           data-home-header-search
         >
-          <Search client:idle={{ timeout: 900 }} placeholder="搜索文章..." maxResults={5} />
+          <div class="relative w-full">
+            <input
+              type="search"
+              class="search-input-control w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base border rounded-lg md:rounded-lg lg:rounded-xl focus:outline-none transition-all duration-200 relative z-10 text-left"
+              data-search-activate="desktop"
+              aria-label="打开搜索"
+              placeholder="搜索文章..."
+              readonly
+            />
+            <div class="hidden" data-search-mount="desktop"></div>
+          </div>
         </div>
 
         <!-- 导航链接 - 集成NavSelector组件 -->
@@ -295,7 +304,15 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       >
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div class="relative">
-            <Search client:idle={{ timeout: 900 }} placeholder="搜索文章..." maxResults={5} />
+            <input
+              type="search"
+              class="search-input-control w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base border rounded-lg md:rounded-lg lg:rounded-xl focus:outline-none transition-all duration-200 relative z-10 text-left"
+              data-search-activate="mobile"
+              aria-label="打开搜索"
+              placeholder="搜索文章..."
+              readonly
+            />
+            <div class="hidden" data-search-mount="mobile"></div>
           </div>
         </div>
       </div>
@@ -391,7 +408,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     </div>
   </nav>
 
-  <GlobalGraphModal currentPath={normalizedPath} />
+  <GlobalGraphLauncher />
 </header>
 
 <script is:inline>
@@ -1858,4 +1875,132 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   // 开始初始化
   initNavigation();
 })();
+</script>
+
+<script>
+  const SEARCH_LAZY_MODULE_KEY = "__searchLazyModule";
+  const SEARCH_IDLE_MOUNT_DELAY = 600;
+
+  const getSearchMount = (slot) =>
+    document.querySelector(`[data-search-mount="${slot}"]`);
+
+  const getSearchActivator = (slot) =>
+    document.querySelector(`[data-search-activate="${slot}"]`);
+
+  const focusMountedSearch = (slot) => {
+    const mount = getSearchMount(slot);
+    const input = mount?.querySelector("input");
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+    }
+  };
+
+  const ensureSearchMounted = async (slot, { focus = true } = {}) => {
+    const mount = getSearchMount(slot);
+    if (!(mount instanceof HTMLElement)) return;
+
+    if (mount.dataset.searchMounting === "true") {
+      return;
+    }
+
+    const activator = getSearchActivator(slot);
+
+    if (mount.dataset.searchMounted === "true") {
+      mount.classList.remove("hidden");
+      if (activator instanceof HTMLElement) {
+        activator.classList.add("hidden");
+      }
+      if (focus) {
+        requestAnimationFrame(() => focusMountedSearch(slot));
+      }
+      return;
+    }
+
+    mount.dataset.searchMounting = "true";
+    mount.classList.remove("hidden");
+    if (activator instanceof HTMLElement) {
+      activator.classList.add("hidden");
+    }
+
+    try {
+      window[SEARCH_LAZY_MODULE_KEY] ??= import("@/lib/search/lazy");
+      const { mountLazySearch } = await window[SEARCH_LAZY_MODULE_KEY];
+      await mountLazySearch(mount, {
+        placeholder: "搜索文章...",
+        maxResults: 5,
+      });
+      mount.dataset.searchMounted = "true";
+      if (focus) {
+        requestAnimationFrame(() => focusMountedSearch(slot));
+      }
+    } catch (error) {
+      mount.classList.add("hidden");
+      if (activator instanceof HTMLElement) {
+        activator.classList.remove("hidden");
+      }
+      console.error("搜索组件懒加载失败:", error);
+    } finally {
+      delete mount.dataset.searchMounting;
+    }
+  };
+
+  const scheduleSearchMount = (slot) => {
+    const activator = getSearchActivator(slot);
+    if (activator instanceof HTMLInputElement) {
+      activator.placeholder = "正在准备搜索...";
+    }
+
+    const mountWhenIdle = () => {
+      void ensureSearchMounted(slot, { focus: false });
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(mountWhenIdle);
+      return;
+    }
+
+    window.setTimeout(mountWhenIdle, 1);
+  };
+
+  window.addEventListener("load", () => {
+    window.setTimeout(() => {
+      scheduleSearchMount("desktop");
+      scheduleSearchMount("mobile");
+    }, SEARCH_IDLE_MOUNT_DELAY);
+  }, { once: true });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const activator = target.closest("[data-search-activate]");
+    if (activator instanceof HTMLElement) {
+      event.preventDefault();
+      const slot = activator.getAttribute("data-search-activate");
+      if (slot) {
+        void ensureSearchMounted(slot, { focus: true });
+      }
+      return;
+    }
+
+    const mobileSearchButton = target.closest("#mobile-search-button");
+    if (mobileSearchButton instanceof HTMLElement) {
+      window.setTimeout(() => {
+        void ensureSearchMounted("mobile", { focus: false });
+      }, 0);
+    }
+  });
+
+  document.addEventListener("focusin", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const activator = target.closest("[data-search-activate]");
+    if (activator instanceof HTMLElement) {
+      const slot = activator.getAttribute("data-search-activate");
+      if (slot) {
+        void ensureSearchMounted(slot, { focus: true });
+      }
+    }
+  });
 </script>

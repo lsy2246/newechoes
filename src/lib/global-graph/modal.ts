@@ -122,6 +122,11 @@ type GraphRuntime = {
   updateTheme: () => void;
 };
 
+type GlobalGraphModalController = {
+  open: () => Promise<void>;
+  close: () => void;
+};
+
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const GRAPH_CLICK_THRESHOLD_PX = 3;
 const GRAPH_DRAG_THRESHOLD_PX = 5;
@@ -759,19 +764,14 @@ async function createGraphRuntime(options: {
     return bestNode;
   }
 
-  function centerOnNode(nodeId: string, force = false) {
+  function centerOnNode(nodeId: string) {
     const node = nodeMap.get(nodeId) ?? nodeMap.get("root");
     if (!node) return;
 
     const targetX = -(node.x ?? 0) * view.zoom;
     const targetY = -(node.y ?? 0) * view.zoom;
-    if (force) {
-      view.viewOffset.x = targetX;
-      view.viewOffset.y = targetY;
-    } else {
-      view.viewOffset.x += (targetX - view.viewOffset.x) * 0.42;
-      view.viewOffset.y += (targetY - view.viewOffset.y) * 0.42;
-    }
+    view.viewOffset.x = targetX;
+    view.viewOffset.y = targetY;
   }
 
   function fitGraph() {
@@ -960,6 +960,8 @@ async function createGraphRuntime(options: {
     relatedLabelSet: Set<string>,
     focusSet: Set<string>,
   ) {
+    const compactViewport = view.width <= 680;
+
     runtimeNodes.forEach((node) => {
       const point = worldToScreen(node.x, node.y);
       const isCurrent = node.id === currentNodeId;
@@ -972,7 +974,7 @@ async function createGraphRuntime(options: {
         relatedLabelSet.has(node.id) ||
         (focusSet.has(node.id) && node.type === "section" && focusNode?.type !== "root");
 
-      node.labelElement.classList.toggle("is-visible", showLabel);
+      node.labelElement.classList.toggle("is-visible", !compactViewport && showLabel);
       node.labelElement.classList.toggle("is-current", isCurrent);
       node.labelElement.classList.toggle("is-hover", isHover);
       node.labelElement.classList.toggle(
@@ -1021,6 +1023,16 @@ async function createGraphRuntime(options: {
 
   function setPreviewNode(nodeId: string | null) {
     previewNodeId = nodeId;
+    render();
+  }
+
+  function syncCurrentNode(nodeId: string, forceCenter = false) {
+    currentNodeId = nodeId || "root";
+    if (forceCenter) {
+      centerOnNode(currentNodeId);
+    } else {
+      fitGraph();
+    }
     render();
   }
 
@@ -1165,9 +1177,9 @@ async function createGraphRuntime(options: {
     }
   });
 
-  canvas.addEventListener("pointerup", (event) => {
+  function finishPointerInteraction(event: PointerEvent) {
     const pointer = getPointer(event);
-    const node = getNodeAtPoint(pointer.x, pointer.y);
+    const node = event.type === "pointercancel" ? null : getNodeAtPoint(pointer.x, pointer.y);
     const movedDistance = pointerDownState
       ? Math.hypot(
           pointer.x - pointerDownState.originX,
@@ -1176,6 +1188,7 @@ async function createGraphRuntime(options: {
       : Infinity;
 
     if (
+      event.type !== "pointercancel" &&
       pointerDownState &&
       !pointerDownState.hasDragged &&
       movedDistance <= GRAPH_CLICK_THRESHOLD_PX &&
@@ -1200,7 +1213,10 @@ async function createGraphRuntime(options: {
     if (canvas.hasPointerCapture(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId);
     }
-  });
+  }
+
+  canvas.addEventListener("pointerup", finishPointerInteraction);
+  canvas.addEventListener("pointercancel", finishPointerInteraction);
 
   canvas.addEventListener(
     "wheel",
@@ -1220,7 +1236,6 @@ async function createGraphRuntime(options: {
 
   currentNodeId = getCurrentNodeId();
   resize();
-  centerOnNode(currentNodeId, true);
   render();
 
   return {
@@ -1229,9 +1244,7 @@ async function createGraphRuntime(options: {
     resize,
     dispose,
     setCurrentNode(nodeId: string, forceCenter = false) {
-      currentNodeId = nodeId || "root";
-      centerOnNode(currentNodeId, forceCenter);
-      render();
+      syncCurrentNode(nodeId, forceCenter);
     },
     setHoverNode,
     setPreviewNode,
@@ -1239,10 +1252,23 @@ async function createGraphRuntime(options: {
   } satisfies GraphRuntime;
 }
 
-export function initGlobalGraphModal() {
+const GLOBAL_GRAPH_CONTROLLER_KEY = "__globalGraphController";
+
+export function initGlobalGraphModal(): GlobalGraphModalController | null {
   const modal = document.getElementById("global-graph-modal");
-  if (!(modal instanceof HTMLElement) || modal.dataset.graphBound === "true") {
-    return;
+  if (!(modal instanceof HTMLElement)) {
+    return null;
+  }
+
+  const existingController = (modal as HTMLElement & {
+    [GLOBAL_GRAPH_CONTROLLER_KEY]?: GlobalGraphModalController;
+  })[GLOBAL_GRAPH_CONTROLLER_KEY];
+  if (existingController) {
+    return existingController;
+  }
+
+  if (modal.dataset.graphBound === "true") {
+    return null;
   }
 
   const modalEl = modal;
@@ -1392,7 +1418,7 @@ export function initGlobalGraphModal() {
     syncTreeOpenState(currentNodeId);
     syncTreeCurrentItem(currentNodeId);
     centerTreeOnCurrentItem();
-    graphRuntime?.setCurrentNode(currentNodeId, true);
+    graphRuntime?.setCurrentNode(currentNodeId);
   }
 
   function navigateTo(route: string, options?: { closeModal?: boolean }) {
@@ -1456,7 +1482,7 @@ export function initGlobalGraphModal() {
     })
       .then((runtime) => {
         graphRuntime = runtime;
-        runtime.setCurrentNode(currentNodeId, true);
+        runtime.setCurrentNode(currentNodeId);
         return runtime;
       })
       .catch((error) => {
@@ -1481,7 +1507,7 @@ export function initGlobalGraphModal() {
     try {
       const runtime = await ensureGraphRuntime();
       runtime.resize();
-      runtime.setCurrentNode(currentNodeId, true);
+      runtime.setCurrentNode(currentNodeId);
       runtime.start();
     } catch {
       return;
@@ -1493,7 +1519,7 @@ export function initGlobalGraphModal() {
     syncCurrentLocation();
     if (!isOpen) return;
     graphRuntime?.resize();
-    graphRuntime?.setCurrentNode(currentNodeId, true);
+    graphRuntime?.setCurrentNode(currentNodeId);
   }
 
   const onKeydown: EventListener = (event) => {
@@ -1510,10 +1536,6 @@ export function initGlobalGraphModal() {
   themeObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ["class", "data-theme"],
-  });
-
-  document.querySelectorAll("[data-open-global-graph]").forEach((button) => {
-    addListener(button, "click", openModal);
   });
 
   modalEl.querySelectorAll("[data-close-global-graph]").forEach((element) => {
@@ -1589,11 +1611,13 @@ export function initGlobalGraphModal() {
     graphRuntime = null;
     graphRuntimePromise = null;
     modalEl.dataset.graphBound = "false";
+    delete (modalEl as HTMLElement & {
+      [GLOBAL_GRAPH_CONTROLLER_KEY]?: GlobalGraphModalController;
+    })[GLOBAL_GRAPH_CONTROLLER_KEY];
     document.body.classList.remove("global-graph-open");
   };
 
   [
-    { element: document, eventType: "astro:before-swap", options: { once: true } },
     { element: window, eventType: "beforeunload", options: { once: true } },
   ].forEach(({ element, eventType, options }) => {
     element.addEventListener(eventType, cleanup, options);
@@ -1606,4 +1630,12 @@ export function initGlobalGraphModal() {
   });
 
   syncCurrentLocation();
+  const controller = {
+    open: openModal,
+    close: closeModal,
+  } satisfies GlobalGraphModalController;
+  (modalEl as HTMLElement & {
+    [GLOBAL_GRAPH_CONTROLLER_KEY]?: GlobalGraphModalController;
+  })[GLOBAL_GRAPH_CONTROLLER_KEY] = controller;
+  return controller;
 }

@@ -1,0 +1,22 @@
+<div data-global-graph-root></div>
+
+<script>
+  const GLOBAL_GRAPH_LAUNCHER_KEY = "__globalGraphLauncherModule";
+
+  async function openGlobalGraphFromLauncher() {
+    window[GLOBAL_GRAPH_LAUNCHER_KEY] ??= import("@/lib/global-graph/launcher");
+    const { openGlobalGraph } = await window[GLOBAL_GRAPH_LAUNCHER_KEY];
+    await openGlobalGraph();
+  }
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const button = target.closest("[data-open-global-graph]");
+    if (!(button instanceof HTMLElement)) return;
+
+    event.preventDefault();
+    void openGlobalGraphFromLauncher();
+  });
+</script>

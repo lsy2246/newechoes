@@ -857,6 +857,9 @@
   height: 100%;
   display: block;
   cursor: grab;
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
   z-index: 2;
 }
 
@@ -1084,6 +1087,8 @@
   .global-graph-stage {
     display: flex;
     flex-direction: column;
+    padding-top: 0.95rem;
+    border-top: 1px solid var(--graph-border);
   }
 
   .global-graph-stage-canvas {

@@ -7,7 +7,7 @@ if (mode === "rebuild") {
 }
 
 try {
-  const { prepareArticleIndexRuntimeArtifacts } = await import("../src/plugins/build-article-index.js");
+  const { prepareArticleIndexRuntimeArtifacts } = await import("../src/plugins/article-index/integration.js");
   prepareArticleIndexRuntimeArtifacts();
   console.log(`[article-index-runtime] ${mode} completed`);
 } catch (error) {

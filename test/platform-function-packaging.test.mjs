@@ -19,7 +19,7 @@ const sharedServerSources = [
   readFileSync("src/server/api/weread.ts", "utf8"),
   readFileSync("src/server/api/git-projects.ts", "utf8"),
   readFileSync("src/server/api/google-photos.ts", "utf8"),
-  readFileSync("src/lib/server-asset-relay.ts", "utf8"),
+  readFileSync("src/lib/server/asset-relay.ts", "utf8"),
   readFileSync("src/lib/google-photos/shared.ts", "utf8"),
   readFileSync("src/lib/google-photos/node.ts", "utf8"),
 ];
