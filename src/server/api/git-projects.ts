@@ -21,6 +21,15 @@ interface Pagination {
   hasPrev: boolean;
 }
 
+function readProcessEnv(name: string) {
+  if (typeof process === 'undefined') {
+    return undefined;
+  }
+
+  const value = process.env?.[name];
+  return typeof value === 'string' ? value.trim() : undefined;
+}
+
 export async function GET({ request }: { request: Request }) {
   const log = createServerRequestLog('api.git-projects', request);
   try {
@@ -294,7 +303,7 @@ function parseGithubPagination(linkHeader: string | undefined, currentPage: numb
 }
 
 function createGithubHeaders() {
-  const token = process.env.GITHUB_TOKEN?.trim();
+  const token = readProcessEnv('GITHUB_TOKEN');
   return {
     'Accept': 'application/vnd.github+json',
     'User-Agent': 'newechoes-git-projects',

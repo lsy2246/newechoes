@@ -153,6 +153,16 @@ test("swup exposes and tears down one shared instance for page scripts", () => {
   assert.ok(swupInit.includes("delete window.swup"));
 });
 
+test("swup bridges page:view to Astro lifecycle events for navigation-driven page scripts", () => {
+  assert.ok(swupInit.includes("function dispatchAstroNavigationLifecycle"));
+  assert.ok(swupInit.includes("dispatchAstroNavigationEvent('astro:after-swap', detail);"));
+  assert.ok(swupInit.includes("dispatchAstroNavigationEvent('astro:page-load', detail);"));
+  assert.match(
+    swupInit,
+    /swup\.hooks\.on\('page:view', \(visit\) => \{[\s\S]*dispatchAstroNavigationLifecycle\(visit\);/,
+  );
+});
+
 test("swup owns timeline year spy lifecycle outside page inline scripts", () => {
   assert.ok(swupInit.includes("const timelineYearSpy ="));
   assert.ok(swupInit.includes("document.querySelectorAll('[data-timeline-year-link]')"));

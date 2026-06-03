@@ -161,6 +161,27 @@ function hideLoadingSpinnerImmediately(spinner) {
   setSwupLoadingState(false);
 }
 
+function dispatchAstroNavigationEvent(name, detail) {
+  document.dispatchEvent(new CustomEvent(name, {
+    bubbles: true,
+    detail,
+  }));
+}
+
+function dispatchAstroNavigationLifecycle(visit) {
+  if (!visit?.to?.url) return;
+
+  const detail = {
+    source: 'swup',
+    from: visit?.from?.url || window.location.href,
+    to: visit.to.url,
+    timestamp: Date.now(),
+  };
+
+  dispatchAstroNavigationEvent('astro:after-swap', detail);
+  dispatchAstroNavigationEvent('astro:page-load', detail);
+}
+
 // 根据当前路径同步首页专属的 body class
 // (home page 走 overlay header + full-bleed；其他页面不能带这些 class)
 function isHomeUrl(url = window.location.pathname) {
@@ -854,7 +875,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   // 8. 页面完全加载完成
-  swup.hooks.on('page:view', () => {
+  swup.hooks.on('page:view', (visit) => {
     isLoading = false;
     contentReady = false;
     animationInProgress = false;
@@ -866,6 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 同步 body 上的页面级 layout class —— swup 不会自动替换 body 属性
     syncPageShellState();
     timelineYearSpy.init();
+    dispatchAstroNavigationLifecycle(visit);
   });
   
   // 加载失败处理

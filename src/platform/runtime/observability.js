@@ -1,7 +1,25 @@
 import { getDeployTarget } from "../shared/target.js";
 
-function createCloudflareAnalyticsScripts() {
-  const token = process.env.PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN?.trim();
+function getRuntimeEnv() {
+  return typeof process !== "undefined" ? process.env : undefined;
+}
+
+function readTrimmedEnv(name, env = getRuntimeEnv()) {
+  const value = env?.[name];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isExplicitVercelEnvironment(env = getRuntimeEnv()) {
+  if (readTrimmedEnv("DEPLOY_TARGET", env).toLowerCase() === "vercel") {
+    return true;
+  }
+
+  const vercelFlag = readTrimmedEnv("VERCEL", env).toLowerCase();
+  return vercelFlag === "1" || vercelFlag === "true";
+}
+
+function createCloudflareAnalyticsScripts(env = getRuntimeEnv()) {
+  const token = readTrimmedEnv("PUBLIC_CLOUDFLARE_WEB_ANALYTICS_TOKEN", env);
   if (!token) {
     return [];
   }
@@ -17,13 +35,13 @@ function createCloudflareAnalyticsScripts() {
   ];
 }
 
-function createEdgeOneTelemetryScripts() {
-  const src = process.env.PUBLIC_EDGEONE_TELEMETRY_SRC?.trim();
+function createEdgeOneTelemetryScripts(env = getRuntimeEnv()) {
+  const src = readTrimmedEnv("PUBLIC_EDGEONE_TELEMETRY_SRC", env);
   if (!src) {
     return [];
   }
 
-  const websiteId = process.env.PUBLIC_EDGEONE_TELEMETRY_ID?.trim();
+  const websiteId = readTrimmedEnv("PUBLIC_EDGEONE_TELEMETRY_ID", env);
 
   return [
     {
@@ -38,14 +56,14 @@ function createEdgeOneTelemetryScripts() {
   ];
 }
 
-export function getPlatformObservability() {
-  const target = getDeployTarget();
+export function getPlatformObservability(env = getRuntimeEnv()) {
+  const target = getDeployTarget(env);
 
   if (target === "cloudflare") {
     return {
       provider: target,
       speedInsights: false,
-      bodyScripts: createCloudflareAnalyticsScripts(),
+      bodyScripts: createCloudflareAnalyticsScripts(env),
     };
   }
 
@@ -53,13 +71,13 @@ export function getPlatformObservability() {
     return {
       provider: target,
       speedInsights: false,
-      bodyScripts: createEdgeOneTelemetryScripts(),
+      bodyScripts: createEdgeOneTelemetryScripts(env),
     };
   }
 
   return {
     provider: target,
-    speedInsights: true,
+    speedInsights: isExplicitVercelEnvironment(env),
     bodyScripts: [],
   };
 }
