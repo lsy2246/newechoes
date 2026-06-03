@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
+import "./helpers/ensure-generated-function-wrappers.mjs";
 
 const astroConfigSource = readFileSync("astro.config.mjs", "utf8");
 const buildConfigHelpers = readFileSync("src/platform/build/astro-config.js", "utf8");
@@ -61,5 +62,8 @@ test("platform wrappers exist for every public api route", () => {
 
 test("cloudflare deploy script targets pages instead of worker wrangler output", () => {
   const parsed = JSON.parse(packageJson);
-  assert.equal(parsed.scripts["deploy:cloudflare"], "pnpm exec wrangler pages deploy dist");
+  assert.equal(
+    parsed.scripts["deploy:cloudflare"],
+    "pnpm run generate:function-wrappers && pnpm exec wrangler pages deploy dist",
+  );
 });

@@ -1,5 +1,8 @@
 # build output
 dist/
+api/
+functions/
+cloud-functions/
 
 # generated types
 .astro/

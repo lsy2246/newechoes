@@ -11,11 +11,11 @@
     "build:cloudflare": "pnpm run generate:function-wrappers && node scripts/astro-build.mjs cloudflare",
     "verify:index-runtime": "node scripts/article-index-runtime.mjs verify",
     "rebuild:index-runtime": "node scripts/article-index-runtime.mjs rebuild",
-    "deploy:cloudflare": "pnpm exec wrangler pages deploy dist",
+    "deploy:cloudflare": "pnpm run generate:function-wrappers && pnpm exec wrangler pages deploy dist",
     "preview": "pnpm exec astro preview",
     "astro": "pnpm exec astro",
     "new-post": "node src/plugins/new-post.mjs",
-    "test": "node --test"
+    "test": "pnpm run generate:function-wrappers && node --test"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

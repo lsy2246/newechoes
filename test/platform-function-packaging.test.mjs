@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import "./helpers/ensure-generated-function-wrappers.mjs";
 
 const gitignoreSource = readFileSync(".gitignore", "utf8");
 const tsconfigSource = readFileSync("tsconfig.json", "utf8");
@@ -23,9 +24,10 @@ const sharedServerSources = [
   readFileSync("src/lib/google-photos/node.ts", "utf8"),
 ];
 
-test("platform function directories are not gitignored", () => {
-  assert.doesNotMatch(gitignoreSource, /^functions\/\*/m);
-  assert.doesNotMatch(gitignoreSource, /^cloud-functions\/\*/m);
+test("generated platform wrapper directories are gitignored", () => {
+  assert.match(gitignoreSource, /^api\/$/m);
+  assert.match(gitignoreSource, /^functions\/$/m);
+  assert.match(gitignoreSource, /^cloud-functions\/$/m);
 });
 
 test("vercel node wrappers use explicit .js extensions for relative ESM imports", () => {

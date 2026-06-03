@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import "./helpers/ensure-generated-function-wrappers.mjs";
 
 const buildConfigHelpers = readFileSync("src/platform/build/astro-config.js", "utf8");
 const doubanApiSource = readFileSync("src/server/api/douban.ts", "utf8");
