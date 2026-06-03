@@ -452,10 +452,15 @@ function logRuntimeArtifactSummary() {
 }
 
 export function prepareArticleIndexRuntimeArtifacts() {
+  if (process.env.ARTICLE_INDEX_RUNTIME_PREPARED === 'true') {
+    return;
+  }
+
   ensureWasmAssets();
   ensureArticleIndexerBinary();
   ensureStaticIndexRuntimeArtifacts();
   logRuntimeArtifactSummary();
+  process.env.ARTICLE_INDEX_RUNTIME_PREPARED = 'true';
 }
 
 function copyDirectoryContents(sourceDir, targetDir) {

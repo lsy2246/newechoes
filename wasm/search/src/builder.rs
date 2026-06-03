@@ -165,7 +165,7 @@ impl SearchBuilder {
             // 获取标题级别
             let level = cap
                 .get(1)
-                .and_then(|m| m.as_str().parse::<usize>().ok())
+                .and_then(|m| m.as_str().parse::<u32>().ok())
                 .unwrap_or(1);
 
             // 获取标题文本并清理HTML标签
@@ -178,7 +178,7 @@ impl SearchBuilder {
             }
 
             // 记录标题在文档中的位置
-            let position = cap.get(0).map_or(0, |m| m.start());
+            let position = cap.get(0).map_or(0, |m| m.start() as u32);
 
             // 添加到提取的标题列表
             extracted_headings.push((level, text, position));
@@ -197,7 +197,7 @@ impl SearchBuilder {
                     continue;
                 }
 
-                let position = cap.get(0).map_or(0, |m| m.start());
+                let position = cap.get(0).map_or(0, |m| m.start() as u32);
                 // 默认级别为1
                 extracted_headings.push((1, text, position));
             }
@@ -218,11 +218,11 @@ impl SearchBuilder {
     /// 从提取的标题数组构建标题层级结构
     fn build_heading_hierarchy(
         &self,
-        sorted_headings: Vec<(usize, String, usize)>, // (级别, 文本, 位置)
+        sorted_headings: Vec<(u32, String, u32)>, // (级别, 文本, 位置)
         article: &ArticleMetadata,
     ) -> HashMap<String, HeadingIndexEntry> {
         let mut result = HashMap::new();
-        let mut heading_stack: Vec<(String, usize)> = Vec::new(); // (ID, 级别)
+        let mut heading_stack: Vec<(String, u32)> = Vec::new(); // (ID, 级别)
         let mut children_map: HashMap<String, Vec<String>> = HashMap::new(); // 存储子标题关系
 
         // 遍历排序后的标题，构建层级关系
@@ -233,7 +233,7 @@ impl SearchBuilder {
             let end_position = if idx + 1 < sorted_headings.len() {
                 sorted_headings[idx + 1].2
             } else {
-                article.content.len()
+                article.content.len() as u32
             };
 
             // 查找父标题: 向上查找堆栈中第一个级别小于当前标题的条目
@@ -306,7 +306,7 @@ impl SearchBuilder {
         article: &ArticleMetadata,
     ) -> HashMap<String, HeadingIndexEntry> {
         // 将预解析的标题转换为(级别, 文本, 位置)的格式
-        let mut extracted: Vec<(usize, String, usize)> = headings
+        let mut extracted: Vec<(u32, String, u32)> = headings
             .iter()
             .map(|h| (h.level, h.text.clone(), h.position))
             .collect();
@@ -352,13 +352,14 @@ impl SearchBuilder {
         .collect();
 
         // 统计词频
-        let mut term_frequency: HashMap<String, usize> = HashMap::new();
+        let mut term_frequency: HashMap<String, u32> = HashMap::new();
 
         // 构建内容关键词索引
-        let mut content_term_index: HashMap<String, HashSet<usize>> = HashMap::new();
+        let mut content_term_index: HashMap<String, HashSet<u32>> = HashMap::new();
 
         // 遍历所有文章，提取关键词和构建内容索引
         for (article_id, article) in self.articles.iter().enumerate() {
+            let article_id = article_id as u32;
             // 标题关键词
             let title_keywords = self.extract_keywords(&article.title);
             for keyword in &title_keywords {
@@ -369,7 +370,7 @@ impl SearchBuilder {
 
             // 内容关键词
             let content_keywords = self.extract_keywords(&article.content);
-            let mut content_term_freq: HashMap<String, usize> = HashMap::new();
+            let mut content_term_freq: HashMap<String, u32> = HashMap::new();
 
             // 先统计文章内的词频
             for keyword in content_keywords {
@@ -393,7 +394,7 @@ impl SearchBuilder {
         }
 
         // 选择最常用的词作为常用词汇
-        let mut terms: Vec<(String, usize)> = term_frequency.into_iter().collect();
+        let mut terms: Vec<(String, u32)> = term_frequency.into_iter().collect();
         terms.sort_by(|a, b| b.1.cmp(&a.1)); // 按频率降序排序
 
         let mut common_terms = HashMap::new();
@@ -466,10 +467,11 @@ impl SearchBuilder {
     }
 
     /// 构建标题关键词到文章的索引
-    fn build_title_term_index(&self) -> HashMap<String, HashSet<usize>> {
+    fn build_title_term_index(&self) -> HashMap<String, HashSet<u32>> {
         let mut title_term_index = HashMap::new();
 
         for (article_id, article) in self.articles.iter().enumerate() {
+            let article_id = article_id as u32;
             // 从标题中提取关键词
             let title_keywords = self.extract_keywords(&article.title);
 

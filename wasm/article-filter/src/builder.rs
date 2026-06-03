@@ -34,15 +34,19 @@ impl FilterBuilder {
         println!("开始构建筛选索引，文章数量: {}", self.articles.len());
 
         // 创建索引数据结构
-        let mut tag_index: HashMap<String, HashSet<usize>> = HashMap::new();
-        let mut year_index: HashMap<i32, HashSet<usize>> = HashMap::new();
-        let mut month_index: HashMap<String, HashSet<usize>> = HashMap::new();
+        let mut tag_index: HashMap<String, HashSet<u32>> = HashMap::new();
+        let mut year_index: HashMap<i32, HashSet<u32>> = HashMap::new();
+        let mut month_index: HashMap<String, HashSet<u32>> = HashMap::new();
 
         // 填充索引
         for (i, article) in self.articles.iter().enumerate() {
+            let article_id = i as u32;
             // 标签索引
             for tag in &article.tags {
-                tag_index.entry(tag.clone()).or_insert_with(HashSet::new).insert(i);
+                tag_index
+                    .entry(tag.clone())
+                    .or_insert_with(HashSet::new)
+                    .insert(article_id);
             }
 
             // 日期索引
@@ -50,11 +54,17 @@ impl FilterBuilder {
             let year = date.year();
             
             // 按年索引
-            year_index.entry(year).or_insert_with(HashSet::new).insert(i);
+            year_index
+                .entry(year)
+                .or_insert_with(HashSet::new)
+                .insert(article_id);
             
             // 按年月索引 (格式：yyyy-mm)
             let month_key = format!("{}-{:02}", year, date.month());
-            month_index.entry(month_key).or_insert_with(HashSet::new).insert(i);
+            month_index
+                .entry(month_key)
+                .or_insert_with(HashSet::new)
+                .insert(article_id);
         }
 
         println!("索引构建完成，标签数量: {}, 年份数量: {}, 月份数量: {}", 

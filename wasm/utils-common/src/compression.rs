@@ -6,17 +6,14 @@ pub const MAGIC_BYTES: &'static [u8] = b"NECMP"; // NewEchoes Compressed
 
 /// 将对象序列化为二进制格式
 pub fn to_binary<T: serde::Serialize>(obj: &T) -> Result<Vec<u8>, io::Error> {
-    // 直接使用bincode标准配置序列化原始对象
-    bincode::serde::encode_to_vec(obj, bincode::config::standard())
+    serde_json::to_vec(obj)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("序列化失败: {}", e)))
 }
 
 /// 从二进制格式反序列化对象
 pub fn from_binary<T: for<'a> serde::de::Deserialize<'a>>(data: &[u8]) -> Result<T, io::Error> {
-    // 使用bincode标准配置从二进制数据反序列化对象
-    bincode::serde::decode_from_slice(data, bincode::config::standard())
+    serde_json::from_slice(data)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("反序列化失败: {}", e)))
-        .map(|(value, _)| value)
 }
 
 /// 将对象序列化为压缩的二进制格式

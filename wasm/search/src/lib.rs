@@ -145,7 +145,7 @@ fn get_search_suggestions(search_index: &ArticleSearchIndex, query: &str) -> Vec
 
     // 如果查询为空，返回热门词汇
     if query.is_empty() {
-        let mut common_terms: Vec<(String, usize)> = search_index
+        let mut common_terms: Vec<(String, u32)> = search_index
             .common_terms
             .iter()
             .map(|(term, freq)| (term.clone(), *freq))
@@ -598,6 +598,7 @@ fn find_matched_articles(search_index: &ArticleSearchIndex, terms: &[String]) ->
     // 第4步: 从索引中查找匹配
     if let Some(article_ids) = search_index.title_term_index.get(query) {
         for &article_id in article_ids {
+            let article_id = article_id as usize;
             if seen_articles.contains(&article_id) {
                 continue;
             }
@@ -625,6 +626,7 @@ fn find_matched_articles(search_index: &ArticleSearchIndex, terms: &[String]) ->
     // 第6步: 从内容索引中查找
     if let Some(article_ids) = search_index.content_term_index.get(query) {
         for &article_id in article_ids {
+            let article_id = article_id as usize;
             if seen_articles.contains(&article_id) || article_id >= search_index.articles.len() {
                 continue;
             }
@@ -657,7 +659,7 @@ fn extract_article_id_from_heading(heading_id: &str) -> Option<usize> {
     // 标题ID的格式为 "article_id:heading_index"
     if let Some(colon_pos) = heading_id.find(':') {
         if let Some(article_id_str) = heading_id.get(0..colon_pos) {
-            return article_id_str.parse::<usize>().ok();
+            return article_id_str.parse::<u32>().ok().map(|id| id as usize);
         }
     }
     None
@@ -670,8 +672,9 @@ fn find_matches_in_paragraph(
     terms: &[String],
 ) -> Option<(String, Vec<String>)> {
     // 提取标题下的内容，确保位置在有效的字符边界上
-    let mut content_start = heading.start_position + heading.text.len() + heading.level + 1; // +1 for the space
-    let mut content_end = heading.end_position;
+    let mut content_start =
+        heading.start_position as usize + heading.text.len() + heading.level as usize + 1; // +1 for the space
+    let mut content_end = heading.end_position as usize;
 
     // 确保起始位置是有效的字符边界
     if content_start < article.content.len() {
@@ -950,7 +953,7 @@ fn build_heading_tree_with_matches(
             level: 0,
             text: article.title.clone(),
             start_position: 0,
-            end_position: article.content.len(),
+            end_position: article.content.len() as u32,
             parent_id: None,
             children_ids: Vec::new(),
         };
@@ -992,7 +995,7 @@ fn build_heading_tree_with_matches(
         level: 0,
         text: article.title.clone(),
         start_position: 0,
-        end_position: article.content.len(),
+        end_position: article.content.len() as u32,
         parent_id: None,
         children_ids: root_headings.iter().map(|entry| entry.id.clone()).collect(),
     };

@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Heading {
     /// 标题级别（1表示h1，2表示h2，依此类推）
-    pub level: usize,
+    pub level: u32,
     /// 标题文本
     pub text: String,
     /// 标题在文章中的开始位置（字符偏移量）
-    pub position: usize,
+    pub position: u32,
     /// 标题内容结束位置（下一个标题开始前或文章结束）
-    pub end_position: Option<usize>,
+    pub end_position: Option<u32>,
 }
 
 /// 文章元数据 - 存储索引所需的文章基本信息
@@ -65,9 +65,9 @@ pub enum IndexType {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct IndexMetadata {
     /// 索引包含的文章数量
-    pub article_count: usize,
+    pub article_count: u32,
     /// 索引包含的标签数量
-    pub tag_count: usize,
+    pub tag_count: u32,
     /// 索引创建时间
     pub created_at: DateTime<Utc>,
     /// 索引版本
@@ -75,7 +75,7 @@ pub struct IndexMetadata {
     /// 索引类型
     pub index_type: IndexType,
     /// 索引中的词元总数
-    pub token_count: usize,
+    pub token_count: u32,
 }
 
 /// 标题索引项 - 存储标题与内容匹配关系
@@ -84,13 +84,13 @@ pub struct HeadingIndexEntry {
     /// 标题ID (文章ID:标题索引)
     pub id: String,
     /// 标题级别
-    pub level: usize,
+    pub level: u32,
     /// 标题文本
     pub text: String,
     /// 标题内容起始位置
-    pub start_position: usize,
+    pub start_position: u32,
     /// 标题内容结束位置
-    pub end_position: usize,
+    pub end_position: u32,
     /// 父标题ID (如果有)
     pub parent_id: Option<String>,
 } 

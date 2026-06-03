@@ -746,13 +746,13 @@ fn extract_headings(handle: &Handle, content: &str) -> Vec<Heading> {
             
             // 查找标题在内容中的位置
             if let Some(pos) = content_lower.find(&heading_text) {
-                headings[i].position = pos;
+                headings[i].position = pos as u32;
                 
                 // 计算结束位置（下一个标题的开始，或者文档结束）
                 if i < headings.len() - 1 {
                     headings[i].end_position = Some(headings[i + 1].position);
                 } else {
-                    headings[i].end_position = Some(content.len());
+                    headings[i].end_position = Some(content.len() as u32);
                 }
             }
         }
@@ -782,9 +782,9 @@ fn extract_headings_from_element(handle: &Handle, headings: &mut Vec<Heading>, p
                             if !headings.iter().any(|h| h.text == trimmed_text) {
                                 // 创建标题对象
                                 headings.push(Heading {
-                                    level: level as usize,
+                                    level,
                                     text: trimmed_text,
-                                    position,
+                                    position: position as u32,
                                     end_position: None, // 稍后填充
                                 });
                             }
@@ -862,9 +862,9 @@ fn extract_headings_internal(handle: &Handle, headings: &mut Vec<Heading>, posit
                             if !headings.iter().any(|h| h.text == trimmed_text) {
                                 // 创建标题对象
                                 headings.push(Heading {
-                                    level: level as usize,
+                                    level,
                                     text: trimmed_text,
-                                    position,
+                                    position: position as u32,
                                     end_position: None, // 稍后填充
                                 });
                             }

@@ -8,11 +8,11 @@ pub struct FilterIndex {
     /// 所有文章的元数据列表
     pub articles: Vec<ArticleMetadata>,
     /// 标签到文章ID列表的映射
-    pub tag_index: HashMap<String, HashSet<usize>>,
+    pub tag_index: HashMap<String, HashSet<u32>>,
     /// 年份到文章ID列表的映射
-    pub year_index: HashMap<i32, HashSet<usize>>,
+    pub year_index: HashMap<i32, HashSet<u32>>,
     /// 月份到文章ID列表的映射（格式：yyyy-mm）
-    pub month_index: HashMap<String, HashSet<usize>>,
+    pub month_index: HashMap<String, HashSet<u32>>,
 }
 
 /// 筛选规则 - 定义筛选条件

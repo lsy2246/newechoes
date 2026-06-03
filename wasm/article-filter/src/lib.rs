@@ -152,7 +152,13 @@ impl ArticleFilter {
         // 转换标签索引
         let mut tag_index = HashMap::new();
         for (tag, article_ids) in filter_index.tag_index {
-            tag_index.insert(tag, article_ids.into_iter().collect::<Vec<_>>());
+            tag_index.insert(
+                tag,
+                article_ids
+                    .into_iter()
+                    .map(|id| id as usize)
+                    .collect::<Vec<_>>(),
+            );
         }
         
         ArticleIndex {

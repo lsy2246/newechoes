@@ -9,13 +9,13 @@ pub struct HeadingIndexEntry {
     /// 标题ID (文章ID:标题索引)
     pub id: String,
     /// 标题级别
-    pub level: usize,
+    pub level: u32,
     /// 标题文本
     pub text: String,
     /// 标题内容起始位置
-    pub start_position: usize,
+    pub start_position: u32,
     /// 标题内容结束位置
-    pub end_position: usize,
+    pub end_position: u32,
     /// 父标题ID (如果有)
     pub parent_id: Option<String>,
     /// 子标题ID列表
@@ -30,7 +30,7 @@ pub struct HeadingNode {
     /// 标题文本
     pub text: String,
     /// 标题级别
-    pub level: usize,
+    pub level: u32,
     /// 该标题下匹配的内容
     pub content: Option<String>,
     /// 匹配的关键词列表
@@ -43,7 +43,7 @@ pub struct HeadingNode {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ArticleSearchIndex {
     /// 关键词到文章ID的映射（标题）
-    pub title_term_index: HashMap<String, HashSet<usize>>,
+    pub title_term_index: HashMap<String, HashSet<u32>>,
     /// 文章的元数据列表
     pub articles: Vec<ArticleMetadata>,
     /// 标题索引 - 标题ID到标题信息的映射
@@ -51,9 +51,9 @@ pub struct ArticleSearchIndex {
     /// 关键词到标题ID的映射
     pub heading_term_index: HashMap<String, HashSet<String>>,
     /// 常用词汇及其频率
-    pub common_terms: HashMap<String, usize>,
+    pub common_terms: HashMap<String, u32>,
     /// 内容关键词到文章ID的映射
-    pub content_term_index: HashMap<String, HashSet<usize>>,
+    pub content_term_index: HashMap<String, HashSet<u32>>,
 }
 
 /// 搜索请求结构
@@ -92,7 +92,7 @@ pub struct SuggestionCandidate {
     /// 建议类型
     pub suggestion_type: SuggestionType,
     /// 原始关键词频率
-    pub frequency: usize,
+    pub frequency: u32,
 }
 
 /// 搜索建议结构（对外输出）

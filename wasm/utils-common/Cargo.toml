@@ -6,6 +6,7 @@ description = "Common utilities for article processing WASM modules"
 
 [dependencies]
 serde = { workspace = true }
+serde_json = { workspace = true }
 chrono = { workspace = true }
 bincode = { workspace = true }
 flate2 = { workspace = true }

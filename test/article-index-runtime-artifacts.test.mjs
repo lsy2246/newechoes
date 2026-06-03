@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+
+const astroBuildScript = readFileSync("scripts/astro-build.mjs", "utf8");
+const searchModelsSource = readFileSync("wasm/search/src/models.rs", "utf8");
+const filterModelsSource = readFileSync("wasm/article-filter/src/models.rs", "utf8");
+const sharedModelsSource = readFileSync("wasm/utils-common/src/models.rs", "utf8");
 
 test("stale prebuilt Linux article indexer artifacts are rejected before build", async () => {
   const { assertFreshPrebuiltArtifact } = await import("../src/plugins/build-article-index.js");
@@ -52,6 +58,31 @@ test("CI builds do not reject prebuilt artifacts solely because checkout mtimes 
       stale: true,
     }),
   );
+});
+
+test("astro build prepares index runtime artifacts before bundling client assets", () => {
+  assert.match(
+    astroBuildScript,
+    /prepareArticleIndexRuntimeArtifacts\(\)/,
+  );
+  assert.match(
+    astroBuildScript,
+    /failed to prepare article index runtime artifacts/,
+  );
+});
+
+test("cross-target serialized index models avoid usize fields", () => {
+  assert.doesNotMatch(searchModelsSource, /\bHashSet<usize>\b/);
+  assert.doesNotMatch(searchModelsSource, /\blevel: usize\b/);
+  assert.doesNotMatch(searchModelsSource, /\bstart_position: usize\b/);
+  assert.doesNotMatch(searchModelsSource, /\bend_position: usize\b/);
+  assert.doesNotMatch(searchModelsSource, /\bcommon_terms: HashMap<String, usize>\b/);
+
+  assert.doesNotMatch(filterModelsSource, /\bHashSet<usize>\b/);
+
+  assert.doesNotMatch(sharedModelsSource, /\blevel: usize\b/);
+  assert.doesNotMatch(sharedModelsSource, /\bposition: usize\b/);
+  assert.doesNotMatch(sharedModelsSource, /\bend_position: Option<usize>\b/);
 });
 
 test("generateArticleIndex throws when index generation cannot complete", async () => {
