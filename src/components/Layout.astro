@@ -72,7 +72,7 @@ const personJsonLd = {
 const pageJsonLdItems = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
 const jsonLdItems = [siteJsonLd, personJsonLd, ...pageJsonLdItems];
 const observability = getPlatformObservability();
-const showVercelInsights = observability.speedInsights;
+const showVercelInsights = observability.speedInsights && !import.meta.env.DEV;
 ---
 
 <!doctype html>

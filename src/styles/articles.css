@@ -1897,9 +1897,9 @@ tbody tr:hover,
   font-size: var(--type-caption);
   line-height: 1.45;
   text-decoration-line: underline;
-  text-decoration-color: transparent;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in oklab, var(--article-line-strong) 72%, var(--article-line));
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
   text-overflow: ellipsis;
   transition:
     color 0.16s ease,
@@ -2152,6 +2152,13 @@ tbody tr:hover,
   .article-history-hash,
   .article-history-item time {
     justify-self: start;
+  }
+
+  .article-history-version {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
   }
 
   .article-topbar {

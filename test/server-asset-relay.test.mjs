@@ -70,17 +70,31 @@ test("Weread keeps direct page fetches and uses direct -> relay -> local cover f
   assert.match(wereadComponentSource, /src=\{book\.imageUrl\}/);
 });
 
-test("Google Photos page/media flow uses relay URLs with local API fallback", () => {
+test("Google Photos page/media flow keeps relay-first delivery with backend video fallback", () => {
   assert.match(googlePhotosSource, /server-asset-relay/);
   assert.match(googlePhotosSource, /GOOGLE_PHOTOS_MEDIA_HEADERS/);
+  assert.match(googlePhotosSource, /const googlePhotosImageUrl = \(baseUrl: string, params: string\) =>/);
+  assert.match(googlePhotosSource, /googlePhotosMediaUrl\(baseUrl, `\$\{params\}-no`\)/);
   assert.match(googlePhotosSource, /localGooglePhotosMediaUrl/);
   assert.match(googlePhotosSource, /relayAssetUrl\(mediaUrl,\s*GOOGLE_PHOTOS_MEDIA_HEADERS\)\s*\|\|\s*fallbackUrl/);
+  assert.match(googlePhotosSource, /const streamedGooglePhotosVideoUrl = \(baseUrl: string\) => \{/);
+  assert.match(googlePhotosSource, /const relayUrl = relayAssetUrl\(mediaUrl,\s*GOOGLE_PHOTOS_MEDIA_HEADERS\);/);
+  assert.match(googlePhotosSource, /url:\s*relayUrl\s*\|\|\s*localUrl/);
+  assert.match(googlePhotosSource, /fallbackUrl:\s*relayUrl \? localUrl : null/);
+  assert.match(googlePhotosSource, /const thumbUrl = proxiedGooglePhotosMediaUrl\(baseUrl,\s*"w600"\)/);
+  assert.match(googlePhotosSource, /const displayUrl = proxiedGooglePhotosMediaUrl\(baseUrl,\s*"w1600"\)/);
+  assert.match(googlePhotosSource, /const previewUrl = proxiedGooglePhotosMediaUrl\(baseUrl,\s*"w2400"\)/);
   assert.match(googlePhotosSource, /fetchAssetWithRelayFallback\(\s*shareUrl,\s*\{[\s\S]*headers:\s*GOOGLE_PHOTOS_PAGE_HEADERS/);
   assert.match(googlePhotosSource, /fallbackThumbUrl/);
   assert.match(googlePhotosSource, /fallbackVideoUrl/);
   assert.match(googlePhotosRouteSource, /const mediaUrl = url\.searchParams\.get\("mediaUrl"\)/);
   assert.match(googlePhotosRouteSource, /isAllowedGooglePhotosMediaUrl/);
-  assert.match(googlePhotosRouteSource, /fetchAssetDirect\(\s*mediaUrl,\s*\{[\s\S]*headers:\s*GOOGLE_PHOTOS_MEDIA_HEADERS/);
+  assert.match(googlePhotosRouteSource, /const forwardedRange = request\.headers\.get\("range"\)/);
+  assert.match(googlePhotosRouteSource, /fetchAssetDirect\(\s*mediaUrl,\s*\{[\s\S]*headers:\s*\{[\s\S]*\.\.\.GOOGLE_PHOTOS_MEDIA_HEADERS/);
+  assert.match(googlePhotosRouteSource, /Range:\s*forwardedRange/);
+  assert.match(googlePhotosRouteSource, /new Response\(response\.body,\s*\{[\s\S]*status:\s*response\.status/);
+  assert.match(googlePhotosRouteSource, /accept-ranges/);
+  assert.match(googlePhotosRouteSource, /content-range/);
   assert.match(photoAlbumSource, /fallbackMediaSource/);
   assert.match(photoAlbumSource, /fallbackThumbUrl/);
   assert.match(photoAlbumSource, /fallbackVideoUrl/);

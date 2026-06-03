@@ -41,17 +41,30 @@ export const GOOGLE_PHOTOS_PAGE_HEADERS = {
 };
 
 const googlePhotosMediaUrl = (baseUrl: string, params: string) => `${baseUrl}=${params}`;
+const googlePhotosImageUrl = (baseUrl: string, params: string) =>
+  googlePhotosMediaUrl(baseUrl, `${params}-no`);
 
 const localGooglePhotosMediaUrl = (mediaUrl: string) =>
   `/api/google-photos?mediaUrl=${encodeURIComponent(mediaUrl)}`;
 
 const proxiedGooglePhotosMediaUrl = (baseUrl: string, params: string) => {
-  const mediaUrl = googlePhotosMediaUrl(baseUrl, params);
+  const mediaUrl = googlePhotosImageUrl(baseUrl, params);
   const fallbackUrl = localGooglePhotosMediaUrl(mediaUrl);
 
   return {
     url: relayAssetUrl(mediaUrl, GOOGLE_PHOTOS_MEDIA_HEADERS) || fallbackUrl,
     fallbackUrl,
+  };
+};
+
+const streamedGooglePhotosVideoUrl = (baseUrl: string) => {
+  const mediaUrl = googlePhotosMediaUrl(baseUrl, "dv");
+  const localUrl = localGooglePhotosMediaUrl(mediaUrl);
+  const relayUrl = relayAssetUrl(mediaUrl, GOOGLE_PHOTOS_MEDIA_HEADERS);
+
+  return {
+    url: relayUrl || localUrl,
+    fallbackUrl: relayUrl ? localUrl : null,
   };
 };
 
@@ -99,7 +112,7 @@ export const toPhotoItems = (items: unknown[][], startIndex = 0): GooglePhotoIte
         mediaType === "photo" && width && height
           ? proxiedGooglePhotosMediaUrl(baseUrl, `w${width}-h${height}`)
           : null;
-      const videoUrl = mediaType === "video" ? proxiedGooglePhotosMediaUrl(baseUrl, "dv") : null;
+      const videoUrl = mediaType === "video" ? streamedGooglePhotosVideoUrl(baseUrl) : null;
 
       return {
         index: startIndex + itemIndex + 1,

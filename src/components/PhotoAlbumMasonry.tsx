@@ -195,24 +195,23 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     previewFullImageUrl !== previewImageUrl &&
     previewThumbLoaded;
   const previewVideoStatusText = !previewVideoRequested
-    ? "点击开始加载视频"
+    ? "点击播放视频"
     : previewVideoFailed
       ? "视频加载失败，请重试"
       : !previewVideoReady
         ? "正在加载视频..."
-        : previewVideoPlayRequested && !previewVideoStarted
-          ? "正在缓冲视频..."
-          : !previewVideoStarted
-          ? "已加载首帧，点击播放"
+        : !previewVideoStarted
+          ? "正在开始播放..."
           : "正在缓冲视频...";
   const previewVideoProgressText =
     previewVideoLoadProgress !== null ? `已加载 ${previewVideoLoadProgress}%` : null;
   const isPreviewVideoOverlayVisible = !previewVideoStarted || previewVideoFailed;
   const isPreviewVideoSpinnerVisible =
-    previewVideoRequested &&
-    (!previewVideoReady || previewVideoBuffering || (previewVideoPlayRequested && !previewVideoStarted));
+    previewVideoRequested && !previewVideoFailed && (!previewVideoStarted || previewVideoBuffering);
   const isPreviewVideoPlayButtonVisible = !previewVideoPlayRequested || previewVideoFailed;
   const isPreviewVideoControlsVisible = previewVideoStarted;
+  const previewIconButtonClassName =
+    "z-10 flex h-12 w-12 items-center justify-center rounded-full border border-white/65 bg-white/90 text-neutral-900 shadow-[0_18px_40px_rgba(15,23,42,0.24)] ring-1 ring-black/5 backdrop-blur-md transition duration-200 hover:scale-[1.03] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 active:scale-100";
 
   const abortImageRequest = useCallback((image: HTMLImageElement | null) => {
     if (!image) {
@@ -275,6 +274,27 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     }
   }, []);
 
+  const markPreviewVideoStarted = useCallback(() => {
+    setPreviewThumbLoaded(true);
+    setPreviewVideoReady(true);
+    setPreviewVideoStarted(true);
+    setPreviewVideoBuffering(false);
+    setPreviewVideoFailed(false);
+  }, []);
+
+  const resumePreviewVideoPlayback = useCallback(
+    (video: HTMLVideoElement | null) => {
+      if (!video || !previewVideoPlayRequested || previewVideoStarted || previewVideoFailed) {
+        return;
+      }
+
+      if (video.paused) {
+        playPreviewVideo(video);
+      }
+    },
+    [playPreviewVideo, previewVideoFailed, previewVideoPlayRequested, previewVideoStarted],
+  );
+
   const syncPreviewVideoPlaybackStarted = useCallback((video: HTMLVideoElement | null) => {
     if (!video) {
       return;
@@ -286,22 +306,14 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
         (video.played.length > 0 && video.played.end(video.played.length - 1) > 0);
 
       if (hasAdvancedPlayback) {
-        setPreviewThumbLoaded(true);
-        setPreviewVideoReady(true);
-        setPreviewVideoStarted(true);
-        setPreviewVideoBuffering(false);
-        setPreviewVideoFailed(false);
+        markPreviewVideoStarted();
       }
     } catch {
       if (video.currentTime > 0) {
-        setPreviewThumbLoaded(true);
-        setPreviewVideoReady(true);
-        setPreviewVideoStarted(true);
-        setPreviewVideoBuffering(false);
-        setPreviewVideoFailed(false);
+        markPreviewVideoStarted();
       }
     }
-  }, []);
+  }, [markPreviewVideoStarted]);
 
   const requestPreviewVideo = useCallback(() => {
     if (!selectedPhoto?.videoUrl) {
@@ -318,14 +330,11 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       !previewVideoRequested || previewVideoFailed || !video.currentSrc;
 
     if (!shouldReloadPreviewVideo) {
-      if (previewVideoReady || video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        playPreviewVideo(video);
-      }
+      playPreviewVideo(video);
       return;
     }
 
     setPreviewVideoRequested(true);
-    setPreviewVideoPlayRequested(false);
     setPreviewVideoFailed(false);
     setPreviewVideoReady(false);
     setPreviewVideoStarted(false);
@@ -335,10 +344,10 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
     video.src = selectedPhoto.videoUrl;
     video.poster = selectedPhoto.previewUrl || selectedPhoto.displayUrl;
     video.load();
+    playPreviewVideo(video);
   }, [
     playPreviewVideo,
     previewVideoFailed,
-    previewVideoReady,
     previewVideoRequested,
     selectedPhoto?.displayUrl,
     selectedPhoto?.previewUrl,
@@ -687,13 +696,13 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       ) : null}
 
       {error && photos.length === 0 ? (
-        <div className="rounded-xl bg-red-50 p-6 text-center text-red-700 dark:bg-red-950/30 dark:text-red-200">
+        <div className="rounded-2xl border border-red-100 bg-red-50/80 p-6 text-center text-red-700 shadow-sm dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
           <p className="font-semibold">相册加载失败</p>
           <p className="mt-2 text-sm">{error}</p>
           <button
             type="button"
             onClick={() => fetchPhotoPage(null, 0)}
-            className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            className="mt-5 inline-flex items-center justify-center rounded-full border border-red-200 bg-white px-5 py-2 text-sm font-semibold text-red-700 shadow-[0_10px_24px_rgba(220,38,38,0.08)] transition hover:bg-red-50 dark:border-red-800 dark:bg-red-950/40 dark:text-red-100 dark:hover:bg-red-900/40"
           >
             重试
           </button>
@@ -701,7 +710,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
       ) : null}
 
       {hasLoadedEmptyAlbum ? (
-        <div className="rounded-xl bg-amber-50 p-6 text-center text-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+        <div className="rounded-2xl border border-amber-100 bg-amber-50/80 p-6 text-center text-amber-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
           <p className="font-semibold">相册里暂时没有可显示的照片</p>
           <p className="mt-2 text-sm">
             Google Photos 返回了空结果，可能是分享链接权限、相册内容或本地网络访问导致的。
@@ -709,7 +718,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
           <button
             type="button"
             onClick={() => fetchPhotoPage(null, 0)}
-            className="mt-4 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
+            className="mt-5 inline-flex items-center justify-center rounded-full border border-amber-200 bg-white px-5 py-2 text-sm font-semibold text-amber-800 shadow-[0_10px_24px_rgba(180,83,9,0.08)] transition hover:bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/40"
           >
             重试
           </button>
@@ -822,9 +831,22 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
               event.stopPropagation();
               closePreview();
             }}
-            className="absolute right-4 top-4 rounded-full bg-black/60 px-3 py-2 text-sm font-medium text-white hover:bg-black/80"
+            className={`absolute right-4 top-4 sm:right-6 sm:top-6 ${previewIconButtonClassName}`}
+            aria-label="关闭预览"
           >
-            关闭
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.35"
+              strokeLinecap="round"
+              className="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path d="M6 6 18 18" />
+              <path d="M18 6 6 18" />
+            </svg>
           </button>
 
           {selectedIndex !== null && selectedIndex > 0 ? (
@@ -834,9 +856,22 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                 event.stopPropagation();
                 showPrev();
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/60 px-4 py-3 text-white hover:bg-black/80"
+              className={`absolute left-3 top-1/2 -translate-y-1/2 sm:left-5 lg:left-8 ${previewIconButtonClassName}`}
+              aria-label="上一张"
             >
-              ←
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.35"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
             </button>
           ) : null}
 
@@ -847,9 +882,22 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                 event.stopPropagation();
                 showNext();
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/60 px-4 py-3 text-white hover:bg-black/80"
+              className={`absolute right-3 top-1/2 -translate-y-1/2 sm:right-5 lg:right-8 ${previewIconButtonClassName}`}
+              aria-label="下一张"
             >
-              →
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.35"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path d="m9 6 6 6-6 6" />
+              </svg>
             </button>
           ) : null}
 
@@ -900,7 +948,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                       )
                     }
                     className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
-                      !previewVideoReady ? "opacity-100" : "opacity-0"
+                      !previewVideoStarted ? "opacity-100" : "opacity-0"
                     }`}
                   />
 
@@ -910,46 +958,43 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                         <button
                           type="button"
                           onClick={requestPreviewVideo}
-                          className="flex h-16 w-16 items-center justify-center rounded-full bg-black/75 text-white shadow-lg transition hover:bg-black/90"
+                          className="flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-black/72 text-white shadow-[0_18px_38px_rgba(0,0,0,0.28)] transition hover:bg-black/82"
                           aria-label={
-                            previewVideoFailed
-                              ? "重新加载视频"
-                              : previewVideoReady
-                                ? "播放视频"
-                                : "加载视频"
+                            previewVideoFailed ? "重新加载视频" : "加载并播放视频"
                           }
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 24 24"
                             fill="currentColor"
-                            className="h-8 w-8"
+                            className="h-6 w-6 translate-x-[1px]"
                             aria-hidden="true"
                           >
                             <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z" />
                           </svg>
                         </button>
+                      ) : isPreviewVideoSpinnerVisible ? (
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-black/68 shadow-[0_18px_38px_rgba(0,0,0,0.28)]">
+                          <span
+                            className="h-5 w-5 animate-spin rounded-full border-2 border-white/78 border-r-transparent"
+                            aria-hidden="true"
+                          />
+                        </div>
                       ) : null}
 
-                      <div className="rounded-2xl bg-black/70 px-4 py-3 text-center shadow-lg">
-                        <div className="flex items-center justify-center gap-2 text-sm font-medium">
-                          {isPreviewVideoSpinnerVisible ? (
-                            <span
-                              className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-r-transparent"
-                              aria-hidden="true"
-                            />
-                          ) : null}
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 text-sm font-medium text-white/80">
                           <span>{previewVideoStatusText}</span>
                         </div>
                         {previewVideoProgressText ? (
                           <>
-                            <div className="mt-3 h-1.5 w-40 overflow-hidden rounded-full bg-white/20">
+                            <div className="mt-2 h-1 w-32 overflow-hidden rounded-full bg-white/20">
                               <div
                                 className="h-full rounded-full bg-white/90 transition-[width] duration-300"
                                 style={{ width: `${previewVideoLoadProgress}%` }}
                               />
                             </div>
-                            <p className="mt-2 text-xs text-white/70">{previewVideoProgressText}</p>
+                            <p className="mt-1.5 text-[11px] text-white/62">{previewVideoProgressText}</p>
                           </>
                         ) : null}
                       </div>
@@ -960,12 +1005,6 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                     <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-4 text-white">
                       <div className="rounded-2xl bg-black/70 px-4 py-3 text-center shadow-lg">
                         <div className="flex items-center justify-center gap-2 text-sm font-medium">
-                          {isPreviewVideoSpinnerVisible ? (
-                            <span
-                              className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-r-transparent"
-                              aria-hidden="true"
-                            />
-                          ) : null}
                           <span>{previewVideoStatusText}</span>
                         </div>
                         {previewVideoProgressText ? (
@@ -1001,6 +1040,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                       setPreviewVideoBuffering(previewVideoPlayRequested && !previewVideoStarted);
                       setPreviewVideoFailed(false);
                       syncPreviewVideoLoadProgress(event.currentTarget);
+                      resumePreviewVideoPlayback(event.currentTarget);
                     }}
                     onLoadedMetadata={(event) => {
                       syncPreviewVideoLoadProgress(event.currentTarget);
@@ -1011,15 +1051,13 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                       setPreviewVideoBuffering(previewVideoPlayRequested && !previewVideoStarted);
                       syncPreviewVideoLoadProgress(previewVideoRef.current);
                       setPreviewVideoFailed(false);
+                      resumePreviewVideoPlayback(previewVideoRef.current);
                     }}
                     onProgress={(event) => {
                       syncPreviewVideoLoadProgress(event.currentTarget);
                     }}
                     onPlaying={() => {
-                      setPreviewThumbLoaded(true);
-                      setPreviewVideoReady(true);
-                      setPreviewVideoBuffering(!previewVideoStarted);
-                      setPreviewVideoFailed(false);
+                      markPreviewVideoStarted();
                       syncPreviewVideoLoadProgress(previewVideoRef.current);
                     }}
                     onTimeUpdate={(event) => {
@@ -1032,12 +1070,12 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                       }
                     }}
                     onStalled={() => {
-                      if (!previewVideoFailed) {
+                      if (!previewVideoFailed && (previewVideoPlayRequested || previewVideoStarted)) {
                         setPreviewVideoBuffering(true);
                       }
                     }}
                     onSuspend={() => {
-                      if (previewVideoRequested && !previewVideoFailed && !previewVideoStarted) {
+                      if (!previewVideoFailed && previewVideoPlayRequested && !previewVideoStarted) {
                         setPreviewVideoBuffering(true);
                       }
                     }}
@@ -1071,7 +1109,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                       });
                     }}
                     className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
-                      previewVideoReady ? "opacity-100" : "pointer-events-none opacity-0"
+                      previewVideoStarted ? "opacity-100" : "pointer-events-none opacity-0"
                     }`}
                   />
                 </div>
@@ -1165,7 +1203,7 @@ const PhotoAlbumMasonry: React.FC<PhotoAlbumMasonryProps> = ({
                 href={selectedPhoto.videoUrl || selectedPhoto.originalLikeUrl || selectedPhoto.displayUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20"
+                className="inline-flex items-center justify-center rounded-full border border-white/10 bg-black/38 px-4 py-2 text-sm font-medium text-white/82 backdrop-blur-xl transition hover:bg-black/54 hover:text-white"
               >
                 新窗口打开
               </a>

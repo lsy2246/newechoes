@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "pnpm exec astro dev",
+    "dev": "pnpm exec astro dev --host 127.0.0.1 --port 4321",
     "generate:function-wrappers": "node scripts/generate-function-wrappers.mjs",
     "build": "pnpm run generate:function-wrappers && node scripts/astro-build.mjs",
     "build:vercel": "pnpm run generate:function-wrappers && node scripts/astro-build.mjs vercel",

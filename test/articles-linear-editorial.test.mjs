@@ -214,6 +214,8 @@ test("article history keeps the snapshot link under the hash", () => {
   assert.ok(versionBlock.includes("article-history-snapshot"));
   assert.ok(versionBlock.includes("历史快照"));
   assert.equal(versionBlock.includes("文件快照"), false);
+  assert.match(cssBlock(articlesCss, ".article-history-hash,\n.article-history-snapshot"), /text-decoration-line:\s*underline;/);
+  assert.match(cssBlock(articlesCss, ".article-history-hash,\n.article-history-snapshot"), /text-decoration-color:\s*var\(--article-line-strong\);/);
 });
 
 test("article history heading is localized and related reading has no extra top rule", () => {
@@ -629,4 +631,6 @@ test("timeline page exists and avoids heavy archive explanation blocks", () => {
   assert.ok(timelinePage.includes("timeline-year-index"));
   assert.equal(timelinePage.includes("inspector"), false);
   assert.equal(timelinePage.includes("归档规则"), false);
+  assert.match(cssBlock(globalCss, ".revision-hash,\n.revision-article-actions a"), /text-decoration-line:\s*underline;/);
+  assert.match(cssBlock(globalCss, ".revision-hash,\n.revision-article-actions a"), /text-decoration-color:\s*var\(--site-line-strong\);/);
 });

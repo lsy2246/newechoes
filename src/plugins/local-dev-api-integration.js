@@ -117,70 +117,88 @@ async function dispatchLocalDevRequest(target, request, handlers) {
   });
 }
 
+function attachLocalDevApiMiddleware(server) {
+  const routeModules = new Map();
+  let preloadPromise = null;
+
+  const loadRouteModules = async () => {
+    const entries = await Promise.all(
+      Object.entries(DEV_API_ROUTE_MODULES).map(async ([pathname, modulePath]) => {
+        const routeModule = await server.ssrLoadModule(modulePath);
+        return [pathname, routeModule];
+      }),
+    );
+
+    routeModules.clear();
+    for (const [pathname, routeModule] of entries) {
+      routeModules.set(pathname, routeModule);
+    }
+  };
+
+  preloadPromise = loadRouteModules();
+
+  server.watcher.on("change", (changedFile) => {
+    if (
+      changedFile.includes(`${path.sep}src${path.sep}server${path.sep}`)
+      || changedFile.includes(`${path.sep}src${path.sep}lib${path.sep}`)
+      || changedFile.includes(`${path.sep}src${path.sep}platform${path.sep}`)
+    ) {
+      preloadPromise = loadRouteModules().catch(() => null);
+    }
+  });
+
+  server.middlewares.use(async (req, res, next) => {
+    const pathname = new URL(req.url || "/", "http://127.0.0.1").pathname;
+    const routeModulePath = DEV_API_ROUTE_MODULES[pathname];
+
+    if (!routeModulePath) {
+      next();
+      return;
+    }
+
+    try {
+      await preloadPromise;
+      const routeModule = routeModules.get(pathname);
+
+      if (!routeModule) {
+        throw new Error(`本地开发接口模块未加载: ${routeModulePath}`);
+      }
+
+      const handlers = pickHandlers(routeModule);
+      const target = getDeployTarget(process.env);
+      const request = await toWebRequest(req);
+      const response = await dispatchLocalDevRequest(target, request, handlers);
+      await sendWebResponse(res, response);
+    } catch (error) {
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({
+        error: "本地开发接口桥接失败",
+        message: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  });
+}
+
+function createLocalDevApiVitePlugin() {
+  return {
+    name: "local-dev-api-vite-plugin",
+    apply: "serve",
+    configureServer(server) {
+      attachLocalDevApiMiddleware(server);
+    },
+  };
+}
+
 export function localDevApiIntegration() {
   return {
     name: "local-dev-api-integration",
     hooks: {
-      "astro:server:setup": ({ server }) => {
-        const routeModules = new Map();
-        let preloadPromise = null;
-
-        const loadRouteModules = async () => {
-          const entries = await Promise.all(
-            Object.entries(DEV_API_ROUTE_MODULES).map(async ([pathname, modulePath]) => {
-              const routeModule = await server.ssrLoadModule(modulePath);
-              return [pathname, routeModule];
-            }),
-          );
-
-          routeModules.clear();
-          for (const [pathname, routeModule] of entries) {
-            routeModules.set(pathname, routeModule);
-          }
-        };
-
-        preloadPromise = loadRouteModules();
-
-        server.watcher.on("change", (changedFile) => {
-          if (
-            changedFile.includes(`${path.sep}src${path.sep}server${path.sep}`)
-            || changedFile.includes(`${path.sep}src${path.sep}lib${path.sep}`)
-            || changedFile.includes(`${path.sep}src${path.sep}platform${path.sep}`)
-          ) {
-            preloadPromise = loadRouteModules().catch(() => null);
-          }
-        });
-
-        server.middlewares.use(async (req, res, next) => {
-          const pathname = new URL(req.url || "/", "http://127.0.0.1").pathname;
-          const routeModulePath = DEV_API_ROUTE_MODULES[pathname];
-
-          if (!routeModulePath) {
-            next();
-            return;
-          }
-
-          try {
-            await preloadPromise;
-            const routeModule = routeModules.get(pathname);
-
-            if (!routeModule) {
-              throw new Error(`本地开发接口模块未加载: ${routeModulePath}`);
-            }
-
-            const handlers = pickHandlers(routeModule);
-            const target = getDeployTarget(process.env);
-            const request = await toWebRequest(req);
-            const response = await dispatchLocalDevRequest(target, request, handlers);
-            await sendWebResponse(res, response);
-          } catch (error) {
-            res.statusCode = 500;
-            res.setHeader("Content-Type", "application/json; charset=utf-8");
-            res.end(JSON.stringify({
-              error: "本地开发接口桥接失败",
-              message: error instanceof Error ? error.message : String(error),
-            }));
-          }
+      "astro:config:setup": ({ updateConfig }) => {
+        updateConfig({
+          vite: {
+            plugins: [createLocalDevApiVitePlugin()],
+          },
         });
       },
     },

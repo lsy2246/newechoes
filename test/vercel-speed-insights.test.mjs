@@ -13,5 +13,6 @@ test("the shared Astro layout consumes platform observability config for Vercel 
   assert.ok(layoutSource.includes('import VercelSpeedInsights from "@/components/VercelSpeedInsights.astro";'));
   assert.ok(layoutSource.includes("getPlatformObservability"));
   assert.ok(layoutSource.includes("showVercelInsights"));
+  assert.ok(layoutSource.includes("observability.speedInsights && !import.meta.env.DEV"));
   assert.ok(layoutSource.includes("<VercelSpeedInsights />"));
 });

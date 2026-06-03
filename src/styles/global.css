@@ -3704,10 +3704,16 @@ html[data-theme="dark"],
   line-height: 1.45;
 }
 
-.revision-hash,
-.revision-copy,
-.revision-article-actions a {
+.revision-copy {
   text-decoration: none;
+}
+
+.revision-hash,
+.revision-article-actions a {
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in oklab, var(--site-line-strong) 72%, var(--site-line));
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
 }
 
 .revision-hash[href]:hover,

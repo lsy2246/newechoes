@@ -40,14 +40,19 @@ export const GET = async ({ request }: { request: Request }) => {
     }
 
     try {
+      const forwardedRange = request.headers.get("range");
       log.info("media.proxy.fetch.start", {
         mediaUrl: summarizeUrl(mediaUrl),
+        hasRange: Boolean(forwardedRange),
       });
       const response = await fetchAssetDirect(mediaUrl, {
-        headers: GOOGLE_PHOTOS_MEDIA_HEADERS,
+        headers: {
+          ...GOOGLE_PHOTOS_MEDIA_HEADERS,
+          ...(forwardedRange ? { Range: forwardedRange } : {}),
+        },
       });
 
-      if (!response.ok) {
+      if (!response.ok && response.status !== 206) {
         log.warn("media.proxy.fetch.non_ok", {
           mediaUrl: summarizeUrl(mediaUrl),
           upstreamStatus: response.status,
@@ -55,19 +60,38 @@ export const GET = async ({ request }: { request: Request }) => {
         return new Response("Failed to fetch Google Photos media", { status: response.status });
       }
 
-      const mediaBuffer = await response.arrayBuffer();
-      const contentType = response.headers.get("content-type") || "application/octet-stream";
-      log.respond(200, {
-        reason: "media_proxy_success",
-        mediaUrl: summarizeUrl(mediaUrl),
+      const responseHeaders = new Headers({
+        "Content-Type": response.headers.get("content-type") || "application/octet-stream",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "CDN-Cache-Control": "public, max-age=31536000, immutable",
       });
 
-      return new Response(mediaBuffer, {
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "public, max-age=31536000, immutable",
-          "CDN-Cache-Control": "public, max-age=31536000, immutable",
-        },
+      const passthroughHeaderNames = [
+        "accept-ranges",
+        "content-length",
+        "content-range",
+        "etag",
+        "last-modified",
+      ];
+
+      for (const headerName of passthroughHeaderNames) {
+        const headerValue = response.headers.get(headerName);
+
+        if (headerValue) {
+          responseHeaders.set(headerName, headerValue);
+        }
+      }
+
+      log.respond(response.status, {
+        reason: "media_proxy_success",
+        mediaUrl: summarizeUrl(mediaUrl),
+        upstreamStatus: response.status,
+        hasRange: Boolean(forwardedRange),
+      });
+
+      return new Response(response.body, {
+        status: response.status,
+        headers: responseHeaders,
       });
     } catch (error) {
       log.error("media.proxy.fetch.error", error, {
