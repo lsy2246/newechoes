@@ -1,13 +1,31 @@
 import { load } from 'cheerio/slim';
 import { createServerRequestLog, summarizeUrl } from '../../lib/server-request-log.js';
+import { fetchAssetDirect, relayAssetUrl } from '../../lib/server-asset-relay.js';
 
 // 请求配置常量
 const MAX_RETRIES = 1;        // 最大重试次数
 const RETRY_DELAY = 1500;     // 重试延迟（毫秒）
 const REQUEST_TIMEOUT = 10000; // 请求超时时间（毫秒）
+const WEREAD_PAGE_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+  'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+};
+const WEREAD_IMAGE_HEADERS = {
+  'User-Agent': WEREAD_PAGE_HEADERS['User-Agent'],
+  'Referer': 'https://weread.qq.com/',
+  'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+};
+
+const localWereadImageUrl = (imageUrl: string) =>
+  `/api/weread?imageUrl=${encodeURIComponent(imageUrl)}`;
 
 // 带超时的 fetch 函数
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number) {
+async function fetchWithTimeout(
+  url: string,
+  options: { headers?: Record<string, string>; signal?: AbortSignal },
+  timeoutMs: number,
+) {
   // 检查是否已经提供了信号
   const existingSignal = options.signal;
 
@@ -32,9 +50,8 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: nu
       const abortListener = () => timeoutController.abort();
       existingSignal.addEventListener('abort', abortListener);
 
-      // 进行请求，但只使用我们的超时信号
       const response = await fetch(url, {
-        ...options,
+        headers: options.headers,
         signal: timeoutSignal
       });
 
@@ -43,9 +60,8 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: nu
 
       return response;
     } else {
-      // 如果没有提供信号，只使用我们的超时信号
       return await fetch(url, {
-        ...options,
+        headers: options.headers,
         signal: timeoutSignal
       });
     }
@@ -132,9 +148,51 @@ function extractBooksFromScript(html: string): { title: string; author: string; 
 export const GET = async ({ request }: { request: Request }) => {
   const url = new URL(request.url);
   const listId = url.searchParams.get('listId');  // 从查询参数获取微信读书书单ID
+  const imageUrl = url.searchParams.get('imageUrl');
   const log = createServerRequestLog('api.weread', request, {
     listId: listId || null,
+    hasImageProxy: Boolean(imageUrl),
+    imageHost: imageUrl ? summarizeUrl(imageUrl) : null,
   });
+
+  if (imageUrl) {
+    try {
+      log.info('image.proxy.fetch.start', {
+        imageUrl: summarizeUrl(imageUrl),
+      });
+      const response = await fetchAssetDirect(imageUrl, {
+        headers: WEREAD_IMAGE_HEADERS,
+      });
+
+      if (!response.ok) {
+        log.warn('image.proxy.fetch.failed', {
+          imageUrl: summarizeUrl(imageUrl),
+          upstreamStatus: response.status,
+        });
+        return new Response('Failed to fetch image', { status: response.status });
+      }
+
+      const imageBuffer = await response.arrayBuffer();
+      const contentType = response.headers.get('content-type') || 'image/webp';
+      log.respond(200, {
+        reason: 'image_proxy_success',
+        imageUrl: summarizeUrl(imageUrl),
+      });
+
+      return new Response(imageBuffer, {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000',
+        },
+      });
+    } catch (error) {
+      log.error('image.proxy.fetch.error', error, {
+        imageUrl: summarizeUrl(imageUrl),
+      });
+      log.respond(500, { reason: 'image_proxy_failed' });
+      return new Response('Error fetching image', { status: 500 });
+    }
+  }
 
   if (!listId) {
     log.respond(400, { reason: 'missing_list_id' });
@@ -161,13 +219,8 @@ export const GET = async ({ request }: { request: Request }) => {
           upstreamUrl: summarizeUrl(wereadUrl),
         });
 
-        // 使用带超时的fetch发送请求
         const response = await fetchWithTimeout(wereadUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-          }
+          headers: WEREAD_PAGE_HEADERS,
         }, REQUEST_TIMEOUT);
 
         if (!response.ok) {
@@ -244,6 +297,10 @@ export const GET = async ({ request }: { request: Request }) => {
             title: book.title,
             author: book.author,
             imageUrl: book.cover,
+            fallbackImageUrl: book.cover ? relayAssetUrl(book.cover, WEREAD_IMAGE_HEADERS) || localWereadImageUrl(book.cover) : '',
+            serverFallbackImageUrl: book.cover && relayAssetUrl(book.cover, WEREAD_IMAGE_HEADERS)
+              ? localWereadImageUrl(book.cover)
+              : '',
             link: `https://weread.qq.com/web/search/books?keyword=${encodeURIComponent(book.title)}`
           }));
           log.respond(200, {
@@ -268,6 +325,8 @@ export const GET = async ({ request }: { request: Request }) => {
           title: string;
           author: string;
           imageUrl: string;
+          fallbackImageUrl: string;
+          serverFallbackImageUrl: string;
           link: string;
         }
 
@@ -286,10 +345,16 @@ export const GET = async ({ request }: { request: Request }) => {
 
             // 只有在找到标题和作者的情况下才添加书籍
             if (title && author) {
+              const relayImageUrl = imageUrl
+                ? relayAssetUrl(imageUrl, WEREAD_IMAGE_HEADERS)
+                : null;
+
               books.push({
                 title,
                 author,
                 imageUrl,
+                fallbackImageUrl: imageUrl ? relayImageUrl || localWereadImageUrl(imageUrl) : '',
+                serverFallbackImageUrl: relayImageUrl && imageUrl ? localWereadImageUrl(imageUrl) : '',
                 link: `https://weread.qq.com/web/search/books?keyword=${encodeURIComponent(title)}`
               });
             }

@@ -16,7 +16,11 @@ const localDoubanImageUrl = (imageUrl: string) =>
   `/api/douban?imageUrl=${encodeURIComponent(imageUrl)}`;
 
 // 带超时的 fetch 函数
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number) {
+async function fetchWithTimeout(
+  url: string,
+  options: { headers?: Record<string, string>; signal?: AbortSignal },
+  timeoutMs: number,
+) {
   // 检查是否已经提供了信号
   const existingSignal = options.signal;
 
@@ -41,9 +45,8 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: nu
       const abortListener = () => timeoutController.abort();
       existingSignal.addEventListener('abort', abortListener);
 
-      // 进行请求，但只使用我们的超时信号
       const response = await fetch(url, {
-        ...options,
+        headers: options.headers,
         signal: timeoutSignal
       });
 
@@ -52,9 +55,8 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: nu
 
       return response;
     } else {
-      // 如果没有提供信号，只使用我们的超时信号
       return await fetch(url, {
-        ...options,
+        headers: options.headers,
         signal: timeoutSignal
       });
     }
@@ -150,7 +152,6 @@ export const GET = async ({ request }: { request: Request }) => {
           upstreamUrl: summarizeUrl(doubanUrl),
         });
 
-        // 使用带超时的fetch发送请求
         const response = await fetchWithTimeout(doubanUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
@@ -334,10 +335,15 @@ export const GET = async ({ request }: { request: Request }) => {
             }
 
             // 确保所有字段至少有空字符串
-            const fallbackImageUrl = imageUrl ? localDoubanImageUrl(imageUrl) : '';
+            const relayImageUrl = imageUrl
+              ? relayAssetUrl(imageUrl, DOUBAN_IMAGE_HEADERS)
+              : null;
+            const fallbackImageUrl = relayImageUrl && imageUrl
+              ? localDoubanImageUrl(imageUrl)
+              : '';
 
             items.push({
-              imageUrl: imageUrl ? relayAssetUrl(imageUrl, DOUBAN_IMAGE_HEADERS) || fallbackImageUrl : '',
+              imageUrl: imageUrl ? relayImageUrl || localDoubanImageUrl(imageUrl) : '',
               fallbackImageUrl,
               title: title || '',
               subtitle: subtitle || '',

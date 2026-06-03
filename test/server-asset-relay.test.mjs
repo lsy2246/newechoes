@@ -8,13 +8,15 @@ const constsSource = readSource("src/consts.ts");
 const serverRelaySource = readSource("src/lib/server-asset-relay.ts");
 const doubanRouteSource = readSource("src/server/api/douban.ts");
 const doubanComponentSource = readSource("src/components/DoubanCollection.tsx");
+const wereadRouteSource = readSource("src/server/api/weread.ts");
+const wereadComponentSource = readSource("src/components/WereadBookList.tsx");
 const googlePhotosSource = readSource("src/lib/google-photos/shared.ts");
 const googlePhotosRouteSource = readSource("src/server/api/google-photos.ts");
 const photoAlbumSource = readSource("src/components/PhotoAlbumMasonry.tsx");
 
 test("asset relay template stays in shared consts with encoded headers support", () => {
   assert.match(constsSource, /export const ASSET_RELAY_URL = "https:\/\/proxy\.u\.cd\/download\?url=\{url\}&headers=\{headers\}"/);
-  assert.match(serverRelaySource, /import \{ ASSET_RELAY_URL \} from "\.\.\/consts"/);
+  assert.match(serverRelaySource, /import \{ ASSET_RELAY_URL \} from "\.\.\/consts(\.js)?"/);
   assert.doesNotMatch(serverRelaySource, /process\.env\.ASSET_RELAY_URL/);
   assert.doesNotMatch(serverRelaySource, /import\.meta\.env\.PUBLIC_/);
   assert.doesNotMatch(doubanComponentSource, /ASSET_RELAY|server-asset-relay/);
@@ -35,14 +37,37 @@ test("Douban prefers relay URLs in the frontend and falls back to the local imag
   assert.match(doubanRouteSource, /server-asset-relay/);
   assert.match(doubanRouteSource, /DOUBAN_IMAGE_HEADERS/);
   assert.match(doubanRouteSource, /fetchAssetDirect\(\s*imageUrl,\s*\{[\s\S]*headers:\s*DOUBAN_IMAGE_HEADERS/);
-  assert.match(doubanRouteSource, /relayAssetUrl\(imageUrl,\s*DOUBAN_IMAGE_HEADERS\)\s*\|\|\s*fallbackImageUrl/);
+  assert.match(doubanRouteSource, /const relayImageUrl = imageUrl/);
+  assert.match(doubanRouteSource, /const fallbackImageUrl = relayImageUrl && imageUrl/);
+  assert.match(doubanRouteSource, /imageUrl:\s*imageUrl \? relayImageUrl \|\| localDoubanImageUrl\(imageUrl\) : ''/);
   assert.match(doubanRouteSource, /fallbackImageUrl/);
   assert.match(doubanRouteSource, /\/api\/douban\?imageUrl=/);
   assert.match(doubanComponentSource, /fallbackImageUrl\?: string/);
-  assert.match(doubanComponentSource, /dataset\.fallbackApplied/);
-  assert.match(doubanComponentSource, /event\.currentTarget\.src = item\.fallbackImageUrl/);
+  assert.match(doubanComponentSource, /applyNextImageFallback/);
+  assert.match(doubanComponentSource, /dataset\.fallbackIndex/);
+  assert.match(doubanComponentSource, /getFallbackImageUrls\(item\.imageUrl,\s*item\.fallbackImageUrl\)/);
   assert.match(doubanComponentSource, /src=\{item\.imageUrl\}/);
   assert.doesNotMatch(doubanComponentSource, /src=\{`\/api\/douban\?imageUrl=/);
+});
+
+test("Weread keeps direct page fetches and uses direct -> relay -> local cover fallback", () => {
+  assert.match(wereadRouteSource, /server-asset-relay/);
+  assert.match(wereadRouteSource, /WEREAD_PAGE_HEADERS/);
+  assert.match(wereadRouteSource, /WEREAD_IMAGE_HEADERS/);
+  assert.match(wereadRouteSource, /fetchAssetDirect\(\s*imageUrl,\s*\{[\s\S]*headers:\s*WEREAD_IMAGE_HEADERS/);
+  assert.doesNotMatch(wereadRouteSource, /fetchAssetWithRelayFallback\(/);
+  assert.match(wereadRouteSource, /imageUrl:\s*book\.cover/);
+  assert.match(wereadRouteSource, /fallbackImageUrl:\s*book\.cover \? relayAssetUrl\(book\.cover,\s*WEREAD_IMAGE_HEADERS\) \|\| localWereadImageUrl\(book\.cover\) : ''/);
+  assert.match(wereadRouteSource, /serverFallbackImageUrl:\s*book\.cover && relayAssetUrl\(book\.cover,\s*WEREAD_IMAGE_HEADERS\)/);
+  assert.match(wereadRouteSource, /fallbackImageUrl:\s*imageUrl \? relayImageUrl \|\| localWereadImageUrl\(imageUrl\) : ''/);
+  assert.match(wereadRouteSource, /serverFallbackImageUrl:\s*relayImageUrl && imageUrl \? localWereadImageUrl\(imageUrl\) : ''/);
+  assert.match(wereadRouteSource, /\/api\/weread\?imageUrl=/);
+  assert.match(wereadComponentSource, /fallbackImageUrl\?: string/);
+  assert.match(wereadComponentSource, /serverFallbackImageUrl\?: string/);
+  assert.match(wereadComponentSource, /applyNextImageFallback/);
+  assert.match(wereadComponentSource, /dataset\.fallbackIndex/);
+  assert.match(wereadComponentSource, /book\.serverFallbackImageUrl/);
+  assert.match(wereadComponentSource, /src=\{book\.imageUrl\}/);
 });
 
 test("Google Photos page/media flow uses relay URLs with local API fallback", () => {

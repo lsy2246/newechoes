@@ -18,6 +18,33 @@ interface DoubanErrorPayload {
   message?: string;
 }
 
+const getFallbackImageUrls = (
+  primaryUrl: string,
+  ...candidateUrls: Array<string | undefined>
+) =>
+  candidateUrls.filter(
+    (candidateUrl, index, urls): candidateUrl is string =>
+      Boolean(candidateUrl) &&
+      candidateUrl !== primaryUrl &&
+      urls.indexOf(candidateUrl) === index,
+  );
+
+const applyNextImageFallback = (
+  event: React.SyntheticEvent<HTMLImageElement, Event>,
+  fallbackImageUrls: string[],
+) => {
+  const imageElement = event.currentTarget;
+  const nextFallbackIndex = Number(imageElement.dataset.fallbackIndex || "0");
+  const nextFallbackUrl = fallbackImageUrls[nextFallbackIndex];
+
+  if (!nextFallbackUrl) {
+    return;
+  }
+
+  imageElement.dataset.fallbackIndex = String(nextFallbackIndex + 1);
+  imageElement.src = nextFallbackUrl;
+};
+
 const DoubanCollection: React.FC<DoubanCollectionProps> = ({
   type,
   doubanId,
@@ -423,12 +450,10 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
                   className="cover-card-image"
                   loading="lazy"
                   onError={(event) => {
-                    if (!item.fallbackImageUrl || event.currentTarget.dataset.fallbackApplied === "true") {
-                      return;
-                    }
-
-                    event.currentTarget.dataset.fallbackApplied = "true";
-                    event.currentTarget.src = item.fallbackImageUrl;
+                    applyNextImageFallback(
+                      event,
+                      getFallbackImageUrls(item.imageUrl, item.fallbackImageUrl),
+                    );
                   }}
                 />
                 <div className="cover-card-overlay">

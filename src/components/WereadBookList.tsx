@@ -8,8 +8,37 @@ interface WereadBook {
   title: string;
   author: string;
   imageUrl: string;
+  fallbackImageUrl?: string;
+  serverFallbackImageUrl?: string;
   link: string;
 }
+
+const getFallbackImageUrls = (
+  primaryUrl: string,
+  ...candidateUrls: Array<string | undefined>
+) =>
+  candidateUrls.filter(
+    (candidateUrl, index, urls): candidateUrl is string =>
+      Boolean(candidateUrl) &&
+      candidateUrl !== primaryUrl &&
+      urls.indexOf(candidateUrl) === index,
+  );
+
+const applyNextImageFallback = (
+  event: React.SyntheticEvent<HTMLImageElement, Event>,
+  fallbackImageUrls: string[],
+) => {
+  const imageElement = event.currentTarget;
+  const nextFallbackIndex = Number(imageElement.dataset.fallbackIndex || "0");
+  const nextFallbackUrl = fallbackImageUrls[nextFallbackIndex];
+
+  if (!nextFallbackUrl) {
+    return;
+  }
+
+  imageElement.dataset.fallbackIndex = String(nextFallbackIndex + 1);
+  imageElement.src = nextFallbackUrl;
+};
 
 const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
   const [books, setBooks] = useState<WereadBook[]>([]);
@@ -131,6 +160,16 @@ const WereadBookList: React.FC<WereadBookListProps> = ({ listId }) => {
                     alt={book.title}
                     className="cover-card-image"
                     loading="lazy"
+                    onError={(event) => {
+                      applyNextImageFallback(
+                        event,
+                        getFallbackImageUrls(
+                          book.imageUrl,
+                          book.fallbackImageUrl,
+                          book.serverFallbackImageUrl,
+                        ),
+                      );
+                    }}
                   />
                   <div className="cover-card-overlay">
                     <div className="cover-card-textStack">
