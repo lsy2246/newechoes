@@ -35,3 +35,12 @@ test("desktop header search has wider desktop width budget", () => {
   assert.ok(header.includes("data-home-header-search"));
   assert.equal(header.includes("max-w-xs"), false);
 });
+
+test("mobile navigation uses delegated submenu handling so swup page changes do not double-bind toggles", () => {
+  assert.match(header, /addListener\(mobileMenu,\s*'click',\s*\(e\)\s*=>\s*\{/);
+  assert.match(header, /const submenuToggle = target\.closest\('\[data-mobile-menu-toggle\]'\);/);
+  assert.match(header, /toggleSubmenu\(parentId\);/);
+  assert.equal(header.includes("setupMobileMenuLinks"), false);
+  assert.equal(header.includes("setupMobileSubmenuToggles();"), false);
+  assert.equal(header.includes("setTimeout(() => {\n        setupMobileMenuLinks();"), false);
+});

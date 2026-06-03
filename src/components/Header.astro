@@ -235,7 +235,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             aria-expanded="false"
           >
             <svg
-              class="h-4 w-4"
+              class="h-5 w-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1593,8 +1593,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const mobileSearchButton = document.getElementById('mobile-search-button');
     const mobileMenu = document.getElementById('mobile-menu');
     const mobileSearch = document.getElementById('mobile-search');
-    const menuOpenIcon = document.getElementById('menu-open-icon');
-    const menuCloseIcon = document.getElementById('menu-close-icon');
     
     if (!mobileMenuButton || !mobileMenu) {
       console.warn(`移动端菜单组件未找到`);
@@ -1625,7 +1623,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           if (submenu) {
             const parentId = submenu.getAttribute('data-parent-id');
             const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
-            if (toggle && !submenu.getAttribute('data-expanded') === 'true') {
+            if (toggle && submenu.getAttribute('data-expanded') !== 'true') {
               // 展开子菜单
               toggleSubmenu(parentId, true);
             }
@@ -1642,7 +1640,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
       const submenu = document.querySelector(`.mobile-submenu[data-parent-id="${parentId}"]`);
       const menuIcon = toggle ? toggle.querySelector('.mobile-menu-icon') : null;
-      const arrow = menuIcon ? menuIcon.querySelector('.mobile-menu-arrow') : null;
       
       if (!toggle || !submenu) return;
       
@@ -1679,23 +1676,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             if (menuIcon) menuIcon.style.transform = '';
           }
         }
-      });
-    }
-    
-    // 为所有子菜单切换按钮添加点击事件
-    function setupMobileSubmenuToggles() {
-      // 关闭所有子菜单（默认状态）
-      closeAllSubmenus();
-      
-      // 为所有子菜单切换按钮添加点击事件
-      const submenuToggles = document.querySelectorAll('[data-mobile-menu-toggle]');
-      submenuToggles.forEach(toggle => {
-        addListener(toggle, 'click', (e) => {
-          const parentId = toggle.getAttribute('data-mobile-menu-toggle');
-          if (parentId) {
-            toggleSubmenu(parentId);
-          }
-        });
       });
     }
     
@@ -1787,10 +1767,30 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         }
       });
     }
+
+    addListener(mobileMenu, 'click', (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+
+      const submenuToggle = target.closest('[data-mobile-menu-toggle]');
+      if (submenuToggle instanceof HTMLElement && mobileMenu.contains(submenuToggle)) {
+        const parentId = submenuToggle.getAttribute('data-mobile-menu-toggle');
+        if (parentId) {
+          toggleSubmenu(parentId);
+        }
+        return;
+      }
+
+      const menuLink = target.closest('#mobile-menu a');
+      if (menuLink instanceof HTMLAnchorElement && menuLink.host === window.location.host && !e.ctrlKey && !e.metaKey) {
+        setTimeout(() => {
+          closeMobileMenu();
+        }, 50);
+      }
+    });
     
     // 为Astro View Transitions添加事件处理
     addListener(document, 'astro:page-load', () => {
-      setupMobileSubmenuToggles();
       updateMobileMenuHighlight();
       closeMobileMenu();
       closeMobileSearch();
@@ -1805,40 +1805,15 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       }, 50);
     });
     
-    // 为移动端菜单链接添加点击事件，点击后关闭菜单
-    function setupMobileMenuLinks() {
-      const mobileMenuLinks = document.querySelectorAll('#mobile-menu a');
-      mobileMenuLinks.forEach(link => {
-        // 避免重复添加事件监听器
-        addListener(link, 'click', (e) => {
-          // 如果是站内链接且不是控制键或Meta键点击（新窗口打开）
-          if (link.host === window.location.host && !e.ctrlKey && !e.metaKey) {
-            // 延迟关闭导航栏，确保页面跳转感知和点击体验更流畅
-            setTimeout(() => {
-              closeMobileMenu();
-            }, 50);
-          }
-        });
-      });
-    }
-    
-    // 初始调用一次设置子菜单切换按钮和更新高亮状态
-    setupMobileSubmenuToggles();
+    // 初始调用一次设置高亮状态
+    closeAllSubmenus();
     updateMobileMenuHighlight();
-    setupMobileMenuLinks(); // 添加对移动端链接的点击监听
-    
-    // 当菜单显示状态变化时重新绑定链接点击事件
-    addListener(mobileMenuButton, 'click', () => {
-      // 确保每次打开菜单时重新设置链接点击事件
-      setTimeout(() => {
-        setupMobileMenuLinks();
-      }, 50);
-    });
     
     // 添加点击空白区域关闭菜单和搜索面板的事件监听
     addListener(document, 'click', (e) => {
       // 获取事件目标
       const target = e.target;
+      if (!(target instanceof Element)) return;
       
       // 处理移动端菜单内的链接点击
       const menuLink = target.closest('#mobile-menu a');
