@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const astroConfig = readFileSync("astro.config.mjs", "utf8");
@@ -8,7 +8,6 @@ const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
 const articleLinksSource = readFileSync("src/lib/article-links.ts", "utf8");
 const articleIndexSource = readFileSync("src/pages/articles/index.astro", "utf8");
 const articleDetailSource = readFileSync("src/pages/articles/[...id].astro", "utf8");
-const buildOutputSource = readFileSync("src/plugins/build-output.js", "utf8");
 const platformMirrorsSource = readFileSync("src/platform/build/mirrors.js", "utf8");
 const sitemapIntegration = readFileSync("src/plugins/sitemap-integration.js", "utf8");
 const rssIntegration = readFileSync("src/plugins/rss-integration.js", "utf8");
@@ -71,7 +70,7 @@ test("XML generators normalize URL output and resolve Astro HTML output paths", 
 });
 
 test("post-build metadata files mirror into platform static outputs", () => {
-  assert.match(buildOutputSource, /from "\.\.\/platform\/build\/mirrors\.js"/);
+  assert.equal(existsSync("src/plugins/build-output.js"), false);
   assert.match(platformMirrorsSource, /export function syncStaticGeneratedFileToPlatformOutputs/);
   assert.match(platformMirrorsSource, /\.edgeone/);
 

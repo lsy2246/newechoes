@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const astroConfigSource = readFileSync("astro.config.mjs", "utf8");
-const legacyRuntimeBridgeSource = readFileSync("src/lib/runtime/platform.ts", "utf8");
 const articleHistoryBridgeSource = readFileSync("src/lib/article-history/index.js", "utf8");
 const serverRequestLogSource = readFileSync("src/lib/server/request-log.ts", "utf8");
-const buildOutputBridgeSource = readFileSync("src/plugins/build-output.js", "utf8");
 const buildArticleIndexSource = readFileSync("src/plugins/article-index/integration.js", "utf8");
 const sitemapIntegrationSource = readFileSync("src/plugins/sitemap-integration.js", "utf8");
 const rssIntegrationSource = readFileSync("src/plugins/rss-integration.js", "utf8");
@@ -23,11 +21,8 @@ test("platform shared target helpers normalize and validate supported targets", 
   assert.equal(getDeployTarget({ DEPLOY_TARGET: "edgeone" }), "edgeone");
 });
 
-test("legacy runtime module is a thin bridge to the new platform runtime entrypoint", () => {
-  assert.match(legacyRuntimeBridgeSource, /from "@\/platform\/shared\/types"/);
-  assert.match(legacyRuntimeBridgeSource, /from "@\/platform\/runtime\/index\.js"/);
-  assert.doesNotMatch(legacyRuntimeBridgeSource, /createCloudflareAnalyticsScripts/);
-  assert.doesNotMatch(legacyRuntimeBridgeSource, /PLATFORM_CAPABILITIES/);
+test("legacy platform runtime bridge has been removed", () => {
+  assert.equal(existsSync("src/lib/runtime/platform.ts"), false);
 });
 
 test("article history bridge keeps node-only helpers out of the public runtime entry", () => {
@@ -50,8 +45,8 @@ test("astro config delegates platform-specific build behavior to platform build 
   assert.doesNotMatch(astroConfigSource, /function resolveSsrConfig/);
 });
 
-test("legacy build-output file remains a compatibility bridge", () => {
-  assert.match(buildOutputBridgeSource, /from "\.\.\/platform\/build\/mirrors\.js"|from "\.\/\.\.\/platform\/build\/mirrors\.js"|from "\.\.\/platform\/build\/mirrors\.js"/);
+test("legacy build-output bridge has been removed", () => {
+  assert.equal(existsSync("src/plugins/build-output.js"), false);
 });
 
 test("generic build plugins route platform path logic through platform build helpers", () => {
