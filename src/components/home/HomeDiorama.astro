@@ -77,12 +77,39 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
 
   const HOME_DIORAMA_MODULE_KEY = "__homeDioramaModule";
   const HOME_DIORAMA_ACTIVE_SCENE_KEY = "__homeDioramaActiveScene";
+  const HOME_DIORAMA_BOOT_TOKEN_KEY = "__homeDioramaBootToken";
 
   const resetDioramaState = () => {
     window[HOME_DIORAMA_ACTIVE_SCENE_KEY] = null;
+    window[HOME_DIORAMA_BOOT_TOKEN_KEY] = null;
+  };
+
+  const waitForDioramaBootSlot = async (token) => {
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(resolve);
+      });
+    });
+
+    if (window[HOME_DIORAMA_BOOT_TOKEN_KEY] !== token) return false;
+
+    if ("requestIdleCallback" in window) {
+      await new Promise((resolve) => {
+        window.requestIdleCallback(resolve, { timeout: 600 });
+      });
+    } else {
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+    }
+
+    return window[HOME_DIORAMA_BOOT_TOKEN_KEY] === token;
   };
 
   const maybeInit = async () => {
+    const token = Symbol("home-diorama-boot");
+    window[HOME_DIORAMA_BOOT_TOKEN_KEY] = token;
+    const bootGranted = await waitForDioramaBootSlot(token);
+    if (!bootGranted) return;
+
     const sceneElement = document.querySelector("[data-home-scene]");
     if (!isHome() || !sceneElement) return;
     if (window[HOME_DIORAMA_ACTIVE_SCENE_KEY] === sceneElement) return;

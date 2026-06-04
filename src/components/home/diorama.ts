@@ -605,6 +605,7 @@ export function initDiorama() {
       updateHomeLoadingDetail();
       keyboardModelLoaded = true;
       syncKeyboardModelOpacity(mats.key.opacity);
+      renderBootFrame();
       releaseStartupGate();
     },
     undefined,
@@ -949,6 +950,7 @@ export function initDiorama() {
         typingCharacterMixer.setTime(TYPING_CHARACTER_STATIC_POSE_TIME);
         applyTypingCharacterCorrectivePose();
       }
+      renderBootFrame();
       releaseStartupGate();
     },
     undefined,
@@ -1072,6 +1074,7 @@ export function initDiorama() {
       theme = t;
       applyTheme(t);
       needScreenRedraw = true;
+      renderBootFrame();
     }
   });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
@@ -1351,6 +1354,8 @@ export function initDiorama() {
     }
     syncScrollProgress();
     needScreenRedraw = true;
+    renderBootFrame();
+    startAnimationLoop();
   };
   const resetScrollToLoopStart = () => {
     if (loopResetQueued) return;
@@ -1814,11 +1819,33 @@ export function initDiorama() {
 
   // ===== Animation loop =====
   let rafId = 0;
+  let animationLoopActive = false;
   let lastFrame = performance.now();
+
+  const scheduleAnimationFrame = () => {
+    if (disposed || !animationLoopActive || rafId) return;
+    rafId = requestAnimationFrame(animate);
+  };
+  const startAnimationLoop = () => {
+    if (animationLoopActive) return;
+    animationLoopActive = true;
+    scheduleAnimationFrame();
+  };
+  const stopAnimationLoop = () => {
+    animationLoopActive = false;
+    if (!rafId) return;
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  };
+  const renderBootFrame = () => {
+    if (disposed || animationLoopActive) return;
+    animate();
+  };
 
   const outdoorFogColor = new THREE.Color();
 
   const animate = () => {
+    rafId = 0;
     const now = performance.now();
     const dt = Math.min(64, now - lastFrame);
     lastFrame = now;
@@ -1899,7 +1926,7 @@ export function initDiorama() {
       applyCameraPose(desiredFov, dt, true, CAMERA_CATCHUP_FOLLOW_RATE);
       camera.updateProjectionMatrix();
       renderer.render(scene, camera);
-      rafId = requestAnimationFrame(animate);
+      scheduleAnimationFrame();
       return;
     }
 
@@ -1965,7 +1992,7 @@ export function initDiorama() {
       if (homeProgress >= LOOP_RESET_PROGRESS) {
         resetScrollToLoopStart();
       }
-      rafId = requestAnimationFrame(animate);
+      scheduleAnimationFrame();
       return;
     }
 
@@ -2087,7 +2114,7 @@ export function initDiorama() {
       controls.update();
     }
     renderer.render(scene, camera);
-    rafId = requestAnimationFrame(animate);
+    scheduleAnimationFrame();
   };
 
   if ("fonts" in document) {
@@ -2099,6 +2126,7 @@ export function initDiorama() {
       storyFrameCache.clear();
       lastStoryOverlayKey = "";
       drawScreen();
+      renderBootFrame();
       markStartupResourceReady("fonts");
     }).catch(() => {
       markStartupResourceReady("fonts");
@@ -2113,7 +2141,7 @@ export function initDiorama() {
     startupGateForcedOpen = true;
     releaseStartupGate();
   }, 5000);
-  rafId = requestAnimationFrame(animate);
+  renderBootFrame();
 
   // ===== Cleanup =====
   const cleanup = () => {
@@ -2121,7 +2149,7 @@ export function initDiorama() {
     window.clearTimeout(startupGateTimer);
     window.clearTimeout(startupGateForceTimer);
     if (startupGateHideTimer) window.clearTimeout(startupGateHideTimer);
-    if (rafId) cancelAnimationFrame(rafId);
+    stopAnimationLoop();
     window.removeEventListener("scroll", syncScrollProgress);
     window.removeEventListener("wheel", loopBackwardWheelHandler, { capture: true });
     window.removeEventListener("resize", handleBreakpointResize);

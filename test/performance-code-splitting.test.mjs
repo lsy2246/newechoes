@@ -23,8 +23,12 @@ test("home diorama loads its three scene module asynchronously and guards swup n
   assert.ok(homeDiorama.includes('import("./diorama")'));
   assert.ok(homeDiorama.includes("HOME_DIORAMA_MODULE_KEY"));
   assert.ok(homeDiorama.includes("HOME_DIORAMA_ACTIVE_SCENE_KEY"));
+  assert.ok(homeDiorama.includes("HOME_DIORAMA_BOOT_TOKEN_KEY"));
+  assert.ok(homeDiorama.includes("requestAnimationFrame(() => {"));
+  assert.ok(homeDiorama.includes('window.requestIdleCallback(resolve, { timeout: 600 })'));
   assert.ok(homeDiorama.includes("window[HOME_DIORAMA_MODULE_KEY]"));
   assert.ok(homeDiorama.includes("window[HOME_DIORAMA_ACTIVE_SCENE_KEY]"));
+  assert.ok(homeDiorama.includes("window[HOME_DIORAMA_BOOT_TOKEN_KEY]"));
   assert.ok(homeDiorama.includes("if (window[HOME_DIORAMA_ACTIVE_SCENE_KEY] === sceneElement) return"));
   assert.ok(homeDiorama.includes('document.querySelector("[data-home-scene]")'));
   assert.ok(homeDiorama.includes('document.querySelector("[data-home-scene]") !== sceneElement'));
