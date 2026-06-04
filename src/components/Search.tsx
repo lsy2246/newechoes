@@ -89,7 +89,7 @@ const Search: React.FC<SearchProps> = ({
   // refs
   const containerRef = useRef<HTMLDivElement>(null);
   const clearButtonRef = useRef<HTMLButtonElement>(null);
-  const tabButtonRef = useRef<HTMLDivElement>(null);
+  const tabButtonRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1468,6 +1468,7 @@ const Search: React.FC<SearchProps> = ({
                   ref={clearButtonRef}
                   type="button"
                   className="search-icon-action focus:outline-none flex items-center justify-center p-2 -m-1 clear-search-button"
+                  aria-label="清除搜索"
                   title="清除搜索"
                   style={{ touchAction: "none" }}
                   onClick={(e) => {
@@ -1504,13 +1505,15 @@ const Search: React.FC<SearchProps> = ({
                   </svg>
                 </button>
                 {inlineSuggestion.visible && inlineSuggestion.text && (
-                  <div
+                  <button
                     ref={tabButtonRef}
+                    type="button"
                     className={`search-icon-action flex items-center justify-center cursor-pointer p-1 ml-1 tab-completion-button ${
                       inlineSuggestion.type === "correction"
                         ? "animate-pulse"
                         : ""
                     }`}
+                    aria-label={inlineSuggestion.type === "correction" ? "接受搜索纠正" : "接受搜索补全"}
                     title={
                       inlineSuggestion.type === "correction"
                         ? "按Tab键接受纠正"
@@ -1538,8 +1541,6 @@ const Search: React.FC<SearchProps> = ({
                       e.stopPropagation();
                       completeInlineSuggestion();
                     }}
-                    role="button"
-                    tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
@@ -1558,7 +1559,7 @@ const Search: React.FC<SearchProps> = ({
                     >
                       TAB
                     </div>
-                  </div>
+                  </button>
                 )}
               </>
             ) : error ? (

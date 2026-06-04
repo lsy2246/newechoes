@@ -403,7 +403,7 @@ function generateTableOfContents(headings: Heading[]) {
           </a>
           ${
             hasChildren
-              ? `<button class="toc-toggle ml-1 p-1" aria-expanded="false">
+              ? `<button class="toc-toggle ml-1 p-1" aria-expanded="false" aria-label="${item.text} 的子目录">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
@@ -722,6 +722,7 @@ const tableOfContents = generateTableOfContents(headings);
             <button
               id="back-to-top"
               class="article-back-to-top fixed bottom-8 right-8 w-12 h-12 rounded-full flex items-center justify-center opacity-0 invisible translate-y-5"
+              aria-label="回到顶部"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
