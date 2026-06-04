@@ -162,6 +162,14 @@ test("filter console and result list keep long text inside lightweight rows", ()
   assert.match(cssBlock(globalCss, ".filter-status"), /position:\s*absolute;/);
 });
 
+test("directory cards pin metadata to a shared baseline even when copy height varies", () => {
+  assert.match(cssBlock(globalCss, ".explorer-grid .node > div"), /display:\s*flex;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node > div"), /flex:\s*1;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node > div"), /flex-direction:\s*column;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node-meta"), /margin-top:\s*auto;/);
+  assert.match(cssBlock(globalCss, ".explorer-grid .node-meta"), /padding-top:\s*16px;/);
+});
+
 test("article detail keeps tags once and renders related articles as a linear list", () => {
   assert.ok(articleDetail.includes("article-layout"));
   assert.ok(articleDetail.includes("article-main"));

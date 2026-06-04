@@ -2570,7 +2570,7 @@ html[data-theme="dark"],
   color: var(--site-accent);
 }
 
-.browser>#article-content {
+.browser > #article-content {
   min-width: 0;
 }
 
@@ -2646,7 +2646,10 @@ html[data-theme="dark"],
     transform 0.16s ease;
 }
 
-.explorer-grid .node>div {
+.explorer-grid .node > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   min-width: 0;
   padding-top: 18px;
 }
@@ -2729,7 +2732,8 @@ html[data-theme="dark"],
   flex-wrap: wrap;
   gap: 7px 10px;
   min-width: 0;
-  margin-top: 14px;
+  margin-top: auto;
+  padding-top: 16px;
   color: var(--site-quiet);
   font-size: var(--type-meta);
   line-height: 1.35;
