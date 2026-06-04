@@ -523,16 +523,29 @@ test("article code blocks use a shadcn-like muted surface", () => {
   assert.match(cssBlock(articlesCss, ".code-block-container"), /border-radius:\s*0\.6rem;/);
   assert.match(cssBlock(articlesCss, ".code-block-container"), /background:\s*var\(--article-soft\);/);
   assert.match(lastCssBlock(articlesCss, '[data-theme="dark"] .code-block-container'), /background:\s*var\(--article-soft\);/);
-
-  assert.match(
-    articlesCss,
-    /\.code-block-header,\s*\[data-theme="dark"\] \.code-block-header,\s*\.line-numbers-container,\s*\[data-theme="dark"\] \.line-numbers-container\s*\{[\s\S]*?background:\s*var\(--article-soft-strong\);/,
-  );
-  assert.match(lastCssBlock(articlesCss, ".code-block-header"), /padding:\s*0\.55rem 0\.7rem;/);
+  assert.match(cssBlock(articlesCss, ".code-block-container"), /position:\s*relative;/);
+  assert.doesNotMatch(lastCssBlock(articlesCss, ".code-block-content"), /padding-top:/);
+  assert.match(lastCssBlock(articlesCss, ".code-block-lang"), /display:\s*none !important;/);
+  assert.match(lastCssBlock(articlesCss, ".line-numbers-container"), /display:\s*grid;/);
+  assert.match(lastCssBlock(articlesCss, ".line-numbers-container"), /align-content:\s*start;/);
+  assert.match(lastCssBlock(articlesCss, ".code-block-copy"), /position:\s*absolute;/);
+  assert.match(lastCssBlock(articlesCss, ".code-block-copy"), /opacity:\s*0;/);
+  assert.match(articlesCss, /\.code-block-container:hover \.code-block-copy[\s\S]*?opacity:\s*1;/);
+  assert.match(lastCssBlock(articlesCss, ".line-numbers-container"), /background:\s*transparent;/);
   assert.match(
     articlesCss,
     /\.code-block-content pre,\s*\.code-block-content pre code,[\s\S]*?\[data-theme="dark"\] \.code-block-content pre\.shiki\s*\{[\s\S]*?background-color:\s*transparent !important;/,
   );
+});
+
+test("article detail normalizes legacy code block markup before wiring copy interactions", () => {
+  assert.ok(articleDetail.includes("function normalizeLegacyCodeBlocks()"));
+  assert.ok(articleDetail.includes('const legacyHeader = container.querySelector(":scope > .code-block-header")'));
+  assert.ok(articleDetail.includes('const content = container.querySelector(":scope > .code-block-content")'));
+  assert.ok(articleDetail.includes("language.remove();"));
+  assert.ok(articleDetail.includes("legacyHeader.remove();"));
+  assert.ok(articleDetail.includes("normalizeLegacyCodeBlocks();"));
+  assert.ok(articleDetail.indexOf("normalizeLegacyCodeBlocks();") < articleDetail.indexOf("setupCodeCopy();"));
 });
 
 test("article detail secondary text remains readable instead of hazy", () => {

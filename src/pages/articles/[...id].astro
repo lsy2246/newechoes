@@ -873,6 +873,41 @@ const tableOfContents = generateTableOfContents(headings);
       // 初始化所有功能
       function initializeFeatures() {
         // 1. 代码块复制功能
+        function normalizeLegacyCodeBlocks() {
+          const containers = document.querySelectorAll(".code-block-container");
+          if (containers.length === 0) {
+            return;
+          }
+
+          containers.forEach((container) => {
+            const legacyHeader = container.querySelector(":scope > .code-block-header");
+            const content = container.querySelector(":scope > .code-block-content");
+
+            if (!legacyHeader || !content) {
+              return;
+            }
+
+            const language = legacyHeader.querySelector(".code-block-lang");
+            const copyButton = legacyHeader.querySelector(".code-block-copy");
+
+            if (language) {
+              language.remove();
+            }
+
+            if (copyButton) {
+              copyButton.setAttribute("type", "button");
+              copyButton.setAttribute("title", "复制代码");
+              copyButton.setAttribute("aria-label", "复制代码");
+
+              if (!content.querySelector(":scope > .code-block-copy")) {
+                content.insertBefore(copyButton, content.firstChild);
+              }
+            }
+
+            legacyHeader.remove();
+          });
+        }
+
         function setupCodeCopy() {
           const copyButtons = document.querySelectorAll(".code-block-copy");
           if (copyButtons.length === 0) {
@@ -1346,6 +1381,7 @@ const tableOfContents = generateTableOfContents(headings);
         }
 
         // 启动所有功能
+        normalizeLegacyCodeBlocks();
         setupCodeCopy();
         setupProgressBar();
         setupArticleReferenceLinks();

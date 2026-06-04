@@ -8,62 +8,56 @@
   position: relative;
 }
 
-/* 代码块标题栏 */
-.code-block-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.3rem 0.6rem;
-  background-color: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
-  font-size: 0.8rem;
-}
-
-/* 代码语言标签 */
+/* 隐藏旧版语言标签，避免旧静态产物在客户端展示异常 */
 .code-block-lang {
-  font-weight: 600;
-  color: #475569;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* 使用伪元素显示语言名称 */
-.code-block-lang::after {
-  content: " " attr(data-language);
-  display: inline-block;
-}
-
-.code-block-lang svg {
-  width: 1rem;
-  height: 1rem;
+  display: none !important;
 }
 
 /* 复制按钮 */
 .code-block-copy {
-  background: transparent;
-  border: none;
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid transparent;
   cursor: pointer;
   color: #475569;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.25rem;
-  font-size: 0.7rem;
-  transition: all 0.2s ease;
+  justify-content: center;
+  border-radius: 0.45rem;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+  z-index: 2;
 }
 
 /* 使用伪元素显示复制文本 */
 .code-block-copy::after {
-  content: " " attr(data-copy-text);
-  display: inline-block;
+  content: none;
+  display: none;
+}
+
+.code-block-container:hover .code-block-copy,
+.code-block-container:focus-within .code-block-copy,
+.code-block-copy.copied,
+.code-block-copy.copy-failed,
+.code-block-copy:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .code-block-copy:hover {
   background-color: #e2e8f0;
+  border-color: #cbd5e1;
 }
 
 .code-block-copy.copied {
@@ -71,7 +65,7 @@
 }
 
 .code-block-copy.copied::after {
-  content: " 已复制";
+  content: none;
 }
 
 /* 复制失败状态 */
@@ -80,28 +74,28 @@
 }
 
 .code-block-copy.copy-failed::after {
-  content: " 失败";
+  content: none;
 }
 
 /* 代码内容容器 - 修改为 flex 布局 */
 .code-block-content {
   position: relative;
   display: flex;
+  align-items: stretch;
   background-color: transparent;
 }
 
 /* 行号容器 - 固定宽度和位置 */
 .line-numbers-container {
-  flex: 0 0 2.5rem;
-  background-color: #f1f5f9;
+  flex: 0 0 3rem;
+  background-color: transparent;
   border-right: 1px solid #e2e8f0;
   z-index: 1;
   position: sticky;
   left: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.15rem 0;
+  display: grid;
+  align-content: start;
+  padding: 0 0 0.55rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
   counter-reset: line; /* 重置行号计数器 */
@@ -110,14 +104,15 @@
 /* 行号元素样式 */
 .line-number {
   width: 100%;
-  height: 1.4rem;
+  height: 1.5rem;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   color: #94a3b8;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   user-select: none;
   counter-increment: line; /* 每个行号元素递增计数器 */
+  padding: 0 0.65rem 0 0.45rem;
 }
 
 /* 使用伪元素显示行号 */
@@ -130,21 +125,24 @@
 /* 代码内容容器 - 允许水平滚动 */
 .code-content-container {
   flex: 1;
+  min-width: 0;
   overflow-x: auto;
+  padding: 0 0 0.55rem;
 }
 
 /* 基础代码块样式 - 减小内边距 */
 pre {
   margin: 0;
-  padding: 0.15rem 0;
+  padding: 0;
   overflow-x: visible; /* 改为 visible，滚动由父容器处理 */
+  min-width: max-content;
 }
 
 pre code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
   font-size: 0.9rem;
-  line-height: 1.4rem;
+  line-height: 1.5rem;
   padding: 0;
   display: block;
 }
@@ -159,9 +157,9 @@ pre code {
 .line-numbers .line {
   position: relative;
   counter-increment: line;
-  padding-left: 0.5rem; /* 减小左侧内边距 */
-  padding-right: 0.4rem;
-  min-height: 1.4rem;
+  padding-left: 0.85rem;
+  padding-right: 1rem;
+  min-height: 1.5rem;
   white-space: pre;
 }
 
@@ -171,29 +169,17 @@ pre code {
   background-color: transparent;
 }
 
-[data-theme="dark"] .code-block-header {
-  background-color: #1e293b;
-  border-bottom-color: #334155;
-}
-
-[data-theme="dark"] .code-block-lang {
-  color: #e2e8f0;
-}
-
-[data-theme="dark"] .code-block-lang::after {
-  color: #e2e8f0;
-}
-
 [data-theme="dark"] .code-block-copy {
   color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.85);
+  border-color: transparent;
 }
 
 [data-theme="dark"] .code-block-copy::after {
-  color: #e2e8f0;
+  content: none;
 }
 
 [data-theme="dark"] .code-block-copy.copied::after {
-  content: " 已复制";
   color: #10b981;
 }
 
@@ -202,12 +188,12 @@ pre code {
 }
 
 [data-theme="dark"] .code-block-copy.copy-failed::after {
-  content: " 失败";
   color: #f87171;
 }
 
 [data-theme="dark"] .code-block-copy:hover {
   background-color: #334155;
+  border-color: #475569;
 }
 
 /* 移除代码内容区域的黑暗模式背景 */
@@ -217,7 +203,6 @@ pre code {
 
 /* 暗色模式行号容器样式 */
 [data-theme="dark"] .line-numbers-container {
-  background-color: #1e293b;
   border-right-color: #334155;
 }
 
@@ -254,6 +239,13 @@ pre.astro-code,
 [data-theme="dark"] .line.highlighted {
   border-left: 2px solid #fbbf24;
   background-color: transparent !important;
+}
+
+@media (hover: none) {
+  .code-block-copy {
+    opacity: 0.82;
+    transform: translateY(0);
+  }
 }
 
 /* 暗黑主题样式 */

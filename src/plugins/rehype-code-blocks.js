@@ -135,36 +135,6 @@ export function rehypeCodeBlocks() {
           }
         });
 
-        // 创建语言标签内容
-        const langDivChildren = [
-          {
-            type: 'element',
-            tagName: 'svg',
-            properties: {
-              xmlns: 'http://www.w3.org/2000/svg',
-              viewBox: '0 0 24 24',
-              fill: 'none',
-              stroke: 'currentColor',
-              'stroke-width': '2',
-              'stroke-linecap': 'round',
-              'stroke-linejoin': 'round'
-            },
-            children: [
-              {
-                type: 'element',
-                tagName: 'polyline',
-                properties: { points: '16 18 22 12 16 6' }
-              },
-              {
-                type: 'element',
-                tagName: 'polyline',
-                properties: { points: '8 6 2 12 8 18' }
-              }
-            ]
-          }
-          // 移除文本节点，将通过CSS伪元素生成
-        ];
-        
         // 创建复制按钮内容
         const copyButtonChildren = [
           {
@@ -220,41 +190,26 @@ export function rehypeCodeBlocks() {
             'data-theme': 'light dark' // 表明支持双主题
           },
           children: [
-            // 标题栏
-            {
-              type: 'element',
-              tagName: 'div',
-              properties: { className: ['code-block-header'] },
-              children: [
-                // 语言标签
-                {
-                  type: 'element',
-                  tagName: 'div',
-                  properties: { 
-                    className: ['code-block-lang'],
-                    'data-language': language // 添加data属性存储语言名称
-                  },
-                  children: langDivChildren
-                },
-                // 复制按钮 - 使用 data-code 属性存储编码后的代码内容
-                {
-                  type: 'element',
-                  tagName: 'button',
-                  properties: { 
-                    className: ['code-block-copy'],
-                    'data-code': Buffer.from(originalCode, 'utf-8').toString('base64'),
-                    'data-copy-text': '复制' // 添加data属性存储复制文本
-                  },
-                  children: copyButtonChildren
-                }
-              ]
-            },
-            // 代码内容区域 - 修改结构，将代码内容和行号分离
+            // 代码内容区域 - 保持单一阅读表面，只将语言和复制作为轻量悬浮信息
             {
               type: 'element',
               tagName: 'div',
               properties: { className: ['code-block-content'] },
               children: [
+                // 复制按钮
+                {
+                  type: 'element',
+                  tagName: 'button',
+                  properties: {
+                    className: ['code-block-copy'],
+                    type: 'button',
+                    title: '复制代码',
+                    'aria-label': '复制代码',
+                    'data-code': Buffer.from(originalCode, 'utf-8').toString('base64'),
+                    'data-copy-text': '复制'
+                  },
+                  children: copyButtonChildren
+                },
                 // 行号容器
                 {
                   type: 'element',
