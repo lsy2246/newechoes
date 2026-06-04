@@ -5,6 +5,7 @@ import test from "node:test";
 const astroConfig = readFileSync("astro.config.mjs", "utf8");
 const aboutPage = readFileSync("src/pages/about.astro", "utf8");
 const homeDiorama = readFileSync("src/components/home/HomeDiorama.astro", "utf8");
+const dioramaModule = readFileSync("src/components/home/diorama.ts", "utf8");
 
 test("three dependencies are split into smaller core and addon chunks", () => {
   assert.ok(astroConfig.includes('id.includes("node_modules/three/examples/")'));
@@ -35,4 +36,10 @@ test("home diorama loads its three scene module asynchronously and guards swup n
   assert.ok(homeDiorama.includes('document.addEventListener("astro:before-swap", resetDioramaState)'));
   assert.ok(homeDiorama.includes('document.addEventListener("swup:visit:start", resetDioramaState)'));
   assert.equal(homeDiorama.includes('import { initDiorama } from "./diorama";'), false);
+});
+
+test("home diorama cleanup removes pointer listeners with stable handler references", () => {
+  assert.ok(dioramaModule.includes("const pointerLeaveHandler = () => {"));
+  assert.ok(dioramaModule.includes('canvasEl.addEventListener("pointerleave", pointerLeaveHandler);'));
+  assert.ok(dioramaModule.includes('canvasEl.removeEventListener("pointerleave", pointerLeaveHandler);'));
 });

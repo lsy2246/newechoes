@@ -69,6 +69,20 @@ test("world heatmap hover badge uses semantic classes instead of old colored pil
   }
 });
 
+test("world heatmap loads the geo wasm runtime from source asset urls on demand", () => {
+  assert.ok(worldHeatmap.includes('@/assets/wasm/geo/geo_wasm.js?url'));
+  assert.ok(worldHeatmap.includes("geoWasmModuleUrl"));
+  assert.ok(worldHeatmap.includes("@vite-ignore"));
+  assert.equal(worldHeatmap.includes("/wasm/geo/geo-wasm-loader.js"), false);
+});
+
+test("world heatmap frees the geo wasm processor and clears map load timers on cleanup", () => {
+  assert.ok(worldHeatmap.includes("geoProcessorInstance?.free();"));
+  assert.ok(worldHeatmap.includes("window.clearTimeout(timeoutId);"));
+  assert.ok(worldHeatmap.includes("let timeoutId: number | null = null;"));
+  assert.ok(worldHeatmap.includes('controls.removeEventListener("change", handleControlsChange);'));
+});
+
 test("world heatmap theme changes update materials without rebuilding the camera scene", () => {
   assert.equal(
     worldHeatmap.includes("}, [visitedPlaces, theme, wasmReady, geoProcessor]);"),

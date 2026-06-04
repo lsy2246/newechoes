@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import geoWasmModuleUrl from "@/assets/wasm/geo/geo_wasm.js?url";
 import type {
   Group,
   Line,
@@ -35,8 +36,15 @@ interface GeoWasmModule {
       z: number,
       radius: number,
     ) => string | null;
+    free: () => void;
   };
   default?: () => Promise<any>;
+}
+
+declare global {
+  interface Window {
+    __NEWECHOES_GEO_WASM_MODULE__?: Promise<GeoWasmModule>;
+  }
 }
 
 interface WorldHeatmapProps {
@@ -109,6 +117,28 @@ const getSafeGlobeMinDistance = (
   const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
 
   return (EARTH_RADIUS / Math.sin(limitingHalfFov)) * GLOBE_FRAMING_MARGIN;
+};
+
+const loadGeoWasmModule = async () => {
+  if (typeof window === "undefined") {
+    throw new Error("Geo wasm 只能在浏览器环境加载");
+  }
+
+  if (!window.__NEWECHOES_GEO_WASM_MODULE__) {
+    window.__NEWECHOES_GEO_WASM_MODULE__ = (async () => {
+      const wasmModule = (await import(
+        /* @vite-ignore */ geoWasmModuleUrl
+      )) as GeoWasmModule;
+
+      if (typeof wasmModule.default === "function") {
+        await wasmModule.default();
+      }
+
+      return wasmModule;
+    })();
+  }
+
+  return window.__NEWECHOES_GEO_WASM_MODULE__;
 };
 
 const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
@@ -204,6 +234,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
     // 创建 AbortController 用于在组件卸载时取消请求
     const controller = new AbortController();
     const signal = controller.signal;
+    let timeoutId: number | null = null;
 
     const loadMapData = async () => {
       try {
@@ -211,7 +242,7 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         setMapError(null);
 
         // 添加请求超时处理
-        const timeout = setTimeout(() => controller.abort(), 30000); // 30秒超时
+        timeoutId = window.setTimeout(() => controller.abort(), 30000); // 30秒超时
 
         // 从公共目录加载地图数据，并使用 signal 和缓存控制
         const [worldDataResponse, chinaDataResponse] = await Promise.all([
@@ -224,8 +255,6 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
             headers: { "Cache-Control": "no-cache" },
           }),
         ]);
-
-        clearTimeout(timeout);
 
         if (!worldDataResponse.ok || !chinaDataResponse.ok) {
           throw new Error("无法获取地图数据");
@@ -248,6 +277,11 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
           setMapError(`地图数据加载失败: ${errorMessage}`);
         }
         setMapLoading(false);
+      } finally {
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
       }
     };
 
@@ -255,6 +289,10 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
 
     // 清理函数：组件卸载时中断请求
     return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       controller.abort();
     };
   }, []);
@@ -263,12 +301,8 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
   useEffect(() => {
     const loadWasmModule = async () => {
       try {
-        // 改为使用JS胶水文件方式加载WASM
-        const wasm = await import("@/assets/wasm/geo/geo_wasm.js");
-        if (typeof wasm.default === "function") {
-          await wasm.default();
-        }
-        setWasmModule(wasm as unknown as GeoWasmModule);
+        const wasm = await loadGeoWasmModule();
+        setWasmModule(wasm);
         setWasmError(null);
       } catch (err: any) {
         console.error("加载WASM模块失败:", err);
@@ -284,9 +318,11 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
   useEffect(() => {
     if (!wasmModule || !mapData.worldData || !mapData.chinaData) return;
 
+    let geoProcessorInstance: InstanceType<GeoWasmModule["GeoProcessor"]> | null = null;
+
     try {
       // 使用JS胶水层方式初始化WASM
-      const geoProcessorInstance = new wasmModule.GeoProcessor();
+      geoProcessorInstance = new wasmModule.GeoProcessor();
       geoProcessorInstance.process_geojson(
         JSON.stringify(mapData.worldData),
         JSON.stringify(mapData.chinaData),
@@ -300,8 +336,15 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
       console.error("WASM数据处理失败:", error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
+      geoProcessorInstance?.free();
+      setGeoProcessor(null);
+      setWasmReady(false);
       setWasmError(`WASM数据处理失败: ${errorMessage}`);
     }
+
+    return () => {
+      geoProcessorInstance?.free();
+    };
   }, [wasmModule, visitedPlaces, mapData.worldData, mapData.chinaData]);
 
   // 添加对页面转换事件的监听
@@ -552,11 +595,15 @@ const WorldHeatmap: React.FC<WorldHeatmapProps> = ({ visitedPlaces }) => {
         controls.minPolarAngle = Math.PI * 0.1;
         controls.maxPolarAngle = Math.PI * 0.9;
 
-        controls.addEventListener("change", () => {
+        const handleControlsChange = () => {
           if (sceneRef.current) {
             renderer.render(scene, camera);
             labelRenderer.render(scene, camera);
           }
+        };
+        controls.addEventListener("change", handleControlsChange);
+        cleanupFunctions.push(() => {
+          controls.removeEventListener("change", handleControlsChange);
         });
 
         const countryToLines = new Map<string, Line[]>();

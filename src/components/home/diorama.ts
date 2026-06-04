@@ -1791,10 +1791,11 @@ export function initDiorama() {
     handleMobileGestureMove(e);
   };
   canvasEl.addEventListener("pointermove", pointerMoveHandler);
-  canvasEl.addEventListener("pointerleave", () => {
+  const pointerLeaveHandler = () => {
     resetMobileGesture();
     canvasEl.style.cursor = sceneInputActive ? "grab" : "default";
-  });
+  };
+  canvasEl.addEventListener("pointerleave", pointerLeaveHandler);
   canvasEl.style.cursor = "default";
 
   const pointerDownHandler = (e: PointerEvent) => {
@@ -2154,6 +2155,7 @@ export function initDiorama() {
     window.removeEventListener("wheel", loopBackwardWheelHandler, { capture: true });
     window.removeEventListener("resize", handleBreakpointResize);
     canvasEl.removeEventListener("pointermove", pointerMoveHandler);
+    canvasEl.removeEventListener("pointerleave", pointerLeaveHandler);
     canvasEl.removeEventListener("pointerdown", pointerDownHandler);
     canvasEl.removeEventListener("pointerup", pointerUpHandler);
     canvasEl.removeEventListener("pointercancel", resetMobileGesture);

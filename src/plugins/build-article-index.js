@@ -1,484 +1,470 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
-import { getStaticOutputMirrorRoots, resolveBuildDir } from '../platform/build/index.js';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { getArticleHistory } from "../lib/article-history/node.js";
+import { getStaticOutputMirrorRoots, resolveBuildDir } from "../platform/build/index.js";
 
-// 获取当前文件的目录
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// 获取项目根目录
-const rootDir = path.resolve(__dirname, '../..');
-const wasmRootDir = path.join(rootDir, 'wasm');
-const wasmAssetDir = path.join(rootDir, 'src', 'assets', 'wasm');
-// 构建目录在根目录下
-const buildDir = path.resolve(rootDir, 'dist');
-// 索引文件存储位置
-const indexDir = path.join(resolveBuildDir(buildDir), 'assets', 'index');
-const binaryName = process.platform === 'win32'
-  ? 'article-indexer-cli.exe'
-  : 'article-indexer-cli';
-// 二进制可执行文件路径
-const binaryPath = path.join(rootDir, 'src', 'assets', 'article-index', binaryName);
-const builtBinaryPath = path.join(
-  wasmRootDir,
-  'target',
-  'release',
-  binaryName,
-);
-const wasmBindgenBinaryName = process.platform === 'win32'
-  ? 'wasm-bindgen.exe'
-  : 'wasm-bindgen';
-const runtimeBuildStrategy = resolveRuntimeBuildStrategy();
-const indexerSourcePaths = [
-  path.join(wasmRootDir, 'Cargo.toml'),
-  path.join(wasmRootDir, 'Cargo.lock'),
-  path.join(wasmRootDir, 'article-indexer'),
-  path.join(wasmRootDir, 'article-filter'),
-  path.join(wasmRootDir, 'search'),
-  path.join(wasmRootDir, 'utils-common'),
-];
-const wasmPackages = [
-  {
-    crateName: 'search-wasm',
-    pkgDir: path.join(wasmRootDir, 'search'),
-    sourcePaths: [
-      path.join(wasmRootDir, 'Cargo.toml'),
-      path.join(wasmRootDir, 'Cargo.lock'),
-      path.join(wasmRootDir, 'search'),
-      path.join(wasmRootDir, 'utils-common'),
-    ],
-    wasmName: 'search_wasm',
-    outputDir: path.join(wasmAssetDir, 'search'),
-  },
-  {
-    crateName: 'article-filter',
-    pkgDir: path.join(wasmRootDir, 'article-filter'),
-    sourcePaths: [
-      path.join(wasmRootDir, 'Cargo.toml'),
-      path.join(wasmRootDir, 'Cargo.lock'),
-      path.join(wasmRootDir, 'article-filter'),
-      path.join(wasmRootDir, 'utils-common'),
-    ],
-    wasmName: 'article_filter',
-    outputDir: path.join(wasmAssetDir, 'article-filter'),
-  },
-];
+const rootDir = path.resolve(__dirname, "../..");
+const defaultBuildDir = path.resolve(rootDir, "dist");
+const defaultContentDir = path.resolve(rootDir, "src", "content");
+const indexDir = path.join(resolveBuildDir(defaultBuildDir), "assets", "index");
+const INDEX_OUTPUT_FILES = ["search_index.json", "filter_index.json"];
+const REMOVED_LEGACY_FILES = ["search_index.bin", "filter_index.bin"];
+const STOP_WORDS = new Set([
+  "的",
+  "是",
+  "在",
+  "了",
+  "和",
+  "与",
+  "或",
+  "而",
+  "但",
+  "如果",
+  "因为",
+  "所以",
+  "这",
+  "那",
+  "这个",
+  "那个",
+  "这些",
+  "那些",
+  "并",
+  "可以",
+  "把",
+  "被",
+  "将",
+  "已",
+  "就",
+  "也",
+  "很",
+  "到",
+  "上",
+  "下",
+  "中",
+  "为",
+]);
 
-function resolveRuntimeBuildStrategy() {
-  const rawValue = (
-    process.env.ARTICLE_INDEX_RUNTIME_BUILD
-    || process.env.ARTICLE_INDEX_RUNTIME_STRATEGY
-    || 'prebuilt'
-  ).trim().toLowerCase();
-
-  if (rawValue === 'always') {
-    return 'force';
-  }
-
-  if (rawValue === 'prebuilt' || rawValue === 'auto' || rawValue === 'force') {
-    return rawValue;
-  }
-
-  console.warn(`[索引构建] 未识别的运行时产物策略 "${rawValue}"，已回退到 prebuilt`);
-  return 'prebuilt';
-}
-
-function shouldRebuildArtifact({ missing, stale }) {
-  if (runtimeBuildStrategy === 'force') {
-    return true;
-  }
-
-  if (runtimeBuildStrategy === 'auto') {
-    return missing || stale;
-  }
-
-  return missing;
-}
-
-export function isCiEnvironment(env = process.env) {
-  const value = `${env.CI || ''}`.trim().toLowerCase();
-  return value === '1' || value === 'true';
-}
-
-export function assertFreshPrebuiltArtifact({
-  artifactLabel,
-  artifactPath,
-  sourceLabel,
-  sourcePath,
-  strategy,
-  runningInCi = isCiEnvironment(),
-  missing,
-  stale,
-}) {
-  if (strategy !== 'prebuilt' || runningInCi || missing || !stale) {
+export function prepareArticleIndexRuntimeArtifacts() {
+  if (process.env.ARTICLE_INDEX_RUNTIME_PREPARED === "true") {
     return;
   }
 
-  throw new Error(
-    `${artifactLabel} 预构建产物已过期，当前策略(prebuilt)不能继续使用旧产物。`
-    + ` 请重新编译并提交更新后的产物。`
-    + ` 产物: ${artifactPath}`
-    + `；源码: ${sourceLabel} (${sourcePath})`,
-  );
+  console.log("[索引构建] 当前运行时产物:");
+  console.log("- 运行时产物策略: pure-js");
+  console.log("- article index runtime: Node.js source content scanner");
+  process.env.ARTICLE_INDEX_RUNTIME_PREPARED = "true";
 }
 
-function hasCargo() {
-  try {
-    const output = execFileSync('cargo', ['--version'], {
-      cwd: rootDir,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-
-    return typeof output === 'string' && output.includes('cargo');
-  } catch {
-    return false;
+function listContentFiles(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return [];
   }
-}
 
-function canExecute(command, args = ['--version']) {
-  try {
-    const output = execFileSync(command, args, {
-      cwd: rootDir,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-
-    return typeof output === 'string' && output.length > 0;
-  } catch {
-    return false;
-  }
-}
-
-function resolveWasmBindgenCli() {
-  const candidateDirs = [
-    process.env.CARGO_HOME ? path.join(process.env.CARGO_HOME, 'bin') : null,
-    process.env.HOME ? path.join(process.env.HOME, '.cargo', 'bin') : null,
-    process.env.USERPROFILE ? path.join(process.env.USERPROFILE, '.cargo', 'bin') : null,
-    process.platform === 'win32' ? null : '/rust/bin',
-  ].filter(Boolean);
-
-  for (const candidateDir of candidateDirs) {
-    const candidatePath = path.join(candidateDir, wasmBindgenBinaryName);
-    if (fs.existsSync(candidatePath)) {
-      return candidatePath;
+  const contentFiles = [];
+  for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+    const targetPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      contentFiles.push(...listContentFiles(targetPath));
+      continue;
+    }
+    if (entry.isFile() && /\.(md|mdx)$/i.test(entry.name)) {
+      contentFiles.push(targetPath);
     }
   }
 
-  if (canExecute(wasmBindgenBinaryName)) {
-    return wasmBindgenBinaryName;
-  }
-
-  return null;
+  return contentFiles;
 }
 
-function getNewestMtimeMs(targetPath) {
-  if (!fs.existsSync(targetPath)) {
-    return 0;
-  }
-
-  const stat = fs.statSync(targetPath);
-  if (!stat.isDirectory()) {
-    return stat.mtimeMs;
-  }
-
-  let newestMtimeMs = stat.mtimeMs;
-  const entries = fs.readdirSync(targetPath, { withFileTypes: true });
-
-  for (const entry of entries) {
-    newestMtimeMs = Math.max(
-      newestMtimeMs,
-      getNewestMtimeMs(path.join(targetPath, entry.name)),
-    );
-  }
-
-  return newestMtimeMs;
+function normalizeWhitespace(value) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
-function shouldRebuildIndexerBinary() {
-  const missing = !fs.existsSync(binaryPath);
-  const sourceMtimeMs = Math.max(
-    ...indexerSourcePaths.map((sourcePath) => getNewestMtimeMs(sourcePath)),
-  );
-  const binaryMtimeMs = missing ? 0 : fs.statSync(binaryPath).mtimeMs;
-  const stale = !missing && sourceMtimeMs > binaryMtimeMs;
+function normalizeText(value) {
+  return normalizeWhitespace(value).toLowerCase();
+}
+
+function parseFrontmatterBlock(source) {
+  const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (!match) {
+    return null;
+  }
 
   return {
-    missing,
-    stale,
-    binaryMtimeMs,
-    sourceMtimeMs,
+    frontmatter: match[1],
+    body: source.slice(match[0].length),
   };
 }
 
-function shouldRebuildWasmPackage(pkg) {
-  const jsAssetPath = path.join(pkg.outputDir, `${pkg.wasmName}.js`);
-  const wasmAssetPath = path.join(pkg.outputDir, `${pkg.wasmName}_bg.wasm`);
-  const missing = !fs.existsSync(jsAssetPath) || !fs.existsSync(wasmAssetPath);
-
-  const builtAt = missing
-    ? 0
-    : Math.min(
-      fs.statSync(jsAssetPath).mtimeMs,
-      fs.statSync(wasmAssetPath).mtimeMs,
-    );
-  const sourceMtimeMs = Math.max(
-    ...pkg.sourcePaths.map((sourcePath) => getNewestMtimeMs(sourcePath)),
+function parseFrontmatterValue(frontmatter, key) {
+  const match = frontmatter.match(
+    new RegExp(`^${key}:\\s*(?:"([^"]*)"|'([^']*)'|([^\\r\\n]+))\\s*$`, "m"),
   );
-  const stale = !missing && sourceMtimeMs > builtAt;
-
-  return {
-    missing,
-    stale,
-    builtAt,
-    sourceMtimeMs,
-  };
+  return (match?.[1] ?? match?.[2] ?? match?.[3] ?? "").trim();
 }
 
-function ensureWasmBindgenCli() {
-  const existingCli = resolveWasmBindgenCli();
-  if (existingCli) {
-    return existingCli;
+function parseFrontmatterArray(frontmatter, key) {
+  const raw = parseFrontmatterValue(frontmatter, key);
+  if (!raw || raw === "[]") {
+    return [];
   }
 
-  if (!hasCargo()) {
-    throw new Error('当前环境未安装 cargo，无法自动安装 wasm-bindgen-cli');
+  if (raw.startsWith("[") && raw.endsWith("]")) {
+    return raw
+      .slice(1, -1)
+      .split(",")
+      .map((item) => item.trim().replace(/^["']|["']$/g, ""))
+      .filter(Boolean);
   }
 
-  console.log('检测到 wasm-bindgen CLI 缺失，开始安装...');
-  execFileSync(
-    'cargo',
-    ['install', 'wasm-bindgen-cli', '--version', '0.2.121'],
-    {
-      cwd: wasmRootDir,
-      encoding: 'utf8',
-      stdio: 'inherit',
-    },
-  );
-
-  const installedCli = resolveWasmBindgenCli();
-  if (!installedCli) {
-    throw new Error(`安装 wasm-bindgen CLI 失败: ${wasmBindgenBinaryName}`);
-  }
-
-  return installedCli;
+  return [raw.replace(/^["']|["']$/g, "")].filter(Boolean);
 }
 
-function buildWasmPackage(pkg) {
-  const status = shouldRebuildWasmPackage(pkg);
+function cleanInlineMarkdown(value) {
+  return normalizeWhitespace(
+    value
+      .replace(/!\[([^\]]*)]\([^)]+\)/g, " $1 ")
+      .replace(/\[([^\]]+)]\([^)]+\)/g, " $1 ")
+      .replace(/`([^`]+)`/g, " $1 ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\{[^{}]*\}/g, " ")
+      .replace(/[_*~]+/g, "")
+      .replace(/\|/g, " "),
+  );
+}
 
-  assertFreshPrebuiltArtifact({
-    artifactLabel: `${pkg.crateName} wasm`,
-    artifactPath: pkg.outputDir,
-    sourceLabel: pkg.crateName,
-    sourcePath: pkg.pkgDir,
-    strategy: runtimeBuildStrategy,
-    ...status,
-  });
+function extractHeadings(markdownBody) {
+  const headings = [];
+  let inCodeFence = false;
 
-  if (!shouldRebuildArtifact(status)) {
-    if (status.stale) {
-      console.log(`[索引构建] ${pkg.crateName} 检测到源码较新，当前策略(${runtimeBuildStrategy})继续使用仓库内预构建 wasm 产物`);
+  for (const line of markdownBody.split(/\r?\n/)) {
+    if (/^\s*```/.test(line)) {
+      inCodeFence = !inCodeFence;
+      continue;
     }
-    return;
-  }
-
-  if (!hasCargo()) {
-    const reason = status.missing ? '缺失' : '过期';
-    throw new Error(`检测到 ${pkg.crateName} 前端 wasm 产物${reason}，但当前环境未安装 cargo`);
-  }
-
-  const wasmBindgenCli = ensureWasmBindgenCli();
-
-  const reason = status.missing
-    ? '缺失'
-    : runtimeBuildStrategy === 'force'
-      ? '收到强制重编指令'
-      : '已过期';
-  console.log(`[索引构建] ${pkg.crateName} 前端 wasm 产物${reason}，开始重新编译...`);
-
-  execFileSync(
-    'cargo',
-    ['build', '--release', '--target', 'wasm32-unknown-unknown', '--package', pkg.crateName],
-    {
-      cwd: wasmRootDir,
-      encoding: 'utf8',
-      stdio: 'inherit',
-    },
-  );
-
-  const builtWasmPath = path.join(
-    wasmRootDir,
-    'target',
-    'wasm32-unknown-unknown',
-    'release',
-    `${pkg.wasmName}.wasm`,
-  );
-
-  if (!fs.existsSync(builtWasmPath)) {
-    throw new Error(`未找到 ${pkg.crateName} 编译产物: ${builtWasmPath}`);
-  }
-
-  fs.mkdirSync(pkg.outputDir, { recursive: true });
-
-  execFileSync(
-    wasmBindgenCli,
-    [
-      builtWasmPath,
-      '--out-dir',
-      pkg.outputDir,
-      '--target',
-      'web',
-      '--no-typescript',
-    ],
-    {
-      cwd: rootDir,
-      encoding: 'utf8',
-      stdio: 'inherit',
-    },
-  );
-
-  console.log(`${pkg.crateName} 前端 wasm 已更新: ${pkg.outputDir}`);
-}
-
-function ensureArticleIndexerBinary() {
-  const status = shouldRebuildIndexerBinary();
-
-  assertFreshPrebuiltArtifact({
-    artifactLabel: 'article-indexer',
-    artifactPath: binaryPath,
-    sourceLabel: 'Rust sources',
-    sourcePath: path.join(wasmRootDir, 'article-indexer'),
-    strategy: runtimeBuildStrategy,
-    ...status,
-  });
-
-  if (!shouldRebuildArtifact(status)) {
-    if (status.stale) {
-      console.log(`[索引构建] article-indexer 检测到源码较新，当前策略(${runtimeBuildStrategy})继续使用仓库内预构建 CLI`);
-    }
-    return;
-  }
-
-  if (!hasCargo()) {
-    const reason = status.missing ? '缺失' : '过期';
-    throw new Error(`检测到文章索引器${reason}，但当前环境未安装 cargo`);
-  }
-
-  const reason = status.missing
-    ? '缺失'
-    : runtimeBuildStrategy === 'force'
-      ? '收到强制重编指令'
-      : '已过期';
-  console.log(`[索引构建] 文章索引器${reason}，开始重新编译...`);
-
-  execFileSync(
-    'cargo',
-    ['build', '--release', '--package', 'article-indexer', '--bin', 'article-indexer-cli'],
-    {
-      cwd: wasmRootDir,
-      encoding: 'utf8',
-      stdio: 'inherit',
-    },
-  );
-
-  if (!fs.existsSync(builtBinaryPath)) {
-    throw new Error(`重新编译后仍未找到索引工具: ${builtBinaryPath}`);
-  }
-
-  fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
-  fs.copyFileSync(builtBinaryPath, binaryPath);
-
-  if (process.platform !== 'win32') {
-    fs.chmodSync(binaryPath, 0o755);
-  }
-
-  console.log(`文章索引器已更新: ${binaryPath}`);
-}
-
-function ensureWasmAssets() {
-  for (const pkg of wasmPackages) {
-    buildWasmPackage(pkg);
-  }
-}
-
-function ensureStaticIndexRuntimeArtifacts() {
-  const runtimePaths = [
-    path.join(wasmAssetDir, 'search', 'search_wasm.js'),
-    path.join(wasmAssetDir, 'search', 'search_wasm_bg.wasm'),
-    path.join(wasmAssetDir, 'article-filter', 'article_filter.js'),
-    path.join(wasmAssetDir, 'article-filter', 'article_filter_bg.wasm'),
-    binaryPath,
-  ];
-
-  const missingPaths = runtimePaths.filter((targetPath) => !fs.existsSync(targetPath));
-
-  if (missingPaths.length > 0) {
-    throw new Error(`缺少静态索引运行时产物: ${missingPaths.join(', ')}`);
-  }
-}
-
-function formatArtifactTimestamp(targetPath) {
-  const timestamp = fs.statSync(targetPath).mtime;
-  return Number.isNaN(timestamp.getTime()) ? 'unknown' : timestamp.toISOString();
-}
-
-function logRuntimeArtifactSummary() {
-  const runtimeArtifacts = [
-    {
-      label: 'search wasm',
-      path: path.join(wasmAssetDir, 'search', 'search_wasm_bg.wasm'),
-    },
-    {
-      label: 'article filter wasm',
-      path: path.join(wasmAssetDir, 'article-filter', 'article_filter_bg.wasm'),
-    },
-    {
-      label: `article indexer (${process.platform})`,
-      path: binaryPath,
-    },
-  ];
-
-  console.log('[索引构建] 当前运行时产物:');
-  console.log(`- 运行时产物策略: ${runtimeBuildStrategy}`);
-  for (const artifact of runtimeArtifacts) {
-    if (!fs.existsSync(artifact.path)) {
-      console.log(`- ${artifact.label}: 缺失 (${artifact.path})`);
+    if (inCodeFence) {
       continue;
     }
 
-    console.log(`- ${artifact.label}: ${artifact.path} (mtime=${formatArtifactTimestamp(artifact.path)})`);
+    const match = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (!match) {
+      continue;
+    }
+
+    const text = cleanInlineMarkdown(match[2]);
+    if (!text) {
+      continue;
+    }
+
+    headings.push({
+      level: match[1].length,
+      text,
+    });
+  }
+
+  return headings;
+}
+
+function extractPlainContent(markdownBody) {
+  const lines = [];
+  let inCodeFence = false;
+
+  for (const line of markdownBody.split(/\r?\n/)) {
+    if (/^\s*```/.test(line)) {
+      inCodeFence = !inCodeFence;
+      continue;
+    }
+
+    if (/^\s*import\s.+from\s+["'][^"']+["'];?\s*$/.test(line)) {
+      continue;
+    }
+    if (/^\s*export\s+(default\s+)?/.test(line)) {
+      continue;
+    }
+
+    const normalizedLine = cleanInlineMarkdown(
+      line
+        .replace(/^\s{0,3}(#{1,6})\s+/, "")
+        .replace(/^\s{0,3}>\s?/, "")
+        .replace(/^\s*[-+*]\s+/, "")
+        .replace(/^\s*\d+\.\s+/, ""),
+    );
+
+    if (!normalizedLine) {
+      continue;
+    }
+
+    if (inCodeFence) {
+      lines.push(normalizedLine);
+      continue;
+    }
+
+    lines.push(normalizedLine);
+  }
+
+  return normalizeWhitespace(lines.join(" "));
+}
+
+function getCanonicalArticleUrl(articleId) {
+  return `/articles/${encodeURI(articleId)}`;
+}
+
+function parseDate(value, fallback) {
+  const parsed = Date.parse(value || "");
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+  return new Date(parsed).toISOString();
+}
+
+function getArticleUpdatedAt(filePath, articleId, publishedAt, contentRootDir) {
+  const relativeId = path
+    .relative(contentRootDir, filePath)
+    .replace(/\\/g, "/")
+    .replace(/\.(md|mdx)$/i, "");
+
+  const history = getArticleHistory({
+    id: relativeId,
+    filePath,
+    data: {
+      title: articleId,
+      date: publishedAt,
+    },
+  });
+
+  return history.updatedAt ? history.updatedAt.toISOString() : null;
+}
+
+function extractArticleRecord(filePath, contentRootDir) {
+  const source = fs.readFileSync(filePath, "utf8");
+  const parsedBlock = parseFrontmatterBlock(source);
+  if (!parsedBlock) {
+    return null;
+  }
+
+  const title = parseFrontmatterValue(parsedBlock.frontmatter, "title");
+  const rawDate = parseFrontmatterValue(parsedBlock.frontmatter, "date");
+  const draft = parseFrontmatterValue(parsedBlock.frontmatter, "draft").toLowerCase() === "true";
+
+  if (!title || !rawDate || draft) {
+    return null;
+  }
+
+  const publishedAt = new Date(rawDate);
+  if (Number.isNaN(publishedAt.getTime())) {
+    return null;
+  }
+
+  const content = extractPlainContent(parsedBlock.body);
+  if (content.length < 30) {
+    return null;
+  }
+
+  const articleId = title.trim();
+  const summary = parseFrontmatterValue(parsedBlock.frontmatter, "summary")
+    || `${content.slice(0, 200)}...`;
+
+  return {
+    id: articleId,
+    title: articleId,
+    summary,
+    date: parseDate(rawDate, publishedAt.toISOString()),
+    updated_at: getArticleUpdatedAt(filePath, articleId, publishedAt, contentRootDir),
+    tags: parseFrontmatterArray(parsedBlock.frontmatter, "tags").sort((left, right) =>
+      left.localeCompare(right, "zh-CN"),
+    ),
+    url: getCanonicalArticleUrl(articleId),
+    content,
+    page_type: "article",
+    headings: extractHeadings(parsedBlock.body),
+  };
+}
+
+function extractKeywords(text) {
+  const normalized = normalizeText(text);
+  const keywords = new Set();
+  let currentWord = "";
+  let unicodeBuffer = [];
+
+  const flushUnicodeBuffer = () => {
+    if (unicodeBuffer.length === 0) {
+      return;
+    }
+    for (let size = 1; size <= Math.min(unicodeBuffer.length, 3); size += 1) {
+      for (let start = 0; start <= unicodeBuffer.length - size; start += 1) {
+        const term = unicodeBuffer.slice(start, start + size).join("");
+        if (term.length >= 2) {
+          keywords.add(term);
+        }
+      }
+    }
+    unicodeBuffer = [];
+  };
+
+  const flushCurrentWord = () => {
+    if (currentWord.length >= 2) {
+      keywords.add(currentWord);
+    }
+    currentWord = "";
+  };
+
+  for (const character of normalized) {
+    if (/^[\p{L}\p{N}_-]$/u.test(character) && character.charCodeAt(0) < 128) {
+      flushUnicodeBuffer();
+      currentWord += character;
+      continue;
+    }
+
+    if (/\s/u.test(character) || /[^\p{L}\p{N}\p{Script=Han}_-]/u.test(character)) {
+      flushCurrentWord();
+      flushUnicodeBuffer();
+      continue;
+    }
+
+    flushCurrentWord();
+    unicodeBuffer.push(character);
+  }
+
+  flushCurrentWord();
+  flushUnicodeBuffer();
+
+  return [...keywords].filter((keyword) => !/^\d+$/u.test(keyword));
+}
+
+function addToIndex(indexMap, key, value) {
+  if (!indexMap.has(key)) {
+    indexMap.set(key, new Set());
+  }
+  indexMap.get(key).add(value);
+}
+
+function mapSetToObject(indexMap) {
+  const entries = [...indexMap.entries()].sort((left, right) =>
+    left[0].localeCompare(right[0], "zh-CN"),
+  );
+
+  return Object.fromEntries(
+    entries.map(([key, values]) => [key, [...values].sort((left, right) => left - right)]),
+  );
+}
+
+function mapStringSetToObject(indexMap) {
+  const entries = [...indexMap.entries()].sort((left, right) =>
+    left[0].localeCompare(right[0], "zh-CN"),
+  );
+
+  return Object.fromEntries(
+    entries.map(([key, values]) => [key, [...values].sort((left, right) => left.localeCompare(right, "zh-CN"))]),
+  );
+}
+
+function buildSearchIndex(articles) {
+  const titleTermIndex = new Map();
+  const headingTermIndex = new Map();
+  const contentTermIndex = new Map();
+  const termFrequency = new Map();
+
+  articles.forEach((article, articleIndex) => {
+    for (const keyword of extractKeywords(article.title)) {
+      addToIndex(titleTermIndex, keyword, articleIndex);
+      if (!STOP_WORDS.has(keyword) && keyword.length >= 2) {
+        termFrequency.set(keyword, (termFrequency.get(keyword) || 0) + 3);
+      }
+    }
+
+    for (const word of article.title
+      .toLowerCase()
+      .split(/\s+/u)
+      .map((value) => value.replace(/^[^\p{L}\p{N}_-]+|[^\p{L}\p{N}_-]+$/gu, ""))
+      .filter((value) => value.length >= 2)) {
+      addToIndex(titleTermIndex, word, articleIndex);
+    }
+
+    article.headings.forEach((heading, headingIndex) => {
+      const headingId = `${article.id}:${headingIndex}`;
+      for (const keyword of extractKeywords(heading.text)) {
+        addToIndex(headingTermIndex, keyword, headingId);
+      }
+    });
+
+    const articleTermFrequency = new Map();
+    for (const keyword of extractKeywords(article.content)) {
+      if (STOP_WORDS.has(keyword) || keyword.length < 2) {
+        continue;
+      }
+
+      addToIndex(contentTermIndex, keyword, articleIndex);
+      articleTermFrequency.set(keyword, (articleTermFrequency.get(keyword) || 0) + 1);
+    }
+
+    for (const [keyword, frequency] of articleTermFrequency.entries()) {
+      if (frequency >= 2) {
+        termFrequency.set(keyword, (termFrequency.get(keyword) || 0) + 1);
+      }
+    }
+  });
+
+  const commonTerms = Object.fromEntries(
+    [...termFrequency.entries()]
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 500),
+  );
+
+  return {
+    title_term_index: mapSetToObject(titleTermIndex),
+    articles,
+    heading_term_index: mapStringSetToObject(headingTermIndex),
+    common_terms: commonTerms,
+    content_term_index: mapSetToObject(contentTermIndex),
+  };
+}
+
+function buildFilterIndex(articles) {
+  const tagIndex = new Map();
+
+  articles.forEach((article, articleIndex) => {
+    for (const tag of article.tags) {
+      addToIndex(tagIndex, tag, articleIndex);
+    }
+  });
+
+  return {
+    articles,
+    tag_index: mapSetToObject(tagIndex),
+  };
+}
+
+function ensureDirectory(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
   }
 }
 
-export function prepareArticleIndexRuntimeArtifacts() {
-  if (process.env.ARTICLE_INDEX_RUNTIME_PREPARED === 'true') {
-    return;
-  }
-
-  ensureWasmAssets();
-  ensureArticleIndexerBinary();
-  ensureStaticIndexRuntimeArtifacts();
-  logRuntimeArtifactSummary();
-  process.env.ARTICLE_INDEX_RUNTIME_PREPARED = 'true';
+function writeJson(filePath, payload) {
+  fs.writeFileSync(filePath, JSON.stringify(payload), "utf8");
 }
 
-function copyDirectoryContents(sourceDir, targetDir) {
+function cleanLegacyIndexFiles(dirPath) {
+  for (const fileName of [...INDEX_OUTPUT_FILES, ...REMOVED_LEGACY_FILES]) {
+    const targetPath = path.join(dirPath, fileName);
+    if (fs.existsSync(targetPath)) {
+      fs.rmSync(targetPath, { force: true });
+    }
+  }
+}
+
+function replaceDirectoryContents(sourceDir, targetDir) {
   if (!fs.existsSync(sourceDir)) {
     return false;
   }
 
+  fs.rmSync(targetDir, { recursive: true, force: true });
   fs.mkdirSync(targetDir, { recursive: true });
 
   for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
     const sourcePath = path.join(sourceDir, entry.name);
     const targetPath = path.join(targetDir, entry.name);
-
-    if (entry.isDirectory()) {
-      copyDirectoryContents(sourcePath, targetPath);
-      continue;
-    }
-
     fs.copyFileSync(sourcePath, targetPath);
   }
 
@@ -487,7 +473,7 @@ function copyDirectoryContents(sourceDir, targetDir) {
 
 function getPlatformIndexMirrorDirs(buildDirPath, outputDirPath) {
   const relativeIndexDir = path.relative(buildDirPath, outputDirPath);
-  if (!relativeIndexDir || relativeIndexDir.startsWith('..')) {
+  if (!relativeIndexDir || relativeIndexDir.startsWith("..")) {
     return [];
   }
 
@@ -500,7 +486,7 @@ function syncIndexArtifactsToPlatformOutputs(buildDirPath, outputDirPath) {
   const mirroredDirs = [];
 
   for (const targetDir of getPlatformIndexMirrorDirs(buildDirPath, outputDirPath)) {
-    const copied = copyDirectoryContents(outputDirPath, targetDir);
+    const copied = replaceDirectoryContents(outputDirPath, targetDir);
     if (copied) {
       mirroredDirs.push(targetDir);
     }
@@ -509,174 +495,164 @@ function syncIndexArtifactsToPlatformOutputs(buildDirPath, outputDirPath) {
   return mirroredDirs;
 }
 
-/**
- * 创建Astro构建后钩子插件，用于生成文章索引
- * @returns {import('astro').AstroIntegration} Astro集成对象
- */
+function getLatestSourceMtimeMs(contentRootDir) {
+  return listContentFiles(contentRootDir).reduce((latestTime, filePath) => {
+    const fileMtime = fs.statSync(filePath).mtimeMs;
+    return Math.max(latestTime, fileMtime);
+  }, 0);
+}
+
+function needsIndexRefresh(contentRootDir, outputDirPath) {
+  for (const fileName of INDEX_OUTPUT_FILES) {
+    const targetPath = path.join(outputDirPath, fileName);
+    if (!fs.existsSync(targetPath)) {
+      return true;
+    }
+  }
+
+  const latestSourceMtime = getLatestSourceMtimeMs(contentRootDir);
+  const oldestOutputMtime = INDEX_OUTPUT_FILES.reduce((oldestTime, fileName) => {
+    const targetPath = path.join(outputDirPath, fileName);
+    return Math.min(oldestTime, fs.statSync(targetPath).mtimeMs);
+  }, Number.POSITIVE_INFINITY);
+
+  return latestSourceMtime > oldestOutputMtime;
+}
+
 export function articleIndexerIntegration() {
+  let devIndexBuildPromise = null;
+
+  const ensureDevIndexes = async () => {
+    if (!needsIndexRefresh(defaultContentDir, indexDir)) {
+      return;
+    }
+
+    if (!devIndexBuildPromise) {
+      devIndexBuildPromise = generateArticleIndex({
+        buildDir: defaultBuildDir,
+        contentDir: defaultContentDir,
+        outputDir: indexDir,
+      }).finally(() => {
+        devIndexBuildPromise = null;
+      });
+    }
+
+    await devIndexBuildPromise;
+  };
+
   return {
-    name: 'article-indexer-integration',
+    name: "article-indexer-integration",
     hooks: {
-      // 开发服务器钩子 - 为开发模式添加虚拟API路由
-      'astro:server:setup': ({ server }) => {
-        // 为index目录下的文件提供虚拟API路由
+      "astro:server:setup": ({ server }) => {
+        void ensureDevIndexes().catch((error) => {
+          console.error("[索引构建] 开发态预生成索引失败:", error);
+        });
+
         server.middlewares.use((req, res, next) => {
-          // 检查请求路径是否是索引文件
-          if (req.url.startsWith('/assets/index/') && req.method === 'GET') {
-            const requestedFile = req.url.slice('/assets/index/'.length);
-            const filePath = path.join(indexDir, requestedFile);
-            
-            console.log(`虚拟API请求: ${req.url} -> ${filePath}`);
-            
-            // 检查文件是否存在
-            if (fs.existsSync(filePath)) {
-              const stat = fs.statSync(filePath);
-              if (stat.isFile()) {
-                // 设置适当的Content-Type
-                let contentType = 'application/octet-stream';
-                if (filePath.endsWith('.json')) {
-                  contentType = 'application/json';
-                } else if (filePath.endsWith('.bin')) {
-                  contentType = 'application/octet-stream';
-                }
-                
-                res.setHeader('Content-Type', contentType);
-                res.setHeader('Content-Length', stat.size);
-                fs.createReadStream(filePath).pipe(res);
-                return;
-              }
-            }
-            
-            // 文件不存在，返回404
-            res.statusCode = 404;
-            res.end('索引文件未找到');
+          if (!req.url.startsWith("/assets/index/") || req.method !== "GET") {
+            next();
             return;
           }
-          
-          // 不是索引文件请求，继续下一个中间件
-          next();
+
+          void ensureDevIndexes()
+            .then(() => {
+              const requestedFile = req.url.slice("/assets/index/".length);
+              const filePath = path.join(indexDir, requestedFile);
+              if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+                res.statusCode = 404;
+                res.end("索引文件未找到");
+                return;
+              }
+
+              const stat = fs.statSync(filePath);
+              const contentType = filePath.endsWith(".json")
+                ? "application/json"
+                : "application/octet-stream";
+              res.setHeader("Content-Type", contentType);
+              res.setHeader("Content-Length", stat.size);
+              fs.createReadStream(filePath).pipe(res);
+            })
+            .catch((error) => {
+              res.statusCode = 500;
+              res.end(`索引生成失败: ${error instanceof Error ? error.message : String(error)}`);
+            });
         });
       },
-      'astro:build:done': async ({ dir, pages }) => {
-        console.log('Astro构建完成，开始生成文章索引...');
-        
-        // 获取构建目录路径
+      "astro:build:done": async ({ dir }) => {
+        console.log("Astro构建完成，开始生成文章索引...");
         const clientDirPath = resolveBuildDir(dir);
-        
-        // 索引输出目录
-        const outputDirPath = path.join(clientDirPath, 'assets', 'index');
-        
-        await generateArticleIndex({ 
-          buildDir: clientDirPath, 
-          outputDir: outputDirPath 
+        const outputDirPath = path.join(clientDirPath, "assets", "index");
+        await generateArticleIndex({
+          buildDir: clientDirPath,
+          contentDir: defaultContentDir,
+          outputDir: outputDirPath,
         });
-      }
-    }
+      },
+    },
   };
 }
 
-/**
- * 生成文章索引
- * 使用二进制可执行文件直接扫描HTML目录并生成索引
- * @param {Object} options - 选项对象
- * @param {string} options.buildDir - 构建输出目录
- * @param {string} options.outputDir - 索引输出目录
- * @returns {Promise<Object>} 索引生成结果
- */
 export async function generateArticleIndex(options = {}) {
-  console.log('开始生成文章索引...');
-  
-  try {
-    try {
-      prepareArticleIndexRuntimeArtifacts();
-    } catch (runtimeArtifactError) {
-      throw new Error(`[索引构建] 运行时产物准备失败: ${runtimeArtifactError.message}`);
-    }
+  console.log("开始生成文章索引...");
 
-    // 使用提供的目录或默认目录
-    const buildDirPath = options.buildDir || buildDir;
-    const outputDirPath = options.outputDir || indexDir;
-    
-    console.log(`构建目录: ${buildDirPath}`);
-    console.log(`索引输出目录: ${outputDirPath}`);
-    
-    // 确保索引目录存在
-    if (!fs.existsSync(outputDirPath)) {
-      console.log(`创建索引输出目录: ${outputDirPath}`);
-      fs.mkdirSync(outputDirPath, { recursive: true });
-    }
-    
-    // 检查二进制文件是否存在
-    if (!fs.existsSync(binaryPath)) {
-      throw new Error(`索引工具不存在: ${binaryPath}`);
-    }
-    
-    // 检查构建目录是否存在
-    if (!fs.existsSync(buildDirPath)) {
-      throw new Error(`构建目录不存在: ${buildDirPath}`);
-    }
-    
-    // 设置二进制可执行文件权限（仅Unix系统）
-    if (process.platform !== 'win32') {
-      fs.chmodSync(binaryPath, 0o755);
-    }
+  const buildDirPath = options.buildDir || defaultBuildDir;
+  const contentDirPath = options.contentDir || defaultContentDir;
+  const outputDirPath = options.outputDir || indexDir;
 
-    try {
-      // 执行索引命令，直接捕获输出
-      const result = execFileSync(binaryPath, [
-        '--source',                   // 源目录参数名
-        buildDirPath,                 // 源目录值
-        '--output',                   // 输出目录参数名
-        outputDirPath,                // 输出目录值
-        '--verbose',                  // 输出详细日志
-        // '--all'                       // 索引所有页面类型
-      ], { 
-        encoding: 'utf8',
-        // 在Windows上禁用引号转义，防止参数解析问题
-        windowsVerbatimArguments: process.platform === 'win32'
-      });
-      
-      console.log(result);
-      const mirroredDirs = syncIndexArtifactsToPlatformOutputs(buildDirPath, outputDirPath);
-      if (mirroredDirs.length > 0) {
-        console.log(`[索引构建] 已同步索引产物到平台目录: ${mirroredDirs.join(', ')}`);
-      } else {
-        console.log('[索引构建] 未检测到额外的平台索引镜像目录，保留默认输出目录');
-      }
-      console.log('文章索引生成完成!');
-      console.log(`索引文件保存在: ${outputDirPath}`);
-      
-      return {
-        success: true,
-        indexPath: outputDirPath
-      };
-    } catch (execError) {
-      console.error('执行索引工具时出错:', execError.message);
-      if (execError.stdout) console.log('标准输出:', execError.stdout);
-      if (execError.stderr) console.log('错误输出:', execError.stderr);
-      
-      // 尝试直接读取构建目录内容并打印，帮助调试
-      try {
-        console.log(`构建目录内容 (${buildDirPath}):`);
-        const items = fs.readdirSync(buildDirPath);
-        for (const item of items) {
-          const itemPath = path.join(buildDirPath, item);
-          const stats = fs.statSync(itemPath);
-          console.log(`- ${item} (${stats.isDirectory() ? '目录' : '文件'}, ${stats.size} 字节)`);
-        }
-      } catch (fsError) {
-        console.error('无法读取构建目录内容:', fsError.message);
-      }
-      
-      throw execError;
-    }
-  } catch (error) {
-    console.error('生成文章索引时出错:', error.message);
-    
-    // 更详细的错误信息
-    if (error.stdout) console.log('标准输出:', error.stdout);
-    if (error.stderr) console.log('错误输出:', error.stderr);
+  console.log(`内容目录: ${contentDirPath}`);
+  console.log(`索引输出目录: ${outputDirPath}`);
 
+  if (!fs.existsSync(contentDirPath)) {
+    const error = new Error(`内容目录不存在: ${contentDirPath}`);
+    console.error("生成文章索引时出错:", error.message);
     throw error;
   }
+
+  prepareArticleIndexRuntimeArtifacts();
+  ensureDirectory(buildDirPath);
+  ensureDirectory(outputDirPath);
+  cleanLegacyIndexFiles(outputDirPath);
+
+  const contentFiles = listContentFiles(contentDirPath);
+  console.log("扫描内容源文件...");
+
+  const articles = [];
+  for (const filePath of contentFiles) {
+    const article = extractArticleRecord(filePath, contentDirPath);
+    if (article) {
+      console.log(`处理: ${filePath}`);
+      articles.push(article);
+    }
+  }
+
+  articles.sort((left, right) => right.date.localeCompare(left.date));
+
+  console.log(`扫描完成。找到 ${articles.length} 篇有效文章，扫描 ${contentFiles.length} 个源文件。`);
+
+  if (articles.length === 0) {
+    const error = new Error("没有找到有效文章");
+    console.error("生成文章索引时出错:", error.message);
+    throw error;
+  }
+
+  const filterIndex = buildFilterIndex(articles);
+  const searchIndex = buildSearchIndex(articles);
+
+  writeJson(path.join(outputDirPath, "filter_index.json"), filterIndex);
+  writeJson(path.join(outputDirPath, "search_index.json"), searchIndex);
+
+  const mirroredDirs = syncIndexArtifactsToPlatformOutputs(buildDirPath, outputDirPath);
+  if (mirroredDirs.length > 0) {
+    console.log(`[索引构建] 已同步索引产物到平台目录: ${mirroredDirs.join(", ")}`);
+  } else {
+    console.log("[索引构建] 未检测到额外的平台索引镜像目录，保留默认输出目录");
+  }
+
+  console.log("文章索引生成完成!");
+  console.log(`索引文件保存在: ${outputDirPath}`);
+
+  return {
+    success: true,
+    indexPath: outputDirPath,
+  };
 }

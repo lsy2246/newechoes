@@ -1,20 +1,14 @@
-type WorkerRequest =
+type SearchWorkerRequest =
   | { id: number; type: "initSearch"; payload: { indexUrl: string } }
-  | { id: number; type: "initFilter"; payload: { indexUrl: string } }
   | { id: number; type: "search"; payload: { request: unknown } }
-  | { id: number; type: "suggest"; payload: { request: unknown } }
-  | { id: number; type: "filter"; payload: { request: unknown } }
-  | { id: number; type: "getTags" };
+  | { id: number; type: "suggest"; payload: { request: unknown } };
 
-type WorkerRequestPayload =
+type SearchWorkerRequestPayload =
   | { type: "initSearch"; payload: { indexUrl: string } }
-  | { type: "initFilter"; payload: { indexUrl: string } }
   | { type: "search"; payload: { request: unknown } }
-  | { type: "suggest"; payload: { request: unknown } }
-  | { type: "filter"; payload: { request: unknown } }
-  | { type: "getTags" };
+  | { type: "suggest"; payload: { request: unknown } };
 
-type WorkerResponse =
+type SearchWorkerResponse =
   | { id: number; type: "result"; payload: unknown }
   | { id: number; type: "error"; error: { message: string } };
 
@@ -25,39 +19,44 @@ type PendingRequest = {
 
 let worker: Worker | null = null;
 let requestId = 0;
-const pending = new Map<number, PendingRequest>();
 let searchInitPromise: Promise<void> | null = null;
-let filterInitPromise: Promise<void> | null = null;
+let searchWorkerConsumers = 0;
+const pending = new Map<number, PendingRequest>();
 
 const initWorker = () => {
-  if (worker) return worker;
+  if (worker) {
+    return worker;
+  }
 
-  worker = new Worker(new URL("./wasm-worker.ts", import.meta.url), {
+  worker = new Worker(new URL("./search-worker.ts", import.meta.url), {
     type: "module",
   });
 
-  worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+  worker.onmessage = (event: MessageEvent<SearchWorkerResponse>) => {
     const message = event.data;
     const handler = pending.get(message.id);
-    if (!handler) return;
+    if (!handler) {
+      return;
+    }
 
     pending.delete(message.id);
 
     if (message.type === "result") {
       handler.resolve(message.payload);
-    } else {
-      handler.reject(new Error(message.error.message));
+      return;
     }
+
+    handler.reject(new Error(message.error.message));
   };
 
   worker.onerror = (event) => {
-    const error = new Error(event.message || "Worker 发生错误");
+    const error = new Error(event.message || "搜索 Worker 发生错误");
     pending.forEach((handler) => handler.reject(error));
     pending.clear();
   };
 
   worker.onmessageerror = () => {
-    const error = new Error("Worker 消息解析失败");
+    const error = new Error("搜索 Worker 消息解析失败");
     pending.forEach((handler) => handler.reject(error));
     pending.clear();
   };
@@ -66,16 +65,28 @@ const initWorker = () => {
 };
 
 const request = async <T = unknown>(
-  payload: WorkerRequestPayload,
+  payload: SearchWorkerRequestPayload,
 ): Promise<T> => {
   const activeWorker = initWorker();
   const id = ++requestId;
-  const message = { ...payload, id } as WorkerRequest;
+  const message = { ...payload, id } as SearchWorkerRequest;
 
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as PendingRequest["resolve"], reject });
     activeWorker.postMessage(message);
   });
+};
+
+export const retainSearchWorker = () => {
+  searchWorkerConsumers += 1;
+  initWorker();
+};
+
+export const releaseSearchWorker = () => {
+  searchWorkerConsumers = Math.max(0, searchWorkerConsumers - 1);
+  if (searchWorkerConsumers === 0) {
+    terminateSearchWorker();
+  }
 };
 
 export const initSearchIndex = async (indexUrl: string) => {
@@ -90,22 +101,8 @@ export const initSearchIndex = async (indexUrl: string) => {
         throw error;
       });
   }
-  await searchInitPromise;
-};
 
-export const initFilterIndex = async (indexUrl: string) => {
-  if (!filterInitPromise) {
-    filterInitPromise = request({
-      type: "initFilter",
-      payload: { indexUrl },
-    })
-      .then(() => undefined)
-      .catch((error) => {
-        filterInitPromise = null;
-        throw error;
-      });
-  }
-  await filterInitPromise;
+  await searchInitPromise;
 };
 
 export const search = async <T>(req: T) =>
@@ -114,20 +111,14 @@ export const search = async <T>(req: T) =>
 export const suggest = async <T>(req: T) =>
   request<unknown>({ type: "suggest", payload: { request: req } });
 
-export const filterArticles = async <T>(req: T) =>
-  request<unknown>({ type: "filter", payload: { request: req } });
-
-export const getAllTags = async () => request<unknown>({ type: "getTags" });
-
-export const terminateWasmWorker = () => {
+export const terminateSearchWorker = () => {
   if (worker) {
     worker.terminate();
     worker = null;
   }
+
   searchInitPromise = null;
-  filterInitPromise = null;
-  pending.forEach((handler) =>
-    handler.reject(new Error("Worker 已终止")),
-  );
+  searchWorkerConsumers = 0;
+  pending.forEach((handler) => handler.reject(new Error("搜索 Worker 已终止")));
   pending.clear();
 };

@@ -326,4 +326,4 @@ import PhotoAlbumMasonry from "@/components/PhotoAlbumMasonry";
 | 豆瓣数据无法加载 | 检查用户 ID，确认记录公开  |
 | 相册无法加载     | 检查 Google Photos 分享链接是否公开 |
 | Git 项目无法显示 | 验证用户名和 API 访问权限  |
-| WebAssembly 报错 | 检查浏览器支持和 CSP 设置  |
+| 旅行足迹地球加载失败 | 检查浏览器 WebAssembly 支持、CSP 设置与地图资源请求 |

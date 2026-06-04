@@ -3,7 +3,9 @@ import {
   filterArticles as workerFilterArticles,
   getAllTags as workerGetAllTags,
   initFilterIndex,
-} from "@/lib/wasmWorkerClient";
+  releaseFilterWorker,
+  retainFilterWorker,
+} from "@/lib/filter-worker-client";
 
 interface FilterState {
   tags: string[];
@@ -410,7 +412,7 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({
     async function bootFilter() {
       try {
         setIsLoading(true);
-        await initFilterIndex("/assets/index/filter_index.bin");
+        await initFilterIndex("/assets/index/filter_index.json");
         if (cancelled) return;
 
         isReadyRef.current = true;
@@ -428,10 +430,12 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({
       }
     }
 
+    retainFilterWorker();
     void bootFilter();
 
     return () => {
       cancelled = true;
+      releaseFilterWorker();
     };
   }, []);
 

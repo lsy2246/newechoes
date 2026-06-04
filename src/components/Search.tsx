@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   initSearchIndex,
+  releaseSearchWorker,
+  retainSearchWorker,
   search as workerSearch,
   suggest as workerSuggest,
-} from "@/lib/wasmWorkerClient";
+} from "@/lib/search-worker-client";
 
 // 类型定义
 interface SearchResult {
@@ -146,7 +148,7 @@ const Search: React.FC<SearchProps> = ({
       try {
         setLoadingState((prev) => ({ ...prev, status: "loading_index" }));
 
-        await initSearchIndex("/assets/index/search_index.bin");
+        await initSearchIndex("/assets/index/search_index.json");
 
         if (!isMountedRef.current || cancelled) return;
 
@@ -166,11 +168,13 @@ const Search: React.FC<SearchProps> = ({
       }
     };
 
+    retainSearchWorker();
     loadSearchIndex();
 
     // 组件卸载时清理
     return () => {
       cancelled = true;
+      releaseSearchWorker();
     };
   }, []);
 
