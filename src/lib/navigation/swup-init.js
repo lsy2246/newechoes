@@ -335,6 +335,39 @@ function getVisitShellState(visit) {
 const ROUTE_STYLESHEET_SELECTOR = 'link[rel="stylesheet"][href]';
 const PERSISTED_STYLESHEET_ATTRIBUTE = 'data-swup-persisted-stylesheet';
 const VITE_DEV_STYLE_SELECTOR = 'style[data-vite-dev-id]';
+let articleMermaidBootPromise = null;
+
+function hasArticleMermaidDiagrams(root = document) {
+  return Boolean(root.querySelector?.('pre.mermaid'));
+}
+
+async function bootArticleMermaidForCurrentPage() {
+  if (!hasArticleMermaidDiagrams()) {
+    return;
+  }
+
+  if (!articleMermaidBootPromise) {
+    articleMermaidBootPromise = import('../article-mermaid.ts')
+      .finally(() => {
+        articleMermaidBootPromise = null;
+      });
+  }
+
+  const { initArticleMermaid } = await articleMermaidBootPromise;
+  initArticleMermaid();
+}
+
+function scheduleArticleMermaidBoot() {
+  if (!hasArticleMermaidDiagrams()) {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    void bootArticleMermaidForCurrentPage().catch((error) => {
+      console.error('文章 Mermaid 初始化失败:', error);
+    });
+  });
+}
 
 function normalizeStylesheetHref(stylesheet) {
   const href = stylesheet?.getAttribute('href') || stylesheet?.href;
@@ -686,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
     persistTags: shouldPersistStylesheetDuringHeadSync,
     persistAssets: false,
     keepScrollOnReload: true, // 保持滚动位置
-    awaitAssets: false // 优先展示新页面，避免首跳卡在资源同步上
+    awaitAssets: true // 等待目标页样式就绪，避免文章页切换时出现无样式闪烁
   });
   swup.use(headPlugin);
   
@@ -883,6 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 同步 body 上的页面级 layout class —— swup 不会自动替换 body 属性
     syncPageShellState();
     timelineYearSpy.init();
+    scheduleArticleMermaidBoot();
     dispatchAstroNavigationLifecycle(visit);
   });
   

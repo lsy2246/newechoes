@@ -48,10 +48,11 @@ test("global graph moves heavy modal content behind a dedicated fragment", () =>
   assert.ok(graphFragmentPage.includes('import GlobalGraphModal from "@/components/GlobalGraphModal.astro";'));
 });
 
-test("swup avoids preloading visible links and waiting for all route assets", () => {
+test("swup avoids preloading visible links but waits for route assets before reveal", () => {
   assert.equal(swupInit.includes("preloadVisibleLinks"), false);
   assert.ok(swupInit.includes("preloadHoveredLinks: true"));
-  assert.ok(swupInit.includes("awaitAssets: false"));
+  assert.ok(swupInit.includes("awaitAssets: true"));
+  assert.ok(swupInit.includes("scheduleArticleMermaidBoot();"));
 });
 
 test("home diorama loads its three scene module asynchronously during idle time and guards swup navigation", () => {
