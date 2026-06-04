@@ -51,6 +51,6 @@ export const NAV_STRUCTURE = [
 export const ARTICLE_EXPIRY_CONFIG = {
     enabled: true, // 是否启用文章过期提醒
     expiryDays: 365, // 文章过期天数
-    warningMessage: '这篇文章已经发布超过一年了，内容可能已经过时，请谨慎参考。' // 提醒消息
+    warningMessage: '这篇文章最近一次更新距离现在已经超过一年了，内容可能已经过时，请谨慎参考。' // 提醒消息
 };
 

@@ -261,6 +261,15 @@ test("article pages expose git updated time for filter indexing", () => {
   assert.ok(filteredPage.includes("getCanonicalArticleUrl(articleIdentity)"));
 });
 
+test("article expiry warning prefers updated time and uses matching copy", () => {
+  assert.ok(articleDetail.includes("const articleWarningDate = articleHistory.updatedAt ?? article.data.date;"));
+  assert.ok(articleDetail.includes("(currentDate.getTime() - articleWarningDate.getTime())"));
+  assert.match(
+    constsSource,
+    /warningMessage:\s*'这篇文章最近一次更新距离现在已经超过一年了，内容可能已经过时，请谨慎参考。'/,
+  );
+});
+
 test("article detail routes are generated only from title identities", () => {
   const articleRouteVariantsBlock =
     articleLinksSource.match(/export function getArticleRouteVariants[\s\S]*?\r?\n}\r?\n/)?.[0] ?? "";

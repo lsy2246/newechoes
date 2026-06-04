@@ -243,11 +243,13 @@ function getRelatedTitle(matchType: string) {
   return "相关文章";
 }
 
+const articleHistory = await getArticleHistory(article, SOURCE_REPOSITORY_CONFIG);
+const articleWarningDate = articleHistory.updatedAt ?? article.data.date;
+
 const shouldShowArticleWarning = (() => {
-  const publishDate = article.data.date;
   const currentDate = new Date();
   const daysDiff = Math.floor(
-    (currentDate.getTime() - publishDate.getTime()) /
+    (currentDate.getTime() - articleWarningDate.getTime()) /
       (1000 * 60 * 60 * 24),
   );
 
@@ -257,11 +259,10 @@ const shouldShowArticleWarning = (() => {
   );
 })();
 
-const articleHistory = await getArticleHistory(article, SOURCE_REPOSITORY_CONFIG);
 const visibleHistoryEvents: any[] = articleHistory.events.slice(0, 6);
 const articleCanonicalPath = getCanonicalArticleUrl(articleIdentity);
 const articleCanonicalUrl = createCanonicalUrl(articleCanonicalPath, SITE_META.url);
-const articleUpdatedAt = articleHistory.updatedAt ?? article.data.date;
+const articleUpdatedAt = articleWarningDate;
 const articleSection = section || "articles";
 const articleJsonLd = {
   "@context": "https://schema.org",
