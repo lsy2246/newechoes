@@ -648,13 +648,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.dispatchEvent(event);
   }
 
-  // 根据当前页面动态确定容器配置
-  const containers = ['main']; // 主容器始终存在
-  
-  // 只有当文章内容容器存在时才添加
-  if (isArticleTransitionPage() && containerExists('#article-content')) {
-    containers.push('#article-content');
-  }
+  // 统一使用稳定的 main 容器，避免文章页与首页之间出现容器集合不一致。
+  const containers = ['main'];
   
   // 创建Swup实例
   const swup = new Swup({
