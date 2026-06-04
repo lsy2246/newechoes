@@ -71,8 +71,12 @@ test("world heatmap hover badge uses semantic classes instead of old colored pil
 
 test("world heatmap loads the geo wasm runtime from source asset urls on demand", () => {
   assert.ok(worldHeatmap.includes('@/assets/wasm/geo/geo_wasm.js?url'));
+  assert.ok(worldHeatmap.includes('@/assets/wasm/geo/geo_wasm_bg.wasm?url'));
   assert.ok(worldHeatmap.includes("geoWasmModuleUrl"));
+  assert.ok(worldHeatmap.includes("geoWasmBinaryUrl"));
   assert.ok(worldHeatmap.includes("@vite-ignore"));
+  assert.ok(worldHeatmap.includes("await wasmModule.default(geoWasmBinaryUrl);"));
+  assert.equal(worldHeatmap.includes("await wasmModule.default();"), false);
   assert.equal(worldHeatmap.includes("/wasm/geo/geo-wasm-loader.js"), false);
 });
 

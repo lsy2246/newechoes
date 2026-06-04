@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import geoWasmModuleUrl from "@/assets/wasm/geo/geo_wasm.js?url";
+import geoWasmBinaryUrl from "@/assets/wasm/geo/geo_wasm_bg.wasm?url";
 import type {
   Group,
   Line,
@@ -38,7 +39,7 @@ interface GeoWasmModule {
     ) => string | null;
     free: () => void;
   };
-  default?: () => Promise<any>;
+  default?: (moduleOrPath?: string | URL | Request) => Promise<any>;
 }
 
 declare global {
@@ -131,7 +132,7 @@ const loadGeoWasmModule = async () => {
       )) as GeoWasmModule;
 
       if (typeof wasmModule.default === "function") {
-        await wasmModule.default();
+        await wasmModule.default(geoWasmBinaryUrl);
       }
 
       return wasmModule;
