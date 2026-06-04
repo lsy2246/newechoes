@@ -12,7 +12,7 @@
     "deploy:cloudflare": "pnpm run generate:function-wrappers && pnpm exec wrangler pages deploy dist",
     "preview": "pnpm exec astro preview",
     "astro": "pnpm exec astro",
-    "new-post": "node src/plugins/new-post.mjs",
+    "newpost": "node src/plugins/new-post.mjs",
     "test": "pnpm run generate:function-wrappers && node --test"
   },
   "dependencies": {
