@@ -23,6 +23,7 @@ export function mountHomeDioramaBoot({
   let scheduledBootId = 0;
   let loadListenerAttached = false;
   let disposed = false;
+  let lifecycleListenersAttached = false;
 
   const getSceneElement = () => document.querySelector("[data-home-scene]");
   const getLoadingElement = () => document.querySelector("[data-home-loading]");
@@ -46,6 +47,20 @@ export function mountHomeDioramaBoot({
     window[HOME_DIORAMA_ACTIVE_SCENE_KEY] = null;
   };
 
+  const detachLifecycleRetryListeners = () => {
+    if (!lifecycleListenersAttached) return;
+    document.removeEventListener("astro:page-load", handleLifecycleRetry);
+    document.removeEventListener("swup:page:view", handleLifecycleRetry);
+    lifecycleListenersAttached = false;
+  };
+
+  const attachLifecycleRetryListeners = () => {
+    if (lifecycleListenersAttached) return;
+    document.addEventListener("astro:page-load", handleLifecycleRetry);
+    document.addEventListener("swup:page:view", handleLifecycleRetry);
+    lifecycleListenersAttached = true;
+  };
+
   const cancelScheduledBoot = () => {
     if (scheduledBootId) {
       window.clearTimeout(scheduledBootId);
@@ -62,6 +77,7 @@ export function mountHomeDioramaBoot({
     const sceneElement = getSceneElement();
     if (!isHomePath(window) || !sceneElement) return;
     if (window[HOME_DIORAMA_ACTIVE_SCENE_KEY] === sceneElement) return;
+    detachLifecycleRetryListeners();
 
     try {
       window[HOME_DIORAMA_MODULE_KEY] ??= importDiorama();
@@ -89,7 +105,11 @@ export function mountHomeDioramaBoot({
   const queueBoot = () => {
     cancelScheduledBoot();
     if (disposed) return;
-    if (!isHomePath(window) || !getSceneElement()) return;
+    if (!isHomePath(window)) return;
+    if (!getSceneElement()) {
+      attachLifecycleRetryListeners();
+      return;
+    }
     scheduledBootId = window.setTimeout(startBoot, HOME_DIORAMA_BOOT_DELAY_MS);
   };
 
@@ -98,10 +118,14 @@ export function mountHomeDioramaBoot({
     queueBoot();
   }
 
+  function handleLifecycleRetry() {
+    queueBoot();
+  }
+
   const scheduleBoot = () => {
     cancelScheduledBoot();
     if (disposed) return;
-    if (!isHomePath(window) || !getSceneElement()) return;
+    if (!isHomePath(window)) return;
     setLoadingState("loading");
 
     if (document.readyState === "complete") {
@@ -131,6 +155,7 @@ export function mountHomeDioramaBoot({
     if (disposed) return;
     disposed = true;
     cancelScheduledBoot();
+    detachLifecycleRetryListeners();
     resetDioramaState();
     document.removeEventListener("click", handleNavigationIntent, true);
     document.removeEventListener("astro:before-swap", cleanup);
