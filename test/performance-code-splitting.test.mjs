@@ -10,6 +10,7 @@ const globalGraphModal = readFileSync("src/components/GlobalGraphModal.astro", "
 const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
 const graphFragmentPage = readFileSync("src/pages/global-graph-modal-fragment.astro", "utf8");
 const homeDiorama = readFileSync("src/components/home/HomeDiorama.astro", "utf8");
+const homeDioramaBoot = readFileSync("src/components/home/homeDioramaBoot.js", "utf8");
 const dioramaModule = readFileSync("src/components/home/diorama.ts", "utf8");
 const filteredPage = readFileSync("src/pages/filtered.astro", "utf8");
 const projectsPage = readFileSync("src/pages/projects.astro", "utf8");
@@ -55,23 +56,19 @@ test("swup avoids preloading visible links but waits for route assets before rev
   assert.ok(swupInit.includes("scheduleArticleMermaidBoot();"));
 });
 
-test("home diorama loads its three scene module asynchronously during idle time and guards swup navigation", () => {
-  assert.ok(homeDiorama.includes('import("./diorama")'));
-  assert.ok(homeDiorama.includes("requestIdleCallback"));
-  assert.ok(homeDiorama.includes("cancelIdleCallback"));
-  assert.ok(homeDiorama.includes("HOME_DIORAMA_MODULE_KEY"));
-  assert.ok(homeDiorama.includes("HOME_DIORAMA_ACTIVE_SCENE_KEY"));
-  assert.ok(homeDiorama.includes("HOME_DIORAMA_BOOT_TOKEN_KEY"));
-  assert.ok(homeDiorama.includes("requestAnimationFrame(() => {"));
-  assert.ok(homeDiorama.includes('window.requestIdleCallback(resolve, { timeout: 600 })'));
-  assert.ok(homeDiorama.includes("window[HOME_DIORAMA_MODULE_KEY]"));
-  assert.ok(homeDiorama.includes("window[HOME_DIORAMA_ACTIVE_SCENE_KEY]"));
-  assert.ok(homeDiorama.includes("window[HOME_DIORAMA_BOOT_TOKEN_KEY]"));
-  assert.ok(homeDiorama.includes("if (window[HOME_DIORAMA_ACTIVE_SCENE_KEY] === sceneElement) return"));
-  assert.ok(homeDiorama.includes('document.querySelector("[data-home-scene]")'));
-  assert.ok(homeDiorama.includes('document.querySelector("[data-home-scene]") !== sceneElement'));
-  assert.ok(homeDiorama.includes('document.addEventListener("astro:before-swap", resetDioramaState)'));
-  assert.ok(homeDiorama.includes('document.addEventListener("swup:visit:start", resetDioramaState)'));
+test("home diorama waits for the page load event before booting the heavy three scene", () => {
+  assert.ok(homeDiorama.includes('import { mountHomeDioramaBoot } from "./homeDioramaBoot.js";'));
+  assert.ok(homeDiorama.includes('data-home-visible="false"'));
+  assert.ok(homeDiorama.includes('data-cue-mode="loading"'));
+  assert.equal(homeDiorama.includes("requestIdleCallback"), false);
+  assert.equal(homeDiorama.includes("cancelIdleCallback"), false);
+  assert.equal(homeDiorama.includes("requestAnimationFrame(() => {"), false);
+
+  assert.ok(homeDioramaBoot.includes('window.addEventListener("load", handleWindowLoad, { once: true });'));
+  assert.ok(homeDioramaBoot.includes("window.setTimeout(startBoot, HOME_DIORAMA_BOOT_DELAY_MS)"));
+  assert.ok(homeDioramaBoot.includes("document.addEventListener(\"click\", handleNavigationIntent, true);"));
+  assert.ok(homeDioramaBoot.includes("window[HOME_DIORAMA_MODULE_KEY] ??= importDiorama();"));
+  assert.ok(homeDioramaBoot.includes('document.querySelector("[data-home-scene]")'));
   assert.equal(homeDiorama.includes('import { initDiorama } from "./diorama";'), false);
 });
 

@@ -1449,7 +1449,7 @@ export function initDiorama() {
     storyEl?.style.setProperty("--story-progress", storyProgress.toFixed(4));
     storyEl?.style.setProperty("--story-local", storyProgress.toFixed(4));
     sceneEl?.setAttribute("data-home-phase", progress > 0.76 ? "room" : "page");
-    const cueMode = !startupGateReleased && startupGatePendingScroll
+    const cueMode = !startupGateReleased
       ? "loading"
       : progress >= LOOP_RETURN_START
         ? "scroll"
@@ -1462,7 +1462,7 @@ export function initDiorama() {
       ? 1 - getLoopReturnAmount(progress)
       : clamp(progress / LOOP_RETURN_START);
     cueEl?.style.setProperty("--cue-progress", cueProgress.toFixed(4));
-    cueEl?.setAttribute("data-home-visible", "true");
+    cueEl?.setAttribute("data-home-visible", startupGateReleased ? "true" : "false");
     cueEl?.setAttribute("data-cue-mode", cueMode);
     if (cuePercentEl) cuePercentEl.textContent = cueMode === "loading" ? "..." : `${Math.round(cueProgress * 100)}%`;
   };
