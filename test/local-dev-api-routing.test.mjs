@@ -23,3 +23,11 @@ test("astro dev registers a local API bridge for shared server handlers", async 
   assert.match(localDevPluginSource, /configureServer\(server\)/);
   assert.match(localDevPluginSource, /server\.middlewares\.use\(async \(req, res, next\) => \{/);
 });
+
+test("local dev api bridge loads route modules on demand instead of racing watcher reloads", () => {
+  assert.equal(localDevPluginSource.includes('server.watcher.on("change"'), false);
+  assert.equal(localDevPluginSource.includes("let preloadPromise = null;"), false);
+  assert.match(localDevPluginSource, /const routeModule = await server\.ssrLoadModule\(routeModulePath\);/);
+  assert.equal(localDevPluginSource.includes("await preloadPromise;"), false);
+  assert.equal(localDevPluginSource.includes("routeModules.get(pathname)"), false);
+});

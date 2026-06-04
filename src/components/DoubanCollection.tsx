@@ -51,7 +51,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
   className = "",
 }) => {
   const [items, setItems] = useState<DoubanItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [hasMoreContent, setHasMoreContent] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
@@ -328,7 +328,7 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
     setError(null);
     stateRef.current.error = null;
 
-    setIsLoading(false);
+    setIsLoading(true);
     stateRef.current.isLoading = false;
 
     // 清空列表
@@ -495,7 +495,11 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
       {isLoading && (
         <div className="text-center py-8">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-          <p className="mt-2 text-gray-600">加载更多...（第{currentPage}页）</p>
+          <p className="mt-2 text-gray-600">
+            {items.length > 0
+              ? `正在继续从豆瓣拉取内容...（第${currentPage}页）`
+              : `正在从豆瓣拉取${type === "movie" ? "电影" : "图书"}内容...`}
+          </p>
         </div>
       )}
 

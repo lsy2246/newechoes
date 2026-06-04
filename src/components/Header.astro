@@ -1,8 +1,7 @@
 ---
 import { SITE_META, NAV_STRUCTURE } from "@/consts.ts";
 import ThemeToggle from "@/components/ThemeToggle.astro";
-import Search from "@/components/Search.tsx";
-import GlobalGraphModal from "@/components/GlobalGraphModal.astro";
+import GlobalGraphLauncher from "@/components/GlobalGraphLauncher.astro";
 import { normalizeCanonicalPath } from "@/lib/canonical-url.js";
 import "@/styles/header.css";
 
@@ -102,10 +101,20 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
 
         <!-- 搜索框 - 桌面显示 -->
         <div
-          class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-xs ml-auto mr-4"
+          class="hidden md:flex md:items-center md:justify-end md:flex-1 max-w-[18rem] lg:max-w-[19.5rem] ml-auto mr-4"
           data-home-header-search
         >
-          <Search client:idle={{ timeout: 900 }} placeholder="搜索文章..." maxResults={5} />
+          <div class="relative w-full">
+            <input
+              type="search"
+              class="search-input-control w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base border rounded-lg md:rounded-lg lg:rounded-xl focus:outline-none transition-all duration-200 relative z-10 text-left"
+              data-search-activate="desktop"
+              aria-label="打开搜索"
+              placeholder="搜索文章..."
+              readonly
+            />
+            <div class="hidden" data-search-mount="desktop"></div>
+          </div>
         </div>
 
         <!-- 导航链接 - 集成NavSelector组件 -->
@@ -226,7 +235,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             aria-expanded="false"
           >
             <svg
-              class="h-4 w-4"
+              class="h-5 w-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -295,7 +304,15 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       >
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div class="relative">
-            <Search client:idle={{ timeout: 900 }} placeholder="搜索文章..." maxResults={5} />
+            <input
+              type="search"
+              class="search-input-control w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base border rounded-lg md:rounded-lg lg:rounded-xl focus:outline-none transition-all duration-200 relative z-10 text-left"
+              data-search-activate="mobile"
+              aria-label="打开搜索"
+              placeholder="搜索文章..."
+              readonly
+            />
+            <div class="hidden" data-search-mount="mobile"></div>
           </div>
         </div>
       </div>
@@ -391,7 +408,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     </div>
   </nav>
 
-  <GlobalGraphModal currentPath={normalizedPath} />
+  <GlobalGraphLauncher />
 </header>
 
 <script is:inline>
@@ -1576,8 +1593,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const mobileSearchButton = document.getElementById('mobile-search-button');
     const mobileMenu = document.getElementById('mobile-menu');
     const mobileSearch = document.getElementById('mobile-search');
-    const menuOpenIcon = document.getElementById('menu-open-icon');
-    const menuCloseIcon = document.getElementById('menu-close-icon');
     
     if (!mobileMenuButton || !mobileMenu) {
       console.warn(`移动端菜单组件未找到`);
@@ -1608,7 +1623,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           if (submenu) {
             const parentId = submenu.getAttribute('data-parent-id');
             const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
-            if (toggle && !submenu.getAttribute('data-expanded') === 'true') {
+            if (toggle && submenu.getAttribute('data-expanded') !== 'true') {
               // 展开子菜单
               toggleSubmenu(parentId, true);
             }
@@ -1625,7 +1640,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
       const submenu = document.querySelector(`.mobile-submenu[data-parent-id="${parentId}"]`);
       const menuIcon = toggle ? toggle.querySelector('.mobile-menu-icon') : null;
-      const arrow = menuIcon ? menuIcon.querySelector('.mobile-menu-arrow') : null;
       
       if (!toggle || !submenu) return;
       
@@ -1662,23 +1676,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             if (menuIcon) menuIcon.style.transform = '';
           }
         }
-      });
-    }
-    
-    // 为所有子菜单切换按钮添加点击事件
-    function setupMobileSubmenuToggles() {
-      // 关闭所有子菜单（默认状态）
-      closeAllSubmenus();
-      
-      // 为所有子菜单切换按钮添加点击事件
-      const submenuToggles = document.querySelectorAll('[data-mobile-menu-toggle]');
-      submenuToggles.forEach(toggle => {
-        addListener(toggle, 'click', (e) => {
-          const parentId = toggle.getAttribute('data-mobile-menu-toggle');
-          if (parentId) {
-            toggleSubmenu(parentId);
-          }
-        });
       });
     }
     
@@ -1770,10 +1767,30 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         }
       });
     }
+
+    addListener(mobileMenu, 'click', (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+
+      const submenuToggle = target.closest('[data-mobile-menu-toggle]');
+      if (submenuToggle instanceof HTMLElement && mobileMenu.contains(submenuToggle)) {
+        const parentId = submenuToggle.getAttribute('data-mobile-menu-toggle');
+        if (parentId) {
+          toggleSubmenu(parentId);
+        }
+        return;
+      }
+
+      const menuLink = target.closest('#mobile-menu a');
+      if (menuLink instanceof HTMLAnchorElement && menuLink.host === window.location.host && !e.ctrlKey && !e.metaKey) {
+        setTimeout(() => {
+          closeMobileMenu();
+        }, 50);
+      }
+    });
     
     // 为Astro View Transitions添加事件处理
     addListener(document, 'astro:page-load', () => {
-      setupMobileSubmenuToggles();
       updateMobileMenuHighlight();
       closeMobileMenu();
       closeMobileSearch();
@@ -1788,40 +1805,15 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       }, 50);
     });
     
-    // 为移动端菜单链接添加点击事件，点击后关闭菜单
-    function setupMobileMenuLinks() {
-      const mobileMenuLinks = document.querySelectorAll('#mobile-menu a');
-      mobileMenuLinks.forEach(link => {
-        // 避免重复添加事件监听器
-        addListener(link, 'click', (e) => {
-          // 如果是站内链接且不是控制键或Meta键点击（新窗口打开）
-          if (link.host === window.location.host && !e.ctrlKey && !e.metaKey) {
-            // 延迟关闭导航栏，确保页面跳转感知和点击体验更流畅
-            setTimeout(() => {
-              closeMobileMenu();
-            }, 50);
-          }
-        });
-      });
-    }
-    
-    // 初始调用一次设置子菜单切换按钮和更新高亮状态
-    setupMobileSubmenuToggles();
+    // 初始调用一次设置高亮状态
+    closeAllSubmenus();
     updateMobileMenuHighlight();
-    setupMobileMenuLinks(); // 添加对移动端链接的点击监听
-    
-    // 当菜单显示状态变化时重新绑定链接点击事件
-    addListener(mobileMenuButton, 'click', () => {
-      // 确保每次打开菜单时重新设置链接点击事件
-      setTimeout(() => {
-        setupMobileMenuLinks();
-      }, 50);
-    });
     
     // 添加点击空白区域关闭菜单和搜索面板的事件监听
     addListener(document, 'click', (e) => {
       // 获取事件目标
       const target = e.target;
+      if (!(target instanceof Element)) return;
       
       // 处理移动端菜单内的链接点击
       const menuLink = target.closest('#mobile-menu a');
@@ -1858,4 +1850,132 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   // 开始初始化
   initNavigation();
 })();
+</script>
+
+<script>
+  const SEARCH_LAZY_MODULE_KEY = "__searchLazyModule";
+  const SEARCH_IDLE_MOUNT_DELAY = 600;
+
+  const getSearchMount = (slot) =>
+    document.querySelector(`[data-search-mount="${slot}"]`);
+
+  const getSearchActivator = (slot) =>
+    document.querySelector(`[data-search-activate="${slot}"]`);
+
+  const focusMountedSearch = (slot) => {
+    const mount = getSearchMount(slot);
+    const input = mount?.querySelector("input");
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+    }
+  };
+
+  const ensureSearchMounted = async (slot, { focus = true } = {}) => {
+    const mount = getSearchMount(slot);
+    if (!(mount instanceof HTMLElement)) return;
+
+    if (mount.dataset.searchMounting === "true") {
+      return;
+    }
+
+    const activator = getSearchActivator(slot);
+
+    if (mount.dataset.searchMounted === "true") {
+      mount.classList.remove("hidden");
+      if (activator instanceof HTMLElement) {
+        activator.classList.add("hidden");
+      }
+      if (focus) {
+        requestAnimationFrame(() => focusMountedSearch(slot));
+      }
+      return;
+    }
+
+    mount.dataset.searchMounting = "true";
+    mount.classList.remove("hidden");
+    if (activator instanceof HTMLElement) {
+      activator.classList.add("hidden");
+    }
+
+    try {
+      window[SEARCH_LAZY_MODULE_KEY] ??= import("@/lib/search/lazy");
+      const { mountLazySearch } = await window[SEARCH_LAZY_MODULE_KEY];
+      await mountLazySearch(mount, {
+        placeholder: "搜索文章...",
+        maxResults: 5,
+      });
+      mount.dataset.searchMounted = "true";
+      if (focus) {
+        requestAnimationFrame(() => focusMountedSearch(slot));
+      }
+    } catch (error) {
+      mount.classList.add("hidden");
+      if (activator instanceof HTMLElement) {
+        activator.classList.remove("hidden");
+      }
+      console.error("搜索组件懒加载失败:", error);
+    } finally {
+      delete mount.dataset.searchMounting;
+    }
+  };
+
+  const scheduleSearchMount = (slot) => {
+    const activator = getSearchActivator(slot);
+    if (activator instanceof HTMLInputElement) {
+      activator.placeholder = "正在准备搜索...";
+    }
+
+    const mountWhenIdle = () => {
+      void ensureSearchMounted(slot, { focus: false });
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(mountWhenIdle);
+      return;
+    }
+
+    window.setTimeout(mountWhenIdle, 1);
+  };
+
+  window.addEventListener("load", () => {
+    window.setTimeout(() => {
+      scheduleSearchMount("desktop");
+      scheduleSearchMount("mobile");
+    }, SEARCH_IDLE_MOUNT_DELAY);
+  }, { once: true });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const activator = target.closest("[data-search-activate]");
+    if (activator instanceof HTMLElement) {
+      event.preventDefault();
+      const slot = activator.getAttribute("data-search-activate");
+      if (slot) {
+        void ensureSearchMounted(slot, { focus: true });
+      }
+      return;
+    }
+
+    const mobileSearchButton = target.closest("#mobile-search-button");
+    if (mobileSearchButton instanceof HTMLElement) {
+      window.setTimeout(() => {
+        void ensureSearchMounted("mobile", { focus: false });
+      }, 0);
+    }
+  });
+
+  document.addEventListener("focusin", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const activator = target.closest("[data-search-activate]");
+    if (activator instanceof HTMLElement) {
+      const slot = activator.getAttribute("data-search-activate");
+      if (slot) {
+        void ensureSearchMounted(slot, { focus: true });
+      }
+    }
+  });
 </script>

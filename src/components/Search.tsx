@@ -1,53 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  initSearchIndex,
-  releaseSearchWorker,
-  retainSearchWorker,
-  search as workerSearch,
-  suggest as workerSuggest,
-} from "@/lib/search-worker-client";
-
-// 类型定义
-interface SearchResult {
-  items: SearchResultItem[];
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-  time_ms: number;
-  query: string;
-  suggestions: SearchSuggestion[];
-}
-
-interface SearchResultItem {
-  id: string;
-  title: string;
-  summary: string;
-  url: string;
-  score: number;
-  heading_tree?: HeadingNode;
-  page_type: string;
-}
-
-// 建议类型
-type SuggestionType = "completion" | "correction";
-
-interface SearchSuggestion {
-  text: string;
-  suggestion_type: SuggestionType;
-  matched_text: string;
-  suggestion_text: string;
-}
-
-// 标题树结构
-interface HeadingNode {
-  id: string;
-  text: string;
-  level: number;
-  content?: string; // 与Rust端匹配
-  matched_terms?: string[]; // 与Rust端匹配
-  children: HeadingNode[];
-}
+import { useSearchController } from "@/lib/search/controller";
+import type {
+  HeadingNode,
+  SearchResult,
+  SearchResultItem,
+  SearchSuggestion,
+  SuggestionType,
+} from "@/lib/search/types";
 
 interface SearchProps {
   placeholder?: string;
@@ -78,6 +37,16 @@ const Search: React.FC<SearchProps> = ({
   placeholder = "搜索文章...",
   maxResults = 10,
 }) => {
+  const {
+    isReady: isSearchReady,
+    status: searchWarmupStatus,
+    error: searchWarmupError,
+    placeholder: resolvedPlaceholder,
+    ensureReady,
+    runSearch,
+    runSuggest,
+  } = useSearchController({ placeholder });
+
   // 状态
   const [query, setQuery] = useState<string>("");
 
@@ -90,7 +59,6 @@ const Search: React.FC<SearchProps> = ({
     error: null,
   });
 
-  const [isSearchReady, setIsSearchReady] = useState<boolean>(false);
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [showResults, setShowResults] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -136,47 +104,12 @@ const Search: React.FC<SearchProps> = ({
 
   // 辅助函数 - 从loadingState获取各种加载状态
   const isLoading = loadingState.status === "loading_search";
-  const isLoadingIndex = loadingState.status === "loading_index";
+  const isLoadingIndex =
+    searchWarmupStatus === "warming"
+    || (searchWarmupStatus === "idle" && loadingState.status === "loading_index");
   const isLoadingMore = loadingState.status === "loading_more";
-  const error = loadingState.error;
+  const error = searchWarmupError || loadingState.error;
   const isIndexLoaded = isSearchReady;
-
-  // 初始化 Worker 并加载搜索索引
-  useEffect(() => {
-    let cancelled = false;
-    const loadSearchIndex = async () => {
-      try {
-        setLoadingState((prev) => ({ ...prev, status: "loading_index" }));
-
-        await initSearchIndex("/assets/index/search_index.json");
-
-        if (!isMountedRef.current || cancelled) return;
-
-        setIsSearchReady(true);
-        setLoadingState((prev) => ({ ...prev, status: "success" }));
-      } catch (err) {
-        // 检查组件是否仍然挂载
-        if (!isMountedRef.current || cancelled) return;
-
-        console.error("搜索索引加载失败:", err);
-        setLoadingState({
-          status: "error",
-          error: `无法加载搜索索引: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        });
-      }
-    };
-
-    retainSearchWorker();
-    loadSearchIndex();
-
-    // 组件卸载时清理
-    return () => {
-      cancelled = true;
-      releaseSearchWorker();
-    };
-  }, []);
 
   // 监听窗口大小变化，确保内联建议位置正确
   useEffect(() => {
@@ -259,11 +192,15 @@ const Search: React.FC<SearchProps> = ({
   // 内联建议函数 - 整合获取和管理内联建议的逻辑
   const fetchSuggestions = useCallback(
     async (searchQuery: string) => {
-      if (!searchQuery.trim() || !isIndexLoaded) {
+      if (!searchQuery.trim()) {
         setSuggestions([]);
         setSuggestionDetails([]);
         setInlineSuggestion((prev) => ({ ...prev, visible: false }));
         setSelectedSuggestionIndex(0);
+        return;
+      }
+
+      if (!isIndexLoaded) {
         return;
       }
 
@@ -277,7 +214,7 @@ const Search: React.FC<SearchProps> = ({
           page: 1,
         };
 
-        const searchResult = (await workerSuggest(req)) as SearchResult;
+        const searchResult = await runSuggest(req);
 
         if (!isMountedRef.current || requestId !== suggestRequestIdRef.current)
           return;
@@ -325,7 +262,7 @@ const Search: React.FC<SearchProps> = ({
         setSelectedSuggestionIndex(0);
       }
     },
-    [isIndexLoaded],
+    [isIndexLoaded, runSuggest],
   );
 
   // 更新输入框光标位置
@@ -586,6 +523,10 @@ const Search: React.FC<SearchProps> = ({
     const value = e.target.value;
     setQuery(value);
 
+    if (value.trim() && !isIndexLoaded) {
+      void ensureReady("immediate");
+    }
+
     // 清除之前的所有定时器
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -615,6 +556,15 @@ const Search: React.FC<SearchProps> = ({
       performSearch(value, false);
     }, 120);
   };
+
+  useEffect(() => {
+    if (!isIndexLoaded || !query.trim()) {
+      return;
+    }
+
+    void fetchSuggestions(query);
+    void performSearch(query, false);
+  }, [isIndexLoaded]);
 
   // 监控输入框选择状态变化
   useEffect(() => {
@@ -661,7 +611,7 @@ const Search: React.FC<SearchProps> = ({
         page: page,
         search_type: "normal",
       };
-      const result = (await workerSearch(req)) as SearchResult;
+      const result = await runSearch(req);
 
       if (!isMountedRef.current || requestId !== searchRequestIdRef.current)
         return;
@@ -882,6 +832,10 @@ const Search: React.FC<SearchProps> = ({
 
   // 输入框获焦时处理
   const handleInputFocus = () => {
+    if (!isIndexLoaded) {
+      void ensureReady("immediate");
+    }
+
     updateCaretPosition();
 
     // 如果有查询内容，重新显示内联建议
@@ -1107,12 +1061,10 @@ const Search: React.FC<SearchProps> = ({
 
   // 获取当前placeholder文本
   const getCurrentPlaceholder = () => {
-    if (isLoadingIndex) {
-      return "正在加载搜索索引...";
-    } else if (error) {
-      return "加载搜索索引失败";
+    if (error) {
+      return "搜索暂时不可用";
     }
-    return placeholder; // 默认占位符
+    return resolvedPlaceholder;
   };
   // 递归渲染标题树
   const renderHeadingTree = (
@@ -1411,8 +1363,8 @@ const Search: React.FC<SearchProps> = ({
             onFocus={handleInputFocus}
             placeholder={getCurrentPlaceholder()}
             className="search-input-control w-full py-2.5 md:py-1.5 lg:py-2.5 pl-10 md:pl-8 lg:pl-10 pr-10 md:pr-8 lg:pr-10 text-base md:text-sm lg:text-base border rounded-lg md:rounded-lg lg:rounded-xl focus:outline-none transition-all duration-200 relative z-10"
-            disabled={isLoadingIndex || !isIndexLoaded}
-            aria-busy={isLoadingIndex}
+            disabled={Boolean(searchWarmupError)}
+            aria-busy={isLoadingIndex || loadingState.status === "loading_search"}
             style={{ backgroundColor: "transparent" }} // 确保背景是透明的，这样可以看到下面的建议
           />
 

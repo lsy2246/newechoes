@@ -1,4 +1,3 @@
-import path from "node:path";
 import { getDeployTarget, setRuntimeDeployTarget } from "../platform/shared/target.js";
 
 export const DEV_API_ROUTE_MODULES = {
@@ -118,35 +117,6 @@ async function dispatchLocalDevRequest(target, request, handlers) {
 }
 
 function attachLocalDevApiMiddleware(server) {
-  const routeModules = new Map();
-  let preloadPromise = null;
-
-  const loadRouteModules = async () => {
-    const entries = await Promise.all(
-      Object.entries(DEV_API_ROUTE_MODULES).map(async ([pathname, modulePath]) => {
-        const routeModule = await server.ssrLoadModule(modulePath);
-        return [pathname, routeModule];
-      }),
-    );
-
-    routeModules.clear();
-    for (const [pathname, routeModule] of entries) {
-      routeModules.set(pathname, routeModule);
-    }
-  };
-
-  preloadPromise = loadRouteModules();
-
-  server.watcher.on("change", (changedFile) => {
-    if (
-      changedFile.includes(`${path.sep}src${path.sep}server${path.sep}`)
-      || changedFile.includes(`${path.sep}src${path.sep}lib${path.sep}`)
-      || changedFile.includes(`${path.sep}src${path.sep}platform${path.sep}`)
-    ) {
-      preloadPromise = loadRouteModules().catch(() => null);
-    }
-  });
-
   server.middlewares.use(async (req, res, next) => {
     const pathname = new URL(req.url || "/", "http://127.0.0.1").pathname;
     const routeModulePath = DEV_API_ROUTE_MODULES[pathname];
@@ -157,8 +127,7 @@ function attachLocalDevApiMiddleware(server) {
     }
 
     try {
-      await preloadPromise;
-      const routeModule = routeModules.get(pathname);
+      const routeModule = await server.ssrLoadModule(routeModulePath);
 
       if (!routeModule) {
         throw new Error(`本地开发接口模块未加载: ${routeModulePath}`);

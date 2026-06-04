@@ -1,14 +1,13 @@
-type SearchWorkerRequest =
+import type { SearchRequest, SearchResult } from "./types";
+
+type WorkerRequest =
   | { id: number; type: "initSearch"; payload: { indexUrl: string } }
-  | { id: number; type: "search"; payload: { request: unknown } }
-  | { id: number; type: "suggest"; payload: { request: unknown } };
+  | { id: number; type: "search"; payload: { request: SearchRequest } }
+  | { id: number; type: "suggest"; payload: { request: SearchRequest } };
 
-type SearchWorkerRequestPayload =
-  | { type: "initSearch"; payload: { indexUrl: string } }
-  | { type: "search"; payload: { request: unknown } }
-  | { type: "suggest"; payload: { request: unknown } };
+type WorkerRequestPayload = Omit<WorkerRequest, "id">;
 
-type SearchWorkerResponse =
+type WorkerResponse =
   | { id: number; type: "result"; payload: unknown }
   | { id: number; type: "error"; error: { message: string } };
 
@@ -19,34 +18,27 @@ type PendingRequest = {
 
 let worker: Worker | null = null;
 let requestId = 0;
-let searchInitPromise: Promise<void> | null = null;
-let searchWorkerConsumers = 0;
 const pending = new Map<number, PendingRequest>();
+let searchInitPromise: Promise<void> | null = null;
 
 const initWorker = () => {
-  if (worker) {
-    return worker;
-  }
+  if (worker) return worker;
 
-  worker = new Worker(new URL("./search-worker.ts", import.meta.url), {
+  worker = new Worker(new URL("./worker.ts", import.meta.url), {
     type: "module",
   });
 
-  worker.onmessage = (event: MessageEvent<SearchWorkerResponse>) => {
+  worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
     const message = event.data;
     const handler = pending.get(message.id);
-    if (!handler) {
-      return;
-    }
+    if (!handler) return;
 
     pending.delete(message.id);
-
     if (message.type === "result") {
       handler.resolve(message.payload);
-      return;
+    } else {
+      handler.reject(new Error(message.error.message));
     }
-
-    handler.reject(new Error(message.error.message));
   };
 
   worker.onerror = (event) => {
@@ -64,12 +56,10 @@ const initWorker = () => {
   return worker;
 };
 
-const request = async <T = unknown>(
-  payload: SearchWorkerRequestPayload,
-): Promise<T> => {
+const request = async <T = unknown>(payload: WorkerRequestPayload): Promise<T> => {
   const activeWorker = initWorker();
   const id = ++requestId;
-  const message = { ...payload, id } as SearchWorkerRequest;
+  const message = { ...payload, id } as WorkerRequest;
 
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as PendingRequest["resolve"], reject });
@@ -77,19 +67,7 @@ const request = async <T = unknown>(
   });
 };
 
-export const retainSearchWorker = () => {
-  searchWorkerConsumers += 1;
-  initWorker();
-};
-
-export const releaseSearchWorker = () => {
-  searchWorkerConsumers = Math.max(0, searchWorkerConsumers - 1);
-  if (searchWorkerConsumers === 0) {
-    terminateSearchWorker();
-  }
-};
-
-export const initSearchIndex = async (indexUrl: string) => {
+export const warmupSearchIndex = async (indexUrl: string) => {
   if (!searchInitPromise) {
     searchInitPromise = request({
       type: "initSearch",
@@ -105,11 +83,11 @@ export const initSearchIndex = async (indexUrl: string) => {
   await searchInitPromise;
 };
 
-export const search = async <T>(req: T) =>
-  request<unknown>({ type: "search", payload: { request: req } });
+export const searchArticles = async (requestPayload: SearchRequest) =>
+  request<SearchResult>({ type: "search", payload: { request: requestPayload } });
 
-export const suggest = async <T>(req: T) =>
-  request<unknown>({ type: "suggest", payload: { request: req } });
+export const suggestArticles = async (requestPayload: SearchRequest) =>
+  request<SearchResult>({ type: "suggest", payload: { request: requestPayload } });
 
 export const terminateSearchWorker = () => {
   if (worker) {
@@ -118,7 +96,6 @@ export const terminateSearchWorker = () => {
   }
 
   searchInitPromise = null;
-  searchWorkerConsumers = 0;
   pending.forEach((handler) => handler.reject(new Error("搜索 Worker 已终止")));
   pending.clear();
 };

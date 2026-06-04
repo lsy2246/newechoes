@@ -5,25 +5,26 @@ import path from "node:path";
 import test from "node:test";
 
 const astroBuildScript = readFileSync("scripts/astro-build.mjs", "utf8");
-const buildArticleIndexSource = readFileSync("src/plugins/build-article-index.js", "utf8");
+const buildPluginSource = readFileSync("src/plugins/article-index/integration.js", "utf8");
+const buildHelperSource = readFileSync("src/plugins/article-index/build.js", "utf8");
 const searchComponentSource = readFileSync("src/components/Search.tsx", "utf8");
 const articleFilterSource = readFileSync("src/components/ArticleFilter.tsx", "utf8");
-const searchWorkerClientSource = readFileSync("src/lib/search-worker-client.ts", "utf8");
-const filterWorkerClientSource = readFileSync("src/lib/filter-worker-client.ts", "utf8");
+const searchClientSource = readFileSync("src/lib/search/client.ts", "utf8");
+const filterClientSource = readFileSync("src/lib/filter/client.ts", "utf8");
 
 test("search and filter runtime no longer depend on frontend wasm artifacts or rust cli", () => {
-  assert.doesNotMatch(buildArticleIndexSource, /search_wasm|article_filter|cargo|article-indexer-cli/);
-  assert.match(searchComponentSource, /search_index\.json/);
-  assert.match(articleFilterSource, /filter_index\.json/);
+  assert.doesNotMatch(buildPluginSource, /search_wasm|article_filter|cargo|article-indexer-cli/);
+  assert.doesNotMatch(buildHelperSource, /search_wasm|article_filter|cargo|article-indexer-cli/);
+  assert.match(searchComponentSource, /@\/lib\/search\/controller/);
+  assert.match(articleFilterSource, /@\/lib\/filter\/client/);
 });
 
-test("search and filter now use separate worker clients and retire the shared worker shell", () => {
-  assert.match(searchComponentSource, /@\/lib\/search-worker-client/);
-  assert.match(articleFilterSource, /@\/lib\/filter-worker-client/);
-  assert.match(searchWorkerClientSource, /new URL\("\.\/search-worker\.ts"/);
-  assert.match(filterWorkerClientSource, /new URL\("\.\/filter-worker\.ts"/);
+test("search and filter now use separate worker clients inside dedicated lib folders", () => {
+  assert.match(searchClientSource, /new Worker\(new URL\("\.\/worker\.ts", import\.meta\.url\)/);
+  assert.match(filterClientSource, /new Worker\(new URL\("\.\/worker\.ts", import\.meta\.url\)/);
   assert.equal(existsSync("src/lib/searchFilterWorkerClient.ts"), false);
   assert.equal(existsSync("src/lib/search-filter-worker.ts"), false);
+  assert.equal(existsSync("src/lib/wasmWorkerClient.ts"), false);
 });
 
 test("astro build still prepares article index runtime before bundling client assets", () => {
@@ -62,7 +63,7 @@ Search worker now runs in pure javascript and scans headings too.
     writeFileSync(path.join(outputRoot, "search_index.bin"), "legacy", "utf8");
     writeFileSync(path.join(outputRoot, "filter_index.bin"), "legacy", "utf8");
 
-    const { generateArticleIndex } = await import("../src/plugins/build-article-index.js");
+    const { generateArticleIndex } = await import("../src/plugins/article-index/integration.js");
     const result = await generateArticleIndex({
       buildDir: buildRoot,
       contentDir: contentRoot,
@@ -90,7 +91,7 @@ Search worker now runs in pure javascript and scans headings too.
 });
 
 test("generateArticleIndex throws when content directory is missing", async () => {
-  const { generateArticleIndex } = await import("../src/plugins/build-article-index.js");
+  const { generateArticleIndex } = await import("../src/plugins/article-index/integration.js");
 
   await assert.rejects(
     () =>

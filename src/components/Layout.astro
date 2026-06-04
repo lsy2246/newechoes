@@ -105,6 +105,20 @@ const showVercelInsights = observability.speedInsights && !import.meta.env.DEV;
       name="generator"
       content={Astro.generator}
     />
+    {
+      import.meta.env.DEV && (
+        <script type="module" is:inline>
+          if (!window.__vite_plugin_react_preamble_installed__) {
+            import("/@react-refresh").then(({ injectIntoGlobalHook }) => {
+              injectIntoGlobalHook(window);
+              window.$RefreshReg$ = () => {};
+              window.$RefreshSig$ = () => (type) => type;
+              window.__vite_plugin_react_preamble_installed__ = true;
+            });
+          }
+        </script>
+      )
+    }
 
     <!-- RSS链接 -->
     <link
@@ -392,7 +406,7 @@ const showVercelInsights = observability.speedInsights && !import.meta.env.DEV;
     </script>
 
     <script>
-      import "../lib/swup-init.js";
+      import "../lib/navigation/swup-init.js";
     </script>
   </head>
   <body

@@ -3,9 +3,8 @@ import {
   filterArticles as workerFilterArticles,
   getAllTags as workerGetAllTags,
   initFilterIndex,
-  releaseFilterWorker,
-  retainFilterWorker,
-} from "@/lib/filter-worker-client";
+} from "@/lib/filter/client";
+import { resolveFilterPageState } from "@/lib/filter/page-state.js";
 
 interface FilterState {
   tags: string[];
@@ -29,6 +28,12 @@ interface FilterResult {
   page: number;
   limit: number;
   total_pages: number;
+}
+
+interface ResolvedFilterData {
+  articles: Article[];
+  total: number;
+  totalPages: number;
 }
 
 interface ArticleFilterProps {
@@ -321,6 +326,76 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({
     [articleUpdatedAtMap],
   );
 
+  const syncFilterHistory = useCallback((
+    nextFilters: FilterState,
+    mode: "push" | "replace" = "push",
+  ) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const query = buildFilterUrl(nextFilters);
+    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
+
+    if (mode === "replace") {
+      window.history.replaceState({}, "", nextUrl);
+      return;
+    }
+
+    window.history.pushState({}, "", nextUrl);
+  }, []);
+
+  const requestFilterData = useCallback(async (
+    nextFilters: FilterState,
+  ): Promise<ResolvedFilterData> => {
+    const result = (await workerFilterArticles({
+      tags: nextFilters.tags,
+      sort: isUpdatedSort(nextFilters.sort) ? "newest" : nextFilters.sort,
+      date: nextFilters.date,
+      page: nextFilters.currentPage,
+      limit: nextFilters.pageSize,
+    })) as FilterResult;
+
+    const total = typeof result?.total === "number"
+      ? result.total
+      : Array.isArray(result?.articles)
+        ? result.articles.length
+        : 0;
+    let nextArticles = Array.isArray(result?.articles) ? result.articles : [];
+    let nextTotalPages =
+      typeof result?.total_pages === "number" && result.total_pages > 0
+        ? result.total_pages
+        : Math.max(1, Math.ceil(total / nextFilters.pageSize));
+
+    if (isUpdatedSort(nextFilters.sort)) {
+      const allResult = (await workerFilterArticles({
+        tags: nextFilters.tags,
+        sort: "newest",
+        date: nextFilters.date,
+        page: 1,
+        limit: Math.max(total, 1),
+      })) as FilterResult;
+      const allArticles = Array.isArray(allResult?.articles)
+        ? allResult.articles
+        : [];
+      const sortedArticles = sortArticlesByUpdatedTime(
+        allArticles,
+        nextFilters.sort,
+        updatedAtByUrl,
+      );
+      const pageStart = (nextFilters.currentPage - 1) * nextFilters.pageSize;
+
+      nextArticles = sortedArticles.slice(pageStart, pageStart + nextFilters.pageSize);
+      nextTotalPages = Math.max(1, Math.ceil(total / nextFilters.pageSize));
+    }
+
+    return {
+      articles: nextArticles,
+      total,
+      totalPages: nextTotalPages,
+    };
+  }, [updatedAtByUrl]);
+
   const runFilter = useCallback(async (nextFilters: FilterState) => {
     if (!isReadyRef.current) return;
 
@@ -328,46 +403,28 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({
     setError(null);
 
     try {
-      const result = (await workerFilterArticles({
-        tags: nextFilters.tags,
-        sort: isUpdatedSort(nextFilters.sort) ? "newest" : nextFilters.sort,
-        date: nextFilters.date,
-        page: nextFilters.currentPage,
-        limit: nextFilters.pageSize,
-      })) as FilterResult;
+      let activeFilters = nextFilters;
+      let nextData = await requestFilterData(activeFilters);
+      const pageState = resolveFilterPageState({
+        requestedPage: activeFilters.currentPage,
+        totalArticles: nextData.total,
+        totalPages: nextData.totalPages,
+        pageArticles: nextData.articles,
+      });
 
-      const total = typeof result?.total === "number"
-        ? result.total
-        : Array.isArray(result?.articles)
-          ? result.articles.length
-          : 0;
-      let nextArticles = Array.isArray(result?.articles) ? result.articles : [];
-      let nextTotalPages =
-        typeof result?.total_pages === "number" && result.total_pages > 0
-          ? result.total_pages
-          : Math.max(1, Math.ceil(total / nextFilters.pageSize));
-
-      if (isUpdatedSort(nextFilters.sort)) {
-        const allResult = (await workerFilterArticles({
-          tags: nextFilters.tags,
-          sort: isUpdatedSort(nextFilters.sort) ? "newest" : nextFilters.sort,
-          date: nextFilters.date,
-          page: 1,
-          limit: Math.max(total, 1),
-        })) as FilterResult;
-        const allArticles = Array.isArray(allResult?.articles)
-          ? allResult.articles
-          : [];
-        const sortedArticles = sortArticlesByUpdatedTime(allArticles, nextFilters.sort, updatedAtByUrl);
-        const pageStart = (nextFilters.currentPage - 1) * nextFilters.pageSize;
-
-        nextArticles = sortedArticles.slice(pageStart, pageStart + nextFilters.pageSize);
-        nextTotalPages = Math.max(1, Math.ceil(total / nextFilters.pageSize));
+      if (pageState.shouldRefetch) {
+        activeFilters = {
+          ...activeFilters,
+          currentPage: pageState.effectivePage,
+        };
+        setFilters(activeFilters);
+        syncFilterHistory(activeFilters, "replace");
+        nextData = await requestFilterData(activeFilters);
       }
 
-      setArticles(nextArticles);
-      setTotalArticles(total);
-      setTotalPages(nextTotalPages);
+      setArticles(nextData.articles);
+      setTotalArticles(nextData.total);
+      setTotalPages(nextData.totalPages);
     } catch (filterError) {
       console.error("[ArticleFilter] 筛选失败:", filterError);
       setError("筛选文章时出错，请刷新页面重试");
@@ -377,34 +434,27 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [updatedAtByUrl]);
+  }, [requestFilterData, syncFilterHistory]);
 
   const updateFilters = useCallback(
     (patch: Partial<FilterState>, options: { resetPage?: boolean } = {}) => {
-      setFilters((current) => {
-        const nextFilters = {
-          ...current,
-          ...patch,
-          currentPage: options.resetPage
-            ? 1
-            : patch.currentPage ?? current.currentPage,
-        };
+        setFilters((current) => {
+          const nextFilters = {
+            ...current,
+            ...patch,
+            currentPage: options.resetPage
+              ? 1
+              : patch.currentPage ?? current.currentPage,
+          };
 
-        if (typeof window !== "undefined") {
-          const query = buildFilterUrl(nextFilters);
-          window.history.pushState(
-            {},
-            "",
-            `${window.location.pathname}${query ? `?${query}` : ""}`,
-          );
-        }
+          syncFilterHistory(nextFilters);
 
-        void runFilter(nextFilters);
-        return nextFilters;
-      });
-    },
-    [runFilter],
-  );
+          void runFilter(nextFilters);
+          return nextFilters;
+        });
+      },
+      [runFilter, syncFilterHistory],
+    );
 
   useEffect(() => {
     let cancelled = false;
@@ -430,12 +480,10 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({
       }
     }
 
-    retainFilterWorker();
     void bootFilter();
 
     return () => {
       cancelled = true;
-      releaseFilterWorker();
     };
   }, []);
 
@@ -513,10 +561,20 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({
   const resultEnd = Math.min(filters.currentPage * filters.pageSize, totalArticles);
   const currentSortLabel = sortLabels[filters.sort] || sortLabels.newest;
   const viewLabel = `${currentSortLabel} · 每页 ${filters.pageSize}`;
+  const filterPageState = resolveFilterPageState({
+    requestedPage: filters.currentPage,
+    totalArticles,
+    totalPages,
+    pageArticles: articles,
+  });
   const resultStatusText = error
     ? error
     : isLoading
-      ? "正在加载文章"
+      ? isReadyRef.current
+        ? "正在应用筛选条件..."
+        : "正在加载筛选索引..."
+      : filterPageState.shouldRefetch
+        ? "正在调整结果页..."
       : totalArticles > 0
         ? `共找到 ${totalArticles} 篇文章，第 ${resultStart}-${resultEnd} 篇`
         : "没有找到符合条件的文章";
@@ -829,10 +887,15 @@ const ArticleFilter: React.FC<ArticleFilterProps> = ({
               );
             })}
           </div>
+        ) : filterPageState.shouldShowEmptyState || error || isLoading ? (
+          <div className="article-index-empty">
+            <h3>{isLoading ? "正在加载筛选索引" : "没有找到符合条件的文章"}</h3>
+            <p>{error || "尝试调整筛选条件，或者清除标签后重新查看。"}</p>
+          </div>
         ) : (
           <div className="article-index-empty">
-            <h3>{isLoading ? "正在读取索引" : "没有找到符合条件的文章"}</h3>
-            <p>{error || "尝试调整筛选条件，或者清除标签后重新查看。"}</p>
+            <h3>正在调整结果页</h3>
+            <p>当前页已经超出结果范围，正在回到最近的有效页。</p>
           </div>
         )}
 

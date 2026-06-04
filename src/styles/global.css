@@ -3030,26 +3030,26 @@ html[data-theme="dark"],
 .filter-tag-options {
   display: grid;
   gap: 0;
-  max-height: 14rem;
+  max-height: min(22rem, calc(100vh - 18rem));
   overflow-y: auto;
-  padding-right: 6px;
+  padding: 6px 6px 6px 0;
   border-top: 1px solid var(--site-line);
   border-bottom: 1px solid var(--site-line);
+  overscroll-behavior: contain;
 }
 
 .filter-tag-option {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
+  align-items: center;
   gap: 14px;
   width: 100%;
   min-width: 0;
-  overflow: hidden;
-  padding: 9px 0;
+  padding: 11px 0;
   border-bottom: 1px solid var(--site-line);
   color: var(--site-muted);
   font-size: var(--type-ui);
-  line-height: 1.35;
+  line-height: 1.45;
   text-align: left;
 }
 
@@ -3059,9 +3059,13 @@ html[data-theme="dark"],
 
 .filter-tag-option span:first-child {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.filter-tag-option .filter-tag-state {
+  align-self: start;
+  padding-top: 2px;
 }
 
 .filter-tag-option.is-active,

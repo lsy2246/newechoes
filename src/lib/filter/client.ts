@@ -1,14 +1,13 @@
-type FilterWorkerRequest =
+import type { FilterRequest, FilterResult } from "./types";
+
+type WorkerRequest =
   | { id: number; type: "initFilter"; payload: { indexUrl: string } }
-  | { id: number; type: "filter"; payload: { request: unknown } }
+  | { id: number; type: "filter"; payload: { request: FilterRequest } }
   | { id: number; type: "getTags" };
 
-type FilterWorkerRequestPayload =
-  | { type: "initFilter"; payload: { indexUrl: string } }
-  | { type: "filter"; payload: { request: unknown } }
-  | { type: "getTags" };
+type WorkerRequestPayload = Omit<WorkerRequest, "id">;
 
-type FilterWorkerResponse =
+type WorkerResponse =
   | { id: number; type: "result"; payload: unknown }
   | { id: number; type: "error"; error: { message: string } };
 
@@ -19,34 +18,27 @@ type PendingRequest = {
 
 let worker: Worker | null = null;
 let requestId = 0;
-let filterInitPromise: Promise<void> | null = null;
-let filterWorkerConsumers = 0;
 const pending = new Map<number, PendingRequest>();
+let filterInitPromise: Promise<void> | null = null;
 
 const initWorker = () => {
-  if (worker) {
-    return worker;
-  }
+  if (worker) return worker;
 
-  worker = new Worker(new URL("./filter-worker.ts", import.meta.url), {
+  worker = new Worker(new URL("./worker.ts", import.meta.url), {
     type: "module",
   });
 
-  worker.onmessage = (event: MessageEvent<FilterWorkerResponse>) => {
+  worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
     const message = event.data;
     const handler = pending.get(message.id);
-    if (!handler) {
-      return;
-    }
+    if (!handler) return;
 
     pending.delete(message.id);
-
     if (message.type === "result") {
       handler.resolve(message.payload);
-      return;
+    } else {
+      handler.reject(new Error(message.error.message));
     }
-
-    handler.reject(new Error(message.error.message));
   };
 
   worker.onerror = (event) => {
@@ -64,29 +56,15 @@ const initWorker = () => {
   return worker;
 };
 
-const request = async <T = unknown>(
-  payload: FilterWorkerRequestPayload,
-): Promise<T> => {
+const request = async <T = unknown>(payload: WorkerRequestPayload): Promise<T> => {
   const activeWorker = initWorker();
   const id = ++requestId;
-  const message = { ...payload, id } as FilterWorkerRequest;
+  const message = { ...payload, id } as WorkerRequest;
 
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as PendingRequest["resolve"], reject });
     activeWorker.postMessage(message);
   });
-};
-
-export const retainFilterWorker = () => {
-  filterWorkerConsumers += 1;
-  initWorker();
-};
-
-export const releaseFilterWorker = () => {
-  filterWorkerConsumers = Math.max(0, filterWorkerConsumers - 1);
-  if (filterWorkerConsumers === 0) {
-    terminateFilterWorker();
-  }
 };
 
 export const initFilterIndex = async (indexUrl: string) => {
@@ -105,10 +83,10 @@ export const initFilterIndex = async (indexUrl: string) => {
   await filterInitPromise;
 };
 
-export const filterArticles = async <T>(req: T) =>
-  request<unknown>({ type: "filter", payload: { request: req } });
+export const filterArticles = async (requestPayload: FilterRequest) =>
+  request<FilterResult>({ type: "filter", payload: { request: requestPayload } });
 
-export const getAllTags = async () => request<unknown>({ type: "getTags" });
+export const getAllTags = async () => request<string[]>({ type: "getTags" });
 
 export const terminateFilterWorker = () => {
   if (worker) {
@@ -117,7 +95,6 @@ export const terminateFilterWorker = () => {
   }
 
   filterInitPromise = null;
-  filterWorkerConsumers = 0;
   pending.forEach((handler) => handler.reject(new Error("筛选 Worker 已终止")));
   pending.clear();
 };

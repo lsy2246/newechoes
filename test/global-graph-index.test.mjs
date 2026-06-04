@@ -3,10 +3,11 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const modal = readFileSync("src/components/GlobalGraphModal.astro", "utf8");
+const launcher = readFileSync("src/components/GlobalGraphLauncher.astro", "utf8");
 const tree = modal;
 const headerCss = readFileSync("src/styles/header.css", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
-const runtime = readFileSync("src/lib/global-graph-modal.ts", "utf8");
+const runtime = readFileSync("src/lib/global-graph/modal.ts", "utf8");
 
 const cssBlock = (selector) => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -19,6 +20,14 @@ test("global graph removes the point legend and describes intentional interactio
   assert.match(modal, /拖动画布/);
   assert.match(modal, /拖动节点/);
   assert.match(modal, /点击节点进入文章/);
+});
+
+test("global graph launcher stays as the lightweight shell while modal owns the heavy markup", () => {
+  assert.match(launcher, /data-global-graph-root/);
+  assert.match(launcher, /@\/lib\/global-graph\/launcher/);
+  assert.equal(launcher.includes("data-global-graph-json"), false);
+  assert.equal(launcher.includes('getCollection("articles")'), false);
+  assert.equal(modal.includes("data-global-graph-json"), true);
 });
 
 test("global graph tree uses compact file-sidebar styling", () => {
@@ -138,6 +147,27 @@ test("global graph runtime separates drag from click and adds subtle drift", () 
   assert.match(runtime, /\.force\(\s*"ambientDrift"/);
 });
 
+test("global graph keeps the first mobile framing on graph fit instead of forcing current-node recenter", () => {
+  assert.equal(runtime.includes("centerOnNode(currentNodeId, true);"), false);
+  assert.equal(runtime.includes("runtime.setCurrentNode(currentNodeId, true);"), false);
+  assert.match(runtime, /currentNodeId = getCurrentNodeId\(\);\s*resize\(\);\s*render\(\);/);
+  assert.match(runtime, /runtime\.setCurrentNode\(currentNodeId\);/);
+  assert.match(runtime, /graphRuntime\?\.setCurrentNode\(currentNodeId\);/);
+});
+
+test("global graph canvas opts into touch-owned dragging on mobile", () => {
+  assert.match(cssBlock(".global-graph-canvas"), /touch-action:\s*none;/);
+  assert.match(cssBlock(".global-graph-canvas"), /overscroll-behavior:\s*contain;/);
+  assert.match(runtime, /function finishPointerInteraction/);
+  assert.match(runtime, /canvas\.addEventListener\("pointercancel", finishPointerInteraction\);/);
+});
+
+test("global graph hides floating node labels on compact mobile viewports", () => {
+  assert.match(runtime, /const compactViewport = view\.width <= 680;/);
+  assert.match(runtime, /node\.labelElement\.classList\.toggle\("is-visible", !compactViewport && showLabel\);/);
+  assert.equal(runtime.includes("function getLabelTransform"), false);
+});
+
 test("global graph runtime draws readable canvas links", () => {
   assert.match(runtime, /const GRAPH_LINK_ALPHA\s*=\s*\{/);
   assert.match(runtime, /structure:\s*0\.38/);
@@ -221,4 +251,15 @@ test("global graph styles keep the canvas neutral and non-glowy", () => {
   assert.match(cssBlock(".global-graph-dialog"), /--graph-accent:\s*var\(--graph-text\);/);
   assert.match(cssBlock("[data-theme=\"dark\"] .global-graph-dialog"), /--graph-accent:\s*var\(--graph-text\);/);
   assert.match(cssBlock(".global-graph-stage-canvas"), /background:\s*transparent;/);
+});
+
+test("global graph stacked mobile layout separates the 2D stage with a rule above the heading", () => {
+  assert.match(
+    headerCss,
+    /@media \(max-width: 900px\) \{[\s\S]*?\.global-graph-stage\s*\{[\s\S]*?padding-top:\s*0\.95rem;/
+  );
+  assert.match(
+    headerCss,
+    /@media \(max-width: 900px\) \{[\s\S]*?\.global-graph-stage\s*\{[\s\S]*?border-top:\s*1px solid var\(--graph-border\);/
+  );
 });

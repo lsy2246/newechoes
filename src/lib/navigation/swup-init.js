@@ -433,13 +433,13 @@ function isFilteredPageUrl(url = window.location.pathname) {
   return path === '/filtered' || path.startsWith('/filtered/');
 }
 
-function isArticleShellPageUrl(url = window.location.pathname) {
-  return isArticlePageUrl(url) || isFilteredPageUrl(url);
+function isArticleTransitionPageUrl(url = window.location.pathname) {
+  return isArticlePageUrl(url);
 }
 
-// 检查是否是文章相关页面
-function isArticlePage() {
-  return isArticleShellPageUrl();
+// 只让真正的文章目录/详情页使用 article-content 级过渡。
+function isArticleTransitionPage() {
+  return isArticleTransitionPageUrl();
 }
 
 const timelineYearSpy = {
@@ -550,32 +550,42 @@ function setElementOpacity(element, opacity) {
 
 // 应用过渡效果到相关元素
 function applyTransitions() {
-  // 应用到主容器 - 只在非文章页面
+  const shouldUseArticleTransition = isArticleTransitionPage();
+
+  // 应用到主容器 - 只在非文章内容过渡页
   const mainElement = document.querySelector('main');
   if (mainElement) {
-    mainElement.classList.add('transition-fade');
-    
-    // 只有在非文章页面时，才为main添加必要的过渡标记
-    if (!isArticlePage()) {
+    if (shouldUseArticleTransition) {
+      mainElement.classList.remove('transition-fade');
+      mainElement.removeAttribute('data-swup-transition');
+      mainElement.style.removeProperty('opacity');
+    } else {
+      mainElement.classList.add('transition-fade');
       setElementTransition(mainElement);
     }
   }
   
-  // 应用到文章内容 - 只在文章页面
+  // 应用到文章内容 - 只在真正的文章内容过渡页
   const articleContent = document.querySelector('#article-content');
   if (articleContent) {
-    articleContent.classList.add('swup-transition-article');
-    setElementTransition(articleContent);
+    if (shouldUseArticleTransition) {
+      articleContent.classList.add('swup-transition-article');
+      setElementTransition(articleContent);
+    } else {
+      articleContent.classList.remove('swup-transition-article');
+      articleContent.removeAttribute('data-swup-transition');
+      articleContent.style.removeProperty('opacity');
+    }
   }
 }
 
 // 获取当前页面的活跃元素（用于动画）
 function getActiveElement() {
-  if (isArticlePage()) {
+  if (isArticleTransitionPage()) {
     return document.querySelector('#article-content');
-  } else {
-    return document.querySelector('main');
   }
+
+  return document.querySelector('main');
 }
 
 // 在DOM加载完成后初始化
@@ -609,14 +619,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const containers = ['main']; // 主容器始终存在
   
   // 只有当文章内容容器存在时才添加
-  if (containerExists('#article-content')) {
+  if (isArticleTransitionPage() && containerExists('#article-content')) {
     containers.push('#article-content');
   }
   
   // 创建Swup实例
   const swup = new Swup({
     // Swup的基本配置
-    animationSelector: '[class*="transition-"], .swup-transition-article, #article-content',
+    animationSelector: '[class*="transition-"], .swup-transition-article',
     cache: true,
     containers: containers, // 使用动态容器配置
     animationScope: 'html', // 确保动画状态类添加到html元素
@@ -659,16 +669,6 @@ document.addEventListener('DOMContentLoaded', () => {
     throttle: window.matchMedia('(max-width: 767px)').matches ? 1 : 2,
     // 开启鼠标悬停预加载
     preloadHoveredLinks: true,
-    // 开启视口内链接预加载，自定义配置
-    preloadVisibleLinks: {
-      // 链接稳定可见后再预加载，避免首屏和重组件争抢网络。
-      threshold: 0.6,
-      delay: window.matchMedia('(max-width: 767px)').matches ? 1800 : 1200,
-      // 在哪些容器内寻找链接
-      containers: ['body'],
-      // 忽略带有data-no-preload属性的链接
-      ignore: (el) => el.hasAttribute('data-no-preload')
-    },
     preloadInitialPage: false
   });
   swup.use(preloadPlugin);
@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
     persistTags: shouldPersistStylesheetDuringHeadSync,
     persistAssets: false,
     keepScrollOnReload: true, // 保持滚动位置
-    awaitAssets: true // 等待资源加载完成再显示页面
+    awaitAssets: false // 优先展示新页面，避免首跳卡在资源同步上
   });
   swup.use(headPlugin);
   
@@ -768,18 +768,18 @@ document.addEventListener('DOMContentLoaded', () => {
     showLoadingSpinner(spinner);
     
     // 检查目标URL是否为文章相关页面
-    const isTargetArticlePage = isArticleShellPageUrl(visit.to.url);
-    const isCurrentArticlePage = isArticlePage();
+    const isTargetArticleTransitionPage = isArticleTransitionPageUrl(visit.to.url);
+    const isCurrentArticleTransitionPage = isArticleTransitionPage();
     
-    // 如果当前是文章页面，但目标不是，恢复main动画
-    if (isCurrentArticlePage && !isTargetArticlePage) {
+    // 如果当前是文章内容过渡页，但目标不是，恢复main动画
+    if (isCurrentArticleTransitionPage && !isTargetArticleTransitionPage) {
       const mainElement = document.querySelector('main');
       if (mainElement) {
         setElementOpacity(mainElement, 0);
       }
     }
-    // 如果当前不是文章页面，但目标是，准备article-content动画
-    else if (!isCurrentArticlePage && isTargetArticlePage) {
+    // 如果当前不是文章内容过渡页，但目标是，准备article-content动画
+    else if (!isCurrentArticleTransitionPage && isTargetArticleTransitionPage) {
       const mainElement = document.querySelector('main');
       if (mainElement) {
         // 移除main的过渡效果
@@ -802,7 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 如果是载入文章页面但Fragment插件未加载，则加载它
-    if (isArticleShellPageUrl(visit.to.url) &&
+    if (isArticleTransitionPageUrl(visit.to.url) &&
         !swup.findPlugin('fragment')) {
       swup.use(fragmentPlugin);
     }
@@ -831,19 +831,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const activeElement = getActiveElement();
     if (activeElement) {
-      setElementOpacity(activeElement, 0);
-
-      if (isArticlePage() && activeElement.id === 'article-content') {
+      if (isArticleTransitionPage() && activeElement.id === 'article-content') {
         activeElement.classList.add('swup-transition-article');
         setElementTransition(activeElement);
-      } else if (!isArticlePage() && activeElement.tagName.toLowerCase() === 'main') {
+      } else if (!isArticleTransitionPage() && activeElement.tagName.toLowerCase() === 'main') {
         activeElement.classList.add('transition-fade');
         setElementTransition(activeElement);
       }
 
-      setTimeout(() => {
-        setElementOpacity(activeElement, 1);
-      }, 50);
+      setElementOpacity(activeElement, 1);
     }
 
     // 重新设置过渡样式，但不要立即隐藏加载动画
