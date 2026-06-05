@@ -407,6 +407,9 @@ const showVercelInsights = observability.speedInsights && !import.meta.env.DEV;
 
     <script>
       import "../lib/navigation/swup-init.js";
+      import { installHomeDioramaRehydrationBridge } from "./home/homeDioramaBoot.js";
+
+      installHomeDioramaRehydrationBridge();
     </script>
   </head>
   <body

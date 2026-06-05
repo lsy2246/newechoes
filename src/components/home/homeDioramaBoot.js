@@ -1,6 +1,7 @@
 const HOME_DIORAMA_MODULE_KEY = "__homeDioramaModule";
 const HOME_DIORAMA_ACTIVE_SCENE_KEY = "__homeDioramaActiveScene";
 const HOME_DIORAMA_BOOT_CLEANUP_KEY = "__homeDioramaBootCleanup";
+const HOME_DIORAMA_REHYDRATION_BRIDGE_KEY = "__homeDioramaRehydrationBridgeCleanup";
 const HOME_DIORAMA_BOOT_DELAY_MS = 180;
 
 const isHomePath = (window) => {
@@ -176,5 +177,71 @@ export function mountHomeDioramaBoot({
   window.addEventListener("beforeunload", cleanup, { once: true });
 
   scheduleBoot();
+  return cleanup;
+}
+
+export function installHomeDioramaRehydrationBridge({
+  window: providedWindow,
+  document: providedDocument,
+  mountBoot = mountHomeDioramaBoot,
+} = {}) {
+  const window = providedWindow ?? globalThis.window;
+  const document = providedDocument ?? globalThis.document;
+  if (!window || !document) return () => {};
+
+  const existingCleanup = window[HOME_DIORAMA_REHYDRATION_BRIDGE_KEY];
+  if (typeof existingCleanup === "function") return existingCleanup;
+
+  let disposed = false;
+  let scheduledEnsureId = 0;
+
+  const ensureBootMounted = () => {
+    if (disposed) return;
+    if (!isHomePath(window)) return;
+    if (!document.querySelector("[data-home-scene]")) return;
+    if (typeof window[HOME_DIORAMA_BOOT_CLEANUP_KEY] === "function") return;
+    mountBoot({ window, document });
+  };
+
+  const scheduleEnsureBootMounted = () => {
+    if (disposed) return;
+    if (scheduledEnsureId) {
+      window.clearTimeout(scheduledEnsureId);
+    }
+
+    scheduledEnsureId = window.setTimeout(() => {
+      scheduledEnsureId = 0;
+      ensureBootMounted();
+    }, 0);
+  };
+
+  const cleanup = () => {
+    if (disposed) return;
+    disposed = true;
+    if (scheduledEnsureId) {
+      window.clearTimeout(scheduledEnsureId);
+      scheduledEnsureId = 0;
+    }
+    document.removeEventListener("DOMContentLoaded", scheduleEnsureBootMounted);
+    document.removeEventListener("astro:after-swap", scheduleEnsureBootMounted);
+    document.removeEventListener("astro:page-load", scheduleEnsureBootMounted);
+    document.removeEventListener("swup:page:view", scheduleEnsureBootMounted);
+    window.removeEventListener("load", scheduleEnsureBootMounted);
+    window.removeEventListener("beforeunload", cleanup);
+    if (window[HOME_DIORAMA_REHYDRATION_BRIDGE_KEY] === cleanup) {
+      delete window[HOME_DIORAMA_REHYDRATION_BRIDGE_KEY];
+    }
+  };
+
+  window[HOME_DIORAMA_REHYDRATION_BRIDGE_KEY] = cleanup;
+
+  document.addEventListener("DOMContentLoaded", scheduleEnsureBootMounted);
+  document.addEventListener("astro:after-swap", scheduleEnsureBootMounted);
+  document.addEventListener("astro:page-load", scheduleEnsureBootMounted);
+  document.addEventListener("swup:page:view", scheduleEnsureBootMounted);
+  window.addEventListener("load", scheduleEnsureBootMounted);
+  window.addEventListener("beforeunload", cleanup, { once: true });
+
+  scheduleEnsureBootMounted();
   return cleanup;
 }
