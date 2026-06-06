@@ -30,6 +30,9 @@ test("server asset relay encodes source request headers into the relay URL", () 
   assert.match(serverRelaySource, /JSON\.stringify\(\s*headers/);
   assert.match(serverRelaySource, /encodeURIComponent/);
   assert.match(serverRelaySource, /replaceAll\(ASSET_RELAY_HEADERS_PLACEHOLDER,\s*encodedHeaders\)/);
+  assert.match(serverRelaySource, /searchParams\.set\("cache",\s*cache\)/);
+  assert.match(serverRelaySource, /searchParams\.set\("cache_ttl",\s*String\(cacheTtl\)\)/);
+  assert.match(serverRelaySource, /searchParams\.set\("cache_key_mode",\s*cacheKeyMode\)/);
   assert.match(serverRelaySource, /fetch\(\s*relayUrl,\s*\{\s*signal\s*\}\)/);
   assert.match(serverRelaySource, /fetch\(\s*url,\s*\{[\s\S]*headers/);
 });
@@ -40,6 +43,9 @@ test("Douban prefers relay URLs in the frontend and falls back to the local imag
   assert.match(doubanRouteSource, /fetchAssetDirect\(\s*imageUrl,\s*\{[\s\S]*headers:\s*DOUBAN_IMAGE_HEADERS/);
   assert.match(doubanRouteSource, /const relayImageUrl = imageUrl/);
   assert.match(doubanRouteSource, /const fallbackImageUrl = relayImageUrl && imageUrl/);
+  assert.match(doubanRouteSource, /cache:\s*"prefer"/);
+  assert.match(doubanRouteSource, /DOUBAN_IMAGE_CACHE_TTL_SECONDS = 31536000/);
+  assert.match(doubanRouteSource, /cacheTtl:\s*DOUBAN_IMAGE_CACHE_TTL_SECONDS/);
   assert.match(doubanRouteSource, /imageUrl:\s*imageUrl \? relayImageUrl \|\| localDoubanImageUrl\(imageUrl\) : ''/);
   assert.match(doubanRouteSource, /fallbackImageUrl/);
   assert.match(doubanRouteSource, /\/api\/douban\?imageUrl=/);
@@ -74,19 +80,22 @@ test("Weread keeps direct page fetches and uses direct -> relay -> local cover f
 test("Google Photos page/media flow keeps relay-first images and media-mode relay videos with backend fallback", () => {
   assert.match(googlePhotosSource, /server\/asset-relay/);
   assert.match(googlePhotosSource, /GOOGLE_PHOTOS_MEDIA_HEADERS/);
+  assert.match(googlePhotosSource, /GOOGLE_PHOTOS_PAGE_CACHE_TTL_SECONDS = 86400/);
+  assert.match(googlePhotosSource, /GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS = 31536000/);
   assert.match(googlePhotosSource, /const googlePhotosImageUrl = \(baseUrl: string, params: string\) =>/);
   assert.match(googlePhotosSource, /googlePhotosMediaUrl\(baseUrl, `\$\{params\}-no`\)/);
   assert.match(googlePhotosSource, /localGooglePhotosMediaUrl/);
-  assert.match(googlePhotosSource, /relayAssetUrl\(mediaUrl,\s*GOOGLE_PHOTOS_MEDIA_HEADERS\)\s*\|\|\s*fallbackUrl/);
+  assert.match(googlePhotosSource, /relayAssetUrl\(\s*mediaUrl,\s*GOOGLE_PHOTOS_MEDIA_HEADERS,\s*\{[\s\S]*cache:\s*"prefer"[\s\S]*cacheTtl:\s*GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS[\s\S]*\}\s*\)\s*\|\|\s*fallbackUrl/);
   assert.match(googlePhotosSource, /const streamedGooglePhotosVideoUrl = \(baseUrl: string\) => \{/);
-  assert.match(googlePhotosSource, /const relayUrl = relayAssetUrl\(mediaUrl,\s*GOOGLE_PHOTOS_MEDIA_HEADERS\);/);
-  assert.match(googlePhotosSource, /const mediaRelayUrl = relayUrl \? `\$\{relayUrl\}&mode=media` : null;/);
+  assert.match(googlePhotosSource, /const relayUrl = relayAssetUrl\(\s*mediaUrl,\s*GOOGLE_PHOTOS_MEDIA_HEADERS,\s*\{[\s\S]*cache:\s*"prefer"[\s\S]*cacheTtl:\s*GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS[\s\S]*\}\s*\);/);
+  assert.match(googlePhotosSource, /mode:\s*"media"/);
+  assert.match(googlePhotosSource, /const mediaRelayUrl = relayUrl \|\| null;/);
   assert.match(googlePhotosSource, /url:\s*mediaRelayUrl\s*\|\|\s*localUrl/);
   assert.match(googlePhotosSource, /fallbackUrl:\s*mediaRelayUrl \? localUrl : null/);
   assert.match(googlePhotosSource, /const thumbUrl = proxiedGooglePhotosMediaUrl\(baseUrl,\s*"w600"\)/);
   assert.match(googlePhotosSource, /const displayUrl = proxiedGooglePhotosMediaUrl\(baseUrl,\s*"w1600"\)/);
   assert.match(googlePhotosSource, /const previewUrl = proxiedGooglePhotosMediaUrl\(baseUrl,\s*"w2400"\)/);
-  assert.match(googlePhotosSource, /fetchAssetWithRelayFallback\(\s*shareUrl,\s*\{[\s\S]*headers:\s*GOOGLE_PHOTOS_PAGE_HEADERS/);
+  assert.match(googlePhotosSource, /fetchAssetWithRelayFallback\(\s*shareUrl,\s*\{[\s\S]*headers:\s*GOOGLE_PHOTOS_PAGE_HEADERS[\s\S]*cache:\s*"prefer"[\s\S]*cacheTtl:\s*GOOGLE_PHOTOS_PAGE_CACHE_TTL_SECONDS/);
   assert.match(googlePhotosSource, /fallbackThumbUrl/);
   assert.match(googlePhotosSource, /fallbackVideoUrl/);
   assert.match(googlePhotosRouteSource, /const mediaUrl = url\.searchParams\.get\("mediaUrl"\)/);

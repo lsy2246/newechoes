@@ -1,4 +1,5 @@
 import { GitPlatform } from '../../lib/git-projects-shared.js';
+import { fetchAssetWithRelayFallback } from '../../lib/server/asset-relay.js';
 import { createServerRequestLog } from '../../lib/server/request-log.js';
 
 interface GitProject {
@@ -21,14 +22,7 @@ interface Pagination {
   hasPrev: boolean;
 }
 
-function readProcessEnv(name: string) {
-  if (typeof process === 'undefined') {
-    return undefined;
-  }
-
-  const value = process.env?.[name];
-  return typeof value === 'string' ? value.trim() : undefined;
-}
+const GITHUB_PROJECTS_CACHE_TTL_SECONDS = 86400;
 
 export async function GET({ request }: { request: Request }) {
   const log = createServerRequestLog('api.git-projects', request);
@@ -303,11 +297,9 @@ function parseGithubPagination(linkHeader: string | undefined, currentPage: numb
 }
 
 function createGithubHeaders() {
-  const token = readProcessEnv('GITHUB_TOKEN');
   return {
     'Accept': 'application/vnd.github+json',
     'User-Agent': 'newechoes-git-projects',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
@@ -322,13 +314,13 @@ async function fetchGithubProjects(username: string, organization: string, page:
       const apiUrl = organization
         ? `https://api.github.com/orgs/${organization}/repos?per_page=${perPage}&page=${page}&sort=updated&direction=desc`
         : `https://api.github.com/users/${username || config.username}/repos?per_page=${perPage}&page=${page}&sort=updated&direction=desc`;
-      const response = await fetchWithRetry(
+      const response = await fetchAssetWithRelayFallback(
         apiUrl,
         {
           headers,
+          cache: "prefer",
+          cacheTtl: GITHUB_PROJECTS_CACHE_TTL_SECONDS,
         },
-        3,
-        10000,
       );
       
       if (!response.ok) {
@@ -412,7 +404,6 @@ async function fetchGiteaProjects(username: string, organization: string, page: 
     const response = await fetchWithRetry(apiUrl, {
       headers: {
         'Accept': 'application/json',
-        ...(config.token ? { 'Authorization': `token ${config.token}` } : {})
       },
       signal // 传递 AbortSignal
     }, 3, 15000); // 最多重试3次，每次超时15秒
@@ -486,10 +477,6 @@ async function fetchGiteeProjects(username: string, organization: string, page: 
       apiUrl = `https://gitee.com/api/v5/orgs/${organization}/repos?page=${page}&per_page=${perPage}&sort=updated&direction=desc`;
     } else {
       apiUrl = `https://gitee.com/api/v5/users/${giteeUsername}/repos?page=${page}&per_page=${perPage}&sort=updated&direction=desc`;
-    }
-    
-    if (config.token) {
-      apiUrl += `&access_token=${config.token}`;
     }
     
     const response = await fetchWithRetry(apiUrl, {

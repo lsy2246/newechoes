@@ -3,13 +3,17 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const gitProjectsApiSource = readFileSync("src/server/api/git-projects.ts", "utf8");
+const gitProjectCollectionSource = readFileSync("src/components/GitProjectCollection.tsx", "utf8");
 const targetSource = readFileSync("src/platform/shared/target.js", "utf8");
 
-test("git-projects reads GITHUB_TOKEN without assuming process exists", () => {
-  assert.ok(gitProjectsApiSource.includes("function readProcessEnv(name: string)"));
-  assert.ok(gitProjectsApiSource.includes("if (typeof process === 'undefined')"));
-  assert.ok(gitProjectsApiSource.includes("const token = readProcessEnv('GITHUB_TOKEN');"));
-  assert.equal(gitProjectsApiSource.includes("const token = process.env.GITHUB_TOKEN?.trim();"), false);
+test("git-projects removes token-based auth and keeps client config token-free", () => {
+  assert.equal(gitProjectsApiSource.includes("readProcessEnv"), false);
+  assert.equal(gitProjectsApiSource.includes("GITHUB_TOKEN"), false);
+  assert.equal(gitProjectsApiSource.includes("Authorization"), false);
+  assert.equal(gitProjectCollectionSource.includes("token?: string"), false);
+  assert.equal(gitProjectCollectionSource.includes("token,"), false);
+  assert.equal(gitProjectCollectionSource.includes("token,"), false);
+  assert.equal(gitProjectCollectionSource.includes("config.token"), false);
 });
 
 test("git-projects server api uses the renamed request log module path", () => {

@@ -32,7 +32,6 @@ interface GitProjectCollectionProps {
   organization?: string;
   title?: string;
   showTitle?: boolean;
-  token?: string;
   perPage?: number;
   url?: string;
   className?: string; // 添加自定义类名
@@ -63,7 +62,6 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
   organization,
   title,
   showTitle = true,
-  token,
   perPage = DEFAULT_GIT_CONFIG.perPage,
   url,
   className = "",
@@ -111,7 +109,6 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
         // 构建配置对象
         const config = {
           username,
-          token,
           perPage,
           url,
         };
@@ -181,7 +178,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
         }
       }
     },
-    [platform, username, organization, token, perPage, url],
+    [platform, username, organization, perPage, url],
   );
 
   useEffect(() => {
@@ -355,7 +352,7 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
   const renderEmpty = () => (
     <div className="git-project-muted p-4 text-center">
       {platform === GitPlatform.GITEE
-        ? "无法获取 Gitee 项目数据，可能需要配置访问令牌。"
+        ? "无法获取 Gitee 项目数据，可能是接口限流或上游暂时不可用。"
         : "没有找到项目数据。"}
     </div>
   );
