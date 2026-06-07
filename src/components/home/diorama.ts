@@ -14,6 +14,7 @@ const HOME_DIORAMA_RENDERER_DPR_CAP_DESKTOP = 1.5;
 const HOME_DIORAMA_RENDERER_DPR_CAP_MOBILE = 1.35;
 const getHomeDioramaRendererDprCap = (useMobileCarrier: boolean) =>
   useMobileCarrier ? HOME_DIORAMA_RENDERER_DPR_CAP_MOBILE : HOME_DIORAMA_RENDERER_DPR_CAP_DESKTOP;
+const MOBILE_ROOM_CAMERA_DISTANCE_SCALE = 2.4;
 const STORY_CONNECTOR_MOTION_FPS = 18;
 const getStoryConnectorMotionTick = (motionSeconds: number) => Math.round(motionSeconds * STORY_CONNECTOR_MOTION_FPS);
 const getStoryConnectorMotionValue = (tick: number) => tick / STORY_CONNECTOR_MOTION_FPS;
@@ -254,7 +255,7 @@ export function initDiorama() {
   const componentCameraTarget = new THREE.Vector3();
   const screenFov = 20;
   const roomFov = 50;
-  const componentFov = useMobileCarrier ? 42 : 49;
+  const componentFov = useMobileCarrier ? 51 : 49;
 
   const camera = new THREE.PerspectiveCamera(screenFov, 1, 0.1, 60);
 
@@ -1058,8 +1059,11 @@ export function initDiorama() {
       useMobileCarrier ? 0.98 : 1.46,
       useMobileCarrier ? 2.46 : 2.78,
     );
+    if (useMobileCarrier) {
+      roomCameraPos.sub(roomCameraTarget).multiplyScalar(MOBILE_ROOM_CAMERA_DISTANCE_SCALE).add(roomCameraTarget);
+    }
     componentCameraTarget.set(
-      useMobileCarrier ? 0.03 : 0,
+      useMobileCarrier ? -0.05 : 0,
       useMobileCarrier ? 0.03 : 0.02,
       useMobileCarrier ? -0.1 : -0.06,
     );
@@ -1167,6 +1171,7 @@ export function initDiorama() {
   const INTERACTIVE_PROGRESS = ROOM_CAMERA_END;
   const LOOP_RETURN_START = 0.94;
   const LOOP_RESET_PROGRESS = 0.998;
+  const MOBILE_LOOP_RETURN_EASE_POWER = 2;
   const LOOP_BACK_WRAP_THRESHOLD = 0.002;
   const LOOP_BACK_WRAP_MIN_PROGRESS = LOOP_RETURN_START + 0.004;
   const STARTUP_GATE_PROGRESS = 0.08;
@@ -1184,6 +1189,11 @@ export function initDiorama() {
   };
   const getLoopReturnAmount = (progress: number) =>
     easeInOutSine(clamp((progress - LOOP_RETURN_START) / (LOOP_RESET_PROGRESS - LOOP_RETURN_START)));
+  const getLoopVisualAmount = (progress: number) => {
+    const amount = getLoopReturnAmount(progress);
+    if (!useMobileCarrier) return amount;
+    return 1 - Math.pow(1 - amount, MOBILE_LOOP_RETURN_EASE_POWER);
+  };
   const getStoryVisualProgress = (progress: number) => {
     if (progress <= LOOP_RETURN_START) return progress;
     return 0;
@@ -1302,9 +1312,15 @@ export function initDiorama() {
     return lerp(cameraRejoinStartFov, cameraRejoinEndFov, t);
   };
   const captureLoopCamera = () => {
-    loopCameraStartPos.copy(camera.position);
-    loopCameraStartTarget.copy(controls.target);
-    loopCameraStartFov = camera.fov;
+    if (useMobileCarrier && !sceneControlActivated) {
+      loopCameraStartPos.copy(roomCameraPos);
+      loopCameraStartTarget.copy(roomCameraTarget);
+      loopCameraStartFov = roomFov;
+    } else {
+      loopCameraStartPos.copy(camera.position);
+      loopCameraStartTarget.copy(controls.target);
+      loopCameraStartFov = camera.fov;
+    }
     previousLoopCameraStartPos.copy(loopCameraStartPos);
     previousLoopCameraStartTarget.copy(loopCameraStartTarget);
     previousLoopCameraStartFov = loopCameraStartFov;
@@ -1329,7 +1345,7 @@ export function initDiorama() {
     outTarget: THREE.Vector3,
   ) => {
     if (!loopCameraCaptured) captureLoopCamera();
-    const t = getLoopReturnAmount(progress);
+    const t = getLoopVisualAmount(progress);
     outPos.lerpVectors(loopCameraStartPos, componentCameraPos, t);
     outTarget.lerpVectors(loopCameraStartTarget, componentCameraTarget, t);
     return lerp(loopCameraStartFov, componentFov, t);
@@ -1360,7 +1376,7 @@ export function initDiorama() {
     camera.updateProjectionMatrix();
   };
   const syncSceneOverlay = () => {
-    const loopReturn = getLoopReturnAmount(homeProgress);
+    const loopReturn = getLoopVisualAmount(homeProgress);
     const storyOut = easeInOutSine(clamp((visualProgress - STORY_FADE_START) / (STORY_FADE_END - STORY_FADE_START)));
     const sceneIn = easeInOutSine(clamp((visualProgress - SCENE_FADE_START) / (SCENE_FADE_END - SCENE_FADE_START)));
     const centerDioramaProgress = clamp(visualProgress / STORY_PROGRESS_END);
