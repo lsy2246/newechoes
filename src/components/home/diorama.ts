@@ -10,6 +10,13 @@ import {
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
 const HOME_DIORAMA_PIXEL_RATIO_CAP = 2;
+const HOME_DIORAMA_RENDERER_DPR_CAP_DESKTOP = 1.5;
+const HOME_DIORAMA_RENDERER_DPR_CAP_MOBILE = 1.35;
+const getHomeDioramaRendererDprCap = (useMobileCarrier: boolean) =>
+  useMobileCarrier ? HOME_DIORAMA_RENDERER_DPR_CAP_MOBILE : HOME_DIORAMA_RENDERER_DPR_CAP_DESKTOP;
+const STORY_CONNECTOR_MOTION_FPS = 18;
+const getStoryConnectorMotionTick = (motionSeconds: number) => Math.round(motionSeconds * STORY_CONNECTOR_MOTION_FPS);
+const getStoryConnectorMotionValue = (tick: number) => tick / STORY_CONNECTOR_MOTION_FPS;
 const HOME_TYPEWRITER_LINES = [
   "today in echoes",
   "local workspace",
@@ -30,6 +37,7 @@ const KEYBOARD_MODEL_TARGET_HEIGHT = 0.035;
 const KEYBOARD_MODEL_MOBILE_TARGET_WIDTH = 0.58;
 const KEYBOARD_MODEL_MOBILE_TARGET_DEPTH = 0.22;
 const KEYBOARD_MODEL_MOBILE_TARGET_HEIGHT = 0.026;
+const KEYBOARD_MODEL_SHADOW_TRIANGLE_THRESHOLD = 400;
 const TYPING_CHARACTER_MODEL_URL = "/models/home/typing-character.glb";
 const TYPING_CHARACTER_MODEL_ATTRIBUTION =
   "Typing character by Gagana Geesara Perera, character by Yury Misiyuk, CC BY 4.0";
@@ -42,6 +50,7 @@ const TYPING_CHARACTER_MODEL_FORWARD_LEAN_X = 0.22;
 const TYPING_CHARACTER_MODEL_FLOOR_Y = -0.5;
 const TYPING_CHARACTER_MODEL_SEAT_Z_OFFSET = -0.02;
 const TYPING_CHARACTER_LOWER_LEG_LENGTH_SCALE = 1.14;
+const TYPING_CHARACTER_SHADOW_TRIANGLE_THRESHOLD = 1800;
 const TYPING_CHARACTER_FIXED_COLOR = 0xe8e8e4;
 const TYPING_CHARACTER_EMISSIVE_COLOR = 0x343432;
 const TYPING_CHARACTER_EMISSIVE_INTENSITY = 0.16;
@@ -255,7 +264,7 @@ export function initDiorama() {
     alpha: true,
     powerPreference: "high-performance",
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, HOME_DIORAMA_PIXEL_RATIO_CAP));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, getHomeDioramaRendererDprCap(useMobileCarrier)));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -570,6 +579,13 @@ export function initDiorama() {
     );
   };
 
+  const shouldKeyboardModelMeshCastShadow = (mesh: THREE.Mesh) => {
+    const positionAttr = mesh.geometry.getAttribute("position");
+    if (!positionAttr) return false;
+    const triangleCount = mesh.geometry.index ? mesh.geometry.index.count / 3 : positionAttr.count / 3;
+    return triangleCount >= KEYBOARD_MODEL_SHADOW_TRIANGLE_THRESHOLD;
+  };
+
   const keyboardLoader = new GLTFLoader();
   keyboardLoader.load(
     KEYBOARD_MODEL_URL,
@@ -591,7 +607,7 @@ export function initDiorama() {
       model.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (!mesh.isMesh) return;
-        mesh.castShadow = true;
+        mesh.castShadow = shouldKeyboardModelMeshCastShadow(mesh);
         mesh.receiveShadow = true;
         const mm = mesh.material as THREE.Material | THREE.Material[];
         const matsToTrack = Array.isArray(mm) ? mm : [mm];
@@ -842,6 +858,13 @@ export function initDiorama() {
     mat.needsUpdate = true;
   };
 
+  const shouldTypingCharacterMeshCastShadow = (mesh: THREE.Mesh) => {
+    const positionAttr = mesh.geometry.getAttribute("position");
+    if (!positionAttr) return false;
+    const triangleCount = mesh.geometry.index ? mesh.geometry.index.count / 3 : positionAttr.count / 3;
+    return triangleCount >= TYPING_CHARACTER_SHADOW_TRIANGLE_THRESHOLD;
+  };
+
   const applyTypingCharacterLegProportions = (model: THREE.Object3D) => {
     for (const name of TYPING_CHARACTER_LOWER_LEG_BONE_NAMES) {
       const bone = model.getObjectByName(name);
@@ -925,7 +948,7 @@ export function initDiorama() {
       model.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (!mesh.isMesh) return;
-        mesh.castShadow = true;
+        mesh.castShadow = shouldTypingCharacterMeshCastShadow(mesh);
         mesh.receiveShadow = true;
         const mm = mesh.material as THREE.Material | THREE.Material[];
         const matsToTrack = Array.isArray(mm) ? mm : [mm];
@@ -1052,6 +1075,8 @@ export function initDiorama() {
 
   // ===== Theme =====
   const getTheme = (): ThemeName => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+  const isThemeTransitionActive = () =>
+    document.documentElement.classList.contains("theme-transition-active");
   let theme: ThemeName = getTheme();
 
   const applyTheme = (t: ThemeName) => {
@@ -1067,6 +1092,26 @@ export function initDiorama() {
     mats.key.color.setHex(p.keyTop);
   };
   applyTheme(theme);
+  let pendingThemeBootFrame = false;
+  let pendingThemeBootFrameRaf = 0;
+  const flushDeferredThemeBootFrame = () => {
+    if (disposed || animationLoopActive || pendingThemeBootFrameRaf) return;
+    pendingThemeBootFrame = false;
+    pendingThemeBootFrameRaf = requestAnimationFrame(() => {
+      pendingThemeBootFrameRaf = requestAnimationFrame(() => {
+        pendingThemeBootFrameRaf = 0;
+        renderBootFrame();
+      });
+    });
+  };
+  const scheduleThemeBootFrame = () => {
+    if (disposed || animationLoopActive) return;
+    if (isThemeTransitionActive()) {
+      pendingThemeBootFrame = true;
+      return;
+    }
+    flushDeferredThemeBootFrame();
+  };
 
   const themeObserver = new MutationObserver(() => {
     const t = getTheme();
@@ -1074,10 +1119,32 @@ export function initDiorama() {
       theme = t;
       applyTheme(t);
       needScreenRedraw = true;
-      renderBootFrame();
+      if (renderMode !== "room") {
+        lastConnectorMotionTick = -1;
+        drawScreen({ overlay: true, texture: false });
+      }
+      scheduleThemeBootFrame();
     }
   });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  const themeTransitionObserver = new MutationObserver(() => {
+    if (
+      pendingThemeBootFrame &&
+      !isThemeTransitionActive()
+    ) {
+      needScreenRedraw = true;
+      lastConnectorMotionTick = -1;
+      flushDeferredThemeBootFrame();
+    } else if (!isThemeTransitionActive()) {
+      needScreenRedraw = true;
+      lastConnectorMotionTick = -1;
+      flushDeferredThemeBootFrame();
+    }
+  });
+  themeTransitionObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
 
   // ===== Scroll-driven homepage state =====
   type RenderMode = "story" | "handoff" | "room" | "loop";
@@ -1336,6 +1403,7 @@ export function initDiorama() {
     return true;
   };
   const syncScrollProgress = () => {
+    if (isThemeTransitionActive()) return;
     const rawScrollProgress = getScrollProgress();
     startupGatePendingScroll = !startupGateReleased && rawScrollProgress > STARTUP_GATE_PROGRESS + 0.002;
     scrollTargetProgress = startupGateReleased
@@ -1424,6 +1492,7 @@ export function initDiorama() {
   window.addEventListener("scroll", syncScrollProgress, { passive: true });
   window.addEventListener("wheel", loopBackwardWheelHandler, { passive: false, capture: true });
   const handleBreakpointResize = () => {
+    if (isThemeTransitionActive()) return;
     const nextDevice = getDeviceClass(window.innerWidth, window.innerHeight);
     if (nextDevice !== deviceClass) {
       cleanup();
@@ -1468,6 +1537,7 @@ export function initDiorama() {
   };
 
   let needScreenRedraw = true;
+  let lastConnectorMotionTick = -1;
   let cursorOn = true;
   let cursorLastToggle = performance.now();
 
@@ -1543,7 +1613,7 @@ export function initDiorama() {
     const frameIndex = Math.round(clamp(storyInput.progress) * STORY_FRAME_STEPS);
     const cachedProgress = frameIndex / STORY_FRAME_STEPS;
     const connectorMotionActive = storyInput.progress < 0.22 && !reduceMotion;
-    const cacheMotionKey = connectorMotionActive ? storyInput.motion?.toFixed(2) : "static";
+    const cacheMotionKey = connectorMotionActive ? storyInput.motion?.toFixed(3) : "static";
     const overlaySourceAspect = screenCanvas.width / screenCanvas.height;
     const overlayTargetAspect = W / H;
     const sourceW = isWideOverlay
@@ -1617,11 +1687,14 @@ export function initDiorama() {
   const drawScreen = (targets?: { overlay?: boolean; texture?: boolean }, now = performance.now()) => {
     const drawOverlay = targets?.overlay ?? renderMode !== "room";
     const centerDioramaActive = isCenterDioramaActive(visualProgress);
-    const updateTexture = targets?.texture ?? (renderMode !== "story" || shouldUpdateScreenTexture(homeProgress));
+    const themeTransitionActive = document.documentElement.classList.contains("theme-transition-active");
+    const updateTexture = targets?.texture ?? (renderMode !== "story" || (shouldUpdateScreenTexture(homeProgress) && !themeTransitionActive));
     const ctx = screenCtx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const storyAutoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
     const storyProgress = reduceMotion ? 1 : clamp(visualProgress / STORY_PROGRESS_END);
+    const connectorMotionActive = storyProgress < 0.22 && !reduceMotion && !themeTransitionActive;
+    const connectorMotionTick = connectorMotionActive ? getStoryConnectorMotionTick(now * 0.001) : -1;
     const storyInput: Parameters<typeof drawHomeScreenStory>[1] = {
       device: deviceClass,
       theme,
@@ -1629,7 +1702,7 @@ export function initDiorama() {
       pixelRatio: 1,
       layoutPixelRatio: 1,
       revealCenterDiorama: centerDioramaActive,
-      motion: now * 0.001,
+      motion: connectorMotionActive ? getStoryConnectorMotionValue(connectorMotionTick) : undefined,
       now: formatNowBeijing(),
       stack: HOME_PROFILE_ROWS.stack,
       contact: HOME_PROFILE_ROWS.contact,
@@ -1877,8 +1950,13 @@ export function initDiorama() {
       syncCanvasInputMode(false);
       syncControlsConnection(false);
       sceneInputActive = false;
-      const connectorMotionActive = storyProgress < 0.22 && !reduceMotion;
-      if (connectorMotionActive) needScreenRedraw = true;
+      const themeTransitionActive = document.documentElement.classList.contains("theme-transition-active");
+      const connectorMotionActive = storyProgress < 0.22 && !reduceMotion && !themeTransitionActive;
+      const connectorMotionTick = connectorMotionActive ? getStoryConnectorMotionTick(now * 0.001) : -1;
+      if (connectorMotionTick !== lastConnectorMotionTick) {
+        lastConnectorMotionTick = connectorMotionTick;
+        needScreenRedraw = true;
+      }
       if (needScreenRedraw) {
         needScreenRedraw = false;
         drawScreen({ overlay: true, texture: shouldUpdateScreenTexture(homeProgress) }, now);
@@ -2162,6 +2240,8 @@ export function initDiorama() {
     canvasEl.removeEventListener("wheel", passWheelThrough, { capture: true });
     sceneEl?.removeEventListener("wheel", passWheelThrough, { capture: true });
     themeObserver.disconnect();
+    themeTransitionObserver.disconnect();
+    if (pendingThemeBootFrameRaf) cancelAnimationFrame(pendingThemeBootFrameRaf);
     resizeObs.disconnect();
     controls.dispose();
     storyFrameCache.clear();

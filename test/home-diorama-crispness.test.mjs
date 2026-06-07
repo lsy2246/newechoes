@@ -5,11 +5,17 @@ import test from "node:test";
 const dioramaTs = readFileSync("src/components/home/diorama.ts", "utf8");
 const homeStoryTs = readFileSync("src/components/home/homeScreenStory.ts", "utf8");
 
-test("home 2D and 3D canvases use a high-density pixel ratio cap", () => {
+test("home 3D renderer uses a gentler DPR cap while the 2D story canvas stays crisp", () => {
   assert.match(dioramaTs, /const HOME_DIORAMA_PIXEL_RATIO_CAP = 2;/);
+  assert.match(dioramaTs, /const HOME_DIORAMA_RENDERER_DPR_CAP_DESKTOP = 1\.5;/);
+  assert.match(dioramaTs, /const HOME_DIORAMA_RENDERER_DPR_CAP_MOBILE = 1\.35;/);
   assert.match(
     dioramaTs,
-    /renderer\.setPixelRatio\(Math\.min\(window\.devicePixelRatio \|\| 1, HOME_DIORAMA_PIXEL_RATIO_CAP\)\);/,
+    /const getHomeDioramaRendererDprCap = \(useMobileCarrier: boolean\) =>\s*useMobileCarrier \? HOME_DIORAMA_RENDERER_DPR_CAP_MOBILE : HOME_DIORAMA_RENDERER_DPR_CAP_DESKTOP;/,
+  );
+  assert.match(
+    dioramaTs,
+    /renderer\.setPixelRatio\(Math\.min\(window\.devicePixelRatio \|\| 1, getHomeDioramaRendererDprCap\(useMobileCarrier\)\)\);/,
   );
   assert.match(
     dioramaTs,
@@ -17,7 +23,7 @@ test("home 2D and 3D canvases use a high-density pixel ratio cap", () => {
   );
   assert.doesNotMatch(
     dioramaTs,
-    /renderer\.setPixelRatio\(Math\.min\(window\.devicePixelRatio, useMobileCarrier \? 1\.35 : 1\.5\)\);/,
+    /renderer\.setPixelRatio\(Math\.min\(window\.devicePixelRatio \|\| 1, HOME_DIORAMA_PIXEL_RATIO_CAP\)\);/,
   );
 });
 

@@ -152,6 +152,23 @@ import "../styles/theme-toggle.css";
         return style;
       };
 
+      const setTransitionFallbackSurface = () => {
+        const transitionFallbackSurface =
+          getComputedStyle(document.body).backgroundColor ||
+          getComputedStyle(document.documentElement).backgroundColor;
+
+        document.documentElement.style.setProperty(
+          "--theme-transition-fallback-bg",
+          transitionFallbackSurface,
+        );
+      };
+
+      const clearTransitionFallbackSurface = () => {
+        document.documentElement.style.removeProperty(
+          "--theme-transition-fallback-bg",
+        );
+      };
+
       // 定时器管理
       const timer = {
         set: (name, callback, delay) => {
@@ -278,7 +295,11 @@ import "../styles/theme-toggle.css";
       };
 
       // 确定动画类型
-      const determineAnimationType = (transitionMode, fromTheme, toTheme) => {
+      const determineAnimationType = (
+        transitionMode,
+        fromTheme,
+        toTheme,
+      ) => {
         // 固定模式直接返回
         if (
           [TRANSITION_MODES.EXPAND, TRANSITION_MODES.SHRINK].includes(
@@ -337,15 +358,22 @@ import "../styles/theme-toggle.css";
         try {
           // 清除状态标记
           document.documentElement.classList.remove("theme-transition-active");
+          setTransitionFallbackSurface();
 
           // 计算从点击位置到页面四个角的最大距离
-          const w = window.innerWidth;
-          const h = window.innerHeight;
+          const viewportWidth = Math.max(
+            window.innerWidth,
+            Math.ceil(window.visualViewport?.width || 0),
+          );
+          const viewportHeight = Math.max(
+            window.innerHeight,
+            Math.ceil(window.visualViewport?.height || 0),
+          );
           const maxDistance = Math.max(
             Math.hypot(x, y), // 左上角
-            Math.hypot(w - x, y), // 右上角
-            Math.hypot(x, h - y), // 左下角
-            Math.hypot(w - x, h - y), // 右下角
+            Math.hypot(viewportWidth - x, y), // 右上角
+            Math.hypot(x, viewportHeight - y), // 左下角
+            Math.hypot(viewportWidth - x, viewportHeight - y), // 右下角
           );
 
           // 设置波纹颜色CSS变量
@@ -381,16 +409,32 @@ import "../styles/theme-toggle.css";
           const gradientOffset = cache.gradientOffset;
           const maskUrl = getMaskUrl();
 
+          // 给带羽化的遮罩预留额外覆盖范围，避免软边正好落在视口边界上。
+          const viewportPadding = Math.max(
+            96,
+            Math.max(viewportWidth, viewportHeight) * 0.18,
+          );
+          const snapshotOverscan = 2;
+
           // 计算动画需要多大才能覆盖整个屏幕
-          const maxRadius = Math.ceil(maxDistance / gradientOffset);
+          const maxRadius = Math.ceil(
+            (maxDistance + viewportPadding) / gradientOffset,
+          );
 
           // 创建过渡样式生成函数
           const createTransitionStyles = (options) => {
             const { target, x, y, maxRadius, duration, isExpand, zIndex } =
               options;
+            const maskX = x + snapshotOverscan;
+            const maskY = y + snapshotOverscan;
 
             const baseStyles = `
               animation: none !important;
+              inset: -${snapshotOverscan}px !important;
+              width: calc(100% + ${snapshotOverscan * 2}px) !important;
+              height: calc(100% + ${snapshotOverscan * 2}px) !important;
+              max-width: none !important;
+              max-height: none !important;
               -webkit-mask-image: url('${maskUrl}') !important;
               mask-image: url('${maskUrl}') !important;
               -webkit-mask-repeat: no-repeat !important;
@@ -400,15 +444,15 @@ import "../styles/theme-toggle.css";
 
             // 初始状态
             const initialPosition = isExpand
-              ? `${x}px ${y}px`
-              : `${x - maxRadius}px ${y - maxRadius}px`;
+              ? `${maskX}px ${maskY}px`
+              : `${maskX - maxRadius}px ${maskY - maxRadius}px`;
 
             const initialSize = isExpand ? "0" : `${maxRadius * 2}px`;
 
             // 最终状态
             const finalPosition = isExpand
-              ? `${x - maxRadius}px ${y - maxRadius}px`
-              : `${x}px ${y}px`;
+              ? `${maskX - maxRadius}px ${maskY - maxRadius}px`
+              : `${maskX}px ${maskY}px`;
 
             const finalSize = isExpand ? `${maxRadius * 2}px` : "0";
 
@@ -440,74 +484,73 @@ import "../styles/theme-toggle.css";
             return { initialStyle, finalStyle };
           };
 
+          const style = getTempStyle();
+          let styles = null;
+
+          const applyInitialTransitionStyles = () => {
+            if (animationType === TRANSITION_MODES.EXPAND) {
+              // 扩散效果 - 新主题从点击位置向外扩散
+              styles = createTransitionStyles({
+                target: "::view-transition-new(root)",
+                x,
+                y,
+                maxRadius,
+                duration: config.duration,
+                isExpand: true,
+                zIndex: 1000,
+              });
+
+              style.textContent = `::view-transition-new(root) { ${styles.initialStyle} }`;
+              return;
+            }
+
+            // 收缩效果 - 旧主题从全屏收缩到点击位置
+            styles = createTransitionStyles({
+              target: "::view-transition-old(root)",
+              x,
+              y,
+              maxRadius,
+              duration: config.duration,
+              isExpand: false,
+              zIndex: 999,
+            });
+
+            style.textContent = `
+              ::view-transition-old(root) { ${styles.initialStyle} }
+              ::view-transition-new(root) { z-index: 998 !important; }
+            `;
+          };
+
+          // 在 WebKit/Safari 中，先预置首帧遮罩，避免 transition.ready 前裸露新主题。
+          applyInitialTransitionStyles();
+
           // 异步应用自定义动画
           (async function applyAnimation() {
             try {
               // 等待过渡准备完成
               await transition.ready;
 
-              // 创建/复用样式元素
-              const style = getTempStyle();
+              // 强制重新计算样式
+              window
+                .getComputedStyle(document.documentElement)
+                .getPropertyValue("--force-reflow");
 
-              if (animationType === TRANSITION_MODES.EXPAND) {
-                // 扩散效果 - 新主题从点击位置向外扩散
-                const styles = createTransitionStyles({
-                  target: "::view-transition-new(root)",
-                  x,
-                  y,
-                  maxRadius,
-                  duration: config.duration,
-                  isExpand: true,
-                  zIndex: 1000,
-                });
+              // 应用最终样式
+              requestAnimationFrame(() => {
+                if (!style.parentNode || !styles) {
+                  return;
+                }
 
-                // 应用初始样式
-                style.textContent = `::view-transition-new(root) { ${styles.initialStyle} }`;
+                if (animationType === TRANSITION_MODES.EXPAND) {
+                  style.textContent = `::view-transition-new(root) { ${styles.finalStyle} }`;
+                  return;
+                }
 
-                // 强制重新计算样式
-                window
-                  .getComputedStyle(document.documentElement)
-                  .getPropertyValue("--force-reflow");
-
-                // 应用最终样式
-                requestAnimationFrame(() => {
-                  if (style.parentNode) {
-                    style.textContent = `::view-transition-new(root) { ${styles.finalStyle} }`;
-                  }
-                });
-              } else {
-                // 收缩效果 - 旧主题从全屏收缩到点击位置
-                const styles = createTransitionStyles({
-                  target: "::view-transition-old(root)",
-                  x,
-                  y,
-                  maxRadius,
-                  duration: config.duration,
-                  isExpand: false,
-                  zIndex: 999,
-                });
-
-                // 应用初始样式
                 style.textContent = `
-                  ::view-transition-old(root) { ${styles.initialStyle} }
+                  ::view-transition-old(root) { ${styles.finalStyle} }
                   ::view-transition-new(root) { z-index: 998 !important; }
                 `;
-
-                // 强制重新计算样式
-                window
-                  .getComputedStyle(document.documentElement)
-                  .getPropertyValue("--force-reflow");
-
-                // 应用最终样式
-                requestAnimationFrame(() => {
-                  if (style.parentNode) {
-                    style.textContent = `
-                      ::view-transition-old(root) { ${styles.finalStyle} }
-                      ::view-transition-new(root) { z-index: 998 !important; }
-                    `;
-                  }
-                });
-              }
+              });
 
               // 清理临时样式
               timer.set(
@@ -539,6 +582,7 @@ import "../styles/theme-toggle.css";
               document.documentElement.classList.remove(
                 "theme-transition-active",
               );
+              clearTransitionFallbackSurface();
               state.currentTransition = null;
             })
             .catch((error) => {
@@ -549,6 +593,7 @@ import "../styles/theme-toggle.css";
               document.documentElement.classList.remove(
                 "theme-transition-active",
               );
+              clearTransitionFallbackSurface();
               state.currentTransition = null;
             });
         } catch (error) {
@@ -556,6 +601,7 @@ import "../styles/theme-toggle.css";
           // 出错时也执行回调确保主题切换
           callback();
           document.documentElement.classList.remove("theme-transition-active");
+          clearTransitionFallbackSurface();
           return Promise.resolve();
         }
       };
@@ -588,6 +634,7 @@ import "../styles/theme-toggle.css";
 
         // 移除过渡动画标记
         document.documentElement.classList.remove("theme-transition-active");
+        clearTransitionFallbackSurface();
 
         // 移除波纹元素
         document.querySelectorAll(".theme-ripple").forEach((ripple) => {

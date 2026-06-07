@@ -1753,13 +1753,21 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         
         // 如果找到按钮，通过创建自定义事件来传递坐标
         if (themeToggleButton) {
+          if (themeToggleButton.contains(e.target)) {
+            return;
+          }
+
+          const buttonRect = themeToggleButton.getBoundingClientRect();
+          const buttonCenterX = buttonRect.left + buttonRect.width / 2;
+          const buttonCenterY = buttonRect.top + buttonRect.height / 2;
+
           // 创建自定义点击事件并携带原始事件的坐标信息
           const clickEvent = new MouseEvent('click', {
             bubbles: true,
             cancelable: true,
             view: window,
-            clientX: e.clientX,
-            clientY: e.clientY
+            clientX: buttonCenterX,
+            clientY: buttonCenterY
           });
           
           // 使用自定义事件触发按钮点击
