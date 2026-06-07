@@ -243,6 +243,12 @@ import "../styles/theme-toggle.css";
           } else {
             localStorage.setItem("theme", newTheme);
           }
+
+          window.dispatchEvent(
+            new CustomEvent("theme:changed", {
+              detail: { theme: newTheme },
+            }),
+          );
         },
         initialize: () => {
           const storedTheme = localStorage.getItem("theme");
@@ -351,8 +357,7 @@ import "../styles/theme-toggle.css";
 
         // 如果不支持View Transitions API，直接执行回调
         if (!document.startViewTransition) {
-          callback();
-          return Promise.resolve();
+          return Promise.resolve(callback());
         }
 
         try {
@@ -414,8 +419,6 @@ import "../styles/theme-toggle.css";
             96,
             Math.max(viewportWidth, viewportHeight) * 0.18,
           );
-          const snapshotOverscan = 2;
-
           // 计算动画需要多大才能覆盖整个屏幕
           const maxRadius = Math.ceil(
             (maxDistance + viewportPadding) / gradientOffset,
@@ -425,14 +428,14 @@ import "../styles/theme-toggle.css";
           const createTransitionStyles = (options) => {
             const { target, x, y, maxRadius, duration, isExpand, zIndex } =
               options;
-            const maskX = x + snapshotOverscan;
-            const maskY = y + snapshotOverscan;
+            const maskX = x;
+            const maskY = y;
 
             const baseStyles = `
               animation: none !important;
-              inset: -${snapshotOverscan}px !important;
-              width: calc(100% + ${snapshotOverscan * 2}px) !important;
-              height: calc(100% + ${snapshotOverscan * 2}px) !important;
+              inset: 0 !important;
+              width: 100% !important;
+              height: 100% !important;
               max-width: none !important;
               max-height: none !important;
               -webkit-mask-image: url('${maskUrl}') !important;
@@ -599,10 +602,9 @@ import "../styles/theme-toggle.css";
         } catch (error) {
           console.error(`主题切换错误:`, error);
           // 出错时也执行回调确保主题切换
-          callback();
           document.documentElement.classList.remove("theme-transition-active");
           clearTransitionFallbackSurface();
-          return Promise.resolve();
+          return Promise.resolve(callback());
         }
       };
 

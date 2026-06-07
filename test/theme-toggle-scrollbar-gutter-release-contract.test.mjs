@@ -7,9 +7,14 @@ const css = readFileSync("src/styles/theme-toggle.css", "utf8").replace(
   "\n",
 );
 
-test("theme transitions temporarily release the stable scrollbar gutter so mobile snapshots do not keep a reserved edge strip", () => {
+test("theme transitions keep the desktop scrollbar gutter stable while mobile snapshots release the edge strip", () => {
   assert.match(
     css,
-    /html\.theme-transition-active\s*\{[\s\S]*scrollbar-gutter:\s*auto\s*!important;[\s\S]*\}/,
+    /html\.theme-transition-active\s*\{[\s\S]*scrollbar-gutter:\s*stable\s*!important;[\s\S]*\}/,
+  );
+
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*html\.theme-transition-active\s*\{[\s\S]*scrollbar-gutter:\s*auto\s*!important;[\s\S]*\}[\s\S]*\}/,
   );
 });

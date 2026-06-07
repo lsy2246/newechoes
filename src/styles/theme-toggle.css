@@ -57,7 +57,13 @@
 /* 过渡动画控制 */
 html.theme-transition-active {
   transition: none !important;
-  scrollbar-gutter: auto !important;
+  scrollbar-gutter: stable !important;
+}
+
+@media (max-width: 767px) {
+  html.theme-transition-active {
+    scrollbar-gutter: auto !important;
+  }
 }
 
 html.theme-transition-active,

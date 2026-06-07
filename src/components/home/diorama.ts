@@ -1116,21 +1116,28 @@ export function initDiorama() {
     }
     flushDeferredThemeBootFrame();
   };
-
-  const themeObserver = new MutationObserver(() => {
+  const renderThemeSyncedFrame = () => {
+    if (disposed) return;
+    camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
+  };
+  const syncThemeVisuals = () => {
     const t = getTheme();
-    if (t !== theme) {
-      theme = t;
-      applyTheme(t);
-      needScreenRedraw = true;
-      if (renderMode !== "room") {
-        lastConnectorMotionTick = -1;
-        drawScreen({ overlay: true, texture: false });
-      }
-      scheduleThemeBootFrame();
+    if (t === theme) return;
+    theme = t;
+    applyTheme(t);
+    needScreenRedraw = true;
+    if (renderMode !== "room") {
+      lastConnectorMotionTick = -1;
+      drawScreen({ overlay: true, texture: shouldUpdateScreenTexture(homeProgress) });
+      renderThemeSyncedFrame();
     }
-  });
+    scheduleThemeBootFrame();
+  };
+
+  const themeObserver = new MutationObserver(syncThemeVisuals);
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  window.addEventListener("theme:changed", syncThemeVisuals);
   const themeTransitionObserver = new MutationObserver(() => {
     if (
       pendingThemeBootFrame &&
@@ -2265,6 +2272,7 @@ export function initDiorama() {
     canvasEl.removeEventListener("pointercancel", resetMobileGesture);
     canvasEl.removeEventListener("wheel", passWheelThrough, { capture: true });
     sceneEl?.removeEventListener("wheel", passWheelThrough, { capture: true });
+    window.removeEventListener("theme:changed", syncThemeVisuals);
     themeObserver.disconnect();
     themeTransitionObserver.disconnect();
     if (pendingThemeBootFrameRaf) cancelAnimationFrame(pendingThemeBootFrameRaf);
