@@ -1171,6 +1171,7 @@ export function initDiorama() {
   const INTERACTIVE_PROGRESS = ROOM_CAMERA_END;
   const LOOP_RETURN_START = 0.94;
   const LOOP_RESET_PROGRESS = 0.998;
+  const LOOP_CAMERA_REJOIN_START = 0.91;
   const MOBILE_LOOP_RETURN_EASE_POWER = 2;
   const LOOP_BACK_WRAP_THRESHOLD = 0.002;
   const LOOP_BACK_WRAP_MIN_PROGRESS = LOOP_RETURN_START + 0.004;
@@ -2029,7 +2030,13 @@ export function initDiorama() {
       captureLoopCamera();
     }
 
-    if (homeProgress >= INTERACTIVE_PROGRESS) {
+    const shouldStartForwardCameraRejoin =
+      prevProgress < LOOP_CAMERA_REJOIN_START &&
+      homeProgress >= LOOP_CAMERA_REJOIN_START &&
+      homeProgress < LOOP_RETURN_START;
+    if (shouldStartForwardCameraRejoin) cameraInertialCatchup = true;
+
+    if (homeProgress >= INTERACTIVE_PROGRESS && homeProgress < LOOP_CAMERA_REJOIN_START) {
       cameraRejoinActive = false;
       cameraInertialCatchup = false;
     }
@@ -2048,7 +2055,10 @@ export function initDiorama() {
     }
     const inCameraRejoin = cameraRejoinActive && homeProgress > CAMERA_REJOIN_START && homeProgress < CAMERA_REJOIN_END;
     const inLoopReturn = renderMode === "loop" && homeProgress >= LOOP_RETURN_START;
-    const controlsShouldEnable = homeProgress >= INTERACTIVE_PROGRESS && renderMode === "room";
+    const controlsShouldEnable =
+      homeProgress >= INTERACTIVE_PROGRESS &&
+      homeProgress < LOOP_CAMERA_REJOIN_START &&
+      renderMode === "room";
     if (!controlsShouldEnable) sceneControlActivated = false;
     syncSceneOverlay();
     syncSceneInputMode(controlsShouldEnable);

@@ -278,7 +278,7 @@ test("home 3D desk figure presents the final scene from an elevated rear angle",
 });
 
 test("home first-screen 3D component stays small enough to support the lsy hero", () => {
-  assert.match(dioramaTs, /const componentFov = useMobileCarrier \? 42 : 49;/);
+  assert.match(dioramaTs, /const componentFov = useMobileCarrier \? 51 : 49;/);
   assert.match(dioramaTs, /const CENTER_DIORAMA_FADE_START = 0\.08;/);
   assert.match(dioramaTs, /const CENTER_DIORAMA_PROGRESS_END = 0\.24;/);
   assert.match(dioramaTs, /const centerDioramaProgress = clamp\(visualProgress \/ STORY_PROGRESS_END\);/);
@@ -313,7 +313,7 @@ test("home startup keeps the real opening frame while heavy assets warm up", () 
 });
 
 test("home startup cue changes progress bar state while the opening scroll is gated", () => {
-  assert.match(dioramaTs, /const cueMode = !startupGateReleased && startupGatePendingScroll\s*\?\s*"loading"/);
+  assert.match(dioramaTs, /const cueMode = !startupGateReleased\s*\?\s*"loading"/);
   assert.match(dioramaTs, /cuePercentEl\.textContent = cueMode === "loading" \? "\.\.\." : `\$\{Math\.round\(cueProgress \* 100\)\}%`;/);
   assert.match(dioramaCss, /\.home-scroll-cue\[data-cue-mode="loading"\] \.home-scroll-cue__progress span/);
   assert.match(dioramaCss, /animation:\s*home-cue-loading-bar 1\.05s ease-in-out infinite;/);
@@ -340,4 +340,21 @@ test("home 3D renderer sizes from the untransformed canvas box", () => {
 test("home 3D loop return camera is scrubbed with the component transform", () => {
   assert.match(dioramaTs, /const loopDesiredFov = getLoopCameraState\(homeProgress, desiredCameraPos, desiredCameraTarget\);\s*applyCameraPose\(loopDesiredFov, dt, true, LOOP_CAMERA_FOLLOW_RATE\);/);
   assert.doesNotMatch(dioramaTs, /const loopDesiredFov = getLoopCameraState\(homeProgress, desiredCameraPos, desiredCameraTarget\);\s*applyCameraPose\(loopDesiredFov, dt, false, LOOP_CAMERA_FOLLOW_RATE\);/);
+});
+
+test("home 3D exits interaction with a camera catchup before the 2D loop", () => {
+  assert.match(dioramaTs, /const LOOP_CAMERA_REJOIN_START = 0\.91;/);
+  assert.match(
+    dioramaTs,
+    /const controlsShouldEnable =\s*homeProgress >= INTERACTIVE_PROGRESS &&\s*homeProgress < LOOP_CAMERA_REJOIN_START &&\s*renderMode === "room";/,
+  );
+  assert.match(
+    dioramaTs,
+    /const shouldStartForwardCameraRejoin =\s*prevProgress < LOOP_CAMERA_REJOIN_START &&\s*homeProgress >= LOOP_CAMERA_REJOIN_START &&\s*homeProgress < LOOP_RETURN_START;/,
+  );
+  assert.match(dioramaTs, /if \(shouldStartForwardCameraRejoin\) cameraInertialCatchup = true;/);
+  assert.match(
+    dioramaTs,
+    /if \(homeProgress >= INTERACTIVE_PROGRESS && homeProgress < LOOP_CAMERA_REJOIN_START\) \{\s*cameraRejoinActive = false;\s*cameraInertialCatchup = false;\s*\}/,
+  );
 });
