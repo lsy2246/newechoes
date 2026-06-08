@@ -56,8 +56,13 @@
 
 /* 过渡动画控制 */
 html.theme-transition-active {
+  background: var(--site-bg) !important;
   transition: none !important;
   scrollbar-gutter: stable !important;
+}
+
+html.theme-transition-active body {
+  background: var(--site-bg) !important;
 }
 
 @media (max-width: 767px) {
@@ -68,7 +73,6 @@ html.theme-transition-active {
 
 html.theme-transition-active,
 html.theme-transition-active body {
-  background: var(--theme-transition-fallback-bg, transparent) !important;
   overflow: hidden !important;
 }
 
@@ -98,6 +102,7 @@ html.theme-transition-active .mobile-panel-shell {
 }
 
 ::view-transition-old(root) {
+  background: var(--theme-transition-fallback-bg, transparent) !important;
   z-index: var(--theme-toggle-z-index-old) !important;
 }
 
