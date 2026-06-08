@@ -32,6 +32,12 @@ test("astro build still prepares article index runtime before bundling client as
   assert.match(astroBuildScript, /failed to prepare article index runtime artifacts/);
 });
 
+test("astro build clears cached rendered content before running Astro", () => {
+  assert.match(astroBuildScript, /clearAstroRenderedContentCache\(\)/);
+  assert.match(astroBuildScript, /node_modules",\s*"\.astro",\s*"data-store\.json"/);
+  assert.match(astroBuildScript, /rmSync\(cachePath,\s*\{\s*force:\s*true\s*\}\)/);
+});
+
 test("generateArticleIndex writes json indexes from source content and clears legacy bin artifacts", async () => {
   const tempRoot = mkdtempSync(path.join(os.tmpdir(), "article-index-"));
   const contentRoot = path.join(tempRoot, "src", "content");

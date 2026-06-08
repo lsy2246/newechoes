@@ -291,7 +291,7 @@
 }
 
 /* 收纳标题样式 */
-.prose details {
+.prose details:not(.code-block-container) {
   margin: 1.5em 0;
   border-radius: 0.5rem;
   border: 1px solid var(--color-secondary-200);
@@ -301,24 +301,24 @@
 }
 
 /* 添加 details 内部内容的内边距 */
-.prose details > *:not(summary) {
+.prose details:not(.code-block-container) > *:not(summary) {
   padding: 1.5em;
   margin: 0;
 }
 
-.prose details > p,
-.prose details > ul,
-.prose details > ol,
-.prose details > div {
+.prose details:not(.code-block-container) > p,
+.prose details:not(.code-block-container) > ul,
+.prose details:not(.code-block-container) > ol,
+.prose details:not(.code-block-container) > div {
   margin-top: 0;
   margin-bottom: 1em;
 }
 
-.prose details > *:last-child {
+.prose details:not(.code-block-container) > *:last-child {
   margin-bottom: 0;
 }
 
-.prose details summary {
+.prose details:not(.code-block-container) summary {
   padding: 1em;
   cursor: pointer;
   position: relative;
@@ -337,11 +337,11 @@
   border-left: 4px solid var(--color-primary-100);
 }
 
-.prose details summary::-webkit-details-marker {
+.prose details:not(.code-block-container) summary::-webkit-details-marker {
   display: none;
 }
 
-.prose details summary::before {
+.prose details:not(.code-block-container) summary::before {
   content: "";
   width: 20px;
   height: 20px;
@@ -352,7 +352,7 @@
   flex-shrink: 0;
 }
 
-.prose details[open] summary {
+.prose details:not(.code-block-container)[open] summary {
   border-left: 4px solid var(--color-primary-500);
   background: linear-gradient(
     to right,
@@ -362,11 +362,11 @@
   border-bottom: 1px solid var(--color-secondary-200);
 }
 
-.prose details[open] summary::before {
+.prose details:not(.code-block-container)[open] summary::before {
   transform: rotate(90deg);
 }
 
-.prose details summary:hover {
+.prose details:not(.code-block-container) summary:hover {
   background: linear-gradient(
     to right,
     var(--color-primary-100),
@@ -375,7 +375,7 @@
   color: var(--color-primary-700);
 }
 
-.prose details > blockquote {
+.prose details:not(.code-block-container) > blockquote {
   margin: 0;
   padding: 1.5em;
   border-radius: 0;
@@ -387,21 +387,21 @@
   );
 }
 
-.prose details > blockquote p:first-child {
+.prose details:not(.code-block-container) > blockquote p:first-child {
   margin-top: 0;
 }
 
-.prose details > blockquote p:last-child {
+.prose details:not(.code-block-container) > blockquote p:last-child {
   margin-bottom: 0;
 }
 
 /* 暗色模式适配 */
-[data-theme="dark"] .prose details {
+[data-theme="dark"] .prose details:not(.code-block-container) {
   border-color: var(--color-dark-border);
   background-color: var(--color-dark-surface);
 }
 
-[data-theme="dark"] .prose details summary {
+[data-theme="dark"] .prose details:not(.code-block-container) summary {
   color: var(--color-secondary-100);
   background: linear-gradient(
     to right,
@@ -411,15 +411,15 @@
   border-left-color: var(--color-primary-800);
 }
 
-[data-theme="dark"] .prose details[open] summary {
+[data-theme="dark"] .prose details:not(.code-block-container)[open] summary {
   border-bottom-color: var(--color-dark-border);
 }
 
-[data-theme="dark"] .prose details summary::before {
+[data-theme="dark"] .prose details:not(.code-block-container) summary::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23839dff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 5l7 7-7 7'%3E%3C/path%3E%3C/svg%3E");
 }
 
-[data-theme="dark"] .prose details[open] summary {
+[data-theme="dark"] .prose details:not(.code-block-container)[open] summary {
   background: linear-gradient(
     to right,
     var(--color-dark-card),
@@ -428,7 +428,7 @@
   border-left-color: var(--color-primary-400);
 }
 
-[data-theme="dark"] .prose details summary:hover {
+[data-theme="dark"] .prose details:not(.code-block-container) summary:hover {
   background: linear-gradient(
     to right,
     var(--color-primary-900/30),
@@ -437,7 +437,7 @@
   color: var(--color-primary-400);
 }
 
-[data-theme="dark"] .prose details > blockquote {
+[data-theme="dark"] .prose details:not(.code-block-container) > blockquote {
   background: linear-gradient(
     to right,
     var(--color-primary-900/10),
@@ -966,32 +966,32 @@
 }
 
 .details-content,
-.article-prose details,
-.article-prose details summary,
-.article-prose details[open] summary,
-.article-prose details summary:hover,
-.article-prose details > blockquote {
+.article-prose details:not(.code-block-container),
+.article-prose details:not(.code-block-container) summary,
+.article-prose details:not(.code-block-container)[open] summary,
+.article-prose details:not(.code-block-container) summary:hover,
+.article-prose details:not(.code-block-container) > blockquote {
   color: var(--article-ink);
   border-color: var(--article-line);
   background: transparent;
 }
 
 .details-content,
-.article-prose details > blockquote {
+.article-prose details:not(.code-block-container) > blockquote {
   border-left: 2px solid var(--article-ink);
 }
 
-.article-prose details summary {
+.article-prose details:not(.code-block-container) summary {
   border-left: 0;
   border-bottom: 1px solid transparent;
 }
 
-.article-prose details[open] summary {
+.article-prose details:not(.code-block-container)[open] summary {
   border-bottom-color: transparent;
   background: var(--article-soft);
 }
 
-.article-prose details summary::before {
+.article-prose details:not(.code-block-container) summary::before {
   filter: grayscale(1) contrast(2);
   opacity: 0.72;
 }
@@ -1135,110 +1135,6 @@
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.42;
-}
-
-.code-block-container {
-  border: 1px solid var(--article-line);
-  border-radius: 0.6rem;
-  position: relative;
-  overflow: hidden;
-  background: var(--article-soft);
-}
-
-[data-theme="dark"] .code-block-container {
-  border-color: var(--article-line);
-  background: var(--article-soft);
-}
-
-.code-block-content,
-[data-theme="dark"] .code-block-content,
-.code-content-container,
-[data-theme="dark"] .code-content-container {
-  background: transparent;
-}
-
-.code-block-content pre,
-.code-block-content pre code,
-.code-block-content pre code span,
-.code-block-content pre.astro-code,
-.code-block-content pre.shiki,
-[data-theme="dark"] .code-block-content pre,
-[data-theme="dark"] .code-block-content pre code,
-[data-theme="dark"] .code-block-content pre code span,
-[data-theme="dark"] .code-block-content pre.astro-code,
-[data-theme="dark"] .code-block-content pre.shiki {
-  background-color: transparent !important;
-}
-
-.code-block-copy,
-[data-theme="dark"] .code-block-copy {
-  color: var(--article-muted);
-}
-
-.code-block-lang {
-  display: none !important;
-}
-
-.code-block-copy {
-  position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
-  background: color-mix(in oklab, var(--article-bg) 82%, transparent);
-  border-color: color-mix(in oklab, var(--article-line) 80%, transparent);
-  opacity: 0;
-}
-
-.code-block-container:hover .code-block-copy,
-.code-block-container:focus-within .code-block-copy,
-.code-block-copy.copied,
-.code-block-copy.copy-failed,
-.code-block-copy:focus-visible {
-  opacity: 1;
-}
-
-.code-block-copy:hover,
-[data-theme="dark"] .code-block-copy:hover {
-  color: var(--article-ink);
-  background: color-mix(in oklab, var(--article-bg) 96%, var(--article-soft));
-}
-
-.line-numbers-container,
-[data-theme="dark"] .line-numbers-container {
-  color: var(--article-muted);
-  border-color: var(--article-line);
-  background: transparent;
-  display: grid;
-  align-content: start;
-}
-
-.line-number,
-.line-number::before,
-[data-theme="dark"] .line-number,
-[data-theme="dark"] .line-number::before {
-  color: var(--article-quiet);
-}
-
-.article-prose :not(pre) > code {
-  position: relative;
-  display: inline;
-  margin: 0 0.08rem;
-  padding: 0.2rem 0.3rem;
-  color: var(--article-ink);
-  border: 0;
-  border-radius: 0.28rem;
-  background: var(--article-soft-strong);
-  font-size: 0.875em;
-  font-weight: 650;
-  line-height: 1;
-  white-space: break-spaces;
-  overflow-wrap: anywhere;
-  word-break: normal;
-}
-
-[data-theme="dark"] .article-prose :not(pre) > code,
-.article-prose :not(pre) > code.file-path,
-[data-theme="dark"] .article-prose :not(pre) > code.file-path {
-  color: var(--article-ink);
 }
 
 .table-container {

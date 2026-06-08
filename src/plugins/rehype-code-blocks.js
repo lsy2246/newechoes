@@ -180,36 +180,97 @@ export function rehypeCodeBlocks() {
           });
         }
         
+        const copyButton = {
+          type: 'element',
+          tagName: 'button',
+          properties: {
+            className: ['code-block-copy'],
+            type: 'button',
+            title: '复制代码',
+            'aria-label': '复制代码',
+            'data-code': Buffer.from(originalCode, 'utf-8').toString('base64'),
+            'data-copy-text': '复制'
+          },
+          children: copyButtonChildren
+        };
+
+        const summaryChildren = [
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: ['code-block-caret'], 'aria-hidden': 'true' },
+            children: [
+              {
+                type: 'element',
+                tagName: 'svg',
+                properties: {
+                  xmlns: 'http://www.w3.org/2000/svg',
+                  viewBox: '0 0 24 24',
+                  fill: 'currentColor',
+                  class: 'w-4 h-4'
+                },
+                children: [
+                  {
+                    type: 'element',
+                    tagName: 'path',
+                    properties: { d: 'M8 5v14l11-7z' }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: ['code-block-title'] },
+            children: [{ type: 'text', value: '代码块' }]
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: ['code-block-meta'] },
+            children: [
+              { type: 'text', value: `${language} · ${lineCount} 行` }
+            ]
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: ['code-block-state', 'code-block-state-open'] },
+            children: [{ type: 'text', value: '收起' }]
+          },
+          {
+            type: 'element',
+            tagName: 'span',
+            properties: { className: ['code-block-state', 'code-block-state-closed'] },
+            children: [{ type: 'text', value: '展开' }]
+          },
+          copyButton
+        ];
+
         // 创建新的代码块容器结构
         const codeBlockContainer = {
           type: 'element',
-          tagName: 'div',
+          tagName: 'details',
           properties: { 
             className: ['code-block-container', 'astro-code-container'],
             'data-language': language.toLowerCase(),
+            'data-lines': String(lineCount),
             'data-theme': 'light dark' // 表明支持双主题
           },
           children: [
-            // 代码内容区域 - 保持单一阅读表面，只将语言和复制作为轻量悬浮信息
+            {
+              type: 'element',
+              tagName: 'summary',
+              properties: { className: ['code-block-summary'] },
+              children: summaryChildren
+            },
+            // 代码内容区域
             {
               type: 'element',
               tagName: 'div',
               properties: { className: ['code-block-content'] },
               children: [
-                // 复制按钮
-                {
-                  type: 'element',
-                  tagName: 'button',
-                  properties: {
-                    className: ['code-block-copy'],
-                    type: 'button',
-                    title: '复制代码',
-                    'aria-label': '复制代码',
-                    'data-code': Buffer.from(originalCode, 'utf-8').toString('base64'),
-                    'data-copy-text': '复制'
-                  },
-                  children: copyButtonChildren
-                },
                 // 行号容器
                 {
                   type: 'element',

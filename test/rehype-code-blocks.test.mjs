@@ -22,7 +22,19 @@ function findFirst(node, predicate) {
   return null;
 }
 
-test("rehypeCodeBlocks renders a single-surface code block without a language tag row", () => {
+function textContent(node) {
+  if (!node || typeof node !== "object") {
+    return "";
+  }
+
+  if (node.type === "text") {
+    return node.value || "";
+  }
+
+  return (node.children || []).map(textContent).join("");
+}
+
+test("rehypeCodeBlocks renders a collapsed details code block with summary controls", () => {
   const tree = {
     type: "root",
     children: [
@@ -56,14 +68,28 @@ test("rehypeCodeBlocks renders a single-surface code block without a language ta
   rehypeCodeBlocks()(tree);
 
   const container = tree.children[0];
-  assert.equal(container.tagName, "div");
+  assert.equal(container.tagName, "details");
   assert.deepEqual(container.properties.className, ["code-block-container", "astro-code-container"]);
+  assert.equal(container.properties.open, undefined);
+  assert.equal(container.properties["data-lines"], "2");
 
   const header = findFirst(
     container,
     (node) => node.type === "element" && node.properties?.className?.includes("code-block-header"),
   );
   assert.equal(header, null);
+
+  const summary = findFirst(
+    container,
+    (node) => node.type === "element" && node.properties?.className?.includes("code-block-summary"),
+  );
+  assert.ok(summary);
+  assert.equal(summary.tagName, "summary");
+  assert.match(textContent(summary), /CPP/);
+  assert.match(textContent(summary), /2 行/);
+  assert.match(textContent(summary), /展开/);
+  assert.match(textContent(summary), /收起/);
+  assert.deepEqual(container.children.map((child) => child.tagName), ["summary", "div"]);
 
   const content = findFirst(
     container,
@@ -72,12 +98,20 @@ test("rehypeCodeBlocks renders a single-surface code block without a language ta
   assert.ok(content);
 
   const copyButton = findFirst(
-    content,
+    container,
     (node) => node.type === "element" && node.properties?.className?.includes("code-block-copy"),
   );
   assert.ok(copyButton);
+  assert.equal(
+    summary.children.find(
+      (node) => node.type === "element" && node.properties?.className?.includes("code-block-copy"),
+    ),
+    copyButton,
+  );
   assert.equal(copyButton.tagName, "button");
   assert.equal(copyButton.properties["aria-label"], "复制代码");
+  assert.equal(copyButton.properties.type, "button");
+  assert.ok(copyButton.properties["data-code"]);
 
   const lineNumbers = findFirst(
     content,

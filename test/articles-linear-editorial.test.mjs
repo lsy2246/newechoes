@@ -499,10 +499,10 @@ test("article dark prose separates body copy from link and code highlights", () 
     lastCssBlock(articlesCss, '[data-theme="dark"] .article-prose a'),
     /text-decoration-color:\s*color-mix\(in oklab,\s*var\(--article-ink\) 72%,\s*transparent\);/,
   );
-  assert.match(lastCssBlock(articlesCss, ".article-prose :not(pre) > code"), /background:\s*var\(--article-soft-strong\);/);
-  assert.match(lastCssBlock(articlesCss, ".article-prose :not(pre) > code"), /border:\s*0;/);
-  assert.match(lastCssBlock(articlesCss, ".article-prose :not(pre) > code"), /border-radius:\s*0\.28rem;/);
-  assert.match(lastCssBlock(articlesCss, ".article-prose :not(pre) > code"), /font-weight:\s*650;/);
+  assert.match(lastCssBlock(articlesCodeCss, ".article-prose :not(pre) > code"), /background:\s*var\(--article-soft-strong\);/);
+  assert.match(lastCssBlock(articlesCodeCss, ".article-prose :not(pre) > code"), /border:\s*0;/);
+  assert.match(lastCssBlock(articlesCodeCss, ".article-prose :not(pre) > code"), /border-radius:\s*0\.28rem;/);
+  assert.match(lastCssBlock(articlesCodeCss, ".article-prose :not(pre) > code"), /font-weight:\s*650;/);
 });
 
 test("article prose follows shadcn-style typography rhythm", () => {
@@ -523,7 +523,7 @@ test("article prose follows shadcn-style typography rhythm", () => {
 });
 
 test("article inline code uses muted shadcn-like pills", () => {
-  const inlineCodeBlock = lastCssBlock(articlesCss, ".article-prose :not(pre) > code");
+  const inlineCodeBlock = lastCssBlock(articlesCodeCss, ".article-prose :not(pre) > code");
 
   assert.match(inlineCodeBlock, /position:\s*relative;/);
   assert.match(inlineCodeBlock, /padding:\s*0\.2rem 0\.3rem;/);
@@ -534,35 +534,50 @@ test("article inline code uses muted shadcn-like pills", () => {
   assert.match(inlineCodeBlock, /font-weight:\s*650;/);
   assert.match(inlineCodeBlock, /overflow-wrap:\s*anywhere;/);
   assert.doesNotMatch(articlesCodeCss, /(^|\n)\s*code,\s*\n\s*pre,/);
+  assert.doesNotMatch(articlesCss, selectorRulePattern(".article-prose :not(pre) > code"));
 });
 
-test("article code blocks use a shadcn-like muted surface", () => {
-  assert.match(cssBlock(articlesCss, ".code-block-container"), /border-radius:\s*0\.6rem;/);
-  assert.match(cssBlock(articlesCss, ".code-block-container"), /background:\s*var\(--article-soft\);/);
-  assert.match(lastCssBlock(articlesCss, '[data-theme="dark"] .code-block-container'), /background:\s*var\(--article-soft\);/);
-  assert.match(cssBlock(articlesCss, ".code-block-container"), /position:\s*relative;/);
-  assert.doesNotMatch(lastCssBlock(articlesCss, ".code-block-content"), /padding-top:/);
-  assert.match(lastCssBlock(articlesCss, ".code-block-lang"), /display:\s*none !important;/);
-  assert.match(lastCssBlock(articlesCss, ".line-numbers-container"), /display:\s*grid;/);
-  assert.match(lastCssBlock(articlesCss, ".line-numbers-container"), /align-content:\s*start;/);
-  assert.match(lastCssBlock(articlesCss, ".code-block-copy"), /position:\s*absolute;/);
-  assert.match(lastCssBlock(articlesCss, ".code-block-copy"), /opacity:\s*0;/);
-  assert.match(articlesCss, /\.code-block-container:hover \.code-block-copy[\s\S]*?opacity:\s*1;/);
-  assert.match(lastCssBlock(articlesCss, ".line-numbers-container"), /background:\s*transparent;/);
+test("article code blocks are collapsed details with one code stylesheet", () => {
+  assert.match(cssBlock(articlesCodeCss, ".article-prose details.code-block-container"), /border-radius:\s*0\.5rem;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose details.code-block-container"), /background:\s*var\(--article-soft-strong\);/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose details.code-block-container"), /position:\s*relative;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose .code-block-summary"), /cursor:\s*pointer;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose .code-block-summary"), /padding:\s*0\.72rem 3\.35rem 0\.72rem 0\.9rem;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose details.code-block-container:not([open]) > .code-block-content"), /display:\s*none;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose details.code-block-container[open] > .code-block-content"), /display:\s*flex;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose details.code-block-container[open] > .code-block-content"), /background:\s*var\(--article-soft-strong\);/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose .code-block-content"), /padding:\s*0;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose .code-block-content"), /margin:\s*0;/);
+  assert.match(lastCssBlock(articlesCodeCss, ".article-prose .line-numbers-container"), /display:\s*grid;/);
+  assert.match(lastCssBlock(articlesCodeCss, ".article-prose .line-numbers-container"), /align-content:\s*start;/);
+  assert.match(lastCssBlock(articlesCodeCss, ".article-prose .line-numbers-container"), /background:\s*transparent;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose .code-block-copy"), /position:\s*absolute;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose .code-block-copy"), /top:\s*0\.48rem;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose .code-block-copy"), /right:\s*0\.58rem;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose .code-block-copy"), /opacity:\s*1;/);
+  assert.match(cssBlock(articlesCodeCss, ".article-prose .code-block-copy"), /transform:\s*translateY\(0\);/);
+  assert.doesNotMatch(articlesCodeCss, /\.article-prose \.code-block-container:hover > \.code-block-copy[\s\S]*?opacity:\s*1;/);
+  assert.doesNotMatch(articlesCodeCss, /@media \(hover:\s*none\)[\s\S]*?\.code-block-copy[\s\S]*?opacity:/);
+  assert.doesNotMatch(articlesCss, selectorRulePattern(".code-block-container"));
+  assert.doesNotMatch(articlesCss, selectorRulePattern(".code-block-copy"));
+  assert.doesNotMatch(articlesCss, /(^|\n)\.prose details(?:\s*(?:\{|,|\[)|\s+(?:summary|>|blockquote))/);
+  assert.doesNotMatch(articlesCss, /(^|\n)\.article-prose details(?:\s*(?:\{|,|\[)|\s+(?:summary|>|blockquote))/);
+  assert.match(articlesCss, /(^|\n)\.prose details:not\(\.code-block-container\)\s*\{/);
+  assert.match(articlesCss, /(^|\n)\.article-prose details:not\(\.code-block-container\)\s*,/);
   assert.match(
-    articlesCss,
-    /\.code-block-content pre,\s*\.code-block-content pre code,[\s\S]*?\[data-theme="dark"\] \.code-block-content pre\.shiki\s*\{[\s\S]*?background-color:\s*transparent !important;/,
+    articlesCodeCss,
+    /\.article-prose \.code-block-content pre,\s*\.article-prose \.code-block-content pre code,[\s\S]*?\[data-theme="dark"\] \.article-prose \.code-block-content pre\.shiki\s*\{[\s\S]*?background-color:\s*transparent !important;/,
   );
 });
 
-test("article detail normalizes legacy code block markup before wiring copy interactions", () => {
-  assert.ok(articleDetail.includes("function normalizeLegacyCodeBlocks()"));
-  assert.ok(articleDetail.includes('const legacyHeader = container.querySelector(":scope > .code-block-header")'));
-  assert.ok(articleDetail.includes('const content = container.querySelector(":scope > .code-block-content")'));
-  assert.ok(articleDetail.includes("language.remove();"));
-  assert.ok(articleDetail.includes("legacyHeader.remove();"));
-  assert.ok(articleDetail.includes("normalizeLegacyCodeBlocks();"));
-  assert.ok(articleDetail.indexOf("normalizeLegacyCodeBlocks();") < articleDetail.indexOf("setupCodeCopy();"));
+test("article detail wires copy interactions without legacy code block normalization", () => {
+  assert.equal(articleDetail.includes("function normalizeLegacyCodeBlocks()"), false);
+  assert.ok(articleDetail.includes("function setupCodeCopy()"));
+  assert.ok(articleDetail.includes('document.querySelectorAll(".code-block-copy")'));
+  assert.match(articleDetail, /addListener\(button,\s*"click",\s*async\s*\(event\)\s*=>\s*\{/);
+  assert.ok(articleDetail.includes("event.preventDefault();"));
+  assert.ok(articleDetail.includes("event.stopPropagation();"));
+  assert.ok(articleDetail.includes("setupCodeCopy();"));
 });
 
 test("article detail secondary text remains readable instead of hazy", () => {

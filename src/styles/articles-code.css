@@ -1,305 +1,321 @@
-/* 代码块容器样式 - 简化背景和阴影 */
-.code-block-container {
-  margin: 0.75rem 0;
-  border-radius: 0.4rem;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-  background-color: transparent;
+/* Collapsible article code blocks */
+.article-prose details.code-block-container {
   position: relative;
+  margin: 1.5rem 0 0;
+  overflow: hidden;
+  border: 1px solid var(--article-line);
+  border-radius: 0.5rem;
+  background: var(--article-soft-strong);
 }
 
-/* 隐藏旧版语言标签，避免旧静态产物在客户端展示异常 */
-.code-block-lang {
-  display: none !important;
+[data-theme="dark"] .article-prose details.code-block-container {
+  border-color: var(--article-line);
+  background: var(--article-soft-strong);
 }
 
-/* 复制按钮 */
-.code-block-copy {
-  position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  background: rgba(248, 250, 252, 0.9);
-  border: 1px solid transparent;
+.article-prose .code-block-summary {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 0.58rem;
+  align-items: center;
+  min-height: 3.05rem;
+  padding: 0.72rem 3.35rem 0.72rem 0.9rem;
+  color: var(--article-muted);
   cursor: pointer;
-  color: #475569;
+  list-style: none;
+  user-select: none;
+}
+
+.article-prose .code-block-summary::-webkit-details-marker {
+  display: none;
+}
+
+.article-prose .code-block-summary:focus-visible {
+  outline: 2px solid var(--article-interactive-focus);
+  outline-offset: -3px;
+}
+
+.article-prose .code-block-caret {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.45rem;
-  opacity: 0;
-  transform: translateY(-2px);
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease,
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
-  z-index: 2;
+  width: 1rem;
+  height: 1rem;
+  color: var(--article-muted);
+  transition: transform 0.18s ease;
 }
 
-/* 使用伪元素显示复制文本 */
-.code-block-copy::after {
+.article-prose details.code-block-container[open] .code-block-caret {
+  transform: rotate(90deg);
+}
+
+.article-prose .code-block-title {
+  min-width: 0;
+  color: var(--article-muted);
+  font-size: 0.92rem;
+  font-weight: 560;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.article-prose .code-block-meta {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--article-quiet);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: right;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.article-prose .code-block-state {
+  color: var(--article-quiet);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.article-prose .code-block-state-open,
+.article-prose details.code-block-container[open] .code-block-state-closed {
+  display: none;
+}
+
+.article-prose details.code-block-container[open] .code-block-state-open {
+  display: inline;
+}
+
+.article-prose .code-block-copy {
+  position: absolute;
+  top: 0.48rem;
+  right: 0.58rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.05rem;
+  height: 2.05rem;
+  padding: 0;
+  border: 1px solid color-mix(in oklab, var(--article-line) 80%, transparent);
+  border-radius: 0.38rem;
+  background: color-mix(in oklab, var(--article-bg) 86%, transparent);
+  color: var(--article-muted);
+  cursor: pointer;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.article-prose .code-block-copy::after,
+.article-prose .code-block-copy.copied::after,
+.article-prose .code-block-copy.copy-failed::after {
   content: none;
   display: none;
 }
 
-.code-block-container:hover .code-block-copy,
-.code-block-container:focus-within .code-block-copy,
-.code-block-copy.copied,
-.code-block-copy.copy-failed,
-.code-block-copy:focus-visible {
-  opacity: 1;
-  transform: translateY(0);
+.article-prose .code-block-copy.copied,
+.article-prose .code-block-copy.copy-failed,
+.article-prose .code-block-copy:hover,
+[data-theme="dark"] .article-prose .code-block-copy:hover {
+  border-color: color-mix(in oklab, var(--article-line-strong) 76%, transparent);
+  background: color-mix(in oklab, var(--article-bg) 96%, var(--article-soft));
+  color: var(--article-ink);
 }
 
-.code-block-copy:hover {
-  background-color: #e2e8f0;
-  border-color: #cbd5e1;
+.article-prose .code-block-copy:focus-visible {
+  outline: 2px solid var(--article-interactive-focus);
+  outline-offset: 2px;
 }
 
-.code-block-copy.copied {
-  color: #10b981;
+.article-prose .code-block-copy.copied {
+  color: #059669;
 }
 
-.code-block-copy.copied::after {
-  content: none;
+.article-prose .code-block-copy.copy-failed {
+  color: #dc2626;
 }
 
-/* 复制失败状态 */
-.code-block-copy.copy-failed {
-  color: #ef4444;
+.article-prose details.code-block-container:not([open]) > .code-block-content {
+  display: none;
 }
 
-.code-block-copy.copy-failed::after {
-  content: none;
-}
-
-/* 代码内容容器 - 修改为 flex 布局 */
-.code-block-content {
+.article-prose .code-block-content {
   position: relative;
   display: flex;
   align-items: stretch;
-  background-color: transparent;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--article-line);
+  background: var(--article-soft-strong);
 }
 
-/* 行号容器 - 固定宽度和位置 */
-.line-numbers-container {
-  flex: 0 0 3rem;
-  background-color: transparent;
-  border-right: 1px solid #e2e8f0;
-  z-index: 1;
+.article-prose details.code-block-container[open] > .code-block-content {
+  display: flex;
+  background: var(--article-soft-strong);
+}
+
+.article-prose .line-numbers-container {
   position: sticky;
   left: 0;
+  z-index: 1;
   display: grid;
+  flex: 0 0 3rem;
   align-content: start;
-  padding: 0 0 0.55rem;
+  padding: 0.55rem 0;
+  border-right: 1px solid var(--article-line);
+  background: transparent;
+  color: var(--article-muted);
+  counter-reset: line;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
-  counter-reset: line; /* 重置行号计数器 */
 }
 
-/* 行号元素样式 */
-.line-number {
-  width: 100%;
-  height: 1.5rem;
+.article-prose .line-number {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  color: #94a3b8;
-  font-size: 0.78rem;
-  user-select: none;
-  counter-increment: line; /* 每个行号元素递增计数器 */
+  width: 100%;
+  height: 1.5rem;
   padding: 0 0.65rem 0 0.45rem;
+  color: var(--article-quiet);
+  counter-increment: line;
+  font-size: 0.78rem;
+  line-height: 1;
+  user-select: none;
 }
 
-/* 使用伪元素显示行号 */
-.line-number::before {
+.article-prose .line-number::before {
   content: counter(line);
   display: block;
-  text-align: center;
+  color: var(--article-quiet);
+  text-align: right;
 }
 
-/* 代码内容容器 - 允许水平滚动 */
-.code-content-container {
+.article-prose .code-content-container {
   flex: 1;
   min-width: 0;
   overflow-x: auto;
-  padding: 0 0 0.55rem;
+  padding: 0.55rem 0;
+  background: transparent;
 }
 
-/* 基础代码块样式 - 减小内边距 */
-pre {
+.article-prose .code-block-content pre {
+  min-width: max-content;
   margin: 0;
   padding: 0;
-  overflow-x: visible; /* 改为 visible，滚动由父容器处理 */
-  min-width: max-content;
+  overflow-x: visible;
 }
 
-pre code {
+.article-prose .code-block-content pre code {
+  display: block;
+  padding: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
   font-size: 0.9rem;
   line-height: 1.5rem;
-  padding: 0;
-  display: block;
 }
 
-/* 行号样式 - 缩小间距 */
-.line-numbers {
+.article-prose .line-numbers {
+  position: relative;
   counter-reset: line;
-  position: relative;
 }
 
-/* 行样式 - 移除左侧 padding */
-.line-numbers .line {
+.article-prose .line-numbers .line {
   position: relative;
-  counter-increment: line;
-  padding-left: 0.85rem;
-  padding-right: 1rem;
   min-height: 1.5rem;
+  padding-right: 1rem;
+  padding-left: 0.85rem;
+  counter-increment: line;
   white-space: pre;
 }
 
-/* 暗色模式 */
-[data-theme="dark"] .code-block-container {
-  border-color: #334155;
-  background-color: transparent;
-}
-
-[data-theme="dark"] .code-block-copy {
-  color: #e2e8f0;
-  background: rgba(15, 23, 42, 0.85);
-  border-color: transparent;
-}
-
-[data-theme="dark"] .code-block-copy::after {
-  content: none;
-}
-
-[data-theme="dark"] .code-block-copy.copied::after {
-  color: #10b981;
-}
-
-[data-theme="dark"] .code-block-copy.copy-failed {
-  color: #f87171;
-}
-
-[data-theme="dark"] .code-block-copy.copy-failed::after {
-  color: #f87171;
-}
-
-[data-theme="dark"] .code-block-copy:hover {
-  background-color: #334155;
-  border-color: #475569;
-}
-
-/* 移除代码内容区域的黑暗模式背景 */
-[data-theme="dark"] .code-block-content {
-  background-color: transparent;
-}
-
-/* 暗色模式行号容器样式 */
-[data-theme="dark"] .line-numbers-container {
-  border-right-color: #334155;
-}
-
-/* 暗色模式行号样式 */
-[data-theme="dark"] .line-number {
-  color: #64748b;
-}
-
-[data-theme="dark"] .line-number::before {
-  color: #64748b;
-}
-
-/* 代码块保持透明背景，行内代码由 articles.css 单独控制 */
-pre,
-pre code,
-pre code span,
-.code-block-content,
-.code-block-content pre.shiki,
-.code-block-content pre.astro-code,
-.code-block-content pre code,
-.code-block-content pre code span,
-pre.shiki,
-pre.astro-code,
-.line,
-.line span {
-  background-color: transparent !important;
-}
-
-/* 高亮行样式 - 仅保留边框而不添加背景 */
-.line.highlighted {
+.article-prose .line.highlighted {
   border-left: 2px solid #eab308;
 }
 
-[data-theme="dark"] .line.highlighted {
-  border-left: 2px solid #fbbf24;
+[data-theme="dark"] .article-prose .line.highlighted {
+  border-left-color: #fbbf24;
   background-color: transparent !important;
 }
 
-@media (hover: none) {
-  .code-block-copy {
-    opacity: 0.82;
-    transform: translateY(0);
-  }
+.article-prose .code-block-content pre,
+.article-prose .code-block-content pre code,
+.article-prose .code-block-content pre code span,
+.article-prose .code-block-content pre.astro-code,
+.article-prose .code-block-content pre.shiki,
+.article-prose .code-block-content pre code span,
+.article-prose .code-block-content .line,
+.article-prose .code-block-content .line span,
+[data-theme="dark"] .article-prose .code-block-content pre,
+[data-theme="dark"] .article-prose .code-block-content pre code,
+[data-theme="dark"] .article-prose .code-block-content pre code span,
+[data-theme="dark"] .article-prose .code-block-content pre.astro-code,
+[data-theme="dark"] .article-prose .code-block-content pre.shiki {
+  background-color: transparent !important;
 }
 
-/* 暗黑主题样式 */
-[data-theme="dark"] .astro-code {
+[data-theme="dark"] .article-prose .astro-code {
   color: var(--shiki-dark) !important;
   background-color: var(--shiki-dark-bg) !important;
 }
 
-[data-theme="dark"] .astro-code span {
+[data-theme="dark"] .article-prose .astro-code span {
   color: var(--shiki-dark) !important;
 }
 
-/* 行内代码块样式 */
-:not(pre) > code {
+.article-prose :not(pre) > code {
+  position: relative;
+  display: inline;
+  max-width: 100%;
+  margin: 0 0.08rem;
+  padding: 0.2rem 0.3rem;
+  overflow-wrap: anywhere;
+  border: 0;
+  border-radius: 0.28rem;
+  background: var(--article-soft-strong);
+  color: var(--article-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
-  font-size: 0.875rem;
-  color: var(--color-primary-700);
-  margin: 0 0.2rem;
-  border-radius: 0.3rem;
-  white-space: normal;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  word-break: break-all;
-  max-width: 100%;
-  display: inline-block;
-  vertical-align: middle;
-  line-height: 1.4;
+  font-size: 0.875em;
+  font-weight: 650;
+  line-height: 1;
+  vertical-align: baseline;
+  white-space: break-spaces;
+  word-break: normal;
 }
 
-/* 行内代码块黑暗模式样式 */
-[data-theme="dark"] :not(pre) > code {
-  color: var(--color-primary-300);
+[data-theme="dark"] .article-prose :not(pre) > code,
+.article-prose :not(pre) > code.file-path,
+[data-theme="dark"] .article-prose :not(pre) > code.file-path {
+  color: var(--article-ink);
 }
 
-/* 长路径的行内代码块样式特殊处理 */
-:not(pre) > code:has(path),
-:not(pre) > code.file-path {
-  white-space: pre-wrap; /* 保留空格但允许换行 */
-  overflow-wrap: break-word; /* 允许在任何地方断行 */
-  word-break: break-all; /* 允许在任何字符间断行 */
-  max-width: 100%;
+.article-prose :not(pre) > code:has(path),
+.article-prose :not(pre) > code.file-path {
   display: inline-block;
-  font-size: 0.85rem; /* 略微减小字体尺寸 */
+  max-width: 100%;
   padding: 0.2rem 0.4rem;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
   line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
-/* 针对文件路径的特殊样式 - 适用于Windows路径 */
-:not(pre) > code.file-path {
-  color: var(--color-gray-700);
-}
+@media (max-width: 640px) {
+  .article-prose .code-block-summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    padding-right: 3rem;
+  }
 
-/* 针对文件路径的特殊样式 - 黑暗模式 */
-[data-theme="dark"] :not(pre) > code.file-path {
-  color: var(--color-gray-300);
+  .article-prose .code-block-meta {
+    display: none;
+  }
 }
