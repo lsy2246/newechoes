@@ -92,3 +92,17 @@ test("home loop returns to the next opening without reversing the 2D story", () 
     /window\.addEventListener\("wheel", loopBackwardWheelHandler, \{ passive: false, capture: true \}\);/,
   );
 });
+
+test("home scroll cue only advertises dragging while scene controls are enabled", () => {
+  assert.match(
+    dioramaTs,
+    /const controlsShouldEnable =\s*homeProgress >= INTERACTIVE_PROGRESS &&\s*homeProgress < LOOP_CAMERA_REJOIN_START &&\s*renderMode === "room";/,
+  );
+  assert.match(
+    dioramaTs,
+    /const controlsCueActive =\s*progress >= INTERACTIVE_PROGRESS &&\s*progress < LOOP_CAMERA_REJOIN_START &&\s*getRenderMode\(progress\) === "room" &&\s*!mobileGestureForcesScrollCue;/,
+  );
+  assert.match(dioramaTs, /: controlsCueActive\s*\?\s*"explore"/);
+  assert.match(dioramaTs, /mobileGestureForcesScrollCue = mobileGestureIntent === "scroll";/);
+  assert.match(dioramaTs, /mobileGestureForcesScrollCue = false;/);
+});

@@ -1529,6 +1529,7 @@ export function initDiorama() {
   };
   window.addEventListener("resize", handleBreakpointResize);
 
+  let mobileGestureForcesScrollCue = false;
   const applyHomeState = (progress: number) => {
     const shownProgress = getStoryVisualProgress(progress);
     const value = progress.toFixed(4);
@@ -1542,11 +1543,16 @@ export function initDiorama() {
     storyEl?.style.setProperty("--story-progress", storyProgress.toFixed(4));
     storyEl?.style.setProperty("--story-local", storyProgress.toFixed(4));
     sceneEl?.setAttribute("data-home-phase", progress > 0.76 ? "room" : "page");
+    const controlsCueActive =
+      progress >= INTERACTIVE_PROGRESS &&
+      progress < LOOP_CAMERA_REJOIN_START &&
+      getRenderMode(progress) === "room" &&
+      !mobileGestureForcesScrollCue;
     const cueMode = !startupGateReleased
       ? "loading"
       : progress >= LOOP_RETURN_START
         ? "scroll"
-        : progress >= INTERACTIVE_PROGRESS
+        : controlsCueActive
           ? "explore"
           : progress > CAMERA_REJOIN_START
             ? "settle"
@@ -1803,7 +1809,9 @@ export function initDiorama() {
   const resetMobileGesture = () => {
     mobileGestureIntent = null;
     mobileGesturePointerId = null;
+    mobileGestureForcesScrollCue = false;
     if (useMobileCarrier && sceneInputActive) canvasEl.style.cursor = "grab";
+    applyHomeState(homeProgress);
   };
 
   const startMobileGesture = (e: PointerEvent) => {
@@ -1828,7 +1836,9 @@ export function initDiorama() {
     if (mobileGestureIntent === "pending") {
       if (Math.hypot(dx, dy) < 9) return true;
       mobileGestureIntent = Math.abs(dy) >= Math.abs(dx) * 0.75 ? "scroll" : "orbit";
+      mobileGestureForcesScrollCue = mobileGestureIntent === "scroll";
       canvasEl.style.cursor = mobileGestureIntent === "orbit" ? "grabbing" : "default";
+      applyHomeState(homeProgress);
     }
 
     e.preventDefault();
