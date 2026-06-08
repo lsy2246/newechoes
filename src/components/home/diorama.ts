@@ -382,7 +382,7 @@ export function initDiorama() {
   const deskW = useMobileCarrier ? 1.66 : 2.02;
   const deskD = useMobileCarrier ? 1.02 : 1.34;
   const deskTopH = 0.07;
-  const deskTopY = useMobileCarrier ? 0.09 : 0.215;
+  const deskTopY = useMobileCarrier ? 0.105 : 0.235;
 
   const deskTopMesh = new THREE.Mesh(
     new RoundedBoxGeometry(deskW, deskTopH, deskD, 9, 0.055),
@@ -536,7 +536,7 @@ export function initDiorama() {
   keyboardModelMount.name = "keyboardModelMount";
   keyboardModelMount.position.set(
     0,
-    useMobileCarrier ? 0.004 : lpBaseH + 0.004,
+    useMobileCarrier ? -0.016 : lpBaseH - 0.016,
     useMobileCarrier ? 0.189 : desktopKeyboardDeckZ,
   );
   laptop.add(keyboardModelMount);
