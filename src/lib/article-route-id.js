@@ -1,10 +1,10 @@
-const GITHUB_SLUG_STRIP_RE = /[!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~]/g;
+const ARTICLE_ROUTE_SLUG_STRIP_RE = /[!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~]/g;
 
 function slugPathSegment(segment) {
   return String(segment)
     .trim()
     .toLowerCase()
-    .replace(GITHUB_SLUG_STRIP_RE, "")
+    .replace(ARTICLE_ROUTE_SLUG_STRIP_RE, "")
     .replace(/\s+/g, "-");
 }
 

@@ -7,11 +7,25 @@ import path from 'node:path';
 import { SITE_META } from '../consts';
 import { generateXmlViewStyles } from './xml-view-styles.js';
 import { normalizeCanonicalPath } from '../lib/canonical-url.js';
-import { shouldIncludeSitemapPage } from '../lib/sitemap-pages.js';
 import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/index.js';
 
 function getLocalBuildFilePath(...segments) {
   return path.join(resolveBuildDir(path.join(process.cwd(), 'dist')), ...segments);
+}
+
+const EXCLUDED_SITEMAP_PATHS = new Set([
+  "/404",
+  "/global-graph-modal-fragment",
+]);
+
+function shouldIncludeSitemapPage(page) {
+  const pathname = normalizeCanonicalPath(page.pathname);
+
+  if (EXCLUDED_SITEMAP_PATHS.has(pathname)) {
+    return false;
+  }
+
+  return pathname !== "/api" && !pathname.startsWith("/api/");
 }
 
 // 转义XML特殊字符
