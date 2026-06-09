@@ -75,6 +75,25 @@ type ForceCollide = Force & {
   iterations: (count: number) => ForceCollide;
 };
 
+let forceModulePromise: Promise<ForceModule> | null = null;
+
+function loadForceModule() {
+  if (!forceModulePromise) {
+    forceModulePromise = import("d3-force-3d")
+      .then((module) => module as ForceModule)
+      .catch((error) => {
+        forceModulePromise = null;
+        throw error;
+      });
+  }
+
+  return forceModulePromise;
+}
+
+export async function preloadGlobalGraphRuntime() {
+  await loadForceModule();
+}
+
 type ForceSimulation = {
   alpha: (value: number) => ForceSimulation;
   alphaDecay: (value: number) => ForceSimulation;
@@ -577,7 +596,7 @@ async function createGraphRuntime(options: {
   getCurrentNodeId: () => string;
   navigateTo: (route: string) => void;
 }) {
-  const forceModule = (await import("d3-force-3d")) as ForceModule;
+  const forceModule = await loadForceModule();
   const palette = getThemePalette();
   const { stage, mount, tooltip, status, payload, getCurrentNodeId, navigateTo } =
     options;
@@ -960,7 +979,7 @@ async function createGraphRuntime(options: {
     relatedLabelSet: Set<string>,
     focusSet: Set<string>,
   ) {
-    const compactViewport = view.width <= 680;
+    const compactViewport = view.width <= 900;
 
     runtimeNodes.forEach((node) => {
       const point = worldToScreen(node.x, node.y);

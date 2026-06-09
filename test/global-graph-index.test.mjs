@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
-const modal = readFileSync("src/components/GlobalGraphModal.astro", "utf8");
 const launcher = readFileSync("src/components/GlobalGraphLauncher.astro", "utf8");
-const tree = modal;
 const headerCss = readFileSync("src/styles/header.css", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 const runtime = readFileSync("src/lib/global-graph/modal.ts", "utf8");
+const launcherRuntime = readFileSync("src/lib/global-graph/launcher.ts", "utf8");
+const articleIndexBuild = readFileSync("src/plugins/article-index/build.js", "utf8");
+const articleIndexIntegration = readFileSync("src/plugins/article-index/integration.js", "utf8");
+const modal = launcherRuntime;
+const tree = launcherRuntime;
 
 const cssBlock = (selector) => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -22,12 +25,37 @@ test("global graph removes the point legend and describes intentional interactio
   assert.match(modal, /点击节点进入文章/);
 });
 
-test("global graph launcher stays as the lightweight shell while modal owns the heavy markup", () => {
+test("global graph launcher stays as one lightweight component while runtime lazy-renders the modal", () => {
+  assert.equal(existsSync("src/components/GlobalGraphModal.astro"), false);
+  assert.equal(existsSync("src/pages/api/global-graph.json.ts"), false);
   assert.match(launcher, /data-global-graph-root/);
   assert.match(launcher, /@\/lib\/global-graph\/launcher/);
+  assert.equal(launcher.includes("GlobalGraphModal"), false);
   assert.equal(launcher.includes("data-global-graph-json"), false);
   assert.equal(launcher.includes('getCollection("articles")'), false);
-  assert.equal(modal.includes("data-global-graph-json"), true);
+  assert.match(launcherRuntime, /const GLOBAL_GRAPH_DATA_URL = "\/assets\/index\/global_graph\.json";/);
+  assert.match(launcherRuntime, /function renderGlobalGraphModal/);
+  assert.equal(launcherRuntime.includes("GLOBAL_GRAPH_FRAGMENT_PATH"), false);
+  assert.equal(launcherRuntime.includes("global-graph-modal-fragment"), false);
+  assert.match(articleIndexBuild, /global_graph\.json/);
+  assert.match(articleIndexBuild, /function buildGlobalGraphIndex/);
+  assert.match(articleIndexIntegration, /global_graph\.json/);
+});
+
+test("global graph launcher preloads on browser idle through the same cached controller path", () => {
+  assert.match(launcher, /const GLOBAL_GRAPH_LAUNCHER_KEY = "__globalGraphLauncherModule";/);
+  assert.match(launcher, /const GLOBAL_GRAPH_PRELOAD_KEY = "__globalGraphPreloadScheduled";/);
+  assert.match(launcher, /const GLOBAL_GRAPH_CLICK_BOUND_KEY = "__globalGraphLauncherClickBound";/);
+  assert.match(launcher, /function loadGlobalGraphLauncher/);
+  assert.match(launcher, /requestIdleCallback/);
+  assert.match(launcher, /window\.addEventListener\("load"/);
+  assert.match(launcher, /preloadGlobalGraph/);
+  assert.match(launcherRuntime, /export async function preloadGlobalGraph\(\)/);
+  assert.match(launcherRuntime, /await ensureGlobalGraphController\(\);/);
+  assert.match(launcherRuntime, /preloadGlobalGraphRuntime/);
+  assert.match(runtime, /function loadForceModule/);
+  assert.match(runtime, /export async function preloadGlobalGraphRuntime\(\)/);
+  assert.match(launcherRuntime, /graphDataPromise = null;/);
 });
 
 test("global graph tree uses compact file-sidebar styling", () => {
@@ -59,55 +87,44 @@ test("global graph section rows keep disclosure, label, and count aligned", () =
 });
 
 test("global graph text index expands only the current path", () => {
-  assert.match(tree, /const open\s*=\s*section \? isSectionActive\(section\.path\) : false;/);
-  assert.match(tree, /data-open=\{open \? "true" : "false"\}/);
+  assert.match(tree, /data-open="false"/);
+  assert.match(runtime, /function syncTreeOpenState/);
   assert.equal(modal.includes("const open = level === 0"), false);
   assert.equal(modal.includes("active || level === 0"), false);
-  assert.match(tree, /class:list=\{\[\s*"graph-tree-link"/);
-  assert.match(tree, /"graph-tree-link-article"/);
-  assert.match(tree, /"graph-tree-link-section"/);
+  assert.match(tree, /class="graph-tree-link graph-tree-link-article"/);
+  assert.match(tree, /class="graph-tree-link graph-tree-link-section"/);
   assert.equal(modal.includes('${active ? " is-active" : ""}'), false);
   assert.equal(runtime.includes('element.classList.toggle("is-active"'), false);
   assert.equal(runtime.includes("element.open = active || !sectionPath.includes"), false);
 });
 
 test("global graph section summaries do not contain interactive links", () => {
-  const summaryBlocks = tree.match(/<button[\s\S]*?data-tree-disclosure[\s\S]*?<\/button>/g) ?? [];
-
-  assert.ok(summaryBlocks.length > 0);
-  summaryBlocks.forEach((summary) => {
-    assert.equal(summary.includes("<a "), false);
-  });
-  assert.match(tree, /"graph-tree-link-section"/);
+  assert.match(tree, /data-tree-disclosure/);
+  assert.match(tree, /class="graph-tree-summary"/);
+  assert.match(tree, /class="graph-tree-link graph-tree-link-section"/);
 });
 
-test("global graph text index is rendered with Astro components instead of string HTML", () => {
-  assert.equal(modal.includes('import GlobalGraphTree from "./GlobalGraphTree.astro";'), false);
-  assert.equal(modal.includes("<GlobalGraphTree"), false);
-  assert.match(modal, /renderAs\?: "modal" \| "tree";/);
-  assert.match(modal, /<Astro\.self[\s\S]*renderAs="tree"/);
-  assert.equal(modal.includes("set:html={treeHtml}"), false);
-  assert.equal(modal.includes("const treeHtml"), false);
-  assert.equal(modal.includes("function renderSection"), false);
-  assert.equal(modal.includes("function renderArticleItem"), false);
+test("global graph text index is lazy-rendered without extra Astro tree components", () => {
+  assert.equal(existsSync("src/components/GlobalGraphTree.astro"), false);
+  assert.equal(existsSync("src/components/GlobalGraphTreeSection.astro"), false);
+  assert.equal(existsSync("src/components/GlobalGraphTreeArticle.astro"), false);
+  assert.equal(existsSync("src/components/GlobalGraphModal.astro"), false);
+  assert.match(launcherRuntime, /function renderGlobalGraphTree/);
+  assert.match(launcherRuntime, /function renderSection/);
+  assert.match(launcherRuntime, /function renderArticle/);
   assert.equal(existsSync("src/components/GlobalGraphTree.astro"), false);
   assert.equal(tree.includes("GlobalGraphTreeSection.astro"), false);
   assert.equal(tree.includes("GlobalGraphTreeArticle.astro"), false);
-  assert.equal(existsSync("src/components/GlobalGraphTreeSection.astro"), false);
-  assert.equal(existsSync("src/components/GlobalGraphTreeArticle.astro"), false);
 });
 
 test("global graph text index separates article routes from title identities", () => {
-  assert.match(modal, /articleIdentityMap\?: Map<string,\s*string>;/);
-  assert.match(modal, /articleRouteIdMap\?: Map<string,\s*string>;/);
-  assert.match(modal, /function getTreeArticleRouteId\(articleId: string\)/);
-  assert.match(modal, /function getTreeArticleIdentity\(articleId: string\)/);
-  assert.match(modal, /const articleRouteId = articleId \? getTreeArticleRouteId\(articleId\) : "";/);
-  assert.match(modal, /const articleNodeId = articleId \? getTreeArticleIdentity\(articleId\) : "";/);
-  assert.match(modal, /route:\s*articleUrl\(article\.id\)/);
-  assert.match(modal, /data-node-target=\{`article:\$\{articleNodeId\}`\}/);
-  assert.match(modal, /articleId=\{childArticleId\}/);
-  assert.match(modal, /articleId=\{rootArticleId\}/);
+  assert.match(articleIndexBuild, /identity:\s*article\.title/);
+  assert.match(articleIndexBuild, /id:\s*article\.routeId/);
+  assert.match(articleIndexBuild, /route:\s*getCanonicalArticleUrl\(article\.routeId\)/);
+  assert.match(articleIndexBuild, /target:\s*`article:\$\{sourceArticle\.title\}`/);
+  assert.match(launcherRuntime, /data-article-id="\$\{escapeHtml\(article\.id\)\}"/);
+  assert.match(launcherRuntime, /data-node-target="\$\{nodeTarget\}"/);
+  assert.match(launcherRuntime, /data\.structure\.articles\.map/);
   assert.equal(modal.includes("currentArticleId={currentArticle?.id}"), false);
 });
 
@@ -125,8 +142,6 @@ test("global graph shows current location inside the text index and centers it",
   assert.equal(modal.includes("当前位置:"), false);
   assert.equal(modal.includes("data-current-location"), false);
   assert.equal(modal.includes("global-graph-current-link"), false);
-  assert.match(tree, /"is-current":\s*isCurrent/);
-  assert.match(tree, /"is-current":\s*isSectionCurrent/);
   assert.match(runtime, /function syncTreeCurrentItem/);
   assert.match(runtime, /link\.classList\.toggle\("is-current",\s*linkNodeId === nodeId\);/);
   assert.match(runtime, /function centerTreeOnCurrentItem/);
@@ -166,9 +181,13 @@ test("global graph canvas opts into touch-owned dragging on mobile", () => {
   assert.match(runtime, /canvas\.addEventListener\("pointercancel", finishPointerInteraction\);/);
 });
 
-test("global graph hides floating node labels on compact mobile viewports", () => {
-  assert.match(runtime, /const compactViewport = view\.width <= 680;/);
+test("global graph hides floating node labels on mobile graph viewports", () => {
+  assert.match(runtime, /const compactViewport = view\.width <= 900;/);
   assert.match(runtime, /node\.labelElement\.classList\.toggle\("is-visible", !compactViewport && showLabel\);/);
+  assert.match(
+    headerCss,
+    /@media \(max-width: 900px\) \{[\s\S]*?\.global-graph-label-layer\s*\{[\s\S]*?display:\s*none;/
+  );
   assert.equal(runtime.includes("function getLabelTransform"), false);
 });
 

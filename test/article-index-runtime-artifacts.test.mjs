@@ -68,6 +68,21 @@ Search worker now runs in pure javascript and scans headings too.
 `,
       "utf8",
     );
+    writeFileSync(
+      path.join(contentRoot, "Linked Note.md"),
+      `---
+title: "Linked Note"
+date: 2026-06-05T00:00:00Z
+tags: ["note"]
+summary: "Linked note summary"
+---
+
+# Linked Note
+
+This article links back to [Demo Article](/articles/guides/my-demo-beta) and includes enough text for the indexer to keep it.
+`,
+      "utf8",
+    );
     writeFileSync(path.join(outputRoot, "search_index.bin"), "legacy", "utf8");
     writeFileSync(path.join(outputRoot, "filter_index.bin"), "legacy", "utf8");
 
@@ -81,18 +96,40 @@ Search worker now runs in pure javascript and scans headings too.
     assert.equal(result.success, true);
     assert.equal(existsSync(path.join(outputRoot, "search_index.json")), true);
     assert.equal(existsSync(path.join(outputRoot, "filter_index.json")), true);
+    assert.equal(existsSync(path.join(outputRoot, "global_graph.json")), true);
     assert.equal(existsSync(path.join(outputRoot, "search_index.bin")), false);
     assert.equal(existsSync(path.join(outputRoot, "filter_index.bin")), false);
 
     const searchIndex = JSON.parse(readFileSync(path.join(outputRoot, "search_index.json"), "utf8"));
     const filterIndex = JSON.parse(readFileSync(path.join(outputRoot, "filter_index.json"), "utf8"));
+    const globalGraph = JSON.parse(readFileSync(path.join(outputRoot, "global_graph.json"), "utf8"));
 
-    assert.equal(searchIndex.articles.length, 1);
-    assert.equal(filterIndex.articles.length, 1);
-    assert.equal(searchIndex.articles[0].url, "/articles/guides/my-demo-beta");
-    assert.equal(searchIndex.articles[0].summary, "Demo summary");
-    assert.ok(searchIndex.title_term_index.demo.includes(0));
-    assert.ok(filterIndex.tag_index.demo.includes(0));
+    const demoSearchArticle = searchIndex.articles.find((article) => article.title === "Demo Article");
+    const demoFilterArticle = filterIndex.articles.find((article) => article.title === "Demo Article");
+    const demoGraphArticle = globalGraph.articles.find((article) => article.title === "Demo Article");
+
+    assert.equal(searchIndex.articles.length, 2);
+    assert.equal(filterIndex.articles.length, 2);
+    assert.equal(demoSearchArticle.url, "/articles/guides/my-demo-beta");
+    assert.equal(demoSearchArticle.summary, "Demo summary");
+    assert.equal("routeId" in demoSearchArticle, false);
+    assert.equal("body" in demoSearchArticle, false);
+    assert.ok(searchIndex.title_term_index.demo.includes(searchIndex.articles.indexOf(demoSearchArticle)));
+    assert.ok(filterIndex.tag_index.demo.includes(filterIndex.articles.indexOf(demoFilterArticle)));
+    assert.equal(demoGraphArticle.id, "guides/my-demo-beta");
+    assert.equal(demoGraphArticle.identity, "Demo Article");
+    assert.equal(demoGraphArticle.route, "/articles/guides/my-demo-beta");
+    assert.ok(globalGraph.nodes.some((node) => node.id === "root" && node.route === "/articles"));
+    assert.ok(globalGraph.nodes.some((node) => node.id === "section:guides"));
+    assert.ok(globalGraph.nodes.some((node) => node.id === "article:Demo Article"));
+    assert.ok(globalGraph.structure.sections.some((section) => section.path === "guides"));
+    assert.ok(
+      globalGraph.links.some((link) =>
+        link.kind === "reference"
+        && link.source === "article:Linked Note"
+        && link.target === "article:Demo Article",
+      ),
+    );
   } finally {
     rmSync(tempRoot, { recursive: true, force: true });
   }

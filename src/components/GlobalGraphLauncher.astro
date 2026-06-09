@@ -1,21 +1,57 @@
----
-import GlobalGraphModal from "@/components/GlobalGraphModal.astro";
----
-
-<div data-global-graph-root>
-  <GlobalGraphModal />
-</div>
+<div data-global-graph-root></div>
 
 <script>
   const GLOBAL_GRAPH_LAUNCHER_KEY = "__globalGraphLauncherModule";
+  const GLOBAL_GRAPH_PRELOAD_KEY = "__globalGraphPreloadScheduled";
+  const GLOBAL_GRAPH_CLICK_BOUND_KEY = "__globalGraphLauncherClickBound";
+
+  function loadGlobalGraphLauncher() {
+    window[GLOBAL_GRAPH_LAUNCHER_KEY] ??= import("@/lib/global-graph/launcher").catch((error) => {
+      delete window[GLOBAL_GRAPH_LAUNCHER_KEY];
+      throw error;
+    });
+
+    return window[GLOBAL_GRAPH_LAUNCHER_KEY];
+  }
 
   async function openGlobalGraphFromLauncher() {
-    window[GLOBAL_GRAPH_LAUNCHER_KEY] ??= import("@/lib/global-graph/launcher");
-    const { openGlobalGraph } = await window[GLOBAL_GRAPH_LAUNCHER_KEY];
+    const { openGlobalGraph } = await loadGlobalGraphLauncher();
     await openGlobalGraph();
   }
 
-  document.addEventListener("click", (event) => {
+  async function preloadGlobalGraphFromLauncher() {
+    const { preloadGlobalGraph } = await loadGlobalGraphLauncher();
+    await preloadGlobalGraph();
+  }
+
+  function queueGlobalGraphPreload() {
+    const startPreload = () => {
+      void preloadGlobalGraphFromLauncher().catch((error) => {
+        console.error("全局图谱空闲预加载失败:", error);
+      });
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(startPreload, { timeout: 2500 });
+      return;
+    }
+
+    window.setTimeout(startPreload, 1);
+  }
+
+  function scheduleGlobalGraphPreload() {
+    if (window[GLOBAL_GRAPH_PRELOAD_KEY]) return;
+    window[GLOBAL_GRAPH_PRELOAD_KEY] = true;
+
+    if (document.readyState === "complete") {
+      queueGlobalGraphPreload();
+      return;
+    }
+
+    window.addEventListener("load", queueGlobalGraphPreload, { once: true });
+  }
+
+  function handleGlobalGraphLauncherClick(event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
@@ -24,5 +60,12 @@ import GlobalGraphModal from "@/components/GlobalGraphModal.astro";
 
     event.preventDefault();
     void openGlobalGraphFromLauncher();
-  });
+  }
+
+  if (!window[GLOBAL_GRAPH_CLICK_BOUND_KEY]) {
+    document.addEventListener("click", handleGlobalGraphLauncherClick);
+    window[GLOBAL_GRAPH_CLICK_BOUND_KEY] = true;
+  }
+
+  scheduleGlobalGraphPreload();
 </script>

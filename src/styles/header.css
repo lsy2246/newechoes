@@ -1097,6 +1097,10 @@
     margin-top: 0.75rem;
   }
 
+  .global-graph-label-layer {
+    display: none;
+  }
+
 }
 
 @media (max-width: 640px) {

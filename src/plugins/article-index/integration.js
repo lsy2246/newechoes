@@ -15,7 +15,7 @@ const rootDir = path.resolve(__dirname, "../../..");
 const defaultBuildDir = path.resolve(rootDir, "dist");
 const defaultContentDir = path.resolve(rootDir, "src", "content");
 const indexDir = path.join(resolveBuildDir(defaultBuildDir), "assets", "index");
-const INDEX_OUTPUT_FILES = ["search_index.json", "filter_index.json"];
+const INDEX_OUTPUT_FILES = ["search_index.json", "filter_index.json", "global_graph.json"];
 
 export function prepareArticleIndexRuntimeArtifacts() {
   if (process.env.ARTICLE_INDEX_RUNTIME_PREPARED === "true") {
@@ -224,7 +224,7 @@ export async function generateArticleIndex(options = {}) {
 
   console.log(
     `[索引构建] 已生成 ${indexes.articleCount} 篇文章的 JSON 索引: `
-    + `${written.searchIndexPath}, ${written.filterIndexPath}`,
+    + `${written.searchIndexPath}, ${written.filterIndexPath}, ${written.globalGraphIndexPath}`,
   );
 
   if (mirroredDirs.length > 0) {
