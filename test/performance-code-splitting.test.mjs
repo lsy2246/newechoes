@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const astroConfig = readFileSync("astro.config.mjs", "utf8");
 const aboutPage = readFileSync("src/pages/about.astro", "utf8");
 const header = readFileSync("src/components/Header.astro", "utf8");
 const globalGraphLauncher = readFileSync("src/components/GlobalGraphLauncher.astro", "utf8");
+const globalGraphLauncherModule = readFileSync("src/lib/global-graph/launcher.ts", "utf8");
 const globalGraphModal = readFileSync("src/components/GlobalGraphModal.astro", "utf8");
 const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
-const graphFragmentPage = readFileSync("src/pages/global-graph-modal-fragment.astro", "utf8");
 const homeDiorama = readFileSync("src/components/home/HomeDiorama.astro", "utf8");
 const homeDioramaBoot = readFileSync("src/components/home/homeDioramaBoot.js", "utf8");
 const dioramaModule = readFileSync("src/components/home/diorama.ts", "utf8");
@@ -40,13 +40,14 @@ test("header search stays code-split but mounts after load-time idle and still s
   assert.ok(header.includes('window.addEventListener("load"'));
 });
 
-test("global graph moves heavy modal content behind a dedicated fragment", () => {
+test("global graph renders the modal as a direct component without a fragment route", () => {
+  assert.equal(existsSync("src/pages/global-graph-modal-fragment.astro"), false);
+  assert.ok(globalGraphLauncher.includes('import GlobalGraphModal from "@/components/GlobalGraphModal.astro";'));
+  assert.ok(globalGraphLauncher.includes("<GlobalGraphModal />"));
   assert.ok(globalGraphLauncher.includes("data-global-graph-root"));
-  assert.equal(globalGraphLauncher.includes('getCollection("articles")'), false);
-  assert.equal(globalGraphLauncher.includes("data-global-graph-json"), false);
-  assert.equal(globalGraphLauncher.includes("initGlobalGraphModal();"), false);
+  assert.equal(globalGraphLauncherModule.includes("GLOBAL_GRAPH_FRAGMENT_PATH"), false);
+  assert.equal(globalGraphLauncherModule.includes("fetch("), false);
   assert.ok(globalGraphModal.includes("data-global-graph-json"));
-  assert.ok(graphFragmentPage.includes('import GlobalGraphModal from "@/components/GlobalGraphModal.astro";'));
 });
 
 test("swup avoids preloading visible links but waits for route assets before reveal", () => {

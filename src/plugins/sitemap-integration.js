@@ -13,15 +13,10 @@ function getLocalBuildFilePath(...segments) {
   return path.join(resolveBuildDir(path.join(process.cwd(), 'dist')), ...segments);
 }
 
-const EXCLUDED_SITEMAP_PATHS = new Set([
-  "/404",
-  "/global-graph-modal-fragment",
-]);
-
 function shouldIncludeSitemapPage(page) {
   const pathname = normalizeCanonicalPath(page.pathname);
 
-  if (EXCLUDED_SITEMAP_PATHS.has(pathname)) {
+  if (pathname === "/404") {
     return false;
   }
 
