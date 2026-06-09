@@ -4,7 +4,6 @@ import type { CollectionEntry } from "astro:content";
 import { contentStructure } from "../../content.config";
 import Layout from "@/components/Layout.astro";
 import { getCanonicalArticleUrl } from "@/lib/article-links";
-import { resolveArticleIdentity } from "@/lib/article-history";
 import { createCanonicalUrl, normalizeCanonicalPath } from "@/lib/canonical-url.js";
 import { SITE_META } from "@/consts";
 import "@/styles/articles.css";
@@ -64,7 +63,7 @@ function getPrimaryTag(article: ArticleEntry) {
 }
 
 function getArticleHref(article: ArticleEntry) {
-  return getCanonicalArticleUrl(resolveArticleIdentity(article));
+  return getCanonicalArticleUrl(article.id);
 }
 
 function getDirectoryPath(directoryPath: string) {

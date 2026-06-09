@@ -47,8 +47,10 @@ test("generateArticleIndex writes json indexes from source content and clears le
   try {
     mkdirSync(contentRoot, { recursive: true });
     mkdirSync(outputRoot, { recursive: true });
+    const nestedDir = path.join(contentRoot, "Guides");
+    mkdirSync(nestedDir, { recursive: true });
     writeFileSync(
-      path.join(contentRoot, "demo.md"),
+      path.join(nestedDir, "My Demo (Beta).md"),
       `---
 title: "Demo Article"
 date: 2026-06-04T00:00:00Z
@@ -87,7 +89,7 @@ Search worker now runs in pure javascript and scans headings too.
 
     assert.equal(searchIndex.articles.length, 1);
     assert.equal(filterIndex.articles.length, 1);
-    assert.equal(searchIndex.articles[0].url, "/articles/Demo%20Article");
+    assert.equal(searchIndex.articles[0].url, "/articles/guides/my-demo-beta");
     assert.equal(searchIndex.articles[0].summary, "Demo summary");
     assert.ok(searchIndex.title_term_index.demo.includes(0));
     assert.ok(filterIndex.tag_index.demo.includes(0));

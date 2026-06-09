@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { SITE_META, NAV_STRUCTURE } from "../consts";
 import { createCanonicalUrl, normalizeCanonicalPath } from "../lib/canonical-url.js";
+import { createArticleRouteId } from "../lib/article-route-id.js";
 import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from "../platform/build/index.js";
 
 function getLocalBuildFilePath(...segments) {
@@ -47,8 +48,7 @@ function getCanonicalArticleUrl(articleId) {
 }
 
 function formatArticleLine(article) {
-  const articleIdentity = article.title;
-  const url = createCanonicalUrl(getCanonicalArticleUrl(articleIdentity), SITE_META.url);
+  const url = createCanonicalUrl(getCanonicalArticleUrl(article.routeId), SITE_META.url);
   const date = article.date ? article.date.slice(0, 10) : "";
   const tags = article.tags?.length ? ` 标签: ${article.tags.join(", ")}` : "";
   const summary = getArticleSummary(article);
@@ -122,6 +122,7 @@ async function scanContentArticles(contentDir = path.join(process.cwd(), "src", 
         tags: parseFrontmatterArray(frontmatter, "tags"),
         summary: parseFrontmatterValue(frontmatter, "summary"),
         content: source.slice(frontmatterMatch[0].length),
+        routeId: createArticleRouteId(relativePath),
         sourcePath: relativePath,
       });
     }

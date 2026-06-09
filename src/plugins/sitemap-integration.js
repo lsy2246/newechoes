@@ -7,6 +7,7 @@ import path from 'node:path';
 import { SITE_META } from '../consts';
 import { generateXmlViewStyles } from './xml-view-styles.js';
 import { normalizeCanonicalPath } from '../lib/canonical-url.js';
+import { shouldIncludeSitemapPage } from '../lib/sitemap-pages.js';
 import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/index.js';
 
 function getLocalBuildFilePath(...segments) {
@@ -251,8 +252,8 @@ export function customSitemapIntegration() {
           const sitemapEntries = [];
           
           for (const page of pages) {
-            // 过滤掉API路径和404页面
-            if (page.pathname.includes('/api/') || page.pathname.includes('/404/')) {
+            // 过滤掉 API、404 和内部片段页面
+            if (!shouldIncludeSitemapPage(page)) {
               continue;
             }
             

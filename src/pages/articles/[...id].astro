@@ -70,7 +70,7 @@ export async function getStaticPaths() {
   assertUniqueArticleIdentities(articles);
 
   return articles.map((article: ArticleEntry) => ({
-    params: { id: resolveArticleIdentity(article) },
+    params: { id: article.id },
     props: {
       article,
       section: article.id.includes("/")
@@ -113,14 +113,14 @@ const visibleBacklinkArticles = backlinkArticles.slice(0, 6);
 const hiddenBacklinkCount = Math.max(backlinkArticles.length - visibleBacklinkArticles.length, 0);
 const articleLinkPayload = JSON.stringify({
   entries: allArticles.map((entry: ArticleEntry) => {
-    const routeId = resolveArticleIdentity(entry);
+    const entryIdentity = resolveArticleIdentity(entry);
 
     return {
-      id: routeId,
+      id: entryIdentity,
       title: entry.data.title,
       summary: generateArticleSummary(entry),
       date: entry.data.date.toLocaleDateString("zh-CN"),
-      route: getCanonicalArticleUrl(routeId),
+      route: getCanonicalArticleUrl(entry.id),
       variants: getArticleReferenceVariants(entry),
     };
   }),
@@ -208,12 +208,11 @@ if (relatedArticles.length < 3) {
 const description = generateArticleSummary(article);
 
 function getArticleUrl(article: ArticleEntry) {
-  const path = resolveArticleIdentity(article);
   // 添加搜索参数（如果有）
   const searchSuffix = searchParams.toString()
     ? `?${searchParams.toString()}`
     : "";
-  return `${getCanonicalArticleUrl(path)}${searchSuffix}`;
+  return `${getCanonicalArticleUrl(article.id)}${searchSuffix}`;
 }
 
 function formatArticleDate(date: Date) {
@@ -260,7 +259,7 @@ const shouldShowArticleWarning = (() => {
 })();
 
 const visibleHistoryEvents: any[] = articleHistory.events.slice(0, 6);
-const articleCanonicalPath = getCanonicalArticleUrl(articleIdentity);
+const articleCanonicalPath = getCanonicalArticleUrl(article.id);
 const articleCanonicalUrl = createCanonicalUrl(articleCanonicalPath, SITE_META.url);
 const articleUpdatedAt = articleWarningDate;
 const articleSection = section || "articles";

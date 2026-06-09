@@ -97,13 +97,17 @@ test("global graph text index is rendered with Astro components instead of strin
   assert.equal(existsSync("src/components/GlobalGraphTreeArticle.astro"), false);
 });
 
-test("global graph text index maps source article paths to title article routes", () => {
+test("global graph text index separates article routes from title identities", () => {
+  assert.match(modal, /articleIdentityMap\?: Map<string,\s*string>;/);
   assert.match(modal, /articleRouteIdMap\?: Map<string,\s*string>;/);
   assert.match(modal, /function getTreeArticleRouteId\(articleId: string\)/);
+  assert.match(modal, /function getTreeArticleIdentity\(articleId: string\)/);
   assert.match(modal, /const articleRouteId = articleId \? getTreeArticleRouteId\(articleId\) : "";/);
-  assert.match(modal, /data-node-target=\{`article:\$\{articleRouteId\}`\}/);
-  assert.match(modal, /articleId=\{getTreeArticleRouteId\(childArticleId\)\}/);
-  assert.match(modal, /articleId=\{getTreeArticleRouteId\(rootArticleId\)\}/);
+  assert.match(modal, /const articleNodeId = articleId \? getTreeArticleIdentity\(articleId\) : "";/);
+  assert.match(modal, /route:\s*articleUrl\(article\.id\)/);
+  assert.match(modal, /data-node-target=\{`article:\$\{articleNodeId\}`\}/);
+  assert.match(modal, /articleId=\{childArticleId\}/);
+  assert.match(modal, /articleId=\{rootArticleId\}/);
   assert.equal(modal.includes("currentArticleId={currentArticle?.id}"), false);
 });
 

@@ -20,7 +20,7 @@ const articleUpdatedAt = Object.fromEntries(
     const history = articleHistoryMap.get(articleIdentity);
 
     return [
-      getCanonicalArticleUrl(articleIdentity),
+      getCanonicalArticleUrl(article.id),
       (history?.updatedAt ?? article.data.date).toISOString(),
     ];
   }),

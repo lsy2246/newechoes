@@ -266,7 +266,7 @@ test("article pages expose git updated time for filter indexing", () => {
   assert.ok(layoutSource.includes("updatedDate.toISOString()"));
   assert.ok(filteredPage.includes("articleUpdatedAt"));
   assert.ok(filteredPage.includes("getArticleHistoryMap"));
-  assert.ok(filteredPage.includes("getCanonicalArticleUrl(articleIdentity)"));
+  assert.ok(filteredPage.includes("getCanonicalArticleUrl(article.id)"));
 });
 
 test("article expiry warning prefers updated time and uses matching copy", () => {
@@ -278,21 +278,21 @@ test("article expiry warning prefers updated time and uses matching copy", () =>
   );
 });
 
-test("article detail routes are generated only from title identities", () => {
+test("article detail routes are generated from content-relative paths", () => {
   const articleRouteVariantsBlock =
     articleLinksSource.match(/export function getArticleRouteVariants[\s\S]*?\r?\n}\r?\n/)?.[0] ?? "";
 
-  assert.ok(articleDetail.includes("params: { id: resolveArticleIdentity(article) }"));
+  assert.ok(articleDetail.includes("params: { id: article.id }"));
   assert.equal(articleDetail.includes("possiblePaths"), false);
   assert.equal(articleDetail.includes("originalId"), false);
   assert.equal(articleDetail.includes("getSpecialPath(article.id)"), false);
   assert.notEqual(articleRouteVariantsBlock, "");
   assert.equal(articleRouteVariantsBlock.includes("getSpecialPath"), false);
   assert.ok(articleLinksSource.includes("getArticleReferenceVariants"));
-  assert.ok(articleIndex.includes("resolveArticleIdentity"));
+  assert.ok(articleIndex.includes("getCanonicalArticleUrl(article.id)"));
   assert.ok(articleIndex.includes("getArticleHref(article)"));
-  assert.ok(timelinePage.includes("getArticleUrl(article)"));
-  assert.equal(timelinePage.includes("getArticleUrl(article.id)"), false);
+  assert.ok(timelinePage.includes("getCanonicalArticleUrl(article.id)"));
+  assert.ok(filteredPage.includes("getCanonicalArticleUrl(article.id)"));
 });
 
 test("article detail top path bar spans the reader grid with a return link", () => {

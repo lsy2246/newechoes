@@ -43,7 +43,7 @@ const monthNames = [
 ];
 
 function getArticleUrl(article: ArticleEntry) {
-  return getCanonicalArticleUrl(resolveArticleIdentity(article));
+  return getCanonicalArticleUrl(article.id);
 }
 
 function getSummary(article: ArticleEntry) {

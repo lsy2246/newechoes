@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createArticleRouteId } from "../../lib/article-route-id.js";
 import { getArticleHistory } from "../../lib/article-history/node.js";
 
 const REMOVED_LEGACY_FILES = ["search_index.bin", "filter_index.bin"];
@@ -187,6 +188,17 @@ function getCanonicalArticleUrl(articleId) {
   return `/articles/${encodeURI(articleId)}`;
 }
 
+function getContentRelativeSourcePath(filePath, contentRootDir) {
+  return path
+    .relative(contentRootDir, filePath)
+    .replace(/\\/g, "/")
+    .replace(/\.(md|mdx)$/i, "");
+}
+
+function getContentRouteId(filePath, contentRootDir) {
+  return createArticleRouteId(path.relative(contentRootDir, filePath));
+}
+
 function parseDate(value, fallback) {
   const parsed = Date.parse(value || "");
   if (Number.isNaN(parsed)) {
@@ -196,10 +208,7 @@ function parseDate(value, fallback) {
 }
 
 function getArticleUpdatedAt(filePath, articleId, publishedAt, contentRootDir) {
-  const relativeId = path
-    .relative(contentRootDir, filePath)
-    .replace(/\\/g, "/")
-    .replace(/\.(md|mdx)$/i, "");
+  const relativeId = getContentRelativeSourcePath(filePath, contentRootDir);
 
   const history = getArticleHistory({
     id: relativeId,
@@ -239,6 +248,7 @@ function extractArticleRecord(filePath, contentRootDir) {
   }
 
   const articleId = title.trim();
+  const routeId = getContentRouteId(filePath, contentRootDir);
   const summary = parseFrontmatterValue(parsedBlock.frontmatter, "summary")
     || `${content.slice(0, 200)}...`;
 
@@ -251,7 +261,7 @@ function extractArticleRecord(filePath, contentRootDir) {
     tags: parseFrontmatterArray(parsedBlock.frontmatter, "tags").sort((left, right) =>
       left.localeCompare(right, "zh-CN"),
     ),
-    url: getCanonicalArticleUrl(articleId),
+    url: getCanonicalArticleUrl(routeId),
     content,
     page_type: "article",
     headings: extractHeadings(parsedBlock.body),
