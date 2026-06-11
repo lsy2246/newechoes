@@ -382,7 +382,10 @@ function generateTableOfContents(headings: Heading[]) {
     if (items.length === 0) return "";
 
     const isTopLevel = level === 0;
-    let html = `<ul class="toc-list space-y-2 ${isTopLevel ? "" : "toc-sublist hidden"}" ${level > 0 ? 'aria-expanded="false"' : ""}>`;
+    const sublistAttributes = level > 0
+      ? ' data-expanded="false" aria-expanded="false"'
+      : "";
+    let html = `<ul class="toc-list space-y-2${isTopLevel ? "" : " toc-sublist"}"${sublistAttributes}>`;
 
     items.forEach((item) => {
       const hasChildren = item.children && item.children.length > 0;
@@ -405,7 +408,7 @@ function generateTableOfContents(headings: Heading[]) {
             hasChildren
               ? `<button class="toc-toggle ml-1 p-1" aria-expanded="false" aria-label="${item.text} 的子目录">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </button>`
               : ""
@@ -1120,6 +1123,34 @@ const tableOfContents = generateTableOfContents(headings);
             return;
           }
 
+          function getTocSublist(item) {
+            return Array.from(item.children).find((child) =>
+              child.classList?.contains("toc-sublist"),
+            );
+          }
+
+          function getTocToggle(item) {
+            const container = Array.from(item.children).find((child) =>
+              child.classList?.contains("toc-item-container"),
+            );
+
+            return container?.querySelector(".toc-toggle") || null;
+          }
+
+          function setTocBranchExpanded(item, expanded) {
+            const sublist = getTocSublist(item);
+            const toggle = getTocToggle(item);
+
+            if (sublist) {
+              sublist.setAttribute("data-expanded", expanded ? "true" : "false");
+              sublist.setAttribute("aria-expanded", expanded ? "true" : "false");
+            }
+
+            if (toggle) {
+              toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+            }
+          }
+
           // 处理目录折叠/展开功能
           const tocToggles = tocContent.querySelectorAll(".toc-toggle");
 
@@ -1129,25 +1160,11 @@ const tableOfContents = generateTableOfContents(headings);
               e.stopPropagation();
 
               const expanded = toggle.getAttribute("aria-expanded") === "true";
-              toggle.setAttribute("aria-expanded", expanded ? "false" : "true");
 
               // 切换子菜单显示状态
               const listItem = toggle.closest(".toc-item");
               if (listItem) {
-                const sublist = listItem.querySelector(".toc-sublist");
-                if (sublist) {
-                  if (expanded) {
-                    // 收起子菜单
-                    sublist.classList.add("hidden");
-                    sublist.setAttribute("aria-expanded", "false");
-                    toggle.querySelector("svg").classList.remove("rotate-180");
-                  } else {
-                    // 展开子菜单
-                    sublist.classList.remove("hidden");
-                    sublist.setAttribute("aria-expanded", "true");
-                    toggle.querySelector("svg").classList.add("rotate-180");
-                  }
-                }
+                setTocBranchExpanded(listItem, !expanded);
               }
             });
           });
@@ -1241,23 +1258,10 @@ const tableOfContents = generateTableOfContents(headings);
                     // 添加到活动项目集合
                     activeItems.add(parent);
 
-                    const parentSublist = parent.querySelector(".toc-sublist");
-                    const parentToggle = parent.querySelector(".toc-toggle");
-
-                    if (
-                      parentSublist &&
-                      parentSublist.classList.contains("hidden")
-                    ) {
+                    const parentSublist = getTocSublist(parent);
+                    if (parentSublist?.getAttribute("data-expanded") !== "true") {
                       // 使用平滑动画展开
-                      parentSublist.classList.remove("hidden");
-                      parentSublist.setAttribute("aria-expanded", "true");
-
-                      if (parentToggle) {
-                        parentToggle.setAttribute("aria-expanded", "true");
-                        parentToggle
-                          .querySelector("svg")
-                          ?.classList.add("rotate-180");
-                      }
+                      setTocBranchExpanded(parent, true);
                     }
 
                     // 向上查找父级
@@ -1304,17 +1308,10 @@ const tableOfContents = generateTableOfContents(headings);
             allItems.forEach((item) => {
               // 如果不在活动路径上且有子菜单
               if (!activeItems.has(item)) {
-                const sublist = item.querySelector(".toc-sublist");
-                const toggle = item.querySelector(".toc-toggle");
+                const sublist = getTocSublist(item);
 
-                if (sublist && !sublist.classList.contains("hidden")) {
-                  sublist.classList.add("hidden");
-                  sublist.setAttribute("aria-expanded", "false");
-
-                  if (toggle) {
-                    toggle.setAttribute("aria-expanded", "false");
-                    toggle.querySelector("svg")?.classList.remove("rotate-180");
-                  }
+                if (sublist?.getAttribute("data-expanded") === "true") {
+                  setTocBranchExpanded(item, false);
                 }
               }
             });
@@ -1331,18 +1328,8 @@ const tableOfContents = generateTableOfContents(headings);
           });
 
           // 初始化时收起所有子菜单
-          const topLevelToggles = tocContent.querySelectorAll(
-            ".toc-list > .toc-item > .toc-item-container > .toc-toggle",
-          );
-          topLevelToggles.forEach((toggle) => {
-            toggle.setAttribute("aria-expanded", "false");
-            const sublist = toggle
-              .closest(".toc-item")
-              .querySelector(".toc-sublist");
-            if (sublist) {
-              sublist.classList.add("hidden");
-              sublist.setAttribute("aria-expanded", "false");
-            }
+          tocContent.querySelectorAll(".toc-item").forEach((item) => {
+            setTocBranchExpanded(item, false);
           });
 
           // 初始更新一次活动标题，确保相关父菜单展开

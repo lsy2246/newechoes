@@ -519,11 +519,12 @@
 
 /* 展开/折叠图标动画 */
 .toc-toggle svg {
+  transform-origin: center;
   transition: transform 0.3s ease;
 }
 
 .toc-toggle[aria-expanded="true"] svg {
-  transform: rotate(-180deg);
+  transform: rotate(90deg);
 }
 
 /* 目录切换按钮悬停样式 */
@@ -544,6 +545,14 @@
 /* 子目录展开/收起动画 */
 .toc-sublist {
   transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.toc-sublist[data-expanded="false"] {
+  display: none;
+}
+
+.toc-sublist[data-expanded="true"] {
+  display: grid;
 }
 
 /* 目录面板样式 */

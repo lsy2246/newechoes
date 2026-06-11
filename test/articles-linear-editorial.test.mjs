@@ -442,6 +442,25 @@ test("article toc active row uses only a short marker without a slab highlight",
   );
 });
 
+test("article toc sublists are collapsed by component state", () => {
+  assert.ok(articleDetail.includes("const sublistAttributes = level > 0"));
+  assert.ok(articleDetail.includes('? \' data-expanded="false" aria-expanded="false"\''));
+  assert.ok(articleDetail.includes('let html = `<ul class="toc-list space-y-2${isTopLevel ? "" : " toc-sublist"}"${sublistAttributes}>`;'));
+  assert.match(cssBlock(articlesCss, '.toc-sublist[data-expanded="false"]'), /display:\s*none;/);
+  assert.match(cssBlock(articlesCss, '.toc-sublist[data-expanded="true"]'), /display:\s*grid;/);
+  assert.ok(articleDetail.includes("function setTocBranchExpanded(item, expanded)"));
+  assert.ok(articleDetail.includes('sublist.setAttribute("data-expanded", expanded ? "true" : "false");'));
+  assert.equal(articleDetail.includes('sublist.classList.add("hidden")'), false);
+  assert.equal(articleDetail.includes('sublist.classList.remove("hidden")'), false);
+});
+
+test("article toc toggle arrow points right when collapsed and down when expanded", () => {
+  assert.ok(articleDetail.includes('d="M9 5l7 7-7 7"'));
+  assert.match(cssBlock(articlesCss, ".toc-toggle svg"), /transform-origin:\s*center;/);
+  assert.match(cssBlock(articlesCss, '.toc-toggle[aria-expanded="true"] svg'), /transform:\s*rotate\(90deg\);/);
+  assert.equal(articleDetail.includes("rotate-180"), false);
+});
+
 test("global typography tokens drive secondary pages and countdown UI", () => {
   assert.match(cssBlock(globalCss, ":root"), /--type-page-title:\s*1\.375rem;/);
   assert.match(cssBlock(globalCss, ":root"), /--type-reader-body:\s*1rem;/);
