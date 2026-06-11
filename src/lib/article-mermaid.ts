@@ -12,9 +12,36 @@ const THEME_BY_MODE: Record<string, MermaidTheme> = {
   dark: "dark",
   light: "neutral",
 };
+const MERMAID_RENDER_ROOT_ID = "article-mermaid-render-root";
+let mermaidRenderIdSequence = 0;
 
 function getMermaidDiagrams() {
   return Array.from(document.querySelectorAll<HTMLPreElement>("pre.mermaid"));
+}
+
+function removeMermaidRenderArtifacts() {
+  document
+    .querySelectorAll("[id^='darticle-mermaid-'], [id^='iarticle-mermaid-']")
+    .forEach((node) => {
+      node.remove();
+    });
+
+  document.getElementById(MERMAID_RENDER_ROOT_ID)?.remove();
+}
+
+function getMermaidRenderRoot() {
+  removeMermaidRenderArtifacts();
+
+  const renderRoot = document.createElement("div");
+  renderRoot.id = MERMAID_RENDER_ROOT_ID;
+  renderRoot.setAttribute("data-article-mermaid-render-root", "true");
+  renderRoot.setAttribute("aria-hidden", "true");
+  renderRoot.style.cssText =
+    "position:absolute;left:-99999px;top:0;width:0;height:0;overflow:hidden;pointer-events:none;";
+
+  document.body.appendChild(renderRoot);
+
+  return renderRoot;
 }
 
 function getMermaidTheme() {
@@ -46,6 +73,12 @@ function ensureDiagramSource(diagram: HTMLPreElement) {
   }
 
   return diagram.dataset.diagram || "";
+}
+
+function getNextMermaidRenderId(index: number) {
+  mermaidRenderIdSequence += 1;
+
+  return `article-mermaid-${index + 1}-${mermaidRenderIdSequence}`;
 }
 
 function renderError(diagram: HTMLPreElement, message: string) {
@@ -90,6 +123,8 @@ export function initArticleMermaid() {
     if (window.__articleMermaidCleanup === cleanup) {
       delete window.__articleMermaidCleanup;
     }
+
+    removeMermaidRenderArtifacts();
   };
 
   const renderDiagrams = async () => {
@@ -119,16 +154,17 @@ export function initArticleMermaid() {
       },
     });
 
-    for (const diagram of getMermaidDiagrams()) {
+    for (const [index, diagram] of getMermaidDiagrams().entries()) {
       if (!active || !diagram.isConnected) {
         continue;
       }
 
       const definition = ensureDiagramSource(diagram);
-      const id = `article-mermaid-${Math.random().toString(36).slice(2, 10)}`;
+      const id = getNextMermaidRenderId(index);
+      const renderRoot = getMermaidRenderRoot();
 
       try {
-        const { svg } = await mermaid.render(id, definition);
+        const { svg } = await mermaid.render(id, definition, renderRoot);
         if (!active || !diagram.isConnected) {
           continue;
         }
@@ -142,6 +178,8 @@ export function initArticleMermaid() {
             ? error.message
             : "Unknown mermaid error";
         renderError(diagram, message);
+      } finally {
+        removeMermaidRenderArtifacts();
       }
     }
   };

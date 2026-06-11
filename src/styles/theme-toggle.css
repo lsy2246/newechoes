@@ -71,11 +71,6 @@ html.theme-transition-active body {
   }
 }
 
-html.theme-transition-active,
-html.theme-transition-active body {
-  overflow: hidden !important;
-}
-
 html.theme-transition-active *,
 html.theme-transition-active *::before,
 html.theme-transition-active *::after {

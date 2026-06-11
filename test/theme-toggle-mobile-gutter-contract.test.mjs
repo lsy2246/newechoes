@@ -4,10 +4,10 @@ import test from "node:test";
 
 const css = readFileSync("src/styles/theme-toggle.css", "utf8").replace(/\r\n/g, "\n");
 
-test("theme transitions lock the root scroll gutter so mobile wide viewports do not expose a right-edge seam", () => {
-  assert.match(
+test("theme transitions keep the document overflow unchanged so the scrollbar never disappears", () => {
+  assert.doesNotMatch(
     css,
-    /html\.theme-transition-active,\s*html\.theme-transition-active body\s*\{[\s\S]*overflow:\s*hidden\s*!important;[\s\S]*\}/,
+    /html\.theme-transition-active,\s*html\.theme-transition-active body\s*\{[\s\S]*overflow(?:-[xy])?\s*:/,
   );
 });
 
