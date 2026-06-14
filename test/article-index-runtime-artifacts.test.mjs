@@ -38,6 +38,13 @@ test("astro build clears cached rendered content before running Astro", () => {
   assert.match(astroBuildScript, /rmSync\(cachePath,\s*\{\s*force:\s*true\s*\}\)/);
 });
 
+test("astro build hydrates shallow git history before generating article revisions", () => {
+  assert.match(astroBuildScript, /ensureFullGitHistory\(\)/);
+  assert.match(astroBuildScript, /function ensureFullGitHistory\(\)/);
+  assert.match(astroBuildScript, /"rev-parse",\s*"--is-shallow-repository"/);
+  assert.match(astroBuildScript, /"fetch",\s*"--unshallow",\s*"--tags",\s*"origin"/);
+});
+
 test("generateArticleIndex writes json indexes from source content and clears legacy bin artifacts", async () => {
   const tempRoot = mkdtempSync(path.join(os.tmpdir(), "article-index-"));
   const contentRoot = path.join(tempRoot, "src", "content");
