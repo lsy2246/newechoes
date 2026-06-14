@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { resolveBuildDir } from "../index.js";
+import { resolveBuildDir } from "../mirrors.js";
 
 function isAlreadyUriEncodedPath(relativeDir) {
   if (!relativeDir.includes("%")) {

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { SITE_META } from '../consts';
 import { generateXmlViewStyles } from './xml-view-styles.js';
 import { normalizeCanonicalPath } from '../lib/canonical-url.js';
-import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/index.js';
+import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/mirrors.js';
 
 function getLocalBuildFilePath(...segments) {
   return path.join(resolveBuildDir(path.join(process.cwd(), 'dist')), ...segments);

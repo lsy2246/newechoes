@@ -1,4 +1,3 @@
-import { supportsArticleHistory } from "@/platform/runtime/index.js";
 import { resolveArticleIdentity } from "./shared.js";
 
 function getEmptyHistory(article) {
@@ -24,23 +23,23 @@ function getEmptyHistory(article) {
 }
 
 export async function getArticleHistory(article, repositoryConfig = {}) {
-  if (!supportsArticleHistory()) {
+  try {
+    const module = await import("./node.js");
+    return module.getArticleHistory(article, repositoryConfig);
+  } catch {
     return getEmptyHistory(article);
   }
-
-  const module = await import("./node.js");
-  return module.getArticleHistory(article, repositoryConfig);
 }
 
 export async function getArticleHistoryMap(articles, repositoryConfig = {}) {
-  if (!supportsArticleHistory()) {
+  try {
+    const module = await import("./node.js");
+    return module.getArticleHistoryMap(articles, repositoryConfig);
+  } catch {
     return new Map(
       articles.map((article) => [resolveArticleIdentity(article), getEmptyHistory(article)]),
     );
   }
-
-  const module = await import("./node.js");
-  return module.getArticleHistoryMap(articles, repositoryConfig);
 }
 
 export {

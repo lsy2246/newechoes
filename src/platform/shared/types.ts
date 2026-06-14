@@ -12,9 +12,3 @@ export type PlatformObservability = {
   speedInsights: boolean;
   bodyScripts: PlatformScript[];
 };
-
-export type PlatformCapabilities = {
-  vercelInsights: boolean;
-  googlePhotosParsing: boolean;
-  articleHistory: boolean;
-};

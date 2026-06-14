@@ -1,4 +1,3 @@
-import { supportsGooglePhotosParsing } from "../../platform/runtime/index.js";
 import type { GooglePhotoAlbum, GooglePhotoItem } from "./shared.js";
 import { fetchSharedAlbumHtml, toAlbum, toPhotoItems } from "./shared.js";
 
@@ -226,10 +225,6 @@ export async function fetchGooglePhotosPage({
   photos: GooglePhotoItem[];
   nextCursor: string | null;
 }> {
-  if (!supportsGooglePhotosParsing()) {
-    throw new Error("当前部署平台未启用 Google Photos 服务端解析");
-  }
-
   if (cursor) {
     const cursorPayload = decodeCursor(cursor);
     const pageData = await fetchAlbumPage(cursorPayload);

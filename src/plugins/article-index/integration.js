@@ -8,7 +8,7 @@ import {
 import {
   getStaticOutputMirrorRoots,
   resolveBuildDir,
-} from "../../platform/build/index.js";
+} from "../../platform/build/mirrors.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "../../..");

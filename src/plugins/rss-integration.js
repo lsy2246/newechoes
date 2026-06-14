@@ -5,7 +5,7 @@ import { SITE_META } from '../consts';
 import { createCanonicalUrl, normalizeCanonicalPath } from '../lib/canonical-url.js';
 import * as cheerio from 'cheerio';
 import { generateXmlViewStyles } from './xml-view-styles.js';
-import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/index.js';
+import { resolveBuildDir, syncStaticGeneratedFileToPlatformOutputs } from '../platform/build/mirrors.js';
 
 function getLocalBuildFilePath(...segments) {
   return path.join(resolveBuildDir(path.join(process.cwd(), 'dist')), ...segments);

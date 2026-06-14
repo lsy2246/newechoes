@@ -20,7 +20,7 @@ import {
   getPlatformIntegrations,
   getPlatformVitePlugins,
   resolvePlatformImageConfig,
-} from "./src/platform/build/index.js";
+} from "./src/platform/build/astro-config.js";
 
 const DEPLOY_TARGET = process.env.DEPLOY_TARGET || "vercel";
 
