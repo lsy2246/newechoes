@@ -1,7 +1,6 @@
 import { GOOGLE_PHOTOS_MEDIA_HEADERS } from "../../lib/google-photos/shared.js";
 import { createServerRequestLog, summarizeUrl } from "../../lib/server/request-log.js";
 import { fetchAssetDirect } from "../../lib/server/asset-relay.js";
-import { supportsGooglePhotosParsing } from "../../platform/runtime/index.js";
 
 const GOOGLE_PHOTOS_MEDIA_HOST = "lh3.googleusercontent.com";
 
@@ -111,23 +110,6 @@ export const GET = async ({ request }: { request: Request }) => {
         "Cache-Control": "no-store, max-age=0",
       },
     });
-  }
-
-  if (!supportsGooglePhotosParsing()) {
-    log.respond(501, { reason: "platform_parsing_disabled" });
-    return new Response(
-      JSON.stringify({
-        error: "当前平台暂未启用相册解析",
-        message: "Cloudflare 版本已保留相册页面骨架，但服务端解析需改为兼容实现后才能启用。",
-      }),
-      {
-        status: 501,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store, max-age=0",
-        },
-      },
-    );
   }
 
   try {

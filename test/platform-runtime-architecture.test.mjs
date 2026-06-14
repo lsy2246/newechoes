@@ -7,6 +7,7 @@ const articleHistoryBridgeSource = readFileSync("src/lib/article-history/index.j
 const googlePhotosSource = readFileSync("src/lib/google-photos/node.ts", "utf8");
 const platformTypesSource = readFileSync("src/platform/shared/types.ts", "utf8");
 const serverRequestLogSource = readFileSync("src/lib/server/request-log.ts", "utf8");
+const googlePhotosApiSource = readFileSync("src/server/api/google-photos.ts", "utf8");
 const buildArticleIndexSource = readFileSync("src/plugins/article-index/integration.js", "utf8");
 const sitemapIntegrationSource = readFileSync("src/plugins/sitemap-integration.js", "utf8");
 const rssIntegrationSource = readFileSync("src/plugins/rss-integration.js", "utf8");
@@ -36,6 +37,8 @@ test("article history bridge keeps node-only helpers out of the public runtime e
 test("google photos parser no longer depends on platform capability gates", () => {
   assert.doesNotMatch(googlePhotosSource, /supportsGooglePhotosParsing/);
   assert.doesNotMatch(googlePhotosSource, /未启用 Google Photos 服务端解析/);
+  assert.doesNotMatch(googlePhotosApiSource, /supportsGooglePhotosParsing/);
+  assert.doesNotMatch(googlePhotosApiSource, /platform\/runtime\/index\.js/);
 });
 
 test("platform shared types no longer expose generic capability flags", () => {
