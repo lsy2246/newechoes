@@ -7,6 +7,10 @@ const astroConfigSource = readFileSync("astro.config.mjs", "utf8");
 const buildConfigHelpers = readFileSync("src/platform/build/astro-config.js", "utf8");
 const mirrorHelpers = readFileSync("src/platform/build/mirrors.js", "utf8");
 const packageJson = readFileSync("package.json", "utf8");
+const cloudflareGitHistoryScriptPath = "scripts/cloudflare-ensure-git-history.mjs";
+const cloudflareGitHistoryScript = existsSync(cloudflareGitHistoryScriptPath)
+  ? readFileSync(cloudflareGitHistoryScriptPath, "utf8")
+  : "";
 
 test("frontend build is globally static and does not depend on a server adapter", () => {
   assert.match(astroConfigSource, /output:\s*"static"/);
@@ -66,4 +70,14 @@ test("cloudflare deploy script targets pages instead of worker wrangler output",
     parsed.scripts["deploy:cloudflare"],
     "pnpm run generate:function-wrappers && pnpm exec wrangler pages deploy dist",
   );
+});
+
+test("cloudflare build hydrates git history before Astro build", () => {
+  const parsed = JSON.parse(packageJson);
+
+  assert.equal(existsSync(cloudflareGitHistoryScriptPath), true);
+  assert.match(parsed.scripts["build:cloudflare"], /node scripts\/cloudflare-ensure-git-history\.mjs/);
+  assert.match(cloudflareGitHistoryScript, /--is-shallow-repository/);
+  assert.match(cloudflareGitHistoryScript, /--unshallow/);
+  assert.match(cloudflareGitHistoryScript, /fetch/);
 });
