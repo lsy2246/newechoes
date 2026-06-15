@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createArticleRouteId } from "../../lib/article-route-id.js";
-import { getArticleHistory } from "../../lib/article-history/node.js";
 import { resolveArticleIdentity } from "../../lib/article-history/shared.js";
+import { fetchRemoteArticleHistory } from "../../lib/article-history/remote.js";
 
 const REMOVED_LEGACY_FILES = ["search_index.bin", "filter_index.bin"];
 const JSON_INDEX_FILES = ["search_index.json", "filter_index.json", "global_graph.json", "article-history.json"];
@@ -363,6 +363,10 @@ function getContentRelativeSourcePath(filePath, contentRootDir) {
     .replace(/\.(md|mdx)$/i, "");
 }
 
+function getRepositorySourcePath(filePath) {
+  return path.relative(process.cwd(), filePath).replace(/\\/g, "/");
+}
+
 function getContentRouteId(filePath, contentRootDir) {
   return createArticleRouteId(path.relative(contentRootDir, filePath));
 }
@@ -373,21 +377,6 @@ function parseDate(value, fallback) {
     return fallback;
   }
   return new Date(parsed).toISOString();
-}
-
-function getArticleUpdatedAt(filePath, articleId, publishedAt, contentRootDir) {
-  const relativeId = getContentRelativeSourcePath(filePath, contentRootDir);
-
-  const history = getArticleHistory({
-    id: relativeId,
-    filePath,
-    data: {
-      title: articleId,
-      date: publishedAt,
-    },
-  });
-
-  return history.updatedAt ? history.updatedAt.toISOString() : null;
 }
 
 function extractArticleRecord(filePath, contentRootDir) {
@@ -429,11 +418,13 @@ function extractArticleRecord(filePath, contentRootDir) {
       },
     }),
     filePath,
+    repositorySourcePath: getRepositorySourcePath(filePath),
     routeId,
     title: articleId,
     summary,
+    publishedAt,
     date: parseDate(rawDate, publishedAt.toISOString()),
-    updated_at: getArticleUpdatedAt(filePath, articleId, publishedAt, contentRootDir),
+    updated_at: null,
     tags: parseFrontmatterArray(parsedBlock.frontmatter, "tags").sort((left, right) =>
       left.localeCompare(right, "zh-CN"),
     ),
@@ -445,19 +436,17 @@ function extractArticleRecord(filePath, contentRootDir) {
   };
 }
 
-export function buildArticleHistoryIndex(articles, contentRootDir) {
+export async function buildArticleHistoryIndex(articles, contentRootDir, repositoryConfig = {}) {
   const articleEntries = Object.fromEntries(
-    articles.map((article) => {
-      const history = getArticleHistory(
-        {
-          id: getContentRelativeSourcePath(article.filePath, contentRootDir),
-          filePath: article.filePath,
-          data: {
-            title: article.articleIdentity,
-            date: new Date(article.date),
-          },
-        },
-      );
+    await Promise.all(articles.map(async (article) => {
+      const history = await fetchRemoteArticleHistory({
+        articleIdentity: article.articleIdentity,
+        sourcePath: article.repositorySourcePath,
+        publishedAt: article.publishedAt,
+        repositoryConfig,
+      });
+
+      article.updated_at = history.updatedAt ? history.updatedAt.toISOString() : null;
 
       return [
         article.articleIdentity,
@@ -474,7 +463,7 @@ export function buildArticleHistoryIndex(articles, contentRootDir) {
           })),
         },
       ];
-    }),
+    })),
   );
 
   return {
@@ -645,6 +634,7 @@ function toPublicArticleRecord(article) {
     routeId,
     body,
     filePath,
+    repositorySourcePath,
     articleIdentity,
     ...publicArticle
   } = article;
@@ -818,7 +808,7 @@ function cleanLegacyIndexFiles(outputDir) {
   }
 }
 
-export function buildArticleIndexes(contentDir) {
+export async function buildArticleIndexes(contentDir, repositoryConfig = {}) {
   const articles = [];
   const contentFiles = listContentFiles(contentDir);
 
@@ -830,6 +820,7 @@ export function buildArticleIndexes(contentDir) {
   }
 
   articles.sort((left, right) => right.date.localeCompare(left.date));
+  const articleHistoryIndex = await buildArticleHistoryIndex(articles, contentDir, repositoryConfig);
   const publicArticles = articles.map(toPublicArticleRecord);
 
   return {
@@ -837,7 +828,7 @@ export function buildArticleIndexes(contentDir) {
     searchIndex: buildSearchIndex(publicArticles),
     filterIndex: buildFilterIndex(publicArticles),
     globalGraphIndex: buildGlobalGraphIndex(articles),
-    articleHistoryIndex: buildArticleHistoryIndex(articles, contentDir),
+    articleHistoryIndex,
   };
 }
 

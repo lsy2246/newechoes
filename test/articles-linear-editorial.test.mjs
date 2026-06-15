@@ -158,7 +158,7 @@ test("filter console and result list keep long text inside lightweight rows", ()
   assert.match(cssBlock(globalCss, ".filter-date-groups"), /gap:\s*20px;/);
   assert.match(cssBlock(globalCss, ".filter-date-group"), /display:\s*grid;/);
   assert.match(cssBlock(globalCss, ".filter-tag"), /text-overflow:\s*ellipsis;/);
-  assert.match(cssBlock(globalCss, ".filter-tag-options"), /max-height:\s*14rem;/);
+  assert.match(cssBlock(globalCss, ".filter-tag-options"), /max-height:\s*min\(22rem,\s*calc\(100vh - 18rem\)\);/);
   assert.match(cssBlock(globalCss, ".filter-status"), /position:\s*absolute;/);
 });
 
@@ -223,7 +223,7 @@ test("article history keeps the snapshot link under the hash", () => {
   assert.ok(versionBlock.includes("历史快照"));
   assert.equal(versionBlock.includes("文件快照"), false);
   assert.match(cssBlock(articlesCss, ".article-history-hash,\n.article-history-snapshot"), /text-decoration-line:\s*underline;/);
-  assert.match(cssBlock(articlesCss, ".article-history-hash,\n.article-history-snapshot"), /text-decoration-color:\s*var\(--article-line-strong\);/);
+  assert.match(cssBlock(articlesCss, ".article-history-hash,\n.article-history-snapshot"), /text-decoration-color:\s*color-mix\(in oklab,\s*var\(--article-line-strong\) 72%,\s*var\(--article-line\)\);/);
 });
 
 test("article history heading is localized and related reading has no extra top rule", () => {
@@ -247,14 +247,9 @@ test("article history external links are controlled by a source repository confi
   assert.match(constsSource, /url:\s*"https:\/\/github\.com\/lsy2246\/newechoes"/);
   assert.match(constsSource, /provider:\s*"github"/);
   assert.doesNotMatch(constsSource, /provider:\s*"auto"/);
-  assert.ok(articleDetail.includes("SOURCE_REPOSITORY_CONFIG"));
-  assert.ok(articleDetail.includes("getArticleHistory(article, SOURCE_REPOSITORY_CONFIG)"));
-  assert.ok(timelinePage.includes("SOURCE_REPOSITORY_CONFIG"));
-  assert.ok(timelinePage.includes("getArticleHistoryMap(articles, SOURCE_REPOSITORY_CONFIG)"));
-  assert.ok(articleHistorySource.includes("repositoryConfig = {}"));
-  assert.ok(articleHistorySource.includes("repositoryProvider"));
-  assert.equal(articleHistorySource.includes('repositoryProvider = "auto"'), false);
-  assert.equal(articleHistorySource.includes("readRepositoryUrl()"), false);
+  assert.ok(articleDetail.includes("getPrebuiltArticleHistory(article)"));
+  assert.ok(timelinePage.includes("getPrebuiltArticleHistoryMap(articles)"));
+  assert.ok(constsSource.includes("SOURCE_REPOSITORY_CONFIG"));
 });
 
 test("article pages expose git updated time for filter indexing", () => {
@@ -265,7 +260,7 @@ test("article pages expose git updated time for filter indexing", () => {
   assert.ok(layoutSource.includes('property="article:modified_time"'));
   assert.ok(layoutSource.includes("updatedDate.toISOString()"));
   assert.ok(filteredPage.includes("articleUpdatedAt"));
-  assert.ok(filteredPage.includes("getArticleHistoryMap"));
+  assert.ok(filteredPage.includes("getPrebuiltArticleHistoryMap(articles)"));
   assert.ok(filteredPage.includes("getCanonicalArticleUrl(article.id)"));
 });
 
@@ -654,7 +649,7 @@ test("timeline page exists and avoids heavy archive explanation blocks", () => {
   assert.ok(timelinePage.includes("revision-commit-head"));
   assert.ok(timelinePage.includes("revision-article-list"));
   assert.ok(timelinePage.includes("revision-article-item"));
-  assert.ok(timelinePage.includes("getArticleHistoryMap"));
+  assert.ok(timelinePage.includes("getPrebuiltArticleHistoryMap(articles)"));
   assert.ok(timelinePage.includes("commit.commitUrl"));
   assert.ok(timelinePage.includes("event.snapshotUrl"));
   assert.ok(timelinePage.includes("data-timeline-view"));
@@ -696,5 +691,5 @@ test("timeline page exists and avoids heavy archive explanation blocks", () => {
   assert.equal(timelinePage.includes("inspector"), false);
   assert.equal(timelinePage.includes("归档规则"), false);
   assert.match(cssBlock(globalCss, ".revision-hash,\n.revision-article-actions a"), /text-decoration-line:\s*underline;/);
-  assert.match(cssBlock(globalCss, ".revision-hash,\n.revision-article-actions a"), /text-decoration-color:\s*var\(--site-line-strong\);/);
+  assert.match(cssBlock(globalCss, ".revision-hash,\n.revision-article-actions a"), /text-decoration-color:\s*color-mix\(in oklab,\s*var\(--site-line-strong\) 72%,\s*var\(--site-line\)\);/);
 });

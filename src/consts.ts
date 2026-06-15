@@ -16,7 +16,7 @@ export const ASSET_RELAY_URL = "https://proxy.u.cd/download?url={url}&headers={h
 export const SOURCE_REPOSITORY_CONFIG = {
     url: "https://github.com/lsy2246/newechoes",
     provider: "github",
-};
+} as const;
 // 新的导航结构 - 支持分层导航
 export const NAV_STRUCTURE = [
     { id: "home", text: "首页", href: "/" },

@@ -49,6 +49,12 @@ test("article index build writes a prebuilt article history artifact", () => {
   assert.match(buildHelperSource, /article-history\.json/);
   assert.match(buildHelperSource, /buildArticleHistoryIndex/);
   assert.match(buildHelperSource, /writeArticleHistoryIndex/);
+  assert.match(buildHelperSource, /fetchRemoteArticleHistory/);
+});
+
+test("article index integration reads repository config from the single ts consts entry", () => {
+  assert.equal(existsSync("src/config/source-repository.js"), false);
+  assert.match(buildPluginSource, /import\("\.\.\/\.\.\/consts\.ts"\)/);
 });
 
 test("generateArticleIndex writes json indexes from source content and clears legacy bin artifacts", async () => {

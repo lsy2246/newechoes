@@ -5,15 +5,15 @@
   "scripts": {
     "dev": "pnpm exec astro dev --host 127.0.0.1 --port 4321",
     "generate:function-wrappers": "node scripts/generate-function-wrappers.mjs",
-    "build": "pnpm run generate:function-wrappers && node scripts/astro-build.mjs",
-    "build:vercel": "pnpm run generate:function-wrappers && node scripts/astro-build.mjs vercel",
-    "build:edgeone": "pnpm run generate:function-wrappers && node scripts/astro-build.mjs edgeone",
-    "build:cloudflare": "pnpm run generate:function-wrappers && node scripts/astro-build.mjs cloudflare",
+    "build": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs",
+    "build:vercel": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs vercel",
+    "build:edgeone": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs edgeone",
+    "build:cloudflare": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs cloudflare",
     "deploy:cloudflare": "pnpm run generate:function-wrappers && pnpm exec wrangler pages deploy dist",
     "preview": "pnpm exec astro preview",
     "astro": "pnpm exec astro",
     "newpost": "node src/plugins/new-post.mjs",
-    "test": "pnpm run generate:function-wrappers && node --test"
+    "test": "pnpm run generate:function-wrappers && node --experimental-strip-types --test"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
