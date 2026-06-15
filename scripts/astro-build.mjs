@@ -5,36 +5,6 @@ import { normalizeDeployTarget } from "../src/platform/shared/target.js";
 
 const target = normalizeDeployTarget(process.argv[2]?.trim() || process.env.DEPLOY_TARGET);
 
-function runGitCommand(args) {
-  return spawnSync("git", args, {
-    cwd: process.cwd(),
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-}
-
-function ensureFullGitHistory() {
-  const shallowCheck = runGitCommand(["rev-parse", "--is-shallow-repository"]);
-  if (shallowCheck.status !== 0) {
-    return;
-  }
-
-  if (shallowCheck.stdout.trim() !== "true") {
-    return;
-  }
-
-  const unshallow = runGitCommand(["fetch", "--unshallow", "--tags", "origin"]);
-  if (unshallow.status === 0) {
-    return;
-  }
-
-  const deepenFallback = runGitCommand(["fetch", "--depth=1000", "--tags", "origin"]);
-  if (deepenFallback.status !== 0) {
-    const details = (unshallow.stderr || deepenFallback.stderr || "").trim();
-    throw new Error(details || "failed to expand shallow git history");
-  }
-}
-
 function clearAstroRenderedContentCache() {
   const cachePaths = [
     join(process.cwd(), ".astro", "data-store.json"),
@@ -47,7 +17,6 @@ function clearAstroRenderedContentCache() {
 }
 
 try {
-  ensureFullGitHistory();
   clearAstroRenderedContentCache();
   const { prepareArticleIndexRuntimeArtifacts } = await import("../src/plugins/article-index/integration.js");
   prepareArticleIndexRuntimeArtifacts();

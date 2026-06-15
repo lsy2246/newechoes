@@ -8,6 +8,9 @@ const googlePhotosSource = readFileSync("src/lib/google-photos/node.ts", "utf8")
 const platformTypesSource = readFileSync("src/platform/shared/types.ts", "utf8");
 const serverRequestLogSource = readFileSync("src/lib/server/request-log.ts", "utf8");
 const googlePhotosApiSource = readFileSync("src/server/api/google-photos.ts", "utf8");
+const articlePageSource = readFileSync("src/pages/articles/[...id].astro", "utf8");
+const timelinePageSource = readFileSync("src/pages/timeline.astro", "utf8");
+const filteredPageSource = readFileSync("src/pages/filtered.astro", "utf8");
 const buildArticleIndexSource = readFileSync("src/plugins/article-index/integration.js", "utf8");
 const sitemapIntegrationSource = readFileSync("src/plugins/sitemap-integration.js", "utf8");
 const rssIntegrationSource = readFileSync("src/plugins/rss-integration.js", "utf8");
@@ -32,6 +35,15 @@ test("article history bridge keeps node-only helpers out of the public runtime e
   assert.match(articleHistoryBridgeSource, /await import\("\.\/node\.js"\)/);
   assert.doesNotMatch(articleHistoryBridgeSource, /supportsArticleHistory/);
   assert.doesNotMatch(articleHistoryBridgeSource, /export\s*\{\s*parseGitHistoryLog\s*\}\s*from\s*"\.\/node\.js"/);
+});
+
+test("page consumers read prebuilt article history instead of invoking node git helpers directly", () => {
+  for (const source of [articlePageSource, timelinePageSource, filteredPageSource]) {
+    assert.match(source, /prebuilt/);
+    assert.doesNotMatch(source, /SOURCE_REPOSITORY_CONFIG/);
+    assert.doesNotMatch(source, /getArticleHistory\(/);
+    assert.doesNotMatch(source, /getArticleHistoryMap\(/);
+  }
 });
 
 test("google photos parser no longer depends on platform capability gates", () => {

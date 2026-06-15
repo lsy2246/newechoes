@@ -2,16 +2,13 @@
 import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import Layout from "@/components/Layout.astro";
-import { SOURCE_REPOSITORY_CONFIG } from "@/consts";
 import { getCanonicalArticleUrl } from "@/lib/article-links";
 import {
   assertUniqueArticleIdentities,
   formatArticleHistoryPath,
   resolveArticleIdentity,
 } from "@/lib/article-history";
-import {
-  getArticleHistoryMap,
-} from "@/lib/article-history";
+import { getPrebuiltArticleHistoryMap } from "@/lib/article-history/prebuilt.js";
 
 export const prerender = true;
 
@@ -25,7 +22,7 @@ const articles = (await getCollection("articles"))
   );
 assertUniqueArticleIdentities(articles);
 
-const articleHistoryMap = await getArticleHistoryMap(articles, SOURCE_REPOSITORY_CONFIG);
+const articleHistoryMap = await getPrebuiltArticleHistoryMap(articles);
 
 const monthNames = [
   "一月",

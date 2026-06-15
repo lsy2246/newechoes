@@ -2,9 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { createArticleRouteId } from "../../lib/article-route-id.js";
 import { getArticleHistory } from "../../lib/article-history/node.js";
+import { resolveArticleIdentity } from "../../lib/article-history/shared.js";
 
 const REMOVED_LEGACY_FILES = ["search_index.bin", "filter_index.bin"];
-const JSON_INDEX_FILES = ["search_index.json", "filter_index.json", "global_graph.json"];
+const JSON_INDEX_FILES = ["search_index.json", "filter_index.json", "global_graph.json", "article-history.json"];
 const MARKDOWN_LINK_RE = /(?<!!)\[[^\]]*]\(([^)]+)\)/g;
 const HTML_HREF_RE = /href\s*=\s*["']([^"']+)["']/g;
 const SKIPPED_REFERENCE_PREFIXES = [
@@ -421,6 +422,13 @@ function extractArticleRecord(filePath, contentRootDir) {
 
   return {
     id: articleId,
+    articleIdentity: resolveArticleIdentity({
+      id: getContentRelativeSourcePath(filePath, contentRootDir),
+      data: {
+        title: articleId,
+      },
+    }),
+    filePath,
     routeId,
     title: articleId,
     summary,
@@ -434,6 +442,44 @@ function extractArticleRecord(filePath, contentRootDir) {
     body: parsedBlock.body,
     page_type: "article",
     headings: extractHeadings(parsedBlock.body),
+  };
+}
+
+export function buildArticleHistoryIndex(articles, contentRootDir) {
+  const articleEntries = Object.fromEntries(
+    articles.map((article) => {
+      const history = getArticleHistory(
+        {
+          id: getContentRelativeSourcePath(article.filePath, contentRootDir),
+          filePath: article.filePath,
+          data: {
+            title: article.articleIdentity,
+            date: new Date(article.date),
+          },
+        },
+      );
+
+      return [
+        article.articleIdentity,
+        {
+          ...history,
+          updatedAt: history.updatedAt ? history.updatedAt.toISOString() : null,
+          revisions: history.revisions.map((revision) => ({
+            ...revision,
+            date: revision.date.toISOString(),
+          })),
+          events: history.events.map((event) => ({
+            ...event,
+            date: event.date.toISOString(),
+          })),
+        },
+      ];
+    }),
+  );
+
+  return {
+    version: 1,
+    articles: articleEntries,
   };
 }
 
@@ -598,6 +644,8 @@ function toPublicArticleRecord(article) {
   const {
     routeId,
     body,
+    filePath,
+    articleIdentity,
     ...publicArticle
   } = article;
 
@@ -789,7 +837,14 @@ export function buildArticleIndexes(contentDir) {
     searchIndex: buildSearchIndex(publicArticles),
     filterIndex: buildFilterIndex(publicArticles),
     globalGraphIndex: buildGlobalGraphIndex(articles),
+    articleHistoryIndex: buildArticleHistoryIndex(articles, contentDir),
   };
+}
+
+export function writeArticleHistoryIndex(outputDir, articleHistoryIndex) {
+  const articleHistoryIndexPath = path.join(outputDir, "article-history.json");
+  fs.writeFileSync(articleHistoryIndexPath, JSON.stringify(articleHistoryIndex), "utf8");
+  return { articleHistoryIndexPath };
 }
 
 export function writeArticleIndexes(outputDir, indexes) {
@@ -799,6 +854,7 @@ export function writeArticleIndexes(outputDir, indexes) {
   const searchIndexPath = path.join(outputDir, "search_index.json");
   const filterIndexPath = path.join(outputDir, "filter_index.json");
   const globalGraphIndexPath = path.join(outputDir, "global_graph.json");
+  const { articleHistoryIndexPath } = writeArticleHistoryIndex(outputDir, indexes.articleHistoryIndex);
 
   fs.writeFileSync(searchIndexPath, JSON.stringify(indexes.searchIndex), "utf8");
   fs.writeFileSync(filterIndexPath, JSON.stringify(indexes.filterIndex), "utf8");
@@ -808,5 +864,6 @@ export function writeArticleIndexes(outputDir, indexes) {
     searchIndexPath,
     filterIndexPath,
     globalGraphIndexPath,
+    articleHistoryIndexPath,
   };
 }

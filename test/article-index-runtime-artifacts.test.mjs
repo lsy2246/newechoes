@@ -38,11 +38,17 @@ test("astro build clears cached rendered content before running Astro", () => {
   assert.match(astroBuildScript, /rmSync\(cachePath,\s*\{\s*force:\s*true\s*\}\)/);
 });
 
-test("astro build hydrates shallow git history before generating article revisions", () => {
-  assert.match(astroBuildScript, /ensureFullGitHistory\(\)/);
-  assert.match(astroBuildScript, /function ensureFullGitHistory\(\)/);
-  assert.match(astroBuildScript, /"rev-parse",\s*"--is-shallow-repository"/);
-  assert.match(astroBuildScript, /"fetch",\s*"--unshallow",\s*"--tags",\s*"origin"/);
+test("astro build no longer performs platform-specific git history hydration", () => {
+  assert.doesNotMatch(astroBuildScript, /ensureFullGitHistory/);
+  assert.doesNotMatch(astroBuildScript, /--is-shallow-repository/);
+  assert.doesNotMatch(astroBuildScript, /--unshallow/);
+  assert.doesNotMatch(astroBuildScript, /remote",\s*"get-url",\s*"origin"/);
+});
+
+test("article index build writes a prebuilt article history artifact", () => {
+  assert.match(buildHelperSource, /article-history\.json/);
+  assert.match(buildHelperSource, /buildArticleHistoryIndex/);
+  assert.match(buildHelperSource, /writeArticleHistoryIndex/);
 });
 
 test("generateArticleIndex writes json indexes from source content and clears legacy bin artifacts", async () => {
@@ -104,12 +110,14 @@ This article links back to [Demo Article](/articles/guides/my-demo-beta) and inc
     assert.equal(existsSync(path.join(outputRoot, "search_index.json")), true);
     assert.equal(existsSync(path.join(outputRoot, "filter_index.json")), true);
     assert.equal(existsSync(path.join(outputRoot, "global_graph.json")), true);
+    assert.equal(existsSync(path.join(outputRoot, "article-history.json")), true);
     assert.equal(existsSync(path.join(outputRoot, "search_index.bin")), false);
     assert.equal(existsSync(path.join(outputRoot, "filter_index.bin")), false);
 
     const searchIndex = JSON.parse(readFileSync(path.join(outputRoot, "search_index.json"), "utf8"));
     const filterIndex = JSON.parse(readFileSync(path.join(outputRoot, "filter_index.json"), "utf8"));
     const globalGraph = JSON.parse(readFileSync(path.join(outputRoot, "global_graph.json"), "utf8"));
+    const articleHistoryIndex = JSON.parse(readFileSync(path.join(outputRoot, "article-history.json"), "utf8"));
 
     const demoSearchArticle = searchIndex.articles.find((article) => article.title === "Demo Article");
     const demoFilterArticle = filterIndex.articles.find((article) => article.title === "Demo Article");
@@ -130,6 +138,10 @@ This article links back to [Demo Article](/articles/guides/my-demo-beta) and inc
     assert.ok(globalGraph.nodes.some((node) => node.id === "section:guides"));
     assert.ok(globalGraph.nodes.some((node) => node.id === "article:Demo Article"));
     assert.ok(globalGraph.structure.sections.some((section) => section.path === "guides"));
+    assert.equal(articleHistoryIndex.version, 1);
+    assert.ok(articleHistoryIndex.articles["Demo Article"]);
+    assert.equal(articleHistoryIndex.articles["Demo Article"].articleIdentity, "Demo Article");
+    assert.ok(Array.isArray(articleHistoryIndex.articles["Demo Article"].events));
     assert.ok(
       globalGraph.links.some((link) =>
         link.kind === "reference"

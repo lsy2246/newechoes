@@ -1,19 +1,16 @@
 ---
 import Layout from "@/components/Layout.astro";
 import ArticleFilter from "@/components/ArticleFilter";
-import { SOURCE_REPOSITORY_CONFIG } from "@/consts";
 import { getCanonicalArticleUrl } from "@/lib/article-links";
 import { resolveArticleIdentity } from "@/lib/article-history";
-import {
-  getArticleHistoryMap,
-} from "@/lib/article-history";
+import { getPrebuiltArticleHistoryMap } from "@/lib/article-history/prebuilt.js";
 import { getCollection, type CollectionEntry } from "astro:content";
 
 export const prerender = true;
 
 const searchParams = Astro.url.searchParams;
 const articles: CollectionEntry<"articles">[] = await getCollection("articles");
-const articleHistoryMap = await getArticleHistoryMap(articles, SOURCE_REPOSITORY_CONFIG);
+const articleHistoryMap = await getPrebuiltArticleHistoryMap(articles);
 const articleUpdatedAt = Object.fromEntries(
   articles.map((article) => {
     const articleIdentity = resolveArticleIdentity(article);
