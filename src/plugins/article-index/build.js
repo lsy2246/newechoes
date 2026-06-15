@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createArticleRouteId } from "../../lib/article-route-id.js";
+import { getArticleHistory } from "../../lib/article-history/node.js";
 import { resolveArticleIdentity } from "../../lib/article-history/shared.js";
-import { fetchRemoteArticleHistory } from "../../lib/article-history/remote.js";
 
 const REMOVED_LEGACY_FILES = ["search_index.bin", "filter_index.bin"];
 const JSON_INDEX_FILES = ["search_index.json", "filter_index.json", "global_graph.json", "article-history.json"];
@@ -363,10 +363,6 @@ function getContentRelativeSourcePath(filePath, contentRootDir) {
     .replace(/\.(md|mdx)$/i, "");
 }
 
-function getRepositorySourcePath(filePath) {
-  return path.relative(process.cwd(), filePath).replace(/\\/g, "/");
-}
-
 function getContentRouteId(filePath, contentRootDir) {
   return createArticleRouteId(path.relative(contentRootDir, filePath));
 }
@@ -377,6 +373,21 @@ function parseDate(value, fallback) {
     return fallback;
   }
   return new Date(parsed).toISOString();
+}
+
+function getArticleUpdatedAt(filePath, articleId, publishedAt, contentRootDir, repositoryConfig = {}) {
+  const relativeId = getContentRelativeSourcePath(filePath, contentRootDir);
+
+  const history = getArticleHistory({
+    id: relativeId,
+    filePath,
+    data: {
+      title: articleId,
+      date: publishedAt,
+    },
+  }, repositoryConfig);
+
+  return history.updatedAt ? history.updatedAt.toISOString() : null;
 }
 
 function extractArticleRecord(filePath, contentRootDir) {
@@ -418,13 +429,12 @@ function extractArticleRecord(filePath, contentRootDir) {
       },
     }),
     filePath,
-    repositorySourcePath: getRepositorySourcePath(filePath),
     routeId,
     title: articleId,
     summary,
     publishedAt,
     date: parseDate(rawDate, publishedAt.toISOString()),
-    updated_at: null,
+    updated_at: getArticleUpdatedAt(filePath, articleId, publishedAt, contentRootDir),
     tags: parseFrontmatterArray(parsedBlock.frontmatter, "tags").sort((left, right) =>
       left.localeCompare(right, "zh-CN"),
     ),
@@ -436,18 +446,17 @@ function extractArticleRecord(filePath, contentRootDir) {
   };
 }
 
-export async function buildArticleHistoryIndex(articles, contentRootDir, repositoryConfig = {}) {
+export function buildArticleHistoryIndex(articles, contentRootDir, repositoryConfig = {}) {
   const articleEntries = Object.fromEntries(
-    await Promise.all(articles.map(async (article) => {
-      const history = await fetchRemoteArticleHistory({
-        articleIdentity: article.articleIdentity,
-        sourcePath: article.repositorySourcePath,
-        publishedAt: article.publishedAt,
-        repositoryConfig,
-      });
-
-      article.updated_at = history.updatedAt ? history.updatedAt.toISOString() : null;
-
+    articles.map((article) => {
+      const history = getArticleHistory({
+        id: getContentRelativeSourcePath(article.filePath, contentRootDir),
+        filePath: article.filePath,
+        data: {
+          title: article.articleIdentity,
+          date: article.publishedAt,
+        },
+      }, repositoryConfig);
       return [
         article.articleIdentity,
         {
@@ -463,7 +472,7 @@ export async function buildArticleHistoryIndex(articles, contentRootDir, reposit
           })),
         },
       ];
-    })),
+    }),
   );
 
   return {
@@ -634,7 +643,6 @@ function toPublicArticleRecord(article) {
     routeId,
     body,
     filePath,
-    repositorySourcePath,
     articleIdentity,
     ...publicArticle
   } = article;
@@ -808,7 +816,7 @@ function cleanLegacyIndexFiles(outputDir) {
   }
 }
 
-export async function buildArticleIndexes(contentDir, repositoryConfig = {}) {
+export function buildArticleIndexes(contentDir, repositoryConfig = {}) {
   const articles = [];
   const contentFiles = listContentFiles(contentDir);
 
@@ -820,7 +828,7 @@ export async function buildArticleIndexes(contentDir, repositoryConfig = {}) {
   }
 
   articles.sort((left, right) => right.date.localeCompare(left.date));
-  const articleHistoryIndex = await buildArticleHistoryIndex(articles, contentDir, repositoryConfig);
+  const articleHistoryIndex = buildArticleHistoryIndex(articles, contentDir, repositoryConfig);
   const publicArticles = articles.map(toPublicArticleRecord);
 
   return {

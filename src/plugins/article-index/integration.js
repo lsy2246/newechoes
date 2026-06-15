@@ -16,17 +16,6 @@ const defaultBuildDir = path.resolve(rootDir, "dist");
 const defaultContentDir = path.resolve(rootDir, "src", "content");
 const indexDir = path.join(resolveBuildDir(defaultBuildDir), "assets", "index");
 const INDEX_OUTPUT_FILES = ["search_index.json", "filter_index.json", "global_graph.json", "article-history.json"];
-let sourceRepositoryConfigPromise = null;
-
-async function getSourceRepositoryConfig() {
-  if (!sourceRepositoryConfigPromise) {
-    sourceRepositoryConfigPromise = import("../../consts.ts")
-      .then((module) => module.SOURCE_REPOSITORY_CONFIG ?? {})
-      .catch(() => ({}));
-  }
-
-  return sourceRepositoryConfigPromise;
-}
 
 export function prepareArticleIndexRuntimeArtifacts() {
   if (process.env.ARTICLE_INDEX_RUNTIME_PREPARED === "true") {
@@ -139,12 +128,10 @@ export function articleIndexerIntegration() {
     }
 
     if (!devIndexBuildPromise) {
-        const repositoryConfig = await getSourceRepositoryConfig();
         devIndexBuildPromise = generateArticleIndex({
           buildDir: defaultBuildDir,
           contentDir: defaultContentDir,
           outputDir: indexDir,
-          repositoryConfig,
         }).finally(() => {
           devIndexBuildPromise = null;
         });
@@ -195,12 +182,10 @@ export function articleIndexerIntegration() {
         console.log("Astro构建完成，开始生成文章索引...");
         const clientDirPath = resolveBuildDir(dir);
         const outputDirPath = path.join(clientDirPath, "assets", "index");
-        const repositoryConfig = await getSourceRepositoryConfig();
         await generateArticleIndex({
           buildDir: clientDirPath,
           contentDir: defaultContentDir,
           outputDir: outputDirPath,
-          repositoryConfig,
         });
       },
     },
@@ -227,7 +212,7 @@ export async function generateArticleIndex(options = {}) {
   ensureDirectory(buildDirPath);
   ensureDirectory(outputDirPath);
 
-  const indexes = await buildArticleIndexes(contentDirPath, options.repositoryConfig);
+  const indexes = buildArticleIndexes(contentDirPath, options.repositoryConfig);
   if (indexes.articleCount === 0) {
     const error = new Error("没有找到有效文章");
     console.error("生成文章索引时出错:", error.message);
