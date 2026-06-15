@@ -54,6 +54,11 @@ function getHistoryIndexPath() {
     return process.env.PREBUILT_ARTICLE_HISTORY_PATH;
   }
 
+  const sourceTimePath = path.join(process.cwd(), ".astro", "assets", "index", "article-history.json");
+  if (fs.existsSync(sourceTimePath)) {
+    return sourceTimePath;
+  }
+
   return path.join(process.cwd(), "dist", "assets", "index", "article-history.json");
 }
 

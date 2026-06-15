@@ -16,6 +16,7 @@ const sitemapIntegrationSource = readFileSync("src/plugins/sitemap-integration.j
 const rssIntegrationSource = readFileSync("src/plugins/rss-integration.js", "utf8");
 const robotsIntegrationSource = readFileSync("src/plugins/robots-integration.js", "utf8");
 const llmsIntegrationSource = readFileSync("src/plugins/llms-integration.js", "utf8");
+const prebuiltHistorySource = readFileSync("src/lib/article-history/prebuilt.js", "utf8");
 
 test("platform shared target helpers normalize and validate supported targets", async () => {
   const { normalizeDeployTarget, DEFAULT_DEPLOY_TARGET, getDeployTarget } = await import("../src/platform/shared/target.js");
@@ -44,6 +45,12 @@ test("page consumers read prebuilt article history instead of invoking node git 
     assert.doesNotMatch(source, /getArticleHistory\(/);
     assert.doesNotMatch(source, /getArticleHistoryMap\(/);
   }
+});
+
+test("prebuilt article history resolves from source-time artifacts instead of dist output only", () => {
+  assert.match(prebuiltHistorySource, /\.astro",\s*"assets",\s*"index",\s*"article-history\.json"/);
+  assert.match(prebuiltHistorySource, /fs\.existsSync\(sourceTimePath\)/);
+  assert.match(prebuiltHistorySource, /article-history(?:-build)?\.json/);
 });
 
 test("google photos parser no longer depends on platform capability gates", () => {

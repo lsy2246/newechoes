@@ -38,11 +38,18 @@ test("astro build clears cached rendered content before running Astro", () => {
   assert.match(astroBuildScript, /rmSync\(cachePath,\s*\{\s*force:\s*true\s*\}\)/);
 });
 
-test("astro build no longer performs platform-specific git history hydration", () => {
-  assert.doesNotMatch(astroBuildScript, /ensureFullGitHistory/);
-  assert.doesNotMatch(astroBuildScript, /--is-shallow-repository/);
-  assert.doesNotMatch(astroBuildScript, /--unshallow/);
-  assert.doesNotMatch(astroBuildScript, /remote",\s*"get-url",\s*"origin"/);
+test("astro build handles cloudflare git history hydration inline", () => {
+  assert.match(astroBuildScript, /ensureFullGitHistoryForCloudflareBuild/);
+  assert.match(astroBuildScript, /--is-shallow-repository/);
+  assert.match(astroBuildScript, /--unshallow/);
+  assert.match(astroBuildScript, /--depth=2147483647/);
+  assert.doesNotMatch(astroBuildScript, /cloudflare-ensure-git-history\.mjs/);
+});
+
+test("astro build prebuilds article history before spawning Astro", () => {
+  assert.match(astroBuildScript, /PREBUILT_ARTICLE_HISTORY_PATH/);
+  assert.doesNotMatch(astroBuildScript, /prebuild-article-history\.mjs/);
+  assert.match(astroBuildScript, /buildArticleIndexes|writeArticleHistoryIndex|generateArticleIndex/);
 });
 
 test("article index build writes a prebuilt article history artifact", () => {

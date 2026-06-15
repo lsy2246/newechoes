@@ -8,7 +8,7 @@
     "build": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs",
     "build:vercel": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs vercel",
     "build:edgeone": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs edgeone",
-    "build:cloudflare": "node scripts/cloudflare-ensure-git-history.mjs && pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs cloudflare",
+    "build:cloudflare": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs cloudflare",
     "deploy:cloudflare": "pnpm run generate:function-wrappers && pnpm exec wrangler pages deploy dist",
     "preview": "pnpm exec astro preview",
     "astro": "pnpm exec astro",
