@@ -12,9 +12,9 @@ import {
   formatArticleHistoryPath,
   resolveArticleIdentity,
 } from "@/lib/article-history";
-import { getArticleHistory } from "@/lib/article-history";
+import { getPrebuiltArticleHistory } from "@/lib/article-history/prebuilt.js";
 import Layout from "@/components/Layout.astro";
-import { ARTICLE_EXPIRY_CONFIG, SITE_META, SOURCE_REPOSITORY_CONFIG } from "@/consts";
+import { ARTICLE_EXPIRY_CONFIG, SITE_META } from "@/consts";
 import { createCanonicalUrl } from "@/lib/canonical-url.js";
 import "@/styles/articles.css";
 
@@ -242,7 +242,7 @@ function getRelatedTitle(matchType: string) {
   return "相关文章";
 }
 
-const articleHistory = await getArticleHistory(article, SOURCE_REPOSITORY_CONFIG);
+const articleHistory = await getPrebuiltArticleHistory(article);
 const articleWarningDate = articleHistory.updatedAt ?? article.data.date;
 
 const shouldShowArticleWarning = (() => {
