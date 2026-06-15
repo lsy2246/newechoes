@@ -26,8 +26,11 @@ test("site metadata has one canonical source and removes legacy exports", () => 
 
 test("layout emits GEO-friendly page metadata and JSON-LD", () => {
   assert.ok(layoutSource.includes("keywords?: string[]"));
+  assert.ok(layoutSource.includes("robots?: string;"));
   assert.ok(layoutSource.includes('name="keywords"'));
   assert.ok(layoutSource.includes('name="robots"'));
+  assert.ok(layoutSource.includes('robots = "index, follow"'));
+  assert.ok(layoutSource.includes("content={robots}"));
   assert.ok(layoutSource.includes('type="application/ld+json"'));
   assert.ok(layoutSource.includes("JSON.stringify"));
   assert.ok(layoutSource.includes("SITE_META.title"));

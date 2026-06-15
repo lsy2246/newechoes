@@ -15,6 +15,7 @@ interface Props {
   updatedDate?: Date;
   tags?: string[];
   keywords?: string[];
+  robots?: string;
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
   skipSrTitle?: boolean; // 控制是否跳过屏幕阅读器标题
   pageType?: "page" | "article" | "directory"; // 更有语义的页面类型
@@ -35,6 +36,7 @@ const {
   updatedDate,
   tags,
   keywords,
+  robots = "index, follow",
   jsonLd,
   skipSrTitle = true,
   pageType = "page", // 默认为普通页面
@@ -153,7 +155,7 @@ const showVercelInsights = observability.speedInsights && !import.meta.env.DEV;
     }
     <meta
       name="robots"
-      content="index, follow"
+      content={robots}
     />
     <link
       rel="canonical"
