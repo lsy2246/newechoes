@@ -22,7 +22,7 @@ interface Pagination {
   hasPrev: boolean;
 }
 
-const GITHUB_PROJECTS_CACHE_TTL_SECONDS = 86400;
+const GITHUB_PROJECTS_CACHE_TTL_SECONDS = 1800;
 
 export async function GET({ request }: { request: Request }) {
   const log = createServerRequestLog('api.git-projects', request);
@@ -33,7 +33,9 @@ export async function GET({ request }: { request: Request }) {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, s-maxage=1800',
+      'CDN-Cache-Control': 'public, max-age=1800',
     };
 
     const platformParam = url.searchParams.get('platform');

@@ -74,9 +74,11 @@ test("github projects stay on a single upstream repo-list request and tolerate m
   assert.equal(gitProjectsApi.includes("/languages"), false);
   assert.match(gitProjectsApi, /language:\s*repo\.language\s*\|\|\s*['"]['"]/);
   assert.match(gitProjectsApi, /fetchAssetWithRelayFallback/);
-  assert.match(gitProjectsApi, /GITHUB_PROJECTS_CACHE_TTL_SECONDS = 86400/);
+  assert.match(gitProjectsApi, /GITHUB_PROJECTS_CACHE_TTL_SECONDS = 1800/);
   assert.match(gitProjectsApi, /cache:\s*"prefer"/);
   assert.match(gitProjectsApi, /cacheTtl:\s*GITHUB_PROJECTS_CACHE_TTL_SECONDS/);
+  assert.match(gitProjectsApi, /'Cache-Control':\s*'public,\s*s-maxage=1800'/);
+  assert.match(gitProjectsApi, /'CDN-Cache-Control':\s*'public,\s*max-age=1800'/);
   assert.match(gitProjectsApi, /https:\/\/api\.github\.com\/(?:orgs|users)\/.*repos/);
   assert.match(gitProjectCollection, /const displayLanguage = project\.language\?\.trim\(\) \|\| "Unknown";/);
   assert.equal(gitProjectCollection.includes("{project.language && ("), false);

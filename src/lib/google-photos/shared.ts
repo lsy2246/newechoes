@@ -40,8 +40,8 @@ export const GOOGLE_PHOTOS_PAGE_HEADERS = {
   accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 };
 
-const GOOGLE_PHOTOS_PAGE_CACHE_TTL_SECONDS = 86400;
-const GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS = 31536000;
+const GOOGLE_PHOTOS_PAGE_CACHE_TTL_SECONDS = 1800;
+const GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS = 2592000;
 
 const googlePhotosMediaUrl = (baseUrl: string, params: string) => `${baseUrl}=${params}`;
 const googlePhotosImageUrl = (baseUrl: string, params: string) =>

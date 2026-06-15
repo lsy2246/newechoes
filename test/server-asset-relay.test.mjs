@@ -80,8 +80,8 @@ test("Weread keeps direct page fetches and uses direct -> relay -> local cover f
 test("Google Photos page/media flow keeps relay-first images and media-mode relay videos with backend fallback", () => {
   assert.match(googlePhotosSource, /server\/asset-relay/);
   assert.match(googlePhotosSource, /GOOGLE_PHOTOS_MEDIA_HEADERS/);
-  assert.match(googlePhotosSource, /GOOGLE_PHOTOS_PAGE_CACHE_TTL_SECONDS = 86400/);
-  assert.match(googlePhotosSource, /GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS = 31536000/);
+  assert.match(googlePhotosSource, /GOOGLE_PHOTOS_PAGE_CACHE_TTL_SECONDS = 1800/);
+  assert.match(googlePhotosSource, /GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS = 2592000/);
   assert.match(googlePhotosSource, /const googlePhotosImageUrl = \(baseUrl: string, params: string\) =>/);
   assert.match(googlePhotosSource, /googlePhotosMediaUrl\(baseUrl, `\$\{params\}-no`\)/);
   assert.match(googlePhotosSource, /localGooglePhotosMediaUrl/);
