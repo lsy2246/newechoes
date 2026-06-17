@@ -30,4 +30,5 @@ test("platform config files stay in sync with shared cache header policy", async
   assert.equal(readFileSync("public/_headers", "utf8").trim(), renderCloudflareHeadersFile().trim());
   assert.deepEqual(vercelConfig.headers, buildVercelHeaders());
   assert.deepEqual(edgeoneConfig.headers, buildEdgeoneHeaders());
+  assert.equal("public" in vercelConfig, false);
 });
