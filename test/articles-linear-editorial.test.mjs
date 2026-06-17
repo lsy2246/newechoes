@@ -198,6 +198,10 @@ test("article detail keeps tags once and renders related articles as a linear li
   assert.ok(articleDetail.includes("article-relation-cue"));
   assert.equal(articleDetail.match(/article-tags/g)?.length, 1);
   assert.equal(articleDetail.includes("article-title-row"), false);
+  assert.equal(articleDetail.includes("data-article-link-index"), false);
+  assert.equal(articleDetail.includes("setupArticleReferenceLinks()"), false);
+  assert.equal(articleDetail.includes("await render(article, {"), false);
+  assert.ok(articleDetail.includes("const { Content, headings } = await render(article);"));
 
   const relatedSection = articleDetail.match(/<section class="article-relation related"[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.notEqual(relatedSection, "");
@@ -382,8 +386,10 @@ test("article backlinks render below the article and long lists can scroll", () 
 });
 
 test("article detail keeps internal links canonical without hover previews", () => {
-  assert.ok(articleDetail.includes("setupArticleReferenceLinks"));
-  assert.ok(articleDetail.includes("data-article-link-index"));
+  assert.equal(articleDetail.includes("setupArticleReferenceLinks"), false);
+  assert.equal(articleDetail.includes("data-article-link-index"), false);
+  assert.ok(readFileSync("src/plugins/rehype-article-links.js", "utf8").includes("rehypeArticleLinks"));
+  assert.ok(readFileSync("src/plugins/rehype-article-links.js", "utf8").includes("getCanonicalArticleUrl"));
   assert.equal(articleDetail.includes("setupArticleLinkPreviews"), false);
   assert.equal(articleDetail.includes("data-article-preview-index"), false);
   assert.equal(articleDetail.includes("article-link-preview"), false);

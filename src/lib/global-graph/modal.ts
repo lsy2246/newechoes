@@ -1305,7 +1305,8 @@ export function initGlobalGraphModal(): GlobalGraphModalController | null {
     !(tooltip instanceof HTMLElement) ||
     !(dataElement instanceof HTMLScriptElement)
   ) {
-    return;
+    modalEl.dataset.graphBound = "false";
+    return null;
   }
 
   const stageEl = stage;

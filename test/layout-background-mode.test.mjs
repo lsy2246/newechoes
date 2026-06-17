@@ -9,6 +9,7 @@ const header = readFileSync("src/components/Header.astro", "utf8");
 const layout = readFileSync("src/components/Layout.astro", "utf8");
 const search = readFileSync("src/components/Search.tsx", "utf8");
 const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
+const staticServer = readFileSync("tmp/static-server.mjs", "utf8");
 const swupLifecycleFiles = [
   "src/lib/navigation/swup-init.js",
   "src/components/Layout.astro",
@@ -106,6 +107,15 @@ test("swup syncs the persistent header surface after leaving home", () => {
   assert.ok(swupInit.includes("headerBg.classList.toggle('header-bg-surface', !shellState.useHomeHeader)"));
 });
 
+test("home theme toggles keep the shared auto direction instead of homepage-only overrides", () => {
+  assert.ok(header.includes("<ThemeToggle transitionDuration={700} />"));
+  assert.match(
+    header,
+    /<ThemeToggle\s+width=\{14\}\s+height=\{14\}\s+className="group"\s+transitionDuration=\{700\}\s*\/>/,
+  );
+  assert.equal(header.includes('transitionMode={isHomeHeader ? "reverse-auto" : "auto"}'), false);
+});
+
 test("swup syncs header visibility from the replaced page shell", () => {
   assert.ok(layout.includes("<Header hidden={hideHeader} />"));
   assert.equal(layout.includes("!hideHeader && <Header"), false);
@@ -163,6 +173,37 @@ test("swup bridges page:view to Astro lifecycle events for navigation-driven pag
   );
 });
 
+test("persistent header navigation does not self-destruct during swup shell swaps", () => {
+  assert.equal(header.includes('eventType: "astro:before-swap"'), false);
+  assert.equal(header.includes('eventType: "page-transition"'), false);
+  assert.equal(header.includes("function selfDestruct()"), false);
+  assert.equal(header.includes("function registerCleanupEvents()"), false);
+  assert.equal(header.includes("function setupHistoryMonitoring()"), false);
+  assert.equal(header.includes("window.history.pushState = function()"), false);
+  assert.equal(header.includes("window.history.replaceState = function()"), false);
+});
+
+test("persistent header navigation bootstraps as an idempotent singleton to avoid duplicate listeners", () => {
+  assert.ok(header.includes('const HEADER_RUNTIME_KEY = "__PersistentHeaderRuntime";'));
+  assert.ok(header.includes("if (headerWindow[HEADER_RUNTIME_KEY]) {"));
+  assert.ok(header.includes("headerWindow[HEADER_RUNTIME_KEY]?.init();"));
+  assert.ok(header.includes("headerWindow[HEADER_RUNTIME_KEY] = { init: initNavigation };"));
+});
+
+test("persistent header navigation refreshes from Astro lifecycle instead of direct swup document events", () => {
+  assert.equal(header.includes("swup:content:replace"), false);
+  assert.equal(header.includes("swup:animation:in:end"), false);
+  assert.ok(header.includes("function refreshNavigationState"));
+  assert.match(
+    header,
+    /addListener\(document,\s*'astro:after-swap',\s*\(\)\s*=>\s*\{[\s\S]*refreshNavigationState\(/,
+  );
+  assert.match(
+    header,
+    /addListener\(document,\s*'astro:page-load',\s*\(\)\s*=>\s*\{[\s\S]*refreshNavigationState\(/,
+  );
+});
+
 test("swup owns timeline year spy lifecycle outside page inline scripts", () => {
   assert.ok(swupInit.includes("const timelineYearSpy ="));
   assert.ok(swupInit.includes("document.querySelectorAll('[data-timeline-year-link]')"));
@@ -180,13 +221,13 @@ test("search closes transient panels during swup navigation", () => {
 });
 
 test("search hydrates early without blocking the initial navigation paint", () => {
-  assert.match(header, /<Search client:idle=\{\{ timeout: 900 \}\} placeholder="搜索文章\.\.\." maxResults=\{5\} \/>/);
+  assert.equal(header.includes("<Search client:idle"), false);
   assert.equal(header.includes("<Search client:load"), false);
 });
 
 test("header nav clicks hand off immediately to swup navigation instead of only consuming the event", () => {
-  assert.ok(header.includes("function navigateWithinSite(targetHref)"));
-  assert.ok(header.includes("const swup = window.swup;"));
+  assert.ok(header.includes("function navigateWithinSite(targetHref: string | null)"));
+  assert.ok(header.includes("const swup = headerWindow.swup;"));
   assert.ok(header.includes("if (swup && typeof swup.navigate === 'function')"));
   assert.ok(header.includes("swup.navigate(targetHref);"));
   assert.ok(header.includes("window.location.href = targetHref;"));
@@ -201,10 +242,8 @@ test("header nav clicks hand off immediately to swup navigation instead of only 
 });
 
 test("swup keeps early navigation active without aggressive first-paint preloading", () => {
-  assert.ok(swupInit.includes("preloadHoveredLinks: true"));
+  assert.ok(swupInit.includes("preloadHoveredLinks: false"));
   assert.ok(swupInit.includes("preloadInitialPage: false"));
-  assert.ok(swupInit.includes("threshold: 0.6"));
-  assert.ok(swupInit.includes("delay: window.matchMedia('(max-width: 767px)').matches ? 1800 : 1200"));
   assert.ok(swupInit.includes("throttle: window.matchMedia('(max-width: 767px)').matches ? 1 : 2"));
 });
 
@@ -216,7 +255,7 @@ test("swup clears homepage-only html state when leaving home", () => {
 });
 
 test("swup route loader stays viewport centered for the tall homepage shell", () => {
-  assert.ok(swupInit.includes("const LOADING_SPINNER_MIN_VISIBLE_MS = 360"));
+  assert.ok(swupInit.includes("const LOADING_SPINNER_MIN_VISIBLE_MS = 0"));
   assert.ok(swupInit.includes("spinner.style.top = '50%'"));
   assert.ok(swupInit.includes("spinner.style.left = '50%'"));
   assert.ok(swupInit.includes("const hideDelay = Math.max(0, LOADING_SPINNER_MIN_VISIBLE_MS - visibleFor);"));
@@ -267,6 +306,24 @@ test("swup does not hide incoming main content again after replacement", () => {
     /swup\.hooks\.on\('content:replace', \(\) => \{[\s\S]*setElementOpacity\(activeElement, 0\);[\s\S]*\}\);/.test(swupInit),
     false,
   );
+});
+
+test("theme toggle runtime is no longer duplicated inline inside every button instance", () => {
+  assert.equal(readFileSync("src/components/ThemeToggle.astro", "utf8").includes("<script is:inline>"), false);
+  assert.equal(readFileSync("src/components/ThemeToggle.astro", "utf8").includes('import "@/lib/theme-toggle-runtime"'), false);
+  assert.match(layout, /<script>\s*import "\.\.\/lib\/theme-toggle-runtime\.ts";\s*<\/script>/);
+});
+
+test("local static server stubs the vercel speed insights script to avoid 404 noise during offline verification", () => {
+  assert.ok(staticServer.includes("cleanPath === \"/_vercel/speed-insights/script.js\""));
+  assert.ok(staticServer.includes("res.writeHead(204"));
+  assert.ok(staticServer.includes("res.end(\"\")"));
+});
+
+test("local static server returns a harmless empty payload for google photos api requests during offline verification", () => {
+  assert.ok(staticServer.includes("cleanPath === \"/api/google-photos\""));
+  assert.ok(staticServer.includes('\"Content-Type\": \"application/json; charset=utf-8\"'));
+  assert.ok(staticServer.includes('JSON.stringify({ album: { title: null }, photos: [], nextCursor: null })'));
 });
 
 test("article grid and detail navigation use swup history instead of same-path replacement", () => {

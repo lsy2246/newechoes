@@ -8,7 +8,7 @@ import SwupPreloadPlugin from '@swup/preload-plugin';
 // 添加Scripts插件 - 确保页面转场后脚本能重新执行
 import SwupScriptsPlugin from '@swup/scripts-plugin';
 
-const LOADING_SPINNER_MIN_VISIBLE_MS = 360;
+const LOADING_SPINNER_MIN_VISIBLE_MS = 0;
 let loadingSpinnerHideTimer = 0;
 let loadingSpinnerShownAt = 0;
 let lastNavigationError = null;
@@ -137,14 +137,11 @@ function hideLoadingSpinner(spinner) {
   loadingSpinnerHideTimer = window.setTimeout(() => {
     loadingSpinnerHideTimer = 0;
     spinner.classList.remove('is-active');
-  
-    // 添加淡出效果后移除
-    setTimeout(() => {
-      if (spinner && document.body.contains(spinner)) {
-        spinner.style.display = 'none';
-      }
-      setSwupLoadingState(false);
-    }, 300);
+
+    if (spinner && document.body.contains(spinner)) {
+      spinner.style.display = 'none';
+    }
+    setSwupLoadingState(false);
   }, hideDelay);
 }
 
@@ -696,7 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 早初始化 Swup，但降低首屏资源争用。
     throttle: window.matchMedia('(max-width: 767px)').matches ? 1 : 2,
     // 开启鼠标悬停预加载
-    preloadHoveredLinks: true,
+    preloadHoveredLinks: false,
     preloadInitialPage: false
   });
   swup.use(preloadPlugin);
@@ -714,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
     persistTags: shouldPersistStylesheetDuringHeadSync,
     persistAssets: false,
     keepScrollOnReload: true, // 保持滚动位置
-    awaitAssets: true // 等待目标页样式就绪，避免文章页切换时出现无样式闪烁
+    awaitAssets: false // 避免切页被目标页资源阻塞，靠现有样式持久化兜底
   });
   swup.use(headPlugin);
   

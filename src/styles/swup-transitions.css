@@ -35,7 +35,7 @@ html.is-changing .swup-transition-article {
   z-index: 9999;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -2,7 +2,6 @@
 import { getCollection, render } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import {
-  getArticleReferenceVariants,
   createArticleReferenceResolver,
   extractArticleReferences,
   getCanonicalArticleUrl,
@@ -87,6 +86,11 @@ const { article, section } = Astro.props as ArticlePageProps;
 const searchParams = new URLSearchParams(Astro.url.search);
 const isCardPreview = searchParams.get("preview") === "card";
 
+// 获取相关文章
+const allArticles = await getCollection("articles");
+assertUniqueArticleIdentities(allArticles);
+const articleIdentity = resolveArticleIdentity(article);
+const resolveArticleReference = createArticleReferenceResolver(allArticles);
 // 渲染文章内容
 const { Content, headings } = await render(article);
 const hasMermaidDiagrams = /(^|\n)```mermaid(?:\s|$)/.test(article.body);
@@ -94,11 +98,6 @@ const hasMermaidDiagrams = /(^|\n)```mermaid(?:\s|$)/.test(article.body);
 // 获取面包屑路径段
 const pathSegments: string[] = section ? section.split("/") : [];
 
-// 获取相关文章
-const allArticles = await getCollection("articles");
-assertUniqueArticleIdentities(allArticles);
-const articleIdentity = resolveArticleIdentity(article);
-const resolveArticleReference = createArticleReferenceResolver(allArticles);
 const backlinkArticles = allArticles
   .filter(
     (candidate: ArticleEntry) =>
@@ -111,20 +110,6 @@ const backlinkArticles = allArticles
   );
 const visibleBacklinkArticles = backlinkArticles.slice(0, 6);
 const hiddenBacklinkCount = Math.max(backlinkArticles.length - visibleBacklinkArticles.length, 0);
-const articleLinkPayload = JSON.stringify({
-  entries: allArticles.map((entry: ArticleEntry) => {
-    const entryIdentity = resolveArticleIdentity(entry);
-
-    return {
-      id: entryIdentity,
-      title: entry.data.title,
-      summary: generateArticleSummary(entry),
-      date: entry.data.date.toLocaleDateString("zh-CN"),
-      route: getCanonicalArticleUrl(entry.id),
-      variants: getArticleReferenceVariants(entry),
-    };
-  }),
-});
 
 // 1. 尝试通过标签匹配相关文章
 let relatedArticles = allArticles
@@ -750,12 +735,6 @@ const tableOfContents = generateTableOfContents(headings);
     {
       !isCardPreview && (
         <Fragment>
-          <script
-            type="application/json"
-            data-article-link-index
-            set:html={articleLinkPayload}
-          ></script>
-
           <aside class="article-side" id="toc-panel">
             <section class="side-block">
               <h2>文章目录</h2>
@@ -1005,116 +984,7 @@ const tableOfContents = generateTableOfContents(headings);
           updateReadingProgress();
         }
 
-        // 3. 内部文章链接规范化
-        function setupArticleReferenceLinks() {
-          const linkIndexElement = document.querySelector("[data-article-link-index]");
-
-          if (!linkIndexElement) {
-            return;
-          }
-
-          let linkPayload;
-          try {
-            linkPayload = JSON.parse(linkIndexElement.textContent || "{}");
-          } catch (error) {
-            console.error("解析文章链接索引失败:", error);
-            return;
-          }
-
-          const entries = Array.isArray(linkPayload.entries)
-            ? linkPayload.entries
-            : [];
-
-          if (entries.length === 0) {
-            return;
-          }
-
-          function normalizeArticleReference(href) {
-            if (!href) return null;
-
-            let normalized = href.trim();
-            const lowerHref = normalized.toLowerCase();
-
-            if (
-              lowerHref.startsWith("#") ||
-              lowerHref.startsWith("http://") ||
-              lowerHref.startsWith("https://") ||
-              lowerHref.startsWith("//") ||
-              lowerHref.startsWith("mailto:") ||
-              lowerHref.startsWith("tel:") ||
-              lowerHref.startsWith("javascript:") ||
-              lowerHref.startsWith("data:")
-            ) {
-              return null;
-            }
-
-            try {
-              normalized = decodeURI(normalized);
-            } catch {
-              // Ignore malformed URI segments and keep the original href.
-            }
-
-            normalized = normalized.split("#")[0]?.split("?")[0]?.trim() || "";
-            normalized = normalized.replace(/\/+$/, "");
-
-            if (!normalized) return null;
-
-            if (normalized.startsWith("/articles/")) {
-              normalized = normalized.slice("/articles/".length);
-            } else if (normalized.startsWith("articles/")) {
-              normalized = normalized.slice("articles/".length);
-            } else if (normalized.startsWith("/")) {
-              normalized = normalized.slice(1);
-            }
-
-            normalized = normalized.replace(/^\.\//, "");
-            while (normalized.startsWith("../")) {
-              normalized = normalized.slice(3);
-            }
-
-            return normalized || null;
-          }
-
-          const referenceMap = new Map();
-          entries.forEach((entry) => {
-            const route = typeof entry.route === "string" ? entry.route : "";
-            if (!route) {
-              return;
-            }
-
-            const variants = Array.isArray(entry.variants) ? entry.variants : [];
-            [...variants, route].forEach((variant) => {
-              const normalized = normalizeArticleReference(variant);
-              if (normalized) {
-                referenceMap.set(normalized.toLowerCase(), route);
-              }
-            });
-          });
-
-          function resolveArticleRoute(href) {
-            const normalized = normalizeArticleReference(href);
-            return normalized ? referenceMap.get(normalized.toLowerCase()) || null : null;
-          }
-
-          const articleLinks = document.querySelectorAll("article a[href]");
-
-          articleLinks.forEach((link) => {
-            const rawHref = link.getAttribute("href");
-            const articleRoute = resolveArticleRoute(rawHref);
-
-            if (!articleRoute) {
-              return;
-            }
-
-            const hashIndex = rawHref?.indexOf("#") ?? -1;
-            const hashSuffix = hashIndex >= 0 ? rawHref.slice(hashIndex) : "";
-
-            link.setAttribute("href", `${articleRoute}${hashSuffix}`);
-            link.setAttribute("data-astro-prefetch", "viewport");
-          });
-        }
-
-        // 4. 目录交互
+        // 3. 目录交互
         function setupTableOfContents() {
           const tocContent = document.getElementById("toc-content");
           const tocPanel = document.querySelector("#toc-panel");
@@ -1339,7 +1209,6 @@ const tableOfContents = generateTableOfContents(headings);
         // 启动所有功能
         setupCodeCopy();
         setupProgressBar();
-        setupArticleReferenceLinks();
         setupTableOfContents();
       }
 

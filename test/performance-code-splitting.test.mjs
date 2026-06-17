@@ -63,13 +63,23 @@ test("global graph keeps one Astro component and preloads graph data plus modal 
 
 test("swup avoids preloading visible links but waits for route assets before reveal", () => {
   assert.equal(swupInit.includes("preloadVisibleLinks"), false);
-  assert.ok(swupInit.includes("preloadHoveredLinks: true"));
-  assert.ok(swupInit.includes("awaitAssets: true"));
+  assert.ok(swupInit.includes("preloadHoveredLinks: false"));
+  assert.ok(swupInit.includes("awaitAssets: false"));
   assert.ok(swupInit.includes("scheduleArticleMermaidBoot();"));
 });
 
+test("theme toggle runtime is bundled once instead of inlining per button instance", () => {
+  assert.equal(readFileSync("src/components/ThemeToggle.astro", "utf8").includes("<script is:inline>"), false);
+  assert.equal(readFileSync("src/components/ThemeToggle.astro", "utf8").includes('import "@/lib/theme-toggle-runtime"'), false);
+  assert.match(
+    readFileSync("src/components/Layout.astro", "utf8"),
+    /<script>\s*import "\.\.\/lib\/theme-toggle-runtime\.ts";\s*<\/script>/,
+  );
+});
+
 test("home diorama waits for the page load event before booting the heavy three scene", () => {
-  assert.ok(homeDiorama.includes('import { mountHomeDioramaBoot } from "./homeDioramaBoot.js";'));
+  assert.ok(homeDiorama.includes('mountHomeDioramaBoot'));
+  assert.ok(homeDiorama.includes('installHomeDioramaRehydrationBridge'));
   assert.ok(homeDiorama.includes('data-home-visible="false"'));
   assert.ok(homeDiorama.includes('data-cue-mode="loading"'));
   assert.equal(homeDiorama.includes("requestIdleCallback"), false);

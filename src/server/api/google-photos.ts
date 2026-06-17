@@ -124,13 +124,11 @@ export const GET = async ({ request }: { request: Request }) => {
       loadedCount: Number.isNaN(loadedCount) ? 0 : loadedCount,
     });
 
-    const itemsCount = Array.isArray((data as { items?: unknown[] }).items)
-      ? ((data as { items: unknown[] }).items.length)
-      : undefined;
+    const itemsCount = data.photos.length;
     log.respond(200, {
       reason: "share_fetch_success",
       items: itemsCount,
-      hasNextCursor: Boolean((data as { nextCursor?: string | null }).nextCursor),
+      hasNextCursor: Boolean(data.nextCursor),
     });
 
     return new Response(JSON.stringify(data), {

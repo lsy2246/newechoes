@@ -46,6 +46,8 @@ test("global graph launcher preloads on browser idle through the same cached con
   assert.match(launcher, /const GLOBAL_GRAPH_LAUNCHER_KEY = "__globalGraphLauncherModule";/);
   assert.match(launcher, /const GLOBAL_GRAPH_PRELOAD_KEY = "__globalGraphPreloadScheduled";/);
   assert.match(launcher, /const GLOBAL_GRAPH_CLICK_BOUND_KEY = "__globalGraphLauncherClickBound";/);
+  assert.match(launcher, /interface GlobalGraphLauncherWindow extends Window/);
+  assert.match(launcher, /const launcherWindow = window as GlobalGraphLauncherWindow;/);
   assert.match(launcher, /function loadGlobalGraphLauncher/);
   assert.match(launcher, /requestIdleCallback/);
   assert.match(launcher, /window\.addEventListener\("load"/);

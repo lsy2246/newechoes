@@ -1,11 +1,13 @@
 import type { FilterRequest, FilterResult } from "./types";
 
-type WorkerRequest =
-  | { id: number; type: "initFilter"; payload: { indexUrl: string } }
-  | { id: number; type: "filter"; payload: { request: FilterRequest } }
-  | { id: number; type: "getTags" };
+type InitFilterWorkerRequest = { id: number; type: "initFilter"; payload: { indexUrl: string } };
+type FilterWorkerRequest = { id: number; type: "filter"; payload: { request: FilterRequest } };
+type GetTagsWorkerRequest = { id: number; type: "getTags" };
 
-type WorkerRequestPayload = Omit<WorkerRequest, "id">;
+type WorkerRequest =
+  | InitFilterWorkerRequest
+  | FilterWorkerRequest
+  | GetTagsWorkerRequest;
 
 type WorkerResponse =
   | { id: number; type: "result"; payload: unknown }
@@ -56,20 +58,19 @@ const initWorker = () => {
   return worker;
 };
 
-const request = async <T = unknown>(payload: WorkerRequestPayload): Promise<T> => {
+const request = async <T = unknown>(payload: WorkerRequest): Promise<T> => {
   const activeWorker = initWorker();
-  const id = ++requestId;
-  const message = { ...payload, id } as WorkerRequest;
 
   return new Promise<T>((resolve, reject) => {
-    pending.set(id, { resolve: resolve as PendingRequest["resolve"], reject });
-    activeWorker.postMessage(message);
+    pending.set(payload.id, { resolve: resolve as PendingRequest["resolve"], reject });
+    activeWorker.postMessage(payload);
   });
 };
 
 export const initFilterIndex = async (indexUrl: string) => {
   if (!filterInitPromise) {
     filterInitPromise = request({
+      id: ++requestId,
       type: "initFilter",
       payload: { indexUrl },
     })
@@ -84,9 +85,13 @@ export const initFilterIndex = async (indexUrl: string) => {
 };
 
 export const filterArticles = async (requestPayload: FilterRequest) =>
-  request<FilterResult>({ type: "filter", payload: { request: requestPayload } });
+  request<FilterResult>({
+    id: ++requestId,
+    type: "filter",
+    payload: { request: requestPayload },
+  });
 
-export const getAllTags = async () => request<string[]>({ type: "getTags" });
+export const getAllTags = async () => request<string[]>({ id: ++requestId, type: "getTags" });
 
 export const terminateFilterWorker = () => {
   if (worker) {

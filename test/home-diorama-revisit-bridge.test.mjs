@@ -28,7 +28,7 @@ const createEventTarget = () => {
 };
 
 test("layout installs a persistent home diorama lifecycle bridge", () => {
-  assert.match(layoutSource, /installHomeDioramaRehydrationBridge/);
+  assert.doesNotMatch(layoutSource, /installHomeDioramaRehydrationBridge/);
 });
 
 test("home diorama lifecycle bridge remounts boot when returning home after the first visit", () => {

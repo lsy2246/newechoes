@@ -4,14 +4,21 @@
   const GLOBAL_GRAPH_LAUNCHER_KEY = "__globalGraphLauncherModule";
   const GLOBAL_GRAPH_PRELOAD_KEY = "__globalGraphPreloadScheduled";
   const GLOBAL_GRAPH_CLICK_BOUND_KEY = "__globalGraphLauncherClickBound";
+  type GlobalGraphLauncherModule = typeof import("@/lib/global-graph/launcher");
+  interface GlobalGraphLauncherWindow extends Window {
+    __globalGraphLauncherModule?: Promise<GlobalGraphLauncherModule>;
+    __globalGraphPreloadScheduled?: boolean;
+    __globalGraphLauncherClickBound?: boolean;
+  }
+  const launcherWindow = window as GlobalGraphLauncherWindow;
 
   function loadGlobalGraphLauncher() {
-    window[GLOBAL_GRAPH_LAUNCHER_KEY] ??= import("@/lib/global-graph/launcher").catch((error) => {
-      delete window[GLOBAL_GRAPH_LAUNCHER_KEY];
+    launcherWindow.__globalGraphLauncherModule ??= import("@/lib/global-graph/launcher").catch((error) => {
+      delete launcherWindow.__globalGraphLauncherModule;
       throw error;
     });
 
-    return window[GLOBAL_GRAPH_LAUNCHER_KEY];
+    return launcherWindow.__globalGraphLauncherModule;
   }
 
   async function openGlobalGraphFromLauncher() {
@@ -40,8 +47,8 @@
   }
 
   function scheduleGlobalGraphPreload() {
-    if (window[GLOBAL_GRAPH_PRELOAD_KEY]) return;
-    window[GLOBAL_GRAPH_PRELOAD_KEY] = true;
+    if (launcherWindow.__globalGraphPreloadScheduled) return;
+    launcherWindow.__globalGraphPreloadScheduled = true;
 
     if (document.readyState === "complete") {
       queueGlobalGraphPreload();
@@ -51,7 +58,7 @@
     window.addEventListener("load", queueGlobalGraphPreload, { once: true });
   }
 
-  function handleGlobalGraphLauncherClick(event) {
+  function handleGlobalGraphLauncherClick(event: Event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
@@ -62,9 +69,9 @@
     void openGlobalGraphFromLauncher();
   }
 
-  if (!window[GLOBAL_GRAPH_CLICK_BOUND_KEY]) {
+  if (!launcherWindow.__globalGraphLauncherClickBound) {
     document.addEventListener("click", handleGlobalGraphLauncherClick);
-    window[GLOBAL_GRAPH_CLICK_BOUND_KEY] = true;
+    launcherWindow.__globalGraphLauncherClickBound = true;
   }
 
   scheduleGlobalGraphPreload();

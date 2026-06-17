@@ -219,7 +219,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                 <path d="m8 13 8 4"></path>
               </svg>
             </button>
-            <ThemeToggle  transitionDuration={700} />
+            <ThemeToggle transitionDuration={700} />
           </div>
         </div>
 
@@ -411,24 +411,53 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   <GlobalGraphLauncher />
 </header>
 
-<script is:inline>
-// 导航逻辑 - 自销毁模式
+<script>
+// 导航逻辑
 (function() {
-  // 尽早检查导航元素是否存在
-  const navSelector = document.querySelector('.nav-selector');
-  
-  // 集中管理所有事件监听器
-  const allListeners = [];
-  
-  // 单独保存清理事件的监听器引用
-  const cleanupListeners = [];
-  
-  // 内部状态管理
+  interface HeaderWindow extends Window {
+    swup?: {
+      navigate?: (url: string) => void;
+    };
+    __PersistentHeaderRuntime?: {
+      init: () => void;
+    };
+  }
+
+  type NavHighlightRect = {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+  type HighlightPositionResult = {
+    primaryTarget: HTMLElement | null;
+    secondaryTarget: HTMLElement | null;
+    primaryScope: "group" | "item";
+    positions: {
+      primary: NavHighlightRect | null;
+      secondary: NavHighlightRect | null;
+    };
+    applyPositions: (applyImmediate?: boolean) => void;
+  };
+
+  const HEADER_RUNTIME_KEY = "__PersistentHeaderRuntime";
+  const headerWindow = window as HeaderWindow;
+
+  if (headerWindow[HEADER_RUNTIME_KEY]) {
+    headerWindow[HEADER_RUNTIME_KEY]?.init();
+    return;
+  }
+
+  const navSelector = document.querySelector<HTMLElement>('.nav-selector');
+  const allListeners: Array<{
+    element: EventTarget;
+    eventType: string;
+    handler: EventListenerOrEventListenerObject;
+    options?: AddEventListenerOptions | boolean;
+  }> = [];
   const state = {
-    isCleaningUp: false,
     lastActivePath: '',
-    originalPushState: window.history.pushState,
-    originalReplaceState: window.history.replaceState
+    initialized: false,
   };
   
   // 获取当前URL路径
@@ -445,7 +474,12 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   }
   
   // 添加事件监听器并记录，方便后续统一清理
-  function addListener(element, eventType, handler, options) {
+  function addListener(
+    element: EventTarget | null | undefined,
+    eventType: string,
+    handler: EventListenerOrEventListenerObject,
+    options?: AddEventListenerOptions | boolean,
+  ) {
     if (!element) {
       console.warn(`导航元素不存在`);
       return null;
@@ -457,92 +491,16 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   }
   
   // 更新高亮背景的函数声明（提前声明）
-  let updateHighlights;
+  let updateHighlights: (immediate?: boolean) => void;
   
   // 初始化当前页面的激活状态函数声明（提前声明） 
-  let initActiveState;
-  
-  // 统一的路径变化处理函数
-  function handlePathChange() {
-    if (state.isCleaningUp) return;
-    
-    const currentPath = getCurrentPath();
-    
-    if (currentPath !== state.lastActivePath) {
-      // 主动调用初始化和更新高亮
-      initActiveState();
-      updateHighlights(false);
-      
-      state.lastActivePath = currentPath;
-    }
-  }
-  
-  // 统一的清理函数，执行完整清理并自销毁
-  function selfDestruct() {
-    // 标记清理状态
-    state.isCleaningUp = true;
-    
-    // 1. 移除所有普通事件监听器
-    allListeners.forEach(({ element, eventType, handler, options }) => {
-      try {
-        element.removeEventListener(eventType, handler, options);
-      } catch (err) {
-        console.error(`导航脚本移除事件监听器出错:`, err);
-      }
-    });
-    
-    // 清空监听器数组
-    allListeners.length = 0;
-    
-    // 2. 恢复原始history方法
-    if (state.originalPushState && state.originalReplaceState) {
-      try {
-        window.history.pushState = state.originalPushState;
-        window.history.replaceState = state.originalReplaceState;
-      } catch (err) {
-        console.error('恢复History方法失败:', err);
-      }
-    }
-    
-    // 3. 最后移除清理事件监听器自身
-    cleanupListeners.forEach(({ element, eventType, handler, options }) => {
-      try {
-        element.removeEventListener(eventType, handler, options);
-      } catch (err) {
-        console.error(`导航脚本移除清理监听器出错:`, err);
-      }
-    });
-    
-    // 清空清理监听器数组
-    cleanupListeners.length = 0;
-  }
-  
-  // 注册清理事件，并保存引用
-  function registerCleanupEvents() {
-    // 所有可能触发清理的事件
-    const cleanupEvents = [
-      { element: document, eventType: "astro:before-swap", options: { once: true } },
-      { element: window, eventType: "beforeunload", options: { once: true } },
-      { element: document, eventType: "page-transition", options: null }
-    ];
-    
-    // 为每个事件添加监听器
-    cleanupEvents.forEach(({ element, eventType, options }) => {
-      // 添加监听器
-      element.addEventListener(eventType, selfDestruct, options);
-      
-      // 保存引用以便后续清理
-      cleanupListeners.push({ 
-        element, 
-        eventType, 
-        handler: selfDestruct, 
-        options 
-      });
-    });
-  }
+  let initActiveState: () => void;
 
   // 创建一个共享的计算高亮位置的函数
-  function calculateHighlightPositions(options = {}) {
+  function calculateHighlightPositions(options: {
+    navSelector?: HTMLElement | null;
+    immediate?: boolean;
+  } = {}): HighlightPositionResult | null {
     const { navSelector, immediate = false } = options;
     if (!navSelector) return null;
     
@@ -557,7 +515,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     // 获取标准高度
     const getStandardHeight = () => {
       // 尝试获取普通菜单项的高度作为标准
-      const standardItem = document.querySelector('.nav-item');
+      const standardItem = document.querySelector<HTMLElement>('.nav-item');
       if (standardItem) {
         return standardItem.offsetHeight;
       }
@@ -568,9 +526,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const standardHeight = getStandardHeight();
     
     // 查找活动元素
-    const activeItem = document.querySelector('.nav-item[data-state="active"]');
-    const activeGroup = document.querySelector('.nav-group[data-expanded="true"]');
-    const activeSubItem = document.querySelector('.nav-subitem[data-state="active"]');
+    const activeItem = document.querySelector<HTMLElement>('.nav-item[data-state="active"]');
+    const activeGroup = document.querySelector<HTMLElement>('.nav-group[data-expanded="true"]');
+    const activeSubItem = document.querySelector<HTMLElement>('.nav-subitem[data-state="active"]');
     
     // 计算一级高亮目标
     let primaryTarget = activeItem;
@@ -585,7 +543,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const secondaryTarget = activeSubItem;
     
     // 高亮位置结果
-    const result = {
+    const result: HighlightPositionResult = {
       primaryTarget,
       secondaryTarget,
       primaryScope: isGroupActive ? "group" : "item",
@@ -595,7 +553,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       },
       applyPositions: function(applyImmediate = false) {
         // 获取持续时间
-        const duration = parseInt(navSelector.dataset.duration || 300);
+        const duration = parseInt(navSelector.dataset.duration || '300', 10);
         
         // 应用一级高亮位置
         if (this.positions.primary && primaryHighlight) {
@@ -610,7 +568,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             primaryHighlight.style.height = `${height}px`;
             
             // 强制重排以确保过渡效果被重置
-            primaryHighlight.offsetHeight;
+            void primaryHighlight.offsetHeight;
             
             // 恢复过渡属性
             requestAnimationFrame(() => {
@@ -653,7 +611,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             secondaryHighlight.style.height = `${height}px`;
             
             // 强制重排以确保过渡效果被重置
-            secondaryHighlight.offsetHeight;
+            void secondaryHighlight.offsetHeight;
             
             // 恢复过渡属性
             requestAnimationFrame(() => {
@@ -765,9 +723,6 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
   })();
   
-  // 注册清理事件
-  registerCleanupEvents();
-  
   // 更新高亮背景 - 提升到顶部作用域
   updateHighlights = function(immediate = false) {
     requestAnimationFrame(() => {
@@ -788,12 +743,12 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const currentPath = getCurrentPath();
     
     // 先清除所有导航项的激活状态
-    const allNavItems = document.querySelectorAll('.nav-item, .nav-subitem');
+    const allNavItems = document.querySelectorAll<HTMLElement>('.nav-item, .nav-subitem');
     allNavItems.forEach(item => {
       item.setAttribute('data-state', 'inactive');
     });
     
-    const allNavGroups = document.querySelectorAll('.nav-group');
+    const allNavGroups = document.querySelectorAll<HTMLElement>('.nav-group');
     allNavGroups.forEach(group => {
       group.setAttribute('data-expanded', 'false');
       const toggle = group.querySelector('.nav-group-toggle');
@@ -813,7 +768,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     let foundMatch = false;
     
     // 先检查子菜单项
-    const subItems = document.querySelectorAll('.nav-subitem');
+    const subItems = document.querySelectorAll<HTMLElement>('.nav-subitem');
     
     for (const subItem of subItems) {
       const href = subItem.getAttribute('href');
@@ -827,7 +782,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         // 激活父组
         const parentId = subItem.dataset.parentId;
         if (parentId) {
-          const parentGroup = document.querySelector(`.nav-group[data-group-id="${parentId}"]`);
+          const parentGroup = document.querySelector<HTMLElement>(`.nav-group[data-group-id="${parentId}"]`);
           if (parentGroup) {
             parentGroup.setAttribute('data-expanded', 'true');
             
@@ -853,7 +808,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     
     // 如果没找到匹配的子菜单项，检查主菜单项
     if (!foundMatch) {
-      const items = document.querySelectorAll('.nav-item');
+      const items = document.querySelectorAll<HTMLElement>('.nav-item');
       
       for (const item of items) {
         const href = item.getAttribute('href');
@@ -878,6 +833,17 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     // 计算正确高亮位置
     updateHighlights(false);
   };
+
+  function refreshNavigationState(immediate = false) {
+    const currentPath = getCurrentPath();
+
+    initActiveState();
+    state.lastActivePath = currentPath;
+
+    requestAnimationFrame(() => {
+      updateHighlights(immediate);
+    });
+  }
   
   // DOM加载完成后执行初始化
   function initNavigation() {
@@ -905,65 +871,40 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     
     // 监听hashchange事件 - 当URL的hash部分改变时触发
     addListener(window, 'hashchange', () => {
-      handlePathChange();
+      const currentPath = getCurrentPath();
+      if (currentPath !== state.lastActivePath) {
+        refreshNavigationState(false);
+      }
     });
     
     // 为所有导航链接添加点击拦截
-    addListener(document, 'click', (e) => {
+    addListener(document, 'click', (e: Event) => {
+      if (!(e instanceof MouseEvent)) return;
+      if (!(e.target instanceof Element)) return;
       // 检查点击的是否为站内导航链接
       const link = e.target.closest('a');
       if (link && link.host === window.location.host && !e.ctrlKey && !e.metaKey) {
         // 延迟检查以确保导航已完成
-        setTimeout(handlePathChange, 50);
+        setTimeout(() => {
+          const currentPath = getCurrentPath();
+          if (currentPath !== state.lastActivePath) {
+            refreshNavigationState(false);
+          }
+        }, 50);
       }
     });
-    
-    // 设置History API监控
-    setupHistoryMonitoring();
   }
 
-  function navigateWithinSite(targetHref) {
+  function navigateWithinSite(targetHref: string | null) {
     if (!targetHref) return;
 
-    const swup = window.swup;
+    const swup = headerWindow.swup;
     if (swup && typeof swup.navigate === 'function') {
       swup.navigate(targetHref);
       return;
     }
 
     window.location.href = targetHref;
-  }
-  
-  // 监听history API的方法
-  function setupHistoryMonitoring() {
-    // 保存初始状态 - 确保引用正确
-    state.originalPushState = window.history.pushState;
-    state.originalReplaceState = window.history.replaceState;
-    
-    // 监听页面转换事件来设置清理标记
-    addListener(document, 'page-transition', () => {
-      state.isCleaningUp = true;
-    });
-    
-    // 重写pushState
-    window.history.pushState = function() {
-      if (state.isCleaningUp) {
-        return state.originalPushState.apply(this, arguments);
-      }
-      
-      state.originalPushState.apply(this, arguments);
-      handlePathChange();
-    };
-    
-    // 重写replaceState
-    window.history.replaceState = function() {
-      if (state.isCleaningUp) {
-        return state.originalReplaceState.apply(this, arguments);
-      }
-      
-      state.originalReplaceState.apply(this, arguments);
-      handlePathChange();
-    };
   }
   
   // 初始化导航选择器
@@ -974,10 +915,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     const primaryHighlight = document.getElementById('nav-primary-highlight');
     const secondaryHighlight = document.getElementById('nav-secondary-highlight');
     const hoverHighlight = document.getElementById('nav-hover-highlight');
-    const navItems = document.querySelectorAll('.nav-item');
-    const navGroups = document.querySelectorAll('.nav-group');
-    const navToggles = document.querySelectorAll('.nav-group-toggle');
-    const navSubItems = document.querySelectorAll('.nav-subitem');
+    const navItems = document.querySelectorAll<HTMLElement>('.nav-item');
+    const navGroups = document.querySelectorAll<HTMLElement>('.nav-group');
+    const navToggles = document.querySelectorAll<HTMLElement>('.nav-group-toggle');
+    const navSubItems = document.querySelectorAll<HTMLElement>('.nav-subitem');
     
     if (!primaryHighlight || !secondaryHighlight) {
       console.warn(`导航高亮元素未找到`);
@@ -985,32 +926,32 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     
     // 悬停状态管理
     const hoverState = {
-      currentTarget: null,
+      currentTarget: null as HTMLElement | null,
       isHovering: false,
       showHoverOnActive: false, // 是否在激活项上也显示悬停效果
-      debounceTimer: null
+      debounceTimer: null as number | null
     };
     
     // 当前活动项的状态 - 从DOM中提取当前激活状态
-    let activeItemId = null;
-    let activeSubItemId = null;
-    let activeGroupId = null;
+    let activeItemId: string | null = null;
+    let activeSubItemId: string | null = null;
+    let activeGroupId: string | null = null;
     
     // 读取初始激活状态
-    const activeItemElement = document.querySelector('.nav-item.active');
+    const activeItemElement = document.querySelector<HTMLElement>('.nav-item.active');
     if (activeItemElement) {
-      activeItemId = activeItemElement.dataset.itemId;
+      activeItemId = activeItemElement.dataset.itemId ?? null;
     }
     
-    const activeSubItemElement = document.querySelector('.nav-subitem.active');
+    const activeSubItemElement = document.querySelector<HTMLElement>('.nav-subitem.active');
     if (activeSubItemElement) {
-      activeSubItemId = activeSubItemElement.dataset.subitemId;
-      activeGroupId = activeSubItemElement.dataset.parentId;
+      activeSubItemId = activeSubItemElement.dataset.subitemId ?? null;
+      activeGroupId = activeSubItemElement.dataset.parentId ?? null;
     }
     
-    const activeGroupElement = document.querySelector('.nav-group.active');
+    const activeGroupElement = document.querySelector<HTMLElement>('.nav-group.active');
     if (activeGroupElement && !activeSubItemId) {
-      activeGroupId = activeGroupElement.dataset.groupId;
+      activeGroupId = activeGroupElement.dataset.groupId ?? null;
     }
     
     // 设置CSS变量
@@ -1021,6 +962,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         const secondaryStyle = window.getComputedStyle(secondaryHighlight);
         
         // 设置CSS变量
+        if (!navSelector) return;
         navSelector.style.setProperty('--primary-highlight-bg', primaryStyle.backgroundColor);
         navSelector.style.setProperty('--secondary-highlight-bg', secondaryStyle.backgroundColor);
       }
@@ -1052,12 +994,12 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
     
     // 更新悬停高亮
-    function updateHoverHighlight(target) {
+    function updateHoverHighlight(target: HTMLElement) {
       if (!hoverHighlight || !navSelector || !target) return;
       
       // 清除之前的定时器
       if (hoverState.debounceTimer) {
-        clearTimeout(hoverState.debounceTimer);
+        window.clearTimeout(hoverState.debounceTimer);
       }
       
       // 设置当前悬停目标
@@ -1074,17 +1016,18 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       }
       
       // 使用防抖处理，减少不必要的计算
-      hoverState.debounceTimer = setTimeout(() => {
+      hoverState.debounceTimer = window.setTimeout(() => {
         // 确保在计算时仍处于悬停状态
         if (!hoverState.isHovering) return;
         
+        if (!navSelector) return;
         const navRect = navSelector.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
         
         // 获取标准高度
         const getStandardHeight = () => {
           // 尝试获取普通菜单项的高度作为标准
-          const standardItem = document.querySelector('.nav-item');
+          const standardItem = document.querySelector<HTMLElement>('.nav-item');
           if (standardItem) {
             return standardItem.offsetHeight;
           }
@@ -1123,7 +1066,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       
       // 清除之前的定时器
       if (hoverState.debounceTimer) {
-        clearTimeout(hoverState.debounceTimer);
+        window.clearTimeout(hoverState.debounceTimer);
       }
       
       // 隐藏高亮
@@ -1131,8 +1074,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
     
     // 处理导航项悬停
-    function handleNavItemHover(e, isEnter) {
+    function handleNavItemHover(e: MouseEvent, isEnter: boolean) {
       const target = e.currentTarget;
+      if (!(target instanceof HTMLElement)) return;
       
       if (isEnter) {
         // 更新悬停高亮
@@ -1140,7 +1084,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       } else {
         // 检查是否离开到了其他导航项
         const relatedTarget = e.relatedTarget;
-        const isStillInNav = relatedTarget && (
+        const isStillInNav = relatedTarget instanceof Element && (
           relatedTarget.classList.contains('nav-item') || 
           relatedTarget.classList.contains('nav-subitem') ||
           relatedTarget.classList.contains('nav-group-toggle')
@@ -1154,7 +1098,8 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
     
     // 设置激活的一级菜单项
-    function setActiveItem(itemId) {
+    function setActiveItem(itemId: string | undefined) {
+      if (!itemId) return;
       // 清除所有菜单状态
       resetAllMenus();
       
@@ -1179,7 +1124,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       });
       
       // 设置新的激活状态
-      const targetItem = document.querySelector(`.nav-item[data-item-id="${itemId}"]`);
+      const targetItem = document.querySelector<HTMLElement>(`.nav-item[data-item-id="${itemId}"]`);
       if (targetItem) {
         targetItem.setAttribute('data-state', 'active');
         
@@ -1197,14 +1142,14 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
     
     // 设置激活的二级菜单项
-    function setActiveSubItem(subItemId) {
+    function setActiveSubItem(subItemId: string | undefined) {
       if (!subItemId) {
         console.warn(`[导航日志] 无效的subItemId`);
         return;
       }
       
       // 查找目标项
-      const targetItem = document.querySelector(`.nav-subitem[data-subitem-id="${subItemId}"]`);
+      const targetItem = document.querySelector<HTMLElement>(`.nav-subitem[data-subitem-id="${subItemId}"]`);
       if (!targetItem) {
         console.warn(`[导航日志] 未找到目标子菜单项: ${subItemId}`);
         return;
@@ -1256,7 +1201,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       activeItemId = null;
       
       // 确保父组处于激活状态
-      const parentGroup = document.querySelector(`.nav-group[data-group-id="${parentId}"]`);
+      const parentGroup = document.querySelector<HTMLElement>(`.nav-group[data-group-id="${parentId}"]`);
       if (parentGroup) {
         parentGroup.setAttribute('data-expanded', 'true');
         
@@ -1279,8 +1224,9 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
     
     // 切换导航组的显示状态
-    function toggleNavGroup(groupId, forceState = null) {
-      const targetGroup = document.querySelector(`.nav-group[data-group-id="${groupId}"]`);
+    function toggleNavGroup(groupId: string | undefined, forceState: boolean | null = null) {
+      if (!groupId) return;
+      const targetGroup = document.querySelector<HTMLElement>(`.nav-group[data-group-id="${groupId}"]`);
       if (!targetGroup) {
         console.error(`导航组未找到: ${groupId}`);
         return;
@@ -1295,7 +1241,8 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       }
       
       // 获取过渡动画持续时间
-      const duration = parseInt(navSelector.dataset.duration || 300);
+      if (!navSelector) return;
+      const duration = parseInt(navSelector.dataset.duration || '300', 10);
       
       // 当前菜单是否可见
       const isExpanded = targetGroup.getAttribute('data-expanded') === 'true';
@@ -1396,7 +1343,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         const activeSubItemBelongsToGroup = activeSubItemId && new RegExp(`^${groupId}-`).test(activeSubItemId);
         
         if (!activeSubItemId || !activeSubItemBelongsToGroup) {
-          const firstSubItem = targetGroup.querySelector('.nav-subitem');
+          const firstSubItem = targetGroup.querySelector<HTMLElement>('.nav-subitem');
           if (firstSubItem) {
             const subItemId = firstSubItem.dataset.subitemId;
             
@@ -1409,13 +1356,13 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
             firstSubItem.setAttribute('data-state', 'active');
             
             // 设置高亮
-            activeSubItemId = subItemId;
+            activeSubItemId = subItemId ?? null;
             
             // 直接模拟点击第一个子菜单项
             setTimeout(() => {
               try {
                 // 检查元素是否仍然存在于DOM中
-                const currentFirstSubItem = document.querySelector(`.nav-subitem[data-subitem-id="${subItemId}"]`);
+                const currentFirstSubItem = document.querySelector<HTMLElement>(`.nav-subitem[data-subitem-id="${subItemId}"]`);
                 if (currentFirstSubItem) {
                   // 使用事件分发而不是直接点击，可能更可靠
                   const clickEvent = new MouseEvent('click', {
@@ -1428,7 +1375,8 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
                   console.error(`[导航日志] 模拟点击失败，元素不再存在于DOM中`);
                 }
               } catch (err) {
-                console.error(`[导航日志] 模拟点击出错: ${err.message}`);
+                const message = err instanceof Error ? err.message : String(err);
+                console.error(`[导航日志] 模拟点击出错: ${message}`);
               }
             }, 50); // 增加延迟时间以确保DOM已更新
           } else {
@@ -1436,7 +1384,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
           }
         } else {
           // 已有选中的二级菜单项，找到并重新设置高亮
-          const activeSubItem = document.querySelector(`.nav-subitem[data-subitem-id="${activeSubItemId}"]`);
+          const activeSubItem = document.querySelector<HTMLElement>(`.nav-subitem[data-subitem-id="${activeSubItemId}"]`);
           if (activeSubItem) {
             // 清除所有二级菜单项的高亮
             navSubItems.forEach(item => {
@@ -1460,7 +1408,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     
     // 普通菜单项点击
     navItems.forEach(item => {
-      addListener(item, 'click', (e) => {
+      addListener(item, 'click', (e: Event) => {
         e.preventDefault();
         
         const itemId = item.dataset.itemId;
@@ -1472,13 +1420,13 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       });
       
       // 添加悬停事件
-      addListener(item, 'mouseenter', (e) => handleNavItemHover(e, true));
-      addListener(item, 'mouseleave', (e) => handleNavItemHover(e, false));
+      addListener(item, 'mouseenter', (e: Event) => handleNavItemHover(e as MouseEvent, true));
+      addListener(item, 'mouseleave', (e: Event) => handleNavItemHover(e as MouseEvent, false));
     });
     
     // 一级菜单按钮点击
     navToggles.forEach(toggle => {
-      addListener(toggle, 'click', (e) => {
+      addListener(toggle, 'click', (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -1489,13 +1437,13 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       });
       
       // 添加悬停事件
-      addListener(toggle, 'mouseenter', (e) => handleNavItemHover(e, true));
-      addListener(toggle, 'mouseleave', (e) => handleNavItemHover(e, false));
+      addListener(toggle, 'mouseenter', (e: Event) => handleNavItemHover(e as MouseEvent, true));
+      addListener(toggle, 'mouseleave', (e: Event) => handleNavItemHover(e as MouseEvent, false));
     });
     
     // 二级菜单项点击
     navSubItems.forEach(item => {
-      addListener(item, 'click', (e) => {
+      addListener(item, 'click', (e: Event) => {
         e.preventDefault();
         
         const subItemId = item.dataset.subitemId;
@@ -1507,70 +1455,31 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       });
       
       // 添加悬停事件
-      addListener(item, 'mouseenter', (e) => handleNavItemHover(e, true));
-      addListener(item, 'mouseleave', (e) => handleNavItemHover(e, false));
+      addListener(item, 'mouseenter', (e: Event) => handleNavItemHover(e as MouseEvent, true));
+      addListener(item, 'mouseleave', (e: Event) => handleNavItemHover(e as MouseEvent, false));
     });
     
     // 初始化
-    initActiveState();
-    
-    // 处理页面切换
-    const hasSwup = typeof window.swup !== 'undefined';
-    if (hasSwup) {
-      // 页面内容替换后重新初始化
-      addListener(document, 'swup:content:replace', () => {
-        setTimeout(() => {
-          initActiveState();
-        }, 50);
-      });
-      
-      // 视图转换结束
-      addListener(document, 'swup:animation:in:end', () => {
-        // 再次调用初始化
-        initActiveState();
-        // 确保高亮背景位置正确
-        updateHighlights(false);
-      });
-    }
+    refreshNavigationState(false);
     
     // 添加 astro:after-swap 事件监听
     addListener(document, 'astro:after-swap', () => {
-      setTimeout(() => {
-        initActiveState();
-        updateHighlights(false);
+      window.setTimeout(() => {
+        refreshNavigationState(false);
       }, 50);
     });
     
     // 添加Astro View Transitions事件监听
     addListener(document, 'astro:page-load', () => {
-      setTimeout(initActiveState, 50);
-      updateHighlights(false);
+      window.setTimeout(() => {
+        refreshNavigationState(false);
+      }, 50);
     });
     
     // 添加popstate事件监听
-    addListener(window, 'popstate', (e) => {
-      setTimeout(() => {
-        initActiveState();
-        updateHighlights(false);
-        
-        // 修复：确保激活的菜单组的子菜单是可见的
-        const activeGroupsAfter = document.querySelectorAll('.nav-group.active');
-        activeGroupsAfter.forEach(group => {
-          const groupId = group.dataset.groupId;
-          const items = group.querySelector('.nav-group-items');
-          
-          if (items && !items.classList.contains('menu-visible')) {
-            // 移除隐藏状态并添加可见状态
-            items.classList.remove('hidden', 'menu-hidden');
-            items.classList.add('menu-visible');
-            
-            // 确保切换按钮也具有正确的状态
-            const toggle = group.querySelector('.nav-group-toggle');
-            if (toggle) {
-              toggle.classList.add('menu-up');
-            }
-          }
-        });
+    addListener(window, 'popstate', () => {
+      window.setTimeout(() => {
+        refreshNavigationState(false);
       }, 50);
     });
     
@@ -1608,22 +1517,24 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
         currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
       
       // 选择所有移动端菜单项
-      const mobileMenuItems = document.querySelectorAll('#mobile-menu a');
+      const mobileMenuItems = document.querySelectorAll<HTMLElement>('#mobile-menu a');
       
       // 找到匹配的菜单项并设置高亮
       mobileMenuItems.forEach(item => {
         const href = item.getAttribute('href');
         // 检查是否完全匹配或者路径前缀匹配（但排除根路径'/'的前缀匹配）
-        if (href === normalizedPath || (normalizedPath.startsWith(href) && href !== '/')) {
+        if (href && (href === normalizedPath || (normalizedPath.startsWith(href) && href !== '/'))) {
           // 应用高亮样式
           item.classList.add('mobile-nav-link-active');
           
           // 如果是子菜单项，自动展开其父菜单
-          const submenu = item.closest('.mobile-submenu');
+          const submenu = item.closest<HTMLElement>('.mobile-submenu');
           if (submenu) {
             const parentId = submenu.getAttribute('data-parent-id');
-            const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
-            if (toggle && submenu.getAttribute('data-expanded') !== 'true') {
+            const toggle = parentId
+              ? document.querySelector<HTMLElement>(`[data-mobile-menu-toggle="${parentId}"]`)
+              : null;
+            if (parentId && toggle && submenu.getAttribute('data-expanded') !== 'true') {
               // 展开子菜单
               toggleSubmenu(parentId, true);
             }
@@ -1636,10 +1547,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
     
     // 切换子菜单显示状态
-    function toggleSubmenu(parentId, forceOpen = null) {
-      const toggle = document.querySelector(`[data-mobile-menu-toggle="${parentId}"]`);
-      const submenu = document.querySelector(`.mobile-submenu[data-parent-id="${parentId}"]`);
-      const menuIcon = toggle ? toggle.querySelector('.mobile-menu-icon') : null;
+    function toggleSubmenu(parentId: string, forceOpen: boolean | null = null) {
+      const toggle = document.querySelector<HTMLElement>(`[data-mobile-menu-toggle="${parentId}"]`);
+      const submenu = document.querySelector<HTMLElement>(`.mobile-submenu[data-parent-id="${parentId}"]`);
+      const menuIcon = toggle ? toggle.querySelector<HTMLElement>('.mobile-menu-icon') : null;
       
       if (!toggle || !submenu) return;
       
@@ -1668,8 +1579,8 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       toggles.forEach(toggle => {
         const parentId = toggle.getAttribute('data-mobile-menu-toggle');
         if (parentId) {
-          const submenu = document.querySelector(`.mobile-submenu[data-parent-id="${parentId}"]`);
-          const menuIcon = toggle ? toggle.querySelector('.mobile-menu-icon') : null;
+          const submenu = document.querySelector<HTMLElement>(`.mobile-submenu[data-parent-id="${parentId}"]`);
+          const menuIcon = toggle instanceof HTMLElement ? toggle.querySelector<HTMLElement>('.mobile-menu-icon') : null;
           
           if (submenu) {
             submenu.setAttribute('data-expanded', 'false');
@@ -1744,16 +1655,17 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     // 为主题切换容器添加点击事件
     const themeToggleContainer = document.getElementById('theme-toggle-container');
     if (themeToggleContainer) {
-      addListener(themeToggleContainer, 'click', (e) => {
+      addListener(themeToggleContainer, 'click', (e: Event) => {
         // 阻止事件冒泡，防止多次触发
         e.stopPropagation();
+        if (!(e instanceof MouseEvent)) return;
         
         // 获取容器内的主题切换按钮
-        const themeToggleButton = themeToggleContainer.querySelector('#theme-toggle-button');
+        const themeToggleButton = themeToggleContainer.querySelector<HTMLElement>('#theme-toggle-button');
         
         // 如果找到按钮，通过创建自定义事件来传递坐标
         if (themeToggleButton) {
-          if (themeToggleButton.contains(e.target)) {
+          if (e.target instanceof Node && themeToggleButton.contains(e.target)) {
             return;
           }
 
@@ -1776,7 +1688,8 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       });
     }
 
-    addListener(mobileMenu, 'click', (e) => {
+    addListener(mobileMenu, 'click', (e: Event) => {
+      if (!(e instanceof MouseEvent)) return;
       const target = e.target;
       if (!(target instanceof Element)) return;
 
@@ -1818,7 +1731,8 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     updateMobileMenuHighlight();
     
     // 添加点击空白区域关闭菜单和搜索面板的事件监听
-    addListener(document, 'click', (e) => {
+    addListener(document, 'click', (e: Event) => {
+      if (!(e instanceof MouseEvent)) return;
       // 获取事件目标
       const target = e.target;
       if (!(target instanceof Element)) return;
@@ -1856,21 +1770,27 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
   }
   
   // 开始初始化
+  headerWindow[HEADER_RUNTIME_KEY] = { init: initNavigation };
   initNavigation();
 })();
 </script>
 
 <script>
-  const SEARCH_LAZY_MODULE_KEY = "__searchLazyModule";
+  type SearchSlot = "desktop" | "mobile";
+  type SearchLazyModule = typeof import("@/lib/search/lazy");
+  interface SearchWindow extends Window {
+    __searchLazyModule?: Promise<SearchLazyModule>;
+  }
+  const searchWindow = window as SearchWindow;
   const SEARCH_IDLE_MOUNT_DELAY = 600;
 
-  const getSearchMount = (slot) =>
-    document.querySelector(`[data-search-mount="${slot}"]`);
+  const getSearchMount = (slot: SearchSlot) =>
+    document.querySelector<HTMLElement>(`[data-search-mount="${slot}"]`);
 
-  const getSearchActivator = (slot) =>
-    document.querySelector(`[data-search-activate="${slot}"]`);
+  const getSearchActivator = (slot: SearchSlot) =>
+    document.querySelector<HTMLElement>(`[data-search-activate="${slot}"]`);
 
-  const focusMountedSearch = (slot) => {
+  const focusMountedSearch = (slot: SearchSlot) => {
     const mount = getSearchMount(slot);
     const input = mount?.querySelector("input");
     if (input instanceof HTMLInputElement) {
@@ -1878,7 +1798,10 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
   };
 
-  const ensureSearchMounted = async (slot, { focus = true } = {}) => {
+  const ensureSearchMounted = async (
+    slot: SearchSlot,
+    { focus = true }: { focus?: boolean } = {},
+  ) => {
     const mount = getSearchMount(slot);
     if (!(mount instanceof HTMLElement)) return;
 
@@ -1906,8 +1829,8 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
 
     try {
-      window[SEARCH_LAZY_MODULE_KEY] ??= import("@/lib/search/lazy");
-      const { mountLazySearch } = await window[SEARCH_LAZY_MODULE_KEY];
+      searchWindow.__searchLazyModule ??= import("@/lib/search/lazy");
+      const { mountLazySearch } = await searchWindow.__searchLazyModule;
       await mountLazySearch(mount, {
         placeholder: "搜索文章...",
         maxResults: 5,
@@ -1927,7 +1850,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
   };
 
-  const scheduleSearchMount = (slot) => {
+  const scheduleSearchMount = (slot: SearchSlot) => {
     const activator = getSearchActivator(slot);
     if (activator instanceof HTMLInputElement) {
       activator.placeholder = "正在准备搜索...";
@@ -1961,7 +1884,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
       event.preventDefault();
       const slot = activator.getAttribute("data-search-activate");
       if (slot) {
-        void ensureSearchMounted(slot, { focus: true });
+        void ensureSearchMounted(slot as SearchSlot, { focus: true });
       }
       return;
     }
@@ -1982,7 +1905,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     if (activator instanceof HTMLElement) {
       const slot = activator.getAttribute("data-search-activate");
       if (slot) {
-        void ensureSearchMounted(slot, { focus: true });
+        void ensureSearchMounted(slot as SearchSlot, { focus: true });
       }
     }
   });

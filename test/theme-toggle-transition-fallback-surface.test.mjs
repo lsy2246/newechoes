@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const themeToggleAstro = readFileSync("src/components/ThemeToggle.astro", "utf8").replace(/\r\n/g, "\n");
+const themeToggleAstro = readFileSync("src/lib/theme-toggle-runtime.ts", "utf8").replace(/\r\n/g, "\n");
 const themeToggleCss = readFileSync("src/styles/theme-toggle.css", "utf8").replace(/\r\n/g, "\n");
 
 const cssBlock = (source, selector) => {
@@ -55,5 +55,12 @@ test("theme transition keeps the live root on the destination theme while old sn
   assert.doesNotMatch(
     themeToggleCss,
     /html\.theme-transition-active \.home-diorama-shell,\s*html\.theme-transition-active \.home-diorama-stage,\s*html\.theme-transition-active \.home-diorama/,
+  );
+});
+
+test("theme transition no longer applies homepage-specific live surface overrides", () => {
+  assert.doesNotMatch(
+    themeToggleCss,
+    /html\.theme-transition-active \.home-diorama\s*\{/,
   );
 });

@@ -70,7 +70,11 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
 </script>
 
 <script>
-  import { mountHomeDioramaBoot } from "./homeDioramaBoot.js";
+  import {
+    installHomeDioramaRehydrationBridge,
+    mountHomeDioramaBoot,
+  } from "./homeDioramaBoot.js";
 
   mountHomeDioramaBoot();
+  installHomeDioramaRehydrationBridge();
 </script>

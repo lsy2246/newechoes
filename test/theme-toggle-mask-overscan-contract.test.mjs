@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const source = readFileSync("src/components/ThemeToggle.astro", "utf8").replace(/\r\n/g, "\n");
+const source = readFileSync("src/lib/theme-toggle-runtime.ts", "utf8").replace(/\r\n/g, "\n");
 
 test("theme transitions size the mask against the broadest available viewport and add overscan so the feathered edge stays off-screen", () => {
   assert.match(

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const themeToggleAstro = readFileSync("src/components/ThemeToggle.astro", "utf8").replace(
+const themeToggleAstro = readFileSync("src/lib/theme-toggle-runtime.ts", "utf8").replace(
   /\r\n/g,
   "\n",
 );
