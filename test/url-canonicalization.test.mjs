@@ -4,6 +4,7 @@ import test from "node:test";
 
 const astroConfig = readFileSync("astro.config.mjs", "utf8");
 const vercelConfig = JSON.parse(readFileSync("vercel.json", "utf8"));
+const edgeoneConfig = JSON.parse(readFileSync("edgeone.json", "utf8"));
 const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
 const articleLinksSource = readFileSync("src/lib/article-links.ts", "utf8");
 const articleIndexSource = readFileSync("src/pages/articles/index.astro", "utf8");
@@ -19,6 +20,8 @@ test("Astro and Vercel build canonical routes without trailing slashes", () => {
   assert.match(astroConfig, /format:\s*"file"/);
   assert.equal(vercelConfig.buildCommand, "pnpm run build:vercel");
   assert.equal(vercelConfig.outputDirectory, "dist");
+  assert.equal(edgeoneConfig.buildCommand, "pnpm run build:edgeone");
+  assert.equal(edgeoneConfig.outputDirectory, "dist");
   assert.equal(vercelConfig.cleanUrls, true);
   assert.equal(vercelConfig.trailingSlash, false);
 });

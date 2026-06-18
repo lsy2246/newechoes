@@ -1,4 +1,8 @@
 {
+  "buildCommand": "pnpm run build:edgeone",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "dist",
+  "nodeVersion": "22.11.0",
   "devCommand": "pnpm exec astro dev --host 127.0.0.1",
   "headers": [
     {
