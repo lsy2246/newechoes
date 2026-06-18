@@ -21,12 +21,10 @@ interface Props {
   skipSrTitle?: boolean; // 控制是否跳过屏幕阅读器标题
   pageType?: "page" | "article" | "directory"; // 更有语义的页面类型
   rssLink?: string; // 文章的RSS链接
-  previewMode?: "default" | "card";
   contentLayout?: "default" | "custom"; // default 使用统一页面容器，custom 交给页面或组件自己控制宽度和间距
   hideFooter?: boolean;
   hideHeader?: boolean;
   headerMode?: "default" | "overlay";
-  backgroundMode?: "default" | "starry";
 }
 
 // 从props中获取页面特定信息
@@ -42,15 +40,12 @@ const {
   skipSrTitle = true,
   pageType = "page", // 默认为普通页面
   rssLink,
-  previewMode = "default",
   contentLayout = "default",
   hideFooter = false,
   hideHeader = false,
   headerMode = "default",
-  backgroundMode = "default",
 } = Astro.props;
 
-const isCardPreview = previewMode === "card";
 const hasCustomContentLayout = contentLayout === "custom";
 const useOverlayHeader = headerMode === "overlay";
 const pageDescription = description || title || SITE_META.title;
@@ -97,12 +92,7 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
 <!doctype html>
 <html
   lang="zh-CN"
-  class:list={[
-    "m-0 w-full h-full",
-    {
-      "article-card-preview-root": isCardPreview,
-    },
-  ]}
+  class="m-0 w-full h-full"
 >
   <head>
     <meta charset="UTF-8" />
@@ -269,33 +259,27 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
   </head>
   <body
     class:list={[
-      "m-0 w-full h-full bg-page-base flex flex-col min-h-screen",
-      {
-        "article-card-preview-body": isCardPreview,
-        "site-monochrome-page": !useOverlayHeader && !isCardPreview,
+        "m-0 w-full h-full bg-page-base flex flex-col min-h-screen",
+        {
+        "site-monochrome-page": !useOverlayHeader,
         "layout-article-page": pageType === "article",
         "layout-directory-page": pageType === "directory",
         "layout-overlay-header": useOverlayHeader,
         "layout-content-custom": hasCustomContentLayout,
-        "layout-bg-starry": backgroundMode === "starry",
         "layout-no-header": hideHeader,
       },
     ]}
   >
-    {!isCardPreview && <Header hidden={hideHeader} />}
+    <Header hidden={hideHeader} />
     <main
-      data-layout-background={backgroundMode}
       data-layout-page-type={pageType}
       data-layout-content-layout={contentLayout}
       data-layout-header-mode={headerMode}
-      data-layout-card-preview={isCardPreview ? "true" : "false"}
       data-layout-hide-footer={hideFooter ? "true" : "false"}
       data-layout-hide-header={hideHeader ? "true" : "false"}
       class:list={[
         "grow w-full",
-        isCardPreview
-          ? "max-w-none px-0 py-0 article-card-preview-main"
-          : hasCustomContentLayout
+        hasCustomContentLayout
             ? [
                 hideHeader || useOverlayHeader ? "pt-0" : "pt-16",
                 "max-w-none px-0 py-0 layout-main-fullbleed",
@@ -306,7 +290,7 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
       {!skipSrTitle && <h1 class="sr-only">{title}</h1>}
       <slot />
     </main>
-    {!isCardPreview && <Footer isHidden={hideFooter} />}
+    <Footer isHidden={hideFooter} />
     {
       bodyScripts.map((script) => (
         <script

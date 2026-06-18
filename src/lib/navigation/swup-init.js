@@ -218,21 +218,17 @@ function syncLayoutHeaderVisibility(hideHeader = false) {
 }
 
 function readPageShellStateFromRoot(root = document, url = window.location.pathname) {
-  const mainElement = root.querySelector?.('main[data-layout-background]');
-  const backgroundMode = mainElement?.getAttribute('data-layout-background') || 'default';
+  const mainElement = root.querySelector?.('main[data-layout-page-type]');
   const headerMode = mainElement?.getAttribute('data-layout-header-mode') || (isHomeUrl(url) ? 'overlay' : 'default');
   const pageType = mainElement?.getAttribute('data-layout-page-type') || 'page';
-  const isCardPreview = readLayoutFlag(mainElement, 'data-layout-card-preview');
   const contentLayout = mainElement?.getAttribute('data-layout-content-layout') || (isHomeUrl(url) ? 'custom' : 'default');
   const hasCustomContentLayout = contentLayout === 'custom';
-  const hideFooter = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomeUrl(url));
-  const hideHeader = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-header');
+  const hideFooter = readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomeUrl(url));
+  const hideHeader = readLayoutFlag(mainElement, 'data-layout-hide-header');
   const useOverlayHeader = headerMode === 'overlay';
 
   return {
-    backgroundMode,
     pageType,
-    isCardPreview,
     hasCustomContentLayout,
     hideFooter,
     hideHeader,
@@ -305,13 +301,11 @@ function primeIncomingHeaderBackground(shellState) {
 
 // Swup only replaces page containers, so body/header-level layout state needs syncing.
 function syncLayoutBodyClasses(shellState = readPageShellState()) {
-  document.body.classList.toggle('article-card-preview-body', shellState.isCardPreview);
-  document.body.classList.toggle('site-monochrome-page', !shellState.useOverlayHeader && !shellState.isCardPreview);
+  document.body.classList.toggle('site-monochrome-page', !shellState.useOverlayHeader);
   document.body.classList.toggle('layout-article-page', shellState.pageType === 'article');
   document.body.classList.toggle('layout-directory-page', shellState.pageType === 'directory');
   document.body.classList.toggle('layout-overlay-header', shellState.useOverlayHeader);
   document.body.classList.toggle('layout-content-custom', shellState.hasCustomContentLayout);
-  document.body.classList.toggle('layout-bg-starry', shellState.backgroundMode === 'starry');
   document.body.classList.toggle('layout-no-header', shellState.hideHeader);
   syncLayoutFooterVisibility(shellState.hideFooter);
 }

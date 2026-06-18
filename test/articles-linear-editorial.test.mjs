@@ -344,10 +344,13 @@ test("article detail aligns with the navigation container and keeps a tight side
   assert.ok(hasCssBlock(articlesCss, ".article-shell", /max-width:\s*80rem;/));
   assert.ok(hasCssBlock(articlesCss, ".article-shell", /margin-left:\s*auto;/));
   assert.ok(hasCssBlock(articlesCss, ".article-shell", /margin-right:\s*auto;/));
+  assert.equal(cssBlock(articlesCss, ".article-shell.article-shell-preview").trim(), "");
+  assert.equal(cssBlock(articlesCss, ".article-preview-layout").trim(), "");
+  assert.equal(articleDetail.includes("preview=card"), false);
+  assert.equal(articleDetail.includes("isCardPreview"), false);
   assert.ok(hasCssBlock(articlesCss, ".article-shell", /display:\s*grid;/));
   assert.ok(hasCssBlock(articlesCss, ".article-shell", /gap:\s*32px;/));
   assert.ok(hasCssBlock(articlesCss, ".article-shell", /padding:\s*38px 0 88px;/));
-  assert.match(cssBlock(articlesCss, ".article-shell.article-shell-preview"), /padding:\s*0;/);
   assert.match(cssBlock(articlesCss, ".article-layout"), /minmax\(170px,\s*220px\) minmax\(0,\s*1fr\)/);
   assert.match(cssBlock(articlesCss, ".article-layout"), /gap:\s*32px;/);
   assert.match(cssBlock(articlesCss, ".article-layout"), /padding:\s*0;/);

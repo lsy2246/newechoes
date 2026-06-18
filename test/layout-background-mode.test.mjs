@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const aboutPage = readFileSync("src/pages/about.astro", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 const swupTransitionsCss = readFileSync("src/styles/swup-transitions.css", "utf8");
 const header = readFileSync("src/components/Header.astro", "utf8");
@@ -20,24 +19,17 @@ const swupLifecycleFiles = [
   "src/lib/global-graph/modal.ts",
 ];
 
-test("about page uses the normal monochrome page background", () => {
-  assert.equal(aboutPage.includes('backgroundMode="starry"'), false);
-  assert.equal(aboutPage.includes("starfield-bg.jpg"), false);
-});
+test("layout no longer exposes legacy background or preview modes", () => {
+  for (const source of [layout, swupInit, globalCss]) {
+    assert.equal(source.includes("backgroundMode"), false);
+    assert.equal(source.includes("layout-bg-starry"), false);
+    assert.equal(source.includes("data-layout-background"), false);
+  }
 
-test("starry background does not change fixed header layout", () => {
-  assert.equal(globalCss.includes('[data-theme="dark"] body.layout-bg-starry > header'), false);
-  assert.ok(globalCss.includes('[data-theme="dark"] body.layout-bg-starry>#main-header'));
-  assert.ok(globalCss.includes('[data-theme="dark"] body.layout-bg-starry>main'));
-  assert.ok(globalCss.includes('[data-theme="dark"] body.layout-bg-starry>footer'));
-  assert.ok(globalCss.includes("position: fixed;"));
-  assert.ok(globalCss.includes("position: static;"));
-});
-
-test("starry background does not reposition the body during theme changes", () => {
-  assert.equal(globalCss.includes("[data-theme=\"dark\"] body.layout-bg-starry {\n  position: relative;"), false);
-  assert.equal(globalCss.includes("[data-theme=\"dark\"] body.layout-bg-starry::before"), false);
-  assert.equal(globalCss.includes("[data-theme=\"dark\"] body.layout-bg-starry::after"), false);
+  assert.equal(layout.includes("previewMode"), false);
+  assert.equal(layout.includes("isCardPreview"), false);
+  assert.equal(layout.includes("article-card-preview"), false);
+  assert.equal(swupInit.includes("data-layout-card-preview"), false);
 });
 
 test("home header does not opt into the shared frosted surface class", () => {
@@ -87,7 +79,6 @@ test("swup can sync page-level layout body classes from the replaced main elemen
   assert.ok(layout.includes("data-layout-page-type={pageType}"));
   assert.ok(layout.includes('data-layout-content-layout={contentLayout}'));
   assert.ok(layout.includes("data-layout-header-mode={headerMode}"));
-  assert.ok(layout.includes('data-layout-card-preview={isCardPreview ? "true" : "false"}'));
   assert.ok(layout.includes('data-layout-hide-footer={hideFooter ? "true" : "false"}'));
   assert.ok(layout.includes('data-layout-hide-header={hideHeader ? "true" : "false"}'));
 
@@ -123,8 +114,8 @@ test("swup syncs header visibility from the replaced page shell", () => {
   assert.ok(header.includes("hidden?: boolean"));
   assert.ok(header.includes('data-layout-header-hidden={hidden ? "true" : "false"}'));
   assert.ok(swupInit.includes("function syncLayoutHeaderVisibility"));
-  assert.ok(swupInit.includes("const hideHeader = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-header')"));
-  assert.ok(swupInit.includes("const hideFooter = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomeUrl(url))"));
+  assert.ok(swupInit.includes("const hideHeader = readLayoutFlag(mainElement, 'data-layout-hide-header')"));
+  assert.ok(swupInit.includes("const hideFooter = readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomeUrl(url))"));
   assert.ok(swupInit.includes("syncLayoutHeaderVisibility(shellState.hideHeader)"));
   assert.ok(swupInit.includes("header.hidden = hideHeader"));
   assert.ok(swupInit.includes("header.classList.toggle('hidden', hideHeader)"));
