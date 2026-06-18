@@ -2,11 +2,11 @@
   "buildCommand": "pnpm run build:edgeone",
   "installCommand": "pnpm install --frozen-lockfile",
   "outputDirectory": "dist",
-  "nodeVersion": "22.11.0",
+  "nodeVersion": "22.12.0",
   "devCommand": "pnpm exec astro dev --host 127.0.0.1",
   "headers": [
     {
-      "source": "/_astro/(.*)",
+      "source": "/_astro/*",
       "headers": [
         {
           "key": "Cache-Control",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "source": "/fonts/(.*)",
+      "source": "/fonts/*",
       "headers": [
         {
           "key": "Cache-Control",
@@ -40,7 +40,7 @@
       ]
     },
     {
-      "source": "/maps/(.*)",
+      "source": "/maps/*",
       "headers": [
         {
           "key": "Cache-Control",
@@ -57,7 +57,7 @@
       ]
     },
     {
-      "source": "/models/(.*)",
+      "source": "/models/*",
       "headers": [
         {
           "key": "Cache-Control",
@@ -74,7 +74,7 @@
       ]
     },
     {
-      "source": "/styles/(.*)",
+      "source": "/styles/*",
       "headers": [
         {
           "key": "Cache-Control",
