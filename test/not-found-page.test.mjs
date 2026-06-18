@@ -4,7 +4,7 @@ import test from "node:test";
 
 const page404 = readFileSync("src/pages/404.astro", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
-const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
+const layoutSource = readFileSync("src/components/layout/Layout.astro", "utf8");
 const illustrationSource = readFileSync("src/components/NotFoundIllustration.astro", "utf8");
 
 const cssBlock = (selector) => {

@@ -339,7 +339,7 @@ async function bootArticleMermaidForCurrentPage() {
   }
 
   if (!articleMermaidBootPromise) {
-    articleMermaidBootPromise = import('../article-mermaid.ts')
+    articleMermaidBootPromise = import('../lib/article-mermaid.ts')
       .finally(() => {
         articleMermaidBootPromise = null;
       });

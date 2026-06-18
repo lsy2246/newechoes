@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
-const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
+const layoutSource = readFileSync("src/components/layout/Layout.astro", "utf8");
 
 test("Vercel Speed Insights is installed as a runtime dependency", () => {
   assert.ok(packageJson.dependencies["@vercel/speed-insights"]);

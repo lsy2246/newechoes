@@ -3,8 +3,8 @@ import {
   filterArticles as workerFilterArticles,
   getAllTags as workerGetAllTags,
   initFilterIndex,
-} from "@/lib/filter/client";
-import { resolveFilterPageState } from "@/lib/filter/page-state.js";
+} from "@/components/article/filter/client";
+import { resolveFilterPageState } from "@/components/article/filter/page-state.js";
 
 interface FilterState {
   tags: string[];

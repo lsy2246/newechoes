@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useSearchController } from "@/lib/search/controller";
+import { useSearchController } from "@/components/search/controller";
 import type {
   HeadingNode,
   SearchResult,
   SearchResultItem,
   SearchSuggestion,
   SuggestionType,
-} from "@/lib/search/types";
+} from "@/components/search/types";
 
 interface SearchProps {
   placeholder?: string;

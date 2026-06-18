@@ -8,11 +8,11 @@ import {
 } from "@/lib/article-links";
 import {
   assertUniqueArticleIdentities,
-  formatArticleHistoryPath,
   resolveArticleIdentity,
 } from "@/lib/article-history";
 import { getPrebuiltArticleHistory } from "@/lib/article-history/prebuilt.js";
-import Layout from "@/components/Layout.astro";
+import ArticleHistory from "@/components/article/ArticleHistory.astro";
+import Layout from "@/components/layout/Layout.astro";
 import { SITE_META } from "@/consts";
 import * as siteConfig from "@/consts";
 import { createCanonicalUrl } from "@/lib/canonical-url.js";
@@ -199,20 +199,6 @@ function formatArticleDate(date: Date) {
     month: "2-digit",
     day: "2-digit",
   });
-}
-
-function formatRevisionDate(date: Date) {
-  return date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
-
-function getRevisionLabel(kind: string) {
-  if (kind === "moved") return "moved";
-  if (kind === "published") return "published";
-  return "updated";
 }
 
 function getRelatedTitle(matchType: string) {
@@ -546,60 +532,7 @@ const tableOfContents = generateTableOfContents(headings);
         </div>
 
         <footer class="article-footer">
-          <section class="article-history" aria-label="文章修订历史">
-            <div class="article-history-head">
-              <h2>历史版本</h2>
-            </div>
-            <ol class="article-history-list">
-              {visibleHistoryEvents.map((event) => (
-                <li class:list={["article-history-item", `is-${event.kind}`]}>
-                  <span class="article-history-rail" aria-hidden="true"></span>
-                  <span class="article-history-version">
-                    {
-                      event.commitUrl ? (
-                        <a
-                          class="article-history-hash"
-                          href={event.commitUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {event.shortHash}
-                        </a>
-                      ) : (
-                        <span class="article-history-hash">{event.shortHash}</span>
-                      )
-                    }
-                    {
-                      event.snapshotUrl && (
-                        <a
-                          class="article-history-snapshot"
-                          href={event.snapshotUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          历史快照
-                        </a>
-                      )
-                    }
-                  </span>
-                  <span class="article-history-copy">
-                    <strong>{getRevisionLabel(event.kind)}</strong>
-                    <span>{event.subject}</span>
-                    {
-                      event.kind === "moved" && event.previousPath && event.currentPath && (
-                        <small>
-                          {formatArticleHistoryPath(event.previousPath)} → {formatArticleHistoryPath(event.currentPath)}
-                        </small>
-                      )
-                    }
-                  </span>
-                  <time datetime={event.date.toISOString()}>
-                    {formatRevisionDate(event.date)}
-                  </time>
-                </li>
-              ))}
-            </ol>
-          </section>
+          <ArticleHistory events={visibleHistoryEvents} />
 
           <div class="article-relations" aria-label="文章关系">
             {

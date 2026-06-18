@@ -4,7 +4,7 @@ import test from "node:test";
 
 const constsSource = readFileSync("src/consts.ts", "utf8");
 const astroConfig = readFileSync("astro.config.mjs", "utf8");
-const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
+const layoutSource = readFileSync("src/components/layout/Layout.astro", "utf8");
 const articleDetail = readFileSync("src/pages/articles/[...id].astro", "utf8");
 const articleIndex = readFileSync("src/pages/articles/index.astro", "utf8");
 const sitemapIntegration = readFileSync("src/plugins/sitemap-integration.js", "utf8");

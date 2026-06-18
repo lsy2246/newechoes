@@ -4,11 +4,11 @@ import test from "node:test";
 
 const astroConfig = readFileSync("astro.config.mjs", "utf8");
 const aboutPage = readFileSync("src/pages/about.astro", "utf8");
-const header = readFileSync("src/components/Header.astro", "utf8");
-const globalGraphLauncher = readFileSync("src/components/GlobalGraphLauncher.astro", "utf8");
-const globalGraphLauncherModule = readFileSync("src/lib/global-graph/launcher.ts", "utf8");
+const header = readFileSync("src/components/layout/Header.astro", "utf8");
+const globalGraphLauncher = readFileSync("src/components/global-graph/GlobalGraphLauncher.astro", "utf8");
+const globalGraphLauncherModule = readFileSync("src/components/global-graph/launcher.ts", "utf8");
 const articleIndexBuild = readFileSync("src/plugins/article-index/build.js", "utf8");
-const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
+const swupInit = readFileSync("src/components/swup.js", "utf8");
 const homeDiorama = readFileSync("src/components/home/HomeDiorama.astro", "utf8");
 const homeDioramaBoot = readFileSync("src/components/home/homeDioramaBoot.js", "utf8");
 const dioramaModule = readFileSync("src/components/home/diorama.ts", "utf8");
@@ -35,7 +35,7 @@ test("header search stays code-split but mounts after load-time idle and still s
   assert.equal(header.includes("client:idle"), false);
   assert.ok(header.includes("data-search-activate"));
   assert.ok(header.includes("data-search-mount"));
-  assert.ok(header.includes('import("@/lib/search/lazy")'));
+  assert.ok(header.includes('import("@/components/search/lazy-mount")'));
   assert.ok(header.includes("requestIdleCallback"));
   assert.ok(header.includes('window.addEventListener("load"'));
 });
@@ -69,11 +69,11 @@ test("swup avoids preloading visible links but waits for route assets before rev
 });
 
 test("theme toggle runtime is bundled once instead of inlining per button instance", () => {
-  assert.equal(readFileSync("src/components/ThemeToggle.astro", "utf8").includes("<script is:inline>"), false);
-  assert.equal(readFileSync("src/components/ThemeToggle.astro", "utf8").includes('import "@/lib/theme-toggle-runtime"'), false);
+  assert.equal(readFileSync("src/components/theme-toggle/ThemeToggle.astro", "utf8").includes("<script is:inline>"), false);
+  assert.equal(readFileSync("src/components/theme-toggle/ThemeToggle.astro", "utf8").includes('import "@/lib/theme-toggle-runtime"'), false);
   assert.match(
-    readFileSync("src/components/Layout.astro", "utf8"),
-    /<script>\s*import "\.\.\/lib\/theme-toggle-runtime\.ts";\s*<\/script>/,
+    readFileSync("src/components/layout/Layout.astro", "utf8"),
+    /<script>\s*import "\.\.\/theme-toggle\/runtime\.ts";\s*<\/script>/,
   );
 });
 

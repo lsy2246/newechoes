@@ -7,7 +7,7 @@ const readSource = (path) => readFileSync(path, "utf8");
 const constsSource = readSource("src/consts.ts");
 const serverRelaySource = readSource("src/lib/server/asset-relay.ts");
 const doubanRouteSource = readSource("src/server/api/douban.ts");
-const doubanComponentSource = readSource("src/components/DoubanCollection.tsx");
+const doubanComponentSource = readSource("src/components/DoubanList.tsx");
 const wereadRouteSource = readSource("src/server/api/weread.ts");
 const wereadComponentSource = readSource("src/components/WereadBookList.tsx");
 const googlePhotosSource = readSource("src/lib/google-photos/shared.ts");

@@ -67,7 +67,7 @@ git commit -m "refactor: add shared platform registry primitives"
 - Create: `src/platform/runtime/observability.ts`
 - Create: `src/platform/runtime/index.ts`
 - Modify: `src/lib/runtime/platform.ts`
-- Modify: `src/components/Layout.astro`
+- Modify: `src/components/layout/Layout.astro`
 - Modify: `src/lib/article-history/index.js`
 - Modify: `src/lib/google-photos/node.ts`
 - Modify: `src/pages/api/google-photos.ts`
@@ -98,7 +98,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/platform/runtime src/lib/runtime/platform.ts src/components/Layout.astro src/lib/article-history/index.js src/lib/google-photos/node.ts src/pages/api/google-photos.ts test/platform-runtime-architecture.test.mjs test/platform-observability.test.mjs
+git add src/platform/runtime src/lib/runtime/platform.ts src/components/layout/Layout.astro src/lib/article-history/index.js src/lib/google-photos/node.ts src/pages/api/google-photos.ts test/platform-runtime-architecture.test.mjs test/platform-observability.test.mjs
 git commit -m "refactor: move runtime platform logic into platform module"
 ```
 

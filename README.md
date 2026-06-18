@@ -18,3 +18,8 @@
 
 **使用教程**：[点击查看](src/content/echoes博客使用说明.md)
 
+## 在线部署参考
+
+- Cloudflare Pages：https://newechoes.pages.dev/
+- Vercel：https://echoes-git-master-lsy22s-projects.vercel.app/
+- EdgeOne Pages：https://newechoes.edgeone.app/

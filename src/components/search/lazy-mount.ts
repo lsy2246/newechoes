@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot, type Root } from "react-dom/client";
-import Search from "@/components/Search";
+import Search from "@/components/search/Search";
 
 type SearchMountOptions = {
   placeholder?: string;

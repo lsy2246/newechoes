@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
+const swupInit = readFileSync("src/components/swup.js", "utf8");
 
 test("swup initializes with a single stable main container across page types", () => {
   assert.match(swupInit, /const containers = \['main'\];/);

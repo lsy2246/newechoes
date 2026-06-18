@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const articleFilter = readFileSync("src/components/ArticleFilter.tsx", "utf8");
+const articleFilter = readFileSync("src/components/article/filter/ArticleFilter.tsx", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 
 const cssBlock = (selector) => {
@@ -75,7 +75,7 @@ test("filter panel CSS keeps console controls and dense results scannable", () =
   assert.match(cssBlock(".filter-date-groups"), /gap:\s*20px;/);
   assert.match(cssBlock(".filter-date-group"), /display:\s*grid;/);
   assert.match(cssBlock(".filter-tag-search"), /border-bottom:\s*1px solid var\(--site-line\)/);
-  assert.match(cssBlock(".filter-tag-options"), /max-height:\s*14rem;/);
+  assert.match(cssBlock(".filter-tag-options"), /max-height:\s*min\(22rem,\s*calc\(100vh - 18rem\)\);/);
   assert.match(cssBlock(".filter-tag-option"), /grid-template-columns:\s*minmax\(0,\s*1fr\) auto/);
   assert.match(cssBlock(".filter-tag-summary"), /white-space:\s*nowrap;/);
   assert.match(cssBlock(".filter-result-list"), /display:\s*grid;/);
@@ -106,7 +106,10 @@ test("filter sort menu exposes update-time ordering and closes on outside clicks
   assert.match(articleFilter, /updated_asc:\s*"最早修改"/);
   assert.match(articleFilter, /sort:\s*isUpdatedSort\(nextFilters\.sort\)\s*\?\s*"newest"\s*:\s*nextFilters\.sort/);
   assert.match(articleFilter, /limit:\s*Math\.max\(total,\s*1\)/);
-  assert.ok(articleFilter.includes("sortArticlesByUpdatedTime(allArticles, nextFilters.sort, updatedAtByUrl)"));
+  assert.match(
+    articleFilter,
+    /sortArticlesByUpdatedTime\(\s*allArticles,\s*nextFilters\.sort,\s*updatedAtByUrl,\s*\)/,
+  );
   assert.match(articleFilter, /document\.addEventListener\("pointerdown",\s*handlePointerDown/);
   assert.match(articleFilter, /filterConsoleRef\.current\.contains\(target\)/);
   assert.match(articleFilter, /targetElement\?\.closest\("\.filter-disclosure"\)/);

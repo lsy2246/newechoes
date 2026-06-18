@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const searchComponent = readFileSync("src/components/Search.tsx", "utf8");
-const articleFilter = readFileSync("src/components/ArticleFilter.tsx", "utf8");
-const searchWorkerSource = readFileSync("src/lib/search/worker.ts", "utf8");
-const filterWorkerSource = readFileSync("src/lib/filter/worker.ts", "utf8");
-const searchClientSource = readFileSync("src/lib/search/client.ts", "utf8");
-const filterClientSource = readFileSync("src/lib/filter/client.ts", "utf8");
-const searchPrewarmSource = readFileSync("src/lib/search/prewarm.ts", "utf8");
+const searchComponent = readFileSync("src/components/search/Search.tsx", "utf8");
+const articleFilter = readFileSync("src/components/article/filter/ArticleFilter.tsx", "utf8");
+const searchWorkerSource = readFileSync("src/components/search/worker.ts", "utf8");
+const filterWorkerSource = readFileSync("src/components/article/filter/worker.ts", "utf8");
+const searchClientSource = readFileSync("src/components/search/client.ts", "utf8");
+const filterClientSource = readFileSync("src/components/article/filter/client.ts", "utf8");
+const searchPrewarmSource = readFileSync("src/components/search/prewarm.ts", "utf8");
 const buildPluginSource = readFileSync("src/plugins/article-index/integration.js", "utf8");
 const buildHelperSource = readFileSync("src/plugins/article-index/build.js", "utf8");
 

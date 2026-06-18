@@ -9,12 +9,13 @@ const articlesCss = normalizeNewlines(readFileSync("src/styles/articles.css", "u
 const articlesCodeCss = normalizeNewlines(readFileSync("src/styles/articles-code.css", "utf8"));
 const articlesMermaidCss = normalizeNewlines(readFileSync("src/styles/articles-mermaid.css", "utf8"));
 const articleIndex = readFileSync("src/pages/articles/index.astro", "utf8");
-const articleDirectoryView = readFileSync("src/components/views/ArticleDirectoryView.astro", "utf8");
+const articleDirectoryView = readFileSync("src/components/article/ArticleExplorer.astro", "utf8");
+const articleHistoryView = readFileSync("src/components/article/ArticleHistory.astro", "utf8");
 const articleDirectoryRoute = readFileSync("src/pages/articles/[...path].astro", "utf8");
 const articleDetail = readFileSync("src/pages/articles/[...id].astro", "utf8");
 const filteredPage = readFileSync("src/pages/filtered.astro", "utf8");
-const articleFilter = readFileSync("src/components/ArticleFilter.tsx", "utf8");
-const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
+const articleFilter = readFileSync("src/components/article/filter/ArticleFilter.tsx", "utf8");
+const layoutSource = readFileSync("src/components/layout/Layout.astro", "utf8");
 const aboutPage = readFileSync("src/pages/about.astro", "utf8");
 const countdown = readFileSync("src/components/Countdown.tsx", "utf8");
 const constsSource = readFileSync("src/consts.ts", "utf8");
@@ -27,8 +28,8 @@ const oldTimelinePath = "src/pages/articles/timeline.astro";
 const timelinePage = existsSync(timelinePath)
   ? readFileSync(timelinePath, "utf8")
   : "";
-const timelineView = readFileSync("src/components/TimelineView.astro", "utf8");
-const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
+const timelineView = readFileSync("src/components/article/TimelineView.astro", "utf8");
+const swupInit = readFileSync("src/components/swup.js", "utf8");
 
 const cssBlock = (source, selector) => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -77,7 +78,7 @@ test("grid and filter views use the same lightweight explorer node language", ()
   assert.match(cssBlock(globalCss, ".explorer-grid .node"), /border-radius:\s*6px;/);
   assert.match(cssBlock(globalCss, ".explorer-grid .node-kind"), /position:\s*absolute;/);
 
-  assert.ok(articleIndex.includes("<ArticleDirectoryView"));
+  assert.ok(articleIndex.includes("<ArticleExplorer"));
   assert.equal(articleIndex.includes("article-index-shell"), false);
   assert.ok(articleDirectoryView.includes("article-topbar"));
   assert.ok(articleIndex.includes('import "@/styles/articles.css";'));
@@ -192,11 +193,12 @@ test("article detail keeps tags once and renders related articles as a linear li
   assert.ok(articleDetail.includes("article-relation"));
   assert.ok(articleDetail.includes("article-relation-list"));
   assert.ok(articleDetail.includes("article-relation-link"));
-  assert.ok(articleDetail.includes("article-history"));
-  assert.ok(articleDetail.includes("article-history-list"));
-  assert.ok(articleDetail.includes("article-history-version"));
-  assert.ok(articleDetail.includes("article-history-hash"));
-  assert.ok(articleDetail.includes("article-history-snapshot"));
+  assert.ok(articleDetail.includes("<ArticleHistory"));
+  assert.ok(articleHistoryView.includes("article-history"));
+  assert.ok(articleHistoryView.includes("article-history-list"));
+  assert.ok(articleHistoryView.includes("article-history-version"));
+  assert.ok(articleHistoryView.includes("article-history-hash"));
+  assert.ok(articleHistoryView.includes("article-history-snapshot"));
   assert.ok(articleDetail.includes("articleIdentity"));
   assert.ok(articleDetail.includes("related-list"));
   assert.ok(articleDetail.includes("related-item"));
@@ -216,7 +218,7 @@ test("article detail keeps tags once and renders related articles as a linear li
 
 test("article history keeps the snapshot link under the hash", () => {
   const historyItem =
-    articleDetail.match(/<li class:list=\{\["article-history-item"[\s\S]*?<\/li>/)?.[0] ??
+    articleHistoryView.match(/<li class:list=\{\["article-history-item"[\s\S]*?<\/li>/)?.[0] ??
     "";
 
   assert.notEqual(historyItem, "");
@@ -237,7 +239,7 @@ test("article history keeps the snapshot link under the hash", () => {
 });
 
 test("article history heading is localized and related reading has no extra top rule", () => {
-  const historyHead = articleDetail.match(/<div class="article-history-head">[\s\S]*?<\/div>/)?.[0] ?? "";
+  const historyHead = articleHistoryView.match(/<div class="article-history-head">[\s\S]*?<\/div>/)?.[0] ?? "";
 
   assert.notEqual(historyHead, "");
   assert.ok(historyHead.includes("<h2>历史版本</h2>"));
@@ -246,8 +248,8 @@ test("article history heading is localized and related reading has no extra top 
 });
 
 test("article history move paths are displayed relative to content root", () => {
-  assert.ok(articleDetail.includes("formatArticleHistoryPath(event.previousPath)"));
-  assert.ok(articleDetail.includes("formatArticleHistoryPath(event.currentPath)"));
+  assert.ok(articleHistoryView.includes("formatArticleHistoryPath(event.previousPath)"));
+  assert.ok(articleHistoryView.includes("formatArticleHistoryPath(event.currentPath)"));
   assert.ok(timelineView.includes("formatArticleHistoryPath(event.previousPath)"));
   assert.ok(timelineView.includes("formatArticleHistoryPath(event.currentPath)"));
 });
@@ -662,7 +664,7 @@ test("article mermaid diagrams do not inherit explorer node hover or crop at svg
 test("timeline page exists and avoids heavy archive explanation blocks", () => {
   assert.equal(existsSync(timelinePath), true);
   assert.equal(existsSync(oldTimelinePath), false);
-  assert.ok(timelinePage.includes('import TimelineView from "@/components/TimelineView.astro"'));
+  assert.ok(timelinePage.includes('import TimelineView from "@/components/article/TimelineView.astro"'));
   assert.ok(timelinePage.includes("<TimelineView"));
   assert.equal(timelinePage.includes('import { getCollection } from "astro:content"'), false);
   assert.equal(timelinePage.includes("getPrebuiltArticleHistoryMap(articles)"), false);

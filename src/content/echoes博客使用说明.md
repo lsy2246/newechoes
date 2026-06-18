@@ -323,10 +323,10 @@ export const ARTICLE_EXPIRY_CONFIG = {
 
 ### 项目展示
 
-使用 `@/components/GitProjectCollection` 展示 Git 平台项目：
+使用 `@/components/GitProjects` 展示 Git 平台项目：
 
 ```astro
-<GitProjectCollection
+<GitProjects
   platform={GitPlatform.GITHUB}
   username="your-username"
   title="我的项目"
@@ -336,13 +336,13 @@ export const ARTICLE_EXPIRY_CONFIG = {
 
 ### 豆瓣数据集成
 
-使用 `@/components/DoubanCollection` 展示观影和读书记录：
+使用 `@/components/DoubanList` 展示观影和读书记录：
 
 ```astro
 // 观影记录
-<DoubanCollection type="movie" title="看过的电影" doubanId="your-id" />
+<DoubanList type="movie" title="看过的电影" doubanId="your-id" />
 // 读书记录
-<DoubanCollection type="book" title="读过的书" doubanId="your-id" />
+<DoubanList type="book" title="读过的书" doubanId="your-id" />
 ```
 
 ### 相册瀑布流

@@ -7,19 +7,19 @@ import test from "node:test";
 const astroBuildScript = readFileSync("scripts/astro-build.mjs", "utf8");
 const buildPluginSource = readFileSync("src/plugins/article-index/integration.js", "utf8");
 const buildHelperSource = readFileSync("src/plugins/article-index/build.js", "utf8");
-const searchComponentSource = readFileSync("src/components/Search.tsx", "utf8");
-const articleFilterSource = readFileSync("src/components/ArticleFilter.tsx", "utf8");
-const searchClientSource = readFileSync("src/lib/search/client.ts", "utf8");
-const filterClientSource = readFileSync("src/lib/filter/client.ts", "utf8");
+const searchComponentSource = readFileSync("src/components/search/Search.tsx", "utf8");
+const articleFilterSource = readFileSync("src/components/article/filter/ArticleFilter.tsx", "utf8");
+const searchClientSource = readFileSync("src/components/search/client.ts", "utf8");
+const filterClientSource = readFileSync("src/components/article/filter/client.ts", "utf8");
 
 test("search and filter runtime no longer depend on frontend wasm artifacts or rust cli", () => {
   assert.doesNotMatch(buildPluginSource, /search_wasm|article_filter|cargo|article-indexer-cli/);
   assert.doesNotMatch(buildHelperSource, /search_wasm|article_filter|cargo|article-indexer-cli/);
-  assert.match(searchComponentSource, /@\/lib\/search\/controller/);
-  assert.match(articleFilterSource, /@\/lib\/filter\/client/);
+  assert.match(searchComponentSource, /@\/components\/search\/controller/);
+  assert.match(articleFilterSource, /@\/components\/article\/filter\/client/);
 });
 
-test("search and filter now use separate worker clients inside dedicated lib folders", () => {
+test("search and filter now use separate worker clients inside component-owned folders", () => {
   assert.match(searchClientSource, /new Worker\(new URL\("\.\/worker\.ts", import\.meta\.url\)/);
   assert.match(filterClientSource, /new Worker\(new URL\("\.\/worker\.ts", import\.meta\.url\)/);
   assert.equal(existsSync("src/lib/searchFilterWorkerClient.ts"), false);

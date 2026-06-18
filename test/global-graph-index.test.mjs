@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
-const launcher = readFileSync("src/components/GlobalGraphLauncher.astro", "utf8");
+const launcher = readFileSync("src/components/global-graph/GlobalGraphLauncher.astro", "utf8");
 const headerCss = readFileSync("src/styles/header.css", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
-const runtime = readFileSync("src/lib/global-graph/modal.ts", "utf8");
-const launcherRuntime = readFileSync("src/lib/global-graph/launcher.ts", "utf8");
+const runtime = readFileSync("src/components/global-graph/modal.ts", "utf8");
+const launcherRuntime = readFileSync("src/components/global-graph/launcher.ts", "utf8");
 const articleIndexBuild = readFileSync("src/plugins/article-index/build.js", "utf8");
 const articleIndexIntegration = readFileSync("src/plugins/article-index/integration.js", "utf8");
 const modal = launcherRuntime;
@@ -29,7 +29,7 @@ test("global graph launcher stays as one lightweight component while runtime laz
   assert.equal(existsSync("src/components/GlobalGraphModal.astro"), false);
   assert.equal(existsSync("src/pages/api/global-graph.json.ts"), false);
   assert.match(launcher, /data-global-graph-root/);
-  assert.match(launcher, /@\/lib\/global-graph\/launcher/);
+  assert.match(launcher, /@\/components\/global-graph\/launcher/);
   assert.equal(launcher.includes("GlobalGraphModal"), false);
   assert.equal(launcher.includes("data-global-graph-json"), false);
   assert.equal(launcher.includes('getCollection("articles")'), false);

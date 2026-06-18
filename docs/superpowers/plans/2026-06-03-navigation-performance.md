@@ -37,7 +37,7 @@
 
 **Files:**
 - Create: `src/lib/search-lazy.ts`
-- Modify: `src/components/Header.astro`
+- Modify: `src/components/layout/Header.astro`
 
 - [ ] **Step 1: Replace eager `Search` islands with lightweight placeholders**
 - [ ] **Step 2: Dynamically import and mount `Search` on user interaction**
@@ -47,7 +47,7 @@
 
 **Files:**
 - Modify: `src/components/home/HomeDiorama.astro`
-- Modify: `src/lib/swup-init.js`
+- Modify: `src/components/swup.js`
 
 - [ ] **Step 1: Schedule homepage diorama initialization during idle time**
 - [ ] **Step 2: Remove visible-link preloading and `awaitAssets: true`**

@@ -5,7 +5,7 @@ import test from "node:test";
 const astroConfig = readFileSync("astro.config.mjs", "utf8");
 const vercelConfig = JSON.parse(readFileSync("vercel.json", "utf8"));
 const edgeoneConfig = JSON.parse(readFileSync("edgeone.json", "utf8"));
-const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
+const layoutSource = readFileSync("src/components/layout/Layout.astro", "utf8");
 const articleLinksSource = readFileSync("src/lib/article-links.ts", "utf8");
 const articleIndexSource = readFileSync("src/pages/articles/index.astro", "utf8");
 const articleDetailSource = readFileSync("src/pages/articles/[...id].astro", "utf8");

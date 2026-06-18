@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createFilterRuntime } from "../src/lib/filter/runtime.js";
+import { createFilterRuntime } from "../src/components/article/filter/runtime.js";
 
 const fixtureIndex = {
   version: 1,

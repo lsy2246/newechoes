@@ -1,6 +1,6 @@
 ---
-import Layout from "@/components/Layout.astro";
-import GitProjectCollection from "@/components/GitProjectCollection";
+import Layout from "@/components/layout/Layout.astro";
+import GitProjects from "@/components/GitProjects";
 import { GitPlatform } from "@/lib/git-projects-shared";
 
 export const prerender = true;
@@ -13,7 +13,7 @@ export const prerender = true;
   skipSrTitle={false}
 >
   <!-- 示例：将 username 改成自己的代码托管账号；platform 可改为 GitPlatform.GITEE 或 GitPlatform.GITEA。 -->
-  <GitProjectCollection
+  <GitProjects
     platform={GitPlatform.GITHUB}
     username="lsy2246"
     title="个人项目"

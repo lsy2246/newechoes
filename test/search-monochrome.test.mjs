@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const search = readFileSync("src/components/Search.tsx", "utf8");
+const search = readFileSync("src/components/search/Search.tsx", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 
 const cssBlock = (selector) => {

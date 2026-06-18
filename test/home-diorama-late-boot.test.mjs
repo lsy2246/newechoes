@@ -13,7 +13,7 @@ test("home diorama keeps loading as the only initial visible affordance", () => 
 });
 
 test("home diorama switches from idle boot to load-gated late boot", () => {
-  assert.match(homeDiorama, /import\s+\{\s*mountHomeDioramaBoot\s*\}\s+from "\.\/homeDioramaBoot\.js"/);
+  assert.match(homeDiorama, /import\s+\{[\s\S]*mountHomeDioramaBoot[\s\S]*\}\s+from "\.\/homeDioramaBoot\.js"/);
   assert.doesNotMatch(homeDiorama, /requestIdleCallback/);
   assert.doesNotMatch(homeDiorama, /cancelIdleCallback/);
   assert.doesNotMatch(homeDiorama, /requestAnimationFrame\(\(\)\s*=>\s*\{/);

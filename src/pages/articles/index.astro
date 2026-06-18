@@ -2,8 +2,8 @@
 import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import { contentStructure } from "../../content.config";
-import Layout from "@/components/Layout.astro";
-import ArticleDirectoryView from "@/components/views/ArticleDirectoryView.astro";
+import Layout from "@/components/layout/Layout.astro";
+import ArticleExplorer from "@/components/article/ArticleExplorer.astro";
 import { getCanonicalArticleUrl } from "@/lib/article-links";
 import { createCanonicalUrl, normalizeCanonicalPath } from "@/lib/canonical-url.js";
 import { SITE_META } from "@/consts";
@@ -160,7 +160,7 @@ const itemListJsonLd = {
   jsonLd={[collectionJsonLd, itemListJsonLd]}
   skipSrTitle={false}
 >
-  <ArticleDirectoryView
+  <ArticleExplorer
     pathSegments={pathSegments}
     currentSections={currentSections}
     currentArticles={currentArticles}

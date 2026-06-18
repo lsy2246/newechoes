@@ -4,7 +4,7 @@
   const GLOBAL_GRAPH_LAUNCHER_KEY = "__globalGraphLauncherModule";
   const GLOBAL_GRAPH_PRELOAD_KEY = "__globalGraphPreloadScheduled";
   const GLOBAL_GRAPH_CLICK_BOUND_KEY = "__globalGraphLauncherClickBound";
-  type GlobalGraphLauncherModule = typeof import("@/lib/global-graph/launcher");
+  type GlobalGraphLauncherModule = typeof import("@/components/global-graph/launcher");
   interface GlobalGraphLauncherWindow extends Window {
     __globalGraphLauncherModule?: Promise<GlobalGraphLauncherModule>;
     __globalGraphPreloadScheduled?: boolean;
@@ -13,7 +13,7 @@
   const launcherWindow = window as GlobalGraphLauncherWindow;
 
   function loadGlobalGraphLauncher() {
-    launcherWindow.__globalGraphLauncherModule ??= import("@/lib/global-graph/launcher").catch((error) => {
+    launcherWindow.__globalGraphLauncherModule ??= import("@/components/global-graph/launcher").catch((error) => {
       delete launcherWindow.__globalGraphLauncherModule;
       throw error;
     });

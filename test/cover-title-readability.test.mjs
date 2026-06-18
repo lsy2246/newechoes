@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const doubanCollection = readFileSync("src/components/DoubanCollection.tsx", "utf8");
+const doubanCollection = readFileSync("src/components/DoubanList.tsx", "utf8");
 const wereadBookList = readFileSync("src/components/WereadBookList.tsx", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 

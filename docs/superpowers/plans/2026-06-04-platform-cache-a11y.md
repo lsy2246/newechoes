@@ -154,7 +154,7 @@ git commit -m "feat: add shared cache headers across deploy platforms"
 
 **Files:**
 - Create: `test/search-accessible-name.test.mjs`
-- Modify: `src/components/Search.tsx`
+- Modify: `src/components/search/Search.tsx`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -163,7 +163,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const searchSource = readFileSync("src/components/Search.tsx", "utf8");
+const searchSource = readFileSync("src/components/search/Search.tsx", "utf8");
 
 test("search icon-only controls expose accessible names", () => {
   assert.match(searchSource, /aria-label="清除搜索"/);
@@ -200,7 +200,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add test/search-accessible-name.test.mjs src/components/Search.tsx
+git add test/search-accessible-name.test.mjs src/components/search/Search.tsx
 git commit -m "fix: add accessible names to search icon controls"
 ```
 
@@ -228,6 +228,6 @@ Expected: PASS and emit `dist/` with existing compressed artifacts plus unchange
 - [ ] **Step 4: Commit**
 
 ```bash
-git add test/platform-cache-headers.test.mjs test/search-accessible-name.test.mjs src/platform/config/cache-headers.js public/_headers vercel.json edgeone.json src/components/Search.tsx
+git add test/platform-cache-headers.test.mjs test/search-accessible-name.test.mjs src/platform/config/cache-headers.js public/_headers vercel.json edgeone.json src/components/search/Search.tsx
 git commit -m "fix: align platform cache headers and search accessibility"
 ```

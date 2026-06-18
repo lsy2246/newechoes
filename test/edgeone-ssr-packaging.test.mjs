@@ -7,7 +7,7 @@ const buildConfigHelpers = readFileSync("src/platform/build/astro-config.js", "u
 const doubanApiSource = readFileSync("src/server/api/douban.ts", "utf8");
 const wereadApiSource = readFileSync("src/server/api/weread.ts", "utf8");
 const gitProjectsApiSource = readFileSync("src/server/api/git-projects.ts", "utf8");
-const gitProjectCollectionSource = readFileSync("src/components/GitProjectCollection.tsx", "utf8");
+const gitProjectCollectionSource = readFileSync("src/components/GitProjects.tsx", "utf8");
 const edgeoneFunctionSource = readFileSync("cloud-functions/api/douban.ts", "utf8");
 
 test("EdgeOne static build keeps shared node parsers in cloud-functions instead of Astro SSR", () => {

@@ -26,7 +26,7 @@ interface Pagination {
   hasPrev: boolean;
 }
 
-interface GitProjectCollectionProps {
+interface GitProjectsProps {
   platform: GitPlatform;
   username: string;
   organization?: string;
@@ -56,7 +56,7 @@ const compareProjectsByStars = (left: GitProject, right: GitProject) => {
   return left.name.localeCompare(right.name);
 };
 
-const GitProjectCollection: FC<GitProjectCollectionProps> = ({
+const GitProjects: FC<GitProjectsProps> = ({
   platform,
   username,
   organization,
@@ -638,4 +638,4 @@ const GitProjectCollection: FC<GitProjectCollectionProps> = ({
   );
 };
 
-export default GitProjectCollection;
+export default GitProjects;

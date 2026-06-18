@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const gitProjectsApiSource = readFileSync("src/server/api/git-projects.ts", "utf8");
-const gitProjectCollectionSource = readFileSync("src/components/GitProjectCollection.tsx", "utf8");
+const gitProjectCollectionSource = readFileSync("src/components/GitProjects.tsx", "utf8");
 const targetSource = readFileSync("src/platform/shared/target.js", "utf8");
 
 test("git-projects removes token-based auth and keeps client config token-free", () => {

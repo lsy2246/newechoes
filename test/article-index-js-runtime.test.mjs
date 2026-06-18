@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createSearchRuntime } from "../src/lib/search/runtime.js";
-import { createFilterRuntime } from "../src/lib/filter/runtime.js";
+import { createSearchRuntime } from "../src/components/search/runtime.js";
+import { createFilterRuntime } from "../src/components/article/filter/runtime.js";
 
 const searchIndex = {
   articles: [

@@ -1,6 +1,6 @@
 ---
-import Layout from "@/components/Layout.astro";
-import DoubanCollection from "@/components/DoubanCollection";
+import Layout from "@/components/layout/Layout.astro";
+import DoubanList from "@/components/DoubanList";
 
 export const prerender = true;
 ---
@@ -12,7 +12,7 @@ export const prerender = true;
   skipSrTitle={false}
 >
   <!-- 示例：将 doubanId 改成自己的豆瓣 ID。 -->
-  <DoubanCollection
+  <DoubanList
     type="movie"
     doubanId="lsy22"
     client:idle

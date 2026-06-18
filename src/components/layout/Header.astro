@@ -1,7 +1,7 @@
 ---
 import { SITE_META, NAV_STRUCTURE } from "@/consts.ts";
-import ThemeToggle from "@/components/ThemeToggle.astro";
-import GlobalGraphLauncher from "@/components/GlobalGraphLauncher.astro";
+import ThemeToggle from "@/components/theme-toggle/ThemeToggle.astro";
+import GlobalGraphLauncher from "@/components/global-graph/GlobalGraphLauncher.astro";
 import { normalizeCanonicalPath } from "@/lib/canonical-url.js";
 import "@/styles/header.css";
 
@@ -1777,7 +1777,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
 
 <script>
   type SearchSlot = "desktop" | "mobile";
-  type SearchLazyModule = typeof import("@/lib/search/lazy");
+  type SearchLazyModule = typeof import("@/components/search/lazy-mount");
   interface SearchWindow extends Window {
     __searchLazyModule?: Promise<SearchLazyModule>;
   }
@@ -1829,7 +1829,7 @@ const hasActiveNavItem = activeItem || activeGroupId || activeSubItem ? true : f
     }
 
     try {
-      searchWindow.__searchLazyModule ??= import("@/lib/search/lazy");
+      searchWindow.__searchLazyModule ??= import("@/components/search/lazy-mount");
       const { mountLazySearch } = await searchWindow.__searchLazyModule;
       await mountLazySearch(mount, {
         placeholder: "搜索文章...",

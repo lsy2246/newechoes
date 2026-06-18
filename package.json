@@ -13,7 +13,7 @@
     "preview": "pnpm exec astro preview",
     "astro": "pnpm exec astro",
     "newpost": "node src/plugins/new-post.mjs",
-    "test": "pnpm run generate:function-wrappers && node --experimental-strip-types --test"
+    "test": "pnpm run generate:function-wrappers && node --experimental-strip-types --test --test-concurrency=1"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

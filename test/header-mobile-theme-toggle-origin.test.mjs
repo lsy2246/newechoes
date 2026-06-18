@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const header = readFileSync("src/components/Header.astro", "utf8").replace(/\r\n/g, "\n");
+const header = readFileSync("src/components/layout/Header.astro", "utf8").replace(/\r\n/g, "\n");
 
 test("mobile theme row forwards non-button taps using the real toggle button center", () => {
   assert.match(
     header,
-    /if \(themeToggleButton\.contains\(e\.target\)\) \{\s*return;\s*\}/,
+    /if \(e\.target instanceof Node && themeToggleButton\.contains\(e\.target\)\) \{\s*return;\s*\}/,
   );
 
   assert.match(

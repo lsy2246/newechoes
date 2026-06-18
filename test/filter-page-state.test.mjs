@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 test("filter page state treats out-of-range pages as a pagination correction instead of empty results", async () => {
-  const { resolveFilterPageState } = await import("../src/lib/filter/page-state.js");
+  const { resolveFilterPageState } = await import("../src/components/article/filter/page-state.js");
 
   const state = resolveFilterPageState({
     requestedPage: 999,
@@ -19,7 +19,7 @@ test("filter page state treats out-of-range pages as a pagination correction ins
 });
 
 test("filter page state keeps true empty results as empty results", async () => {
-  const { resolveFilterPageState } = await import("../src/lib/filter/page-state.js");
+  const { resolveFilterPageState } = await import("../src/components/article/filter/page-state.js");
 
   const state = resolveFilterPageState({
     requestedPage: 1,

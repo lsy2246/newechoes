@@ -261,7 +261,7 @@ async function ensureGlobalGraphController() {
   if (!controllerPromise) {
     controllerPromise = (async () => {
       await ensureGraphModalMarkup();
-      const { initGlobalGraphModal } = await import("@/lib/global-graph/modal");
+      const { initGlobalGraphModal } = await import("@/components/global-graph/modal");
       return initGlobalGraphModal();
     })().catch((error) => {
       controllerPromise = null;
@@ -279,7 +279,7 @@ export async function openGlobalGraph() {
 
 export async function preloadGlobalGraph() {
   await ensureGlobalGraphController();
-  const { preloadGlobalGraphRuntime } = await import("@/lib/global-graph/modal");
+  const { preloadGlobalGraphRuntime } = await import("@/components/global-graph/modal");
   await preloadGlobalGraphRuntime();
 }
 

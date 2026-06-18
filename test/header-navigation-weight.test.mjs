@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const headerCss = readFileSync("src/styles/header.css", "utf8");
-const header = readFileSync("src/components/Header.astro", "utf8");
+const header = readFileSync("src/components/layout/Header.astro", "utf8");
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 
 const cssBlock = (selector) => {
@@ -37,7 +37,7 @@ test("desktop header search has wider desktop width budget", () => {
 });
 
 test("mobile navigation uses delegated submenu handling so swup page changes do not double-bind toggles", () => {
-  assert.match(header, /addListener\(mobileMenu,\s*'click',\s*\(e\)\s*=>\s*\{/);
+  assert.match(header, /addListener\(mobileMenu,\s*'click',\s*\(e(?::\s*Event)?\)\s*=>\s*\{/);
   assert.match(header, /const submenuToggle = target\.closest\('\[data-mobile-menu-toggle\]'\);/);
   assert.match(header, /toggleSubmenu\(parentId\);/);
   assert.equal(header.includes("setupMobileMenuLinks"), false);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const themeToggleAstro = readFileSync("src/lib/theme-toggle-runtime.ts", "utf8").replace(/\r\n/g, "\n");
+const themeToggleAstro = readFileSync("src/components/theme-toggle/runtime.ts", "utf8").replace(/\r\n/g, "\n");
 
 test("theme transitions preseed the initial pseudo-element mask before waiting for transition.ready", () => {
   assert.match(

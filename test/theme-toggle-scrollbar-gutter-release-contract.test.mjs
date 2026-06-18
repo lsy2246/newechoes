@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const css = readFileSync("src/styles/theme-toggle.css", "utf8").replace(
+const css = readFileSync("src/components/theme-toggle/theme-toggle.css", "utf8").replace(
   /\r\n/g,
   "\n",
 );

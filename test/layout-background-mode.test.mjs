@@ -4,19 +4,18 @@ import test from "node:test";
 
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 const swupTransitionsCss = readFileSync("src/styles/swup-transitions.css", "utf8");
-const header = readFileSync("src/components/Header.astro", "utf8");
-const layout = readFileSync("src/components/Layout.astro", "utf8");
-const search = readFileSync("src/components/Search.tsx", "utf8");
-const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
+const header = readFileSync("src/components/layout/Header.astro", "utf8");
+const layout = readFileSync("src/components/layout/Layout.astro", "utf8");
+const search = readFileSync("src/components/search/Search.tsx", "utf8");
+const swupInit = readFileSync("src/components/swup.js", "utf8");
 const staticServer = readFileSync("tmp/static-server.mjs", "utf8");
 const swupLifecycleFiles = [
-  "src/lib/navigation/swup-init.js",
-  "src/components/Layout.astro",
-  "src/components/Header.astro",
-  "src/components/Breadcrumb.astro",
+  "src/components/swup.js",
+  "src/components/layout/Layout.astro",
+  "src/components/layout/Header.astro",
   "src/components/home/HomeDiorama.astro",
   "src/components/home/diorama.ts",
-  "src/lib/global-graph/modal.ts",
+  "src/components/global-graph/modal.ts",
 ];
 
 test("layout no longer exposes legacy background or preview modes", () => {
@@ -300,9 +299,9 @@ test("swup does not hide incoming main content again after replacement", () => {
 });
 
 test("theme toggle runtime is no longer duplicated inline inside every button instance", () => {
-  assert.equal(readFileSync("src/components/ThemeToggle.astro", "utf8").includes("<script is:inline>"), false);
-  assert.equal(readFileSync("src/components/ThemeToggle.astro", "utf8").includes('import "@/lib/theme-toggle-runtime"'), false);
-  assert.match(layout, /<script>\s*import "\.\.\/lib\/theme-toggle-runtime\.ts";\s*<\/script>/);
+  assert.equal(readFileSync("src/components/theme-toggle/ThemeToggle.astro", "utf8").includes("<script is:inline>"), false);
+  assert.equal(readFileSync("src/components/theme-toggle/ThemeToggle.astro", "utf8").includes('import "@/lib/theme-toggle-runtime"'), false);
+  assert.match(layout, /<script>\s*import "\.\.\/theme-toggle\/runtime\.ts";\s*<\/script>/);
 });
 
 test("local static server stubs the vercel speed insights script to avoid 404 noise during offline verification", () => {

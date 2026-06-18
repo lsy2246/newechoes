@@ -4,7 +4,7 @@ import test from "node:test";
 
 const globalCss = readFileSync("src/styles/global.css", "utf8");
 const projectsPage = readFileSync("src/pages/projects.astro", "utf8");
-const gitProjectCollection = readFileSync("src/components/GitProjectCollection.tsx", "utf8");
+const gitProjects = readFileSync("src/components/GitProjects.tsx", "utf8");
 const gitProjectsApi = readFileSync("src/server/api/git-projects.ts", "utf8");
 
 const cssBlock = (source, selector) => {
@@ -14,7 +14,7 @@ const cssBlock = (source, selector) => {
 
 test("projects page uses the same dark linear editorial page shell", () => {
   assert.ok(projectsPage.includes('pageType="directory"'));
-  assert.ok(projectsPage.includes("GitProjectCollection"));
+  assert.ok(projectsPage.includes("GitProjects"));
   assert.equal(projectsPage.includes("projects-shell"), false);
   assert.equal(projectsPage.includes("projects-pathbar"), false);
   assert.equal(projectsPage.includes('aria-label="项目路径"'), false);
@@ -23,10 +23,10 @@ test("projects page uses the same dark linear editorial page shell", () => {
 });
 
 test("git projects render as lightweight project nodes instead of masonry cards", () => {
-  assert.ok(gitProjectCollection.includes("git-project-grid"));
-  assert.ok(gitProjectCollection.includes("git-project-card-header"));
-  assert.ok(gitProjectCollection.includes("git-project-description"));
-  assert.equal(gitProjectCollection.includes("ReactMasonryCss"), false);
+  assert.ok(gitProjects.includes("git-project-grid"));
+  assert.ok(gitProjects.includes("git-project-card-header"));
+  assert.ok(gitProjects.includes("git-project-description"));
+  assert.equal(gitProjects.includes("ReactMasonryCss"), false);
 
   assert.match(cssBlock(globalCss, ".git-project-grid"), /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(cssBlock(globalCss, ".git-project-card"), /border:\s*1px solid transparent;/);
@@ -78,7 +78,7 @@ test("github projects stay on a single upstream repo-list request and tolerate m
   assert.match(gitProjectsApi, /'Cache-Control':\s*'public,\s*s-maxage=1800'/);
   assert.match(gitProjectsApi, /'CDN-Cache-Control':\s*'public,\s*max-age=1800'/);
   assert.match(gitProjectsApi, /https:\/\/api\.github\.com\/(?:orgs|users)\/.*repos/);
-  assert.match(gitProjectCollection, /const displayLanguage = project\.language\?\.trim\(\) \|\| "Unknown";/);
-  assert.equal(gitProjectCollection.includes("{project.language && ("), false);
-  assert.match(gitProjectCollection, /getLanguageColor\(\s*displayLanguage\s*\)/);
+  assert.match(gitProjects, /const displayLanguage = project\.language\?\.trim\(\) \|\| "Unknown";/);
+  assert.equal(gitProjects.includes("{project.language && ("), false);
+  assert.match(gitProjects, /getLanguageColor\(\s*displayLanguage\s*\)/);
 });

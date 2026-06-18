@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 
-interface DoubanCollectionProps {
+interface DoubanListProps {
   type: "movie" | "book";
   doubanId: string;
   className?: string; // 添加可选的className属性以提高灵活性
@@ -45,7 +45,7 @@ const applyNextImageFallback = (
   imageElement.src = nextFallbackUrl;
 };
 
-const DoubanCollection: React.FC<DoubanCollectionProps> = ({
+const DoubanList: React.FC<DoubanListProps> = ({
   type,
   doubanId,
   className = "",
@@ -508,4 +508,4 @@ const DoubanCollection: React.FC<DoubanCollectionProps> = ({
   );
 };
 
-export default DoubanCollection;
+export default DoubanList;

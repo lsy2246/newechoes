@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const themeToggleAstro = readFileSync("src/lib/theme-toggle-runtime.ts", "utf8").replace(/\r\n/g, "\n");
-const themeToggleCss = readFileSync("src/styles/theme-toggle.css", "utf8").replace(/\r\n/g, "\n");
+const themeToggleAstro = readFileSync("src/components/theme-toggle/runtime.ts", "utf8").replace(/\r\n/g, "\n");
+const themeToggleCss = readFileSync("src/components/theme-toggle/theme-toggle.css", "utf8").replace(/\r\n/g, "\n");
 
 const cssBlock = (source, selector) => {
   const start = source.indexOf(`${selector} {`);

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import * as homeDioramaBoot from "../src/components/home/homeDioramaBoot.js";
 
-const layoutSource = readFileSync("src/components/Layout.astro", "utf8");
+const layoutSource = readFileSync("src/components/layout/Layout.astro", "utf8");
 
 const createEventTarget = () => {
   const listeners = new Map();

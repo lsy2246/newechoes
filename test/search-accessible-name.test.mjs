@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const searchSource = readFileSync("src/components/Search.tsx", "utf8");
+const searchSource = readFileSync("src/components/search/Search.tsx", "utf8");
 const articleSource = readFileSync("src/pages/articles/[...id].astro", "utf8");
 
 test("search icon-only controls expose accessible names", () => {
