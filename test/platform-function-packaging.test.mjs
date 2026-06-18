@@ -5,6 +5,7 @@ import "./helpers/ensure-generated-function-wrappers.mjs";
 
 const gitignoreSource = readFileSync(".gitignore", "utf8");
 const tsconfigSource = readFileSync("tsconfig.json", "utf8");
+const edgeoneConfig = JSON.parse(readFileSync("edgeone.json", "utf8"));
 
 const vercelWrapperSources = [
   readFileSync("api/douban.ts", "utf8"),
@@ -28,6 +29,15 @@ test("generated platform wrapper directories are gitignored", () => {
   assert.match(gitignoreSource, /^api\/$/m);
   assert.match(gitignoreSource, /^functions\/$/m);
   assert.match(gitignoreSource, /^cloud-functions\/$/m);
+});
+
+test("EdgeOne install command generates function wrappers before builder detection", () => {
+  assert.match(edgeoneConfig.installCommand, /bun install --frozen-lockfile/);
+  assert.match(edgeoneConfig.installCommand, /bun run generate:function-wrappers/);
+  assert.ok(
+    edgeoneConfig.installCommand.indexOf("bun install --frozen-lockfile")
+      < edgeoneConfig.installCommand.indexOf("bun run generate:function-wrappers"),
+  );
 });
 
 test("vercel node wrappers use explicit .js extensions for relative ESM imports", () => {
