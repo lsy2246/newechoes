@@ -25,13 +25,9 @@ const articleUpdatedAt = Object.fromEntries(
 ---
 
 <Layout title="文章筛选" pageType="directory" description="文章筛选页面" skipSrTitle={false}>
-  <div class="article-index-shell">
-    <div id="article-content">
-      <ArticleFilter
-        searchParams={searchParams}
-        articleUpdatedAt={articleUpdatedAt}
-        client:idle
-      />
-    </div>
-  </div>
+  <ArticleFilter
+    searchParams={searchParams}
+    articleUpdatedAt={articleUpdatedAt}
+    client:idle
+  />
 </Layout>

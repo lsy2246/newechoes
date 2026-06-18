@@ -22,7 +22,7 @@ interface Props {
   pageType?: "page" | "article" | "directory"; // 更有语义的页面类型
   rssLink?: string; // 文章的RSS链接
   previewMode?: "default" | "card";
-  fullBleed?: boolean;
+  contentLayout?: "default" | "custom"; // default 使用统一页面容器，custom 交给页面或组件自己控制宽度和间距
   hideFooter?: boolean;
   hideHeader?: boolean;
   headerMode?: "default" | "overlay";
@@ -43,7 +43,7 @@ const {
   pageType = "page", // 默认为普通页面
   rssLink,
   previewMode = "default",
-  fullBleed = false,
+  contentLayout = "default",
   hideFooter = false,
   hideHeader = false,
   headerMode = "default",
@@ -51,6 +51,7 @@ const {
 } = Astro.props;
 
 const isCardPreview = previewMode === "card";
+const hasCustomContentLayout = contentLayout === "custom";
 const useOverlayHeader = headerMode === "overlay";
 const pageDescription = description || title || SITE_META.title;
 const canonicalPath = normalizeCanonicalPath(Astro.url.pathname);
@@ -275,7 +276,7 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
         "layout-article-page": pageType === "article",
         "layout-directory-page": pageType === "directory",
         "layout-overlay-header": useOverlayHeader,
-        "layout-full-bleed": fullBleed,
+        "layout-content-custom": hasCustomContentLayout,
         "layout-bg-starry": backgroundMode === "starry",
         "layout-no-header": hideHeader,
       },
@@ -285,7 +286,7 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
     <main
       data-layout-background={backgroundMode}
       data-layout-page-type={pageType}
-      data-layout-full-bleed={fullBleed ? "true" : "false"}
+      data-layout-content-layout={contentLayout}
       data-layout-header-mode={headerMode}
       data-layout-card-preview={isCardPreview ? "true" : "false"}
       data-layout-hide-footer={hideFooter ? "true" : "false"}
@@ -294,7 +295,7 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
         "grow w-full",
         isCardPreview
           ? "max-w-none px-0 py-0 article-card-preview-main"
-          : fullBleed
+          : hasCustomContentLayout
             ? [
                 hideHeader || useOverlayHeader ? "pt-0" : "pt-16",
                 "max-w-none px-0 py-0 layout-main-fullbleed",

@@ -1177,19 +1177,14 @@ tbody tr:hover,
   background: var(--article-soft);
 }
 
-/* V13 article layout: black linear editorial */
-.layout-article-page > main {
-  width: 100%;
-  max-width: 80rem;
-  margin-left: auto;
-  margin-right: auto;
-}
-
 .article-shell {
   display: grid;
   gap: 32px;
   box-sizing: border-box;
   width: 100%;
+  max-width: 80rem;
+  margin-left: auto;
+  margin-right: auto;
   padding: 38px 0 88px;
   background: var(--article-bg);
   color: var(--article-ink);

@@ -23,9 +23,15 @@ test("collection pages do not render large page titles above their content", () 
   assert.match(photoAlbumMasonry, /\{showTitle \? \(/);
 });
 
-test("collection pages without a visible title keep breathing room below the nav", () => {
-  assert.ok(moviesPage.includes('class="collection-page-offset pt-6 md:pt-8"'));
-  assert.ok(booksPage.includes('class="collection-page-offset pt-6 md:pt-8"'));
-  assert.ok(albumsPage.includes('class="collection-page-offset pt-6 md:pt-8"'));
-  assert.equal(projectsPage.includes("collection-page-offset"), false);
+test("collection route pages use the normal layout container without shallow view wrappers", () => {
+  assert.ok(moviesPage.includes("<DoubanCollection"));
+  assert.ok(booksPage.includes("<WereadBookList"));
+  assert.ok(albumsPage.includes("<PhotoAlbumMasonry"));
+  assert.ok(projectsPage.includes("<GitProjectCollection"));
+  for (const page of [moviesPage, booksPage, albumsPage, projectsPage]) {
+    assert.ok(page.includes('pageType="directory"'));
+    assert.equal(page.includes("View />"), false);
+    assert.equal(page.includes("collection-page-offset"), false);
+    assert.equal(page.includes("projects-shell"), false);
+  }
 });

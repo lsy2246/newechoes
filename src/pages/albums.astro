@@ -8,14 +8,14 @@ export const prerender = true;
 <Layout
   title="相册"
   description="旅行和生活照片合集"
+  pageType="directory"
+  skipSrTitle={false}
 >
-  <div class="collection-page-offset pt-6 md:pt-8">
-    <!-- 示例：将 shareId 改成自己的 Google Photos 分享 ID。 -->
-    <PhotoAlbumMasonry
-      shareId="M62Uxp4Uz2CUwie9A"
-      title="生活碎片"
-      showTitle={false}
-      client:idle
-    />
-  </div>
+  <!-- 示例：将 shareId 改成自己的 Google Photos 分享 ID。 -->
+  <PhotoAlbumMasonry
+    shareId="M62Uxp4Uz2CUwie9A"
+    title="生活碎片"
+    showTitle={false}
+    client:idle
+  />
 </Layout>

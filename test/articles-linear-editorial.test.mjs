@@ -9,6 +9,7 @@ const articlesCss = normalizeNewlines(readFileSync("src/styles/articles.css", "u
 const articlesCodeCss = normalizeNewlines(readFileSync("src/styles/articles-code.css", "utf8"));
 const articlesMermaidCss = normalizeNewlines(readFileSync("src/styles/articles-mermaid.css", "utf8"));
 const articleIndex = readFileSync("src/pages/articles/index.astro", "utf8");
+const articleDirectoryView = readFileSync("src/components/views/ArticleDirectoryView.astro", "utf8");
 const articleDirectoryRoute = readFileSync("src/pages/articles/[...path].astro", "utf8");
 const articleDetail = readFileSync("src/pages/articles/[...id].astro", "utf8");
 const filteredPage = readFileSync("src/pages/filtered.astro", "utf8");
@@ -76,14 +77,16 @@ test("grid and filter views use the same lightweight explorer node language", ()
   assert.match(cssBlock(globalCss, ".explorer-grid .node"), /border-radius:\s*6px;/);
   assert.match(cssBlock(globalCss, ".explorer-grid .node-kind"), /position:\s*absolute;/);
 
-  assert.ok(articleIndex.includes("article-topbar"));
+  assert.ok(articleIndex.includes("<ArticleDirectoryView"));
+  assert.equal(articleIndex.includes("article-index-shell"), false);
+  assert.ok(articleDirectoryView.includes("article-topbar"));
   assert.ok(articleIndex.includes('import "@/styles/articles.css";'));
-  assert.equal(articleIndex.includes("browser-nested"), false);
-  assert.ok(articleIndex.includes("article-index-topbar"));
-  assert.ok(articleIndex.includes("article-breadcrumb"));
-  assert.ok(articleIndex.includes('aria-current="page"'));
-  assert.equal(articleIndex.includes('<div class="pathbar">'), false);
-  assert.equal(articleIndex.includes('class="path"'), false);
+  assert.equal(articleDirectoryView.includes("browser-nested"), false);
+  assert.ok(articleDirectoryView.includes("article-index-topbar"));
+  assert.ok(articleDirectoryView.includes("article-breadcrumb"));
+  assert.ok(articleDirectoryView.includes('aria-current="page"'));
+  assert.equal(articleDirectoryView.includes('<div class="pathbar">'), false);
+  assert.equal(articleDirectoryView.includes('class="path"'), false);
   assert.match(cssBlock(globalCss, ".article-index-topbar"), /grid-template-columns:\s*minmax\(0,\s*1fr\) auto;/);
   assert.match(cssBlock(globalCss, ".article-index-topbar"), /border-bottom:\s*1px solid var\(--site-line\);/);
   assert.match(cssBlock(globalCss, ".article-index-topbar .article-breadcrumb"), /overflow:\s*hidden;/);
@@ -95,15 +98,15 @@ test("grid and filter views use the same lightweight explorer node language", ()
     globalCss,
     /@media \(max-width: 720px\) \{[\s\S]*?\.browser\s*\{[\s\S]*?padding:\s*30px 0 56px;/,
   );
-  assert.ok(articleIndex.includes("explorer-grid"));
-  assert.ok(articleIndex.includes("node-kind"));
-  assert.ok(articleIndex.includes("node-icon"));
-  assert.ok(articleIndex.includes("node-title"));
-  assert.ok(articleIndex.includes("node-summary"));
-  assert.ok(articleIndex.includes("node-meta"));
-  assert.ok(articleIndex.includes("data-article-detail-link"));
-  assert.equal(articleIndex.includes("article-card"), false);
-  assert.equal(articleIndex.includes("article-index-entry-grid"), false);
+  assert.ok(articleDirectoryView.includes("explorer-grid"));
+  assert.ok(articleDirectoryView.includes("node-kind"));
+  assert.ok(articleDirectoryView.includes("node-icon"));
+  assert.ok(articleDirectoryView.includes("node-title"));
+  assert.ok(articleDirectoryView.includes("node-summary"));
+  assert.ok(articleDirectoryView.includes("node-meta"));
+  assert.ok(articleDirectoryView.includes("data-article-detail-link"));
+  assert.equal(articleDirectoryView.includes("article-card"), false);
+  assert.equal(articleDirectoryView.includes("article-index-entry-grid"), false);
   assert.ok(articleDirectoryRoute.includes("props:"));
   assert.ok(articleDirectoryRoute.includes("path,"));
   assert.ok(articleDirectoryRoute.includes("<ArticlesPage"));
@@ -337,13 +340,10 @@ test("article detail top path bar spans the reader grid with a return link", () 
 });
 
 test("article detail aligns with the navigation container and keeps a tight side gap", () => {
-  assert.match(
-    cssBlock(articlesCss, ".layout-article-page > main"),
-    /width:\s*100%;/,
-  );
-  assert.match(cssBlock(articlesCss, ".layout-article-page > main"), /max-width:\s*80rem;/);
-  assert.match(cssBlock(articlesCss, ".layout-article-page > main"), /margin-left:\s*auto;/);
-  assert.match(cssBlock(articlesCss, ".layout-article-page > main"), /margin-right:\s*auto;/);
+  assert.equal(cssBlock(articlesCss, ".layout-article-page > main").trim(), "");
+  assert.ok(hasCssBlock(articlesCss, ".article-shell", /max-width:\s*80rem;/));
+  assert.ok(hasCssBlock(articlesCss, ".article-shell", /margin-left:\s*auto;/));
+  assert.ok(hasCssBlock(articlesCss, ".article-shell", /margin-right:\s*auto;/));
   assert.ok(hasCssBlock(articlesCss, ".article-shell", /display:\s*grid;/));
   assert.ok(hasCssBlock(articlesCss, ".article-shell", /gap:\s*32px;/));
   assert.ok(hasCssBlock(articlesCss, ".article-shell", /padding:\s*38px 0 88px;/));

@@ -85,7 +85,7 @@ test("swup preserves current Vite dev styles instead of swapping in stale fetche
 
 test("swup can sync page-level layout body classes from the replaced main element", () => {
   assert.ok(layout.includes("data-layout-page-type={pageType}"));
-  assert.ok(layout.includes('data-layout-full-bleed={fullBleed ? "true" : "false"}'));
+  assert.ok(layout.includes('data-layout-content-layout={contentLayout}'));
   assert.ok(layout.includes("data-layout-header-mode={headerMode}"));
   assert.ok(layout.includes('data-layout-card-preview={isCardPreview ? "true" : "false"}'));
   assert.ok(layout.includes('data-layout-hide-footer={hideFooter ? "true" : "false"}'));
@@ -95,7 +95,7 @@ test("swup can sync page-level layout body classes from the replaced main elemen
   assert.ok(swupInit.includes("layout-article-page"));
   assert.ok(swupInit.includes("layout-directory-page"));
   assert.ok(swupInit.includes("layout-overlay-header"));
-  assert.ok(swupInit.includes("layout-full-bleed"));
+  assert.ok(swupInit.includes("layout-content-custom"));
   assert.ok(swupInit.includes("layout-no-header"));
 });
 

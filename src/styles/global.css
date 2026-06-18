@@ -98,7 +98,7 @@
   display: none;
 }
 
-.layout-full-bleed {
+.layout-content-custom {
   position: relative;
 }
 
@@ -1322,13 +1322,6 @@ html[data-theme="dark"],
   border: 2px solid var(--site-line);
   border-top-color: var(--site-ink);
   border-radius: 999px;
-}
-
-.projects-shell {
-  width: 100%;
-  min-width: 0;
-  padding: 1.75rem 0 3.5rem;
-  color: var(--site-ink);
 }
 
 .git-project-collection {

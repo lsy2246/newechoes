@@ -3,6 +3,7 @@ import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import { contentStructure } from "../../content.config";
 import Layout from "@/components/Layout.astro";
+import ArticleDirectoryView from "@/components/views/ArticleDirectoryView.astro";
 import { getCanonicalArticleUrl } from "@/lib/article-links";
 import { createCanonicalUrl, normalizeCanonicalPath } from "@/lib/canonical-url.js";
 import { SITE_META } from "@/consts";
@@ -47,19 +48,6 @@ function getCurrentSection(pathSegments: string[]) {
   }
 
   return { sections: [], articles: [], currentPath: "" };
-}
-
-function formatDate(date: Date) {
-  return date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
-
-function getPrimaryTag(article: ArticleEntry) {
-  const tag = article.data.tags?.[0];
-  return tag ? `#${tag}` : "#note";
 }
 
 function getArticleHref(article: ArticleEntry) {
@@ -172,172 +160,13 @@ const itemListJsonLd = {
   jsonLd={[collectionJsonLd, itemListJsonLd]}
   skipSrTitle={false}
 >
-  <div class="article-index-shell">
-    <div class="browser">
-      <nav class="article-topbar article-index-topbar" aria-label="文章路径">
-        <div class="article-breadcrumb">
-          <a href="/articles" data-astro-prefetch="hover">文章</a>
-          {
-            pathSegments.map((segment, index) => {
-              const segmentPath = pathSegments.slice(0, index + 1).join("/");
-              const isCurrentSegment = index === pathSegments.length - 1;
-
-              return (
-                <>
-                  <span aria-hidden="true">/</span>
-                  {
-                    isCurrentSegment ? (
-                      <span aria-current="page">{segment}</span>
-                    ) : (
-                      <a href={`/articles/${segmentPath}`} data-astro-prefetch="hover">
-                        {segment}
-                      </a>
-                    )
-                  }
-                </>
-              );
-            })
-          }
-        </div>
-      </nav>
-
-      <div id="article-content">
-        <div class="explorer-grid">
-          {
-            pathSegments.length > 0 && (
-              <a
-                href={parentHref}
-                class="node node-up no-summary"
-                data-astro-prefetch="hover"
-              >
-                <span class="node-kind">up</span>
-                <span class="node-icon" aria-hidden="true">
-                  <svg viewBox="0 0 48 40" fill="none">
-                    <path d="M7 13h34v21H7V13Z" stroke="currentColor" stroke-width="1.6" />
-                    <path d="M7 13l7-7h13l5 7" stroke="currentColor" stroke-width="1.6" />
-                    <path d="M24 26h-9m0 0 4-4m-4 4 4 4" stroke="currentColor" stroke-width="1.6" />
-                  </svg>
-                </span>
-                <div>
-                  <h2 class="node-title">返回上级</h2>
-                  <p class="node-summary" aria-hidden="true">占位</p>
-                  <div class="node-meta">
-                    <span>{parentPath || "articles"}</span>
-                    <span>上一级目录</span>
-                  </div>
-                </div>
-              </a>
-            )
-          }
-
-          {
-            currentSections.map((section) => {
-              const dirLink = currentPath
-                ? `${currentPath}/${section.name}`
-                : section.name;
-              const meta = [
-                section.articles.length > 0 ? `${section.articles.length} 篇文章` : "",
-                section.sections.length > 0 ? `${section.sections.length} 个子目录` : "",
-              ].filter(Boolean);
-
-              return (
-                <a
-                  href={`/articles/${dirLink}`}
-                  class="node node-folder no-summary"
-                  data-astro-prefetch="viewport"
-                >
-                  <span class="node-kind">dir</span>
-                  <span class="node-icon" aria-hidden="true">
-                    <svg viewBox="0 0 48 40" fill="none">
-                      <path d="M5 13h38v21H5V13Z" stroke="currentColor" stroke-width="1.6" />
-                      <path d="M5 13l7-7h13l5 7" stroke="currentColor" stroke-width="1.6" />
-                    </svg>
-                  </span>
-                  <div>
-                    <h2 class="node-title">{section.name}</h2>
-                    <p class="node-summary" aria-hidden="true">占位</p>
-                    <div class="node-meta">
-                      {meta.map((item) => <span>{item}</span>)}
-                    </div>
-                  </div>
-                </a>
-              );
-            })
-          }
-
-          {
-            currentArticles.map((articlePath) => {
-              const article = articles.find((entry) => entry.id === articlePath);
-
-              if (!article) {
-                return (
-                  <div class="article-index-missing-entry">
-                    <div class="article-index-missing-body">
-                      <h3>文章不存在</h3>
-                      <p>原始路径: {articlePath}</p>
-                    </div>
-                  </div>
-                );
-              }
-
-              const hasSummary = Boolean(article.data.summary);
-
-              return (
-                <a
-                  href={getArticleHref(article)}
-                  class:list={["node", { "no-summary": !hasSummary }]}
-                  data-article-detail-link
-                  data-astro-prefetch="viewport"
-                >
-                  <span class="node-kind">md</span>
-                  <span class="node-icon" aria-hidden="true">
-                    <svg viewBox="0 0 40 44" fill="none">
-                      <path d="M9 4h15l7 7v29H9V4Z" stroke="currentColor" stroke-width="1.5" />
-                      <path d="M24 4v8h7" stroke="currentColor" stroke-width="1.5" />
-                      <path d="M14 20h12M14 26h12M14 32h7" stroke="currentColor" stroke-width="1.5" />
-                    </svg>
-                  </span>
-                  <div>
-                    <h2 class="node-title">{article.data.title}</h2>
-                    <p class="node-summary" aria-hidden={!hasSummary ? "true" : "false"}>
-                      {article.data.summary || "占位"}
-                    </p>
-                    <div class="node-meta">
-                      <time datetime={article.data.date.toISOString()}>
-                        {formatDate(article.data.date)}
-                      </time>
-                      <span>{getPrimaryTag(article)}</span>
-                    </div>
-                  </div>
-                </a>
-              );
-            })
-          }
-        </div>
-
-        {
-          currentSections.length === 0 && currentArticles.length === 0 && (
-            <div class="article-index-empty">
-              <svg
-                class="article-index-empty-icon"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                />
-              </svg>
-              <h3>此目录为空</h3>
-              <p>此目录下暂无内容，请浏览其他目录或返回上一级。</p>
-            </div>
-          )
-        }
-      </div>
-    </div>
-  </div>
+  <ArticleDirectoryView
+    pathSegments={pathSegments}
+    currentSections={currentSections}
+    currentArticles={currentArticles}
+    currentPath={currentPath}
+    parentHref={parentHref}
+    parentPath={parentPath}
+    articles={articles}
+  />
 </Layout>

@@ -223,7 +223,8 @@ function readPageShellStateFromRoot(root = document, url = window.location.pathn
   const headerMode = mainElement?.getAttribute('data-layout-header-mode') || (isHomeUrl(url) ? 'overlay' : 'default');
   const pageType = mainElement?.getAttribute('data-layout-page-type') || 'page';
   const isCardPreview = readLayoutFlag(mainElement, 'data-layout-card-preview');
-  const isFullBleed = readLayoutFlag(mainElement, 'data-layout-full-bleed', isHomeUrl(url));
+  const contentLayout = mainElement?.getAttribute('data-layout-content-layout') || (isHomeUrl(url) ? 'custom' : 'default');
+  const hasCustomContentLayout = contentLayout === 'custom';
   const hideFooter = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-footer', isHomeUrl(url));
   const hideHeader = isCardPreview || readLayoutFlag(mainElement, 'data-layout-hide-header');
   const useOverlayHeader = headerMode === 'overlay';
@@ -232,7 +233,7 @@ function readPageShellStateFromRoot(root = document, url = window.location.pathn
     backgroundMode,
     pageType,
     isCardPreview,
-    isFullBleed,
+    hasCustomContentLayout,
     hideFooter,
     hideHeader,
     useOverlayHeader,
@@ -309,7 +310,7 @@ function syncLayoutBodyClasses(shellState = readPageShellState()) {
   document.body.classList.toggle('layout-article-page', shellState.pageType === 'article');
   document.body.classList.toggle('layout-directory-page', shellState.pageType === 'directory');
   document.body.classList.toggle('layout-overlay-header', shellState.useOverlayHeader);
-  document.body.classList.toggle('layout-full-bleed', shellState.isFullBleed);
+  document.body.classList.toggle('layout-content-custom', shellState.hasCustomContentLayout);
   document.body.classList.toggle('layout-bg-starry', shellState.backgroundMode === 'starry');
   document.body.classList.toggle('layout-no-header', shellState.hideHeader);
   syncLayoutFooterVisibility(shellState.hideFooter);

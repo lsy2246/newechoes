@@ -41,6 +41,11 @@ test("collection pages keep demo ids at component call sites with Chinese notes"
   assert.ok(booksPage.includes('listId="333895983_80fTRWHwy"'));
   assert.ok(moviesPage.includes('doubanId="lsy22"'));
   assert.ok(projectsPage.includes('username="lsy2246"'));
+  assert.equal(existsSync("src/components/views/AlbumsView.astro"), false);
+  assert.equal(existsSync("src/components/views/BooksView.astro"), false);
+  assert.equal(existsSync("src/components/views/MoviesView.astro"), false);
+  assert.equal(existsSync("src/components/views/ProjectsView.astro"), false);
+  assert.equal(existsSync("src/components/views/ArticleFilterView.astro"), false);
 });
 
 test("seo and discovery integrations are gated by feature flags", () => {

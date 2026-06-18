@@ -14,8 +14,8 @@ const cssBlock = (source, selector) => {
 
 test("projects page uses the same dark linear editorial page shell", () => {
   assert.ok(projectsPage.includes('pageType="directory"'));
-  assert.ok(projectsPage.includes("projects-shell"));
   assert.ok(projectsPage.includes("GitProjectCollection"));
+  assert.equal(projectsPage.includes("projects-shell"), false);
   assert.equal(projectsPage.includes("projects-pathbar"), false);
   assert.equal(projectsPage.includes('aria-label="项目路径"'), false);
   assert.equal(projectsPage.includes("首页"), false);
