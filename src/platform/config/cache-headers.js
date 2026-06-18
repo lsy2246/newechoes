@@ -68,8 +68,8 @@ export function buildVercelHeaders() {
 }
 
 export function buildEdgeoneHeaders() {
-  return CACHE_HEADER_RULES.map(({ platformPath, headers }) => ({
-    source: platformPath,
+  return CACHE_HEADER_RULES.map(({ cloudflarePath, headers }) => ({
+    source: cloudflarePath,
     headers: toPlatformHeaderEntries(headers),
   }));
 }

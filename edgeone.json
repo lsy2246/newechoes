@@ -1,9 +1,9 @@
 {
-  "buildCommand": "pnpm run build:edgeone",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "bun run build:edgeone",
+  "installCommand": "bun install --frozen-lockfile",
   "outputDirectory": "dist",
-  "nodeVersion": "24.5.0",
-  "devCommand": "pnpm exec astro dev --host 127.0.0.1",
+  "nodeVersion": "22.12.0",
+  "devCommand": "bun exec astro dev --host 127.0.0.1",
   "headers": [
     {
       "source": "/_astro/*",

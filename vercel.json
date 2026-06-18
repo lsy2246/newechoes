@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "pnpm run build:vercel",
-  "installCommand": "pnpm install",
+  "buildCommand": "bun run build:vercel",
+  "installCommand": "bun install",
   "framework": "astro",
   "outputDirectory": "dist",
   "headers": [

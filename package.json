@@ -3,17 +3,17 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "pnpm exec astro dev --host 127.0.0.1 --port 4321",
+    "dev": "bun exec astro dev --host 127.0.0.1 --port 4321",
     "generate:function-wrappers": "node scripts/generate-function-wrappers.mjs",
-    "build": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs",
-    "build:vercel": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs vercel",
-    "build:edgeone": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs edgeone",
-    "build:cloudflare": "pnpm run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs cloudflare",
-    "deploy:cloudflare": "pnpm run generate:function-wrappers && pnpm exec wrangler pages deploy dist",
-    "preview": "pnpm exec astro preview",
-    "astro": "pnpm exec astro",
+    "build": "bun run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs",
+    "build:vercel": "bun run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs vercel",
+    "build:edgeone": "bun run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs edgeone",
+    "build:cloudflare": "bun run generate:function-wrappers && node --experimental-strip-types scripts/astro-build.mjs cloudflare",
+    "deploy:cloudflare": "bun run generate:function-wrappers && bun exec wrangler pages deploy dist",
+    "preview": "bun exec astro preview",
+    "astro": "bun exec astro",
     "newpost": "node src/plugins/new-post.mjs",
-    "test": "pnpm run generate:function-wrappers && node --experimental-strip-types --test --test-concurrency=1"
+    "test": "bun run generate:function-wrappers && node --experimental-strip-types --test --test-concurrency=1"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
