@@ -4,21 +4,10 @@ const ASSET_RELAY_URL_PLACEHOLDER = "{url}";
 const ASSET_RELAY_HEADERS_PLACEHOLDER = "{headers}";
 
 export type AssetRelayHeaders = Record<string, string>;
-export type AssetRelayCacheMode = "auto" | "off" | "prefer" | "refresh" | "bypass";
-export type AssetRelayCacheKeyMode = "auto" | "full" | "ignore_search" | "custom";
-
-export type AssetRelayOptions = {
-  cache?: AssetRelayCacheMode;
-  cacheTtl?: number;
-  cacheKeyMode?: AssetRelayCacheKeyMode;
-  cacheKey?: string;
-  mode?: "proxy" | "media" | "inspect";
-};
 
 export function relayAssetUrl(
   url: string | null | undefined,
   headers?: AssetRelayHeaders,
-  options: AssetRelayOptions = {},
 ) {
   if (!url || !ASSET_RELAY_URL) {
     return null;
@@ -34,46 +23,12 @@ export function relayAssetUrl(
     .replaceAll(ASSET_RELAY_URL_PLACEHOLDER, encodeURIComponent(url))
     .replaceAll(ASSET_RELAY_HEADERS_PLACEHOLDER, encodedHeaders);
 
-  const {
-    cache,
-    cacheTtl,
-    cacheKeyMode,
-    cacheKey,
-    mode,
-  } = options;
-
-  if (!cache && !cacheTtl && !cacheKeyMode && !cacheKey && !mode) {
-    return relayUrl;
-  }
-
-  const relayUrlObject = new URL(relayUrl);
-
-  if (cache) {
-    relayUrlObject.searchParams.set("cache", cache);
-  }
-
-  if (typeof cacheTtl === "number" && Number.isFinite(cacheTtl) && cacheTtl > 0) {
-    relayUrlObject.searchParams.set("cache_ttl", String(cacheTtl));
-  }
-
-  if (cacheKeyMode) {
-    relayUrlObject.searchParams.set("cache_key_mode", cacheKeyMode);
-  }
-
-  if (cacheKey) {
-    relayUrlObject.searchParams.set("cache_key", cacheKey);
-  }
-
-  if (mode) {
-    relayUrlObject.searchParams.set("mode", mode);
-  }
-
-  return relayUrlObject.toString();
+  return relayUrl;
 }
 
 export async function fetchAssetWithRelayFallback(
   url: string,
-  options: { headers?: AssetRelayHeaders; signal?: AbortSignal } & AssetRelayOptions = {},
+  options: { headers?: AssetRelayHeaders; signal?: AbortSignal } = {},
 ): Promise<Response> {
   const headers = options.headers;
   const signal = options.signal;

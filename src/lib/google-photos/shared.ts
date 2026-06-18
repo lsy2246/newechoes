@@ -40,9 +40,6 @@ export const GOOGLE_PHOTOS_PAGE_HEADERS = {
   accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 };
 
-const GOOGLE_PHOTOS_PAGE_CACHE_TTL_SECONDS = 1800;
-const GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS = 2592000;
-
 const googlePhotosMediaUrl = (baseUrl: string, params: string) => `${baseUrl}=${params}`;
 const googlePhotosImageUrl = (baseUrl: string, params: string) =>
   googlePhotosMediaUrl(baseUrl, `${params}-no`);
@@ -55,11 +52,7 @@ const proxiedGooglePhotosMediaUrl = (baseUrl: string, params: string) => {
   const fallbackUrl = localGooglePhotosMediaUrl(mediaUrl);
 
   return {
-    url:
-      relayAssetUrl(mediaUrl, GOOGLE_PHOTOS_MEDIA_HEADERS, {
-        cache: "prefer",
-        cacheTtl: GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS,
-      }) || fallbackUrl,
+    url: relayAssetUrl(mediaUrl, GOOGLE_PHOTOS_MEDIA_HEADERS) || fallbackUrl,
     fallbackUrl,
   };
 };
@@ -67,11 +60,7 @@ const proxiedGooglePhotosMediaUrl = (baseUrl: string, params: string) => {
 const streamedGooglePhotosVideoUrl = (baseUrl: string) => {
   const mediaUrl = googlePhotosMediaUrl(baseUrl, "dv");
   const localUrl = localGooglePhotosMediaUrl(mediaUrl);
-  const relayUrl = relayAssetUrl(mediaUrl, GOOGLE_PHOTOS_MEDIA_HEADERS, {
-    cache: "prefer",
-    cacheTtl: GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS,
-    mode: "media",
-  });
+  const relayUrl = relayAssetUrl(mediaUrl, GOOGLE_PHOTOS_MEDIA_HEADERS);
   const mediaRelayUrl = relayUrl || null;
 
   return {
@@ -91,11 +80,7 @@ const proxiedGooglePhotosCoverUrl = (coverUrl: unknown) => {
   const fallbackUrl = localGooglePhotosMediaUrl(coverUrl);
 
   return {
-    url:
-      relayAssetUrl(coverUrl, GOOGLE_PHOTOS_MEDIA_HEADERS, {
-        cache: "prefer",
-        cacheTtl: GOOGLE_PHOTOS_MEDIA_CACHE_TTL_SECONDS,
-      }) || fallbackUrl,
+    url: relayAssetUrl(coverUrl, GOOGLE_PHOTOS_MEDIA_HEADERS) || fallbackUrl,
     fallbackUrl,
   };
 };
@@ -177,8 +162,6 @@ export async function fetchSharedAlbumHtml(shareUrl: string) {
     response = await fetchAssetWithRelayFallback(shareUrl, {
       headers: GOOGLE_PHOTOS_PAGE_HEADERS,
       signal: controller.signal,
-      cache: "prefer",
-      cacheTtl: GOOGLE_PHOTOS_PAGE_CACHE_TTL_SECONDS,
     });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {

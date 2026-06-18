@@ -22,8 +22,6 @@ interface Pagination {
   hasPrev: boolean;
 }
 
-const GITHUB_PROJECTS_CACHE_TTL_SECONDS = 1800;
-
 export async function GET({ request }: { request: Request }) {
   const log = createServerRequestLog('api.git-projects', request);
   try {
@@ -320,8 +318,6 @@ async function fetchGithubProjects(username: string, organization: string, page:
         apiUrl,
         {
           headers,
-          cache: "prefer",
-          cacheTtl: GITHUB_PROJECTS_CACHE_TTL_SECONDS,
         },
       );
       

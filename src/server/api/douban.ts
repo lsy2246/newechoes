@@ -11,7 +11,6 @@ const DOUBAN_IMAGE_HEADERS = {
   'Referer': 'https://movie.douban.com/',
   'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
 };
-const DOUBAN_IMAGE_CACHE_TTL_SECONDS = 31536000;
 
 const localDoubanImageUrl = (imageUrl: string) =>
   `/api/douban?imageUrl=${encodeURIComponent(imageUrl)}`;
@@ -337,10 +336,7 @@ export const GET = async ({ request }: { request: Request }) => {
 
             // 确保所有字段至少有空字符串
             const relayImageUrl = imageUrl
-              ? relayAssetUrl(imageUrl, DOUBAN_IMAGE_HEADERS, {
-                cache: "prefer",
-                cacheTtl: DOUBAN_IMAGE_CACHE_TTL_SECONDS,
-              })
+              ? relayAssetUrl(imageUrl, DOUBAN_IMAGE_HEADERS)
               : null;
             const fallbackImageUrl = relayImageUrl && imageUrl
               ? localDoubanImageUrl(imageUrl)
