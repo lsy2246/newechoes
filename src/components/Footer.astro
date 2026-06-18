@@ -1,4 +1,7 @@
 ---
+import { SITE_META } from "@/consts";
+import * as siteConfig from "@/consts";
+
 interface Props {
   isHidden?: boolean;
 }
@@ -6,6 +9,18 @@ interface Props {
 const { isHidden = false } = Astro.props;
 
 const currentYear = new Date().getFullYear();
+const DEFAULT_FEATURE_FLAGS = {
+  rss: true,
+  sitemap: true,
+};
+type OptionalSiteConfig = typeof siteConfig & {
+  FEATURE_FLAGS?: Partial<typeof DEFAULT_FEATURE_FLAGS>;
+};
+const optionalSiteConfig = siteConfig as OptionalSiteConfig;
+const siteFeatureFlags = {
+  ...DEFAULT_FEATURE_FLAGS,
+  ...(optionalSiteConfig.FEATURE_FLAGS ?? {}),
+};
 ---
 
 <footer
@@ -26,35 +41,47 @@ const currentYear = new Date().getFullYear();
     <div
       class="site-footer__links text-sm font-light flex flex-wrap items-center justify-center gap-2"
     >
-      <a href="https://github.com/lsy2246/newechoes">
-        © {currentYear} New Echoes. All rights reserved.
+      <a href={SITE_META.url}>
+        © {currentYear} {SITE_META.title}. All rights reserved.
       </a>
-      <span
-        aria-hidden="true"
-        class="hidden sm:inline"
-        >·</span
-      >
-      <a
-        href="/sitemap.xml"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="网站地图"
-      >
-        Sitemap
-      </a>
-      <span
-        aria-hidden="true"
-        class="hidden sm:inline"
-        >·</span
-      >
-      <a
-        href="/rss.xml"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="RSS订阅"
-      >
-        RSS
-      </a>
+      {
+        siteFeatureFlags.sitemap && (
+          <>
+            <span
+              aria-hidden="true"
+              class="hidden sm:inline"
+              >·</span
+            >
+            <a
+              href="/sitemap.xml"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="网站地图"
+            >
+              Sitemap
+            </a>
+          </>
+        )
+      }
+      {
+        siteFeatureFlags.rss && (
+          <>
+            <span
+              aria-hidden="true"
+              class="hidden sm:inline"
+              >·</span
+            >
+            <a
+              href="/rss.xml"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="RSS订阅"
+            >
+              RSS
+            </a>
+          </>
+        )
+      }
     </div>
   </div>
 </footer>

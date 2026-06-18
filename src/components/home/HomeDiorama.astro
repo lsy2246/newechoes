@@ -3,7 +3,24 @@ import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import "./diorama.css";
 
-const articles = await getCollection("articles", ({ data }: CollectionEntry<"articles">) => !data.draft);
+export type HomeProfile = {
+  title: string;
+  kicker: string;
+  description: string;
+  role: string;
+  summary: string;
+  status: string;
+  stack: string;
+  contact: string;
+  typewriterLines: readonly string[];
+};
+
+interface Props {
+  profile: HomeProfile;
+}
+
+const { profile } = Astro.props;
+const articles = await getCollection("articles");
 const postCount = articles.length;
 const years = (() => {
   const dates = articles
@@ -67,6 +84,10 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
 
 <script is:inline define:vars={{ autoPostsLabel }}>
   window.__HOME_POSTS_LABEL = autoPostsLabel;
+</script>
+
+<script is:inline define:vars={{ profile }}>
+  window.__HOME_PROFILE = profile;
 </script>
 
 <script>

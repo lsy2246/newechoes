@@ -14,8 +14,8 @@ const llmsIntegration = readFileSync("src/plugins/llms-integration.js", "utf8");
 
 test("site metadata has one canonical source and removes legacy exports", () => {
   assert.match(constsSource, /export const SITE_META\s*=\s*\{/);
-  assert.match(constsSource, /url:\s*"https:\/\/b\.u\.cd"/);
-  assert.match(constsSource, /title:\s*"echoes"/);
+  assert.match(constsSource, /url:\s*"https:\/\/example\.com"/);
+  assert.match(constsSource, /title:\s*"Echoes"/);
   assert.match(constsSource, /author:/);
 
   assert.doesNotMatch(constsSource, /export const SITE_URL\b/);

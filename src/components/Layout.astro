@@ -3,6 +3,7 @@ import "@/styles/global.css";
 import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
 import { SITE_META } from "@/consts";
+import * as siteConfig from "@/consts";
 import { createCanonicalUrl, normalizeCanonicalPath } from "@/lib/canonical-url.js";
 import { getPlatformObservability } from "@/platform/runtime/observability.js";
 import VercelSpeedInsights from "@/components/VercelSpeedInsights.astro";
@@ -71,7 +72,19 @@ const personJsonLd = {
   url: SITE_META.url,
 };
 const pageJsonLdItems = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
-const jsonLdItems = [siteJsonLd, personJsonLd, ...pageJsonLdItems];
+const DEFAULT_FEATURE_FLAGS = {
+  seo: true,
+  rss: true,
+};
+type OptionalSiteConfig = typeof siteConfig & {
+  FEATURE_FLAGS?: Partial<typeof DEFAULT_FEATURE_FLAGS>;
+};
+const optionalSiteConfig = siteConfig as OptionalSiteConfig;
+const siteFeatureFlags = {
+  ...DEFAULT_FEATURE_FLAGS,
+  ...(optionalSiteConfig.FEATURE_FLAGS ?? {}),
+};
+const jsonLdItems = siteFeatureFlags.seo ? [siteJsonLd, personJsonLd, ...pageJsonLdItems] : [];
 const observability = getPlatformObservability();
 const showVercelInsights = observability.speedInsights && !import.meta.env.DEV;
 const bodyScripts = observability.bodyScripts.map((script) => ({
@@ -131,15 +144,18 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
       document.documentElement.dataset.theme = storedTheme ?? systemTheme;
     </script>
 
-    <!-- RSS链接 -->
-    <link
-      rel="alternate"
-      type="application/rss+xml"
-      title={`${SITE_META.title} - RSS订阅`}
-      href="/rss.xml"
-    />
     {
-      rssLink && (
+      siteFeatureFlags.rss && (
+        <link
+          rel="alternate"
+          type="application/rss+xml"
+          title={`${SITE_META.title} - RSS订阅`}
+          href="/rss.xml"
+        />
+      )
+    }
+    {
+      siteFeatureFlags.rss && rssLink && (
         <link
           rel="alternate"
           type="application/rss+xml"
@@ -150,56 +166,66 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
     }
 
     <title>{title}</title>
-    <meta
-      name="description"
-      content={pageDescription}
-    />
     {
-      pageKeywords.length > 0 && (
+      siteFeatureFlags.seo && (
+        <meta
+          name="description"
+          content={pageDescription}
+        />
+      )
+    }
+    {
+      siteFeatureFlags.seo && pageKeywords.length > 0 && (
         <meta
           name="keywords"
           content={pageKeywords.join(", ")}
         />
       )
     }
-    <meta
-      name="robots"
-      content={robots}
-    />
-    <link
-      rel="canonical"
-      href={canonicalHref}
-    />
-    <meta
-      property="og:type"
-      content={ogType}
-    />
-    <meta
-      property="og:url"
-      content={canonicalHref}
-    />
-    <meta
-      property="og:title"
-      content={title}
-    />
-    <meta
-      property="og:description"
-      content={pageDescription}
-    />
-    <meta
-      name="twitter:card"
-      content="summary_large_image"
-    />
-    <meta
-      name="twitter:site"
-      content={SITE_META.title}
-    />
-    <meta
-      name="twitter:creator"
-      content={SITE_META.author}
-    />
     {
-      date && pageType === "article" && (
+      siteFeatureFlags.seo && (
+        <>
+          <meta
+            name="robots"
+            content={robots}
+          />
+          <link
+            rel="canonical"
+            href={canonicalHref}
+          />
+          <meta
+            property="og:type"
+            content={ogType}
+          />
+          <meta
+            property="og:url"
+            content={canonicalHref}
+          />
+          <meta
+            property="og:title"
+            content={title}
+          />
+          <meta
+            property="og:description"
+            content={pageDescription}
+          />
+          <meta
+            name="twitter:card"
+            content="summary_large_image"
+          />
+          <meta
+            name="twitter:site"
+            content={SITE_META.title}
+          />
+          <meta
+            name="twitter:creator"
+            content={SITE_META.author}
+          />
+        </>
+      )
+    }
+    {
+      siteFeatureFlags.seo && date && pageType === "article" && (
         <meta
           property="article:published_time"
           content={date.toISOString()}
@@ -215,7 +241,7 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
       ))
     }
     {
-      updatedDate && pageType === "article" && (
+      siteFeatureFlags.seo && updatedDate && pageType === "article" && (
         <meta
           property="article:modified_time"
           content={updatedDate.toISOString()}
@@ -223,7 +249,8 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
       )
     }
     {
-      pageType === "article" &&
+      siteFeatureFlags.seo &&
+        pageType === "article" &&
         tags?.map((tag) => (
           <meta
             property="article:tag"

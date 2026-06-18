@@ -169,6 +169,90 @@ tags: ["标签1", "标签2"]
 
 旧的文件路径详情页不会生成；文章正文里残留的旧链接只会被解析到新的标题地址，避免同时存在两套访问规则。
 
+### Markdown 写作能力
+
+文章可以使用 `.md` 或 `.mdx` 文件。普通文章建议先用 `.md`，需要在正文里直接引入 Astro/React 组件时再改用 MDX（`.mdx`）。
+
+#### Frontmatter
+
+每篇文章顶部需要写 frontmatter：
+
+```markdown
+---
+title: "文章标题"
+date: 2026-05-29
+tags: ["标签1", "标签2"]
+summary: "可选摘要，会被搜索、RSS、列表页等功能使用"
+---
+```
+
+- `title` 必填，并且不能重复。
+- `date` 必填，用来表示发布时间。
+- `tags` 可选，用于筛选、索引和文章页展示。
+- `summary` 可选，适合放一句文章摘要。
+
+#### Mermaid 图表
+
+文章内置 Mermaid 图表支持。直接写 `mermaid` 代码块即可：
+
+````markdown
+```mermaid
+graph TD;
+    A[开始] --> B[处理];
+    B --> C{判断};
+    C -->|通过| D[发布];
+    C -->|退回| A;
+```
+````
+
+构建时会把 Mermaid 代码块识别成图表容器，文章页只在检测到 Mermaid 时加载渲染脚本，页面切换后也会重新渲染。
+
+#### 代码块
+
+普通代码块会使用 Shiki 高亮，并被增强成可折叠代码块，顶部会显示语言、行数和复制按钮：
+
+````markdown
+```typescript
+export function hello(name: string) {
+  return `Hello, ${name}`;
+}
+```
+````
+
+没有语言时会按纯文本处理：
+
+````markdown
+```text
+这是一段纯文本示例
+```
+````
+
+#### GFM 表格和任务列表
+
+项目开启了 GFM，可以直接写表格、任务列表等常见 GitHub Markdown 语法。表格会自动包一层滚动容器，移动端不容易撑破页面。
+
+```markdown
+| 功能 | 写法 |
+| --- | --- |
+| Mermaid 图表 | ` ```mermaid ` |
+| 代码高亮 | ` ```typescript ` |
+| 表格 | `| 标题 | 内容 |` |
+
+- [x] 已完成
+- [ ] 待处理
+```
+
+#### 链接和引用
+
+外链会自动添加 `target="_blank"`、`noopener`、`noreferrer` 等属性。站内文章链接建议使用文章 URL，例如：
+
+```markdown
+[查看文章列表](/articles)
+[查看某篇文章](/articles/echoes博客使用说明)
+```
+
+如果文章标题保持不变，即使移动文件位置，系统也会尽量保持文章身份和历史记录稳定。
+
 ### Git 修订历史
 
 文章的发布时间来自 frontmatter 的 `date`。文章的最后更新时间和修订记录来自 Git 历史，不需要手写 `updatedDate`。
@@ -178,31 +262,17 @@ tags: ["标签1", "标签2"]
 - 文章页会展示 commit-like 的修订记录
 - 时间轴保留发布时间轴，并提供修订时间轴查看文章维护历史
 
-如果希望修订记录里的提交和历史快照可以跳转到源码托管平台，在 `src/consts.ts` 中配置源码仓库地址：
-
 ```typescript
 export const SOURCE_REPOSITORY_CONFIG = {
   url: "",
 };
 ```
 
-未配置 url 时，页面仍会读取本地 Git 历史，但不会生成提交或历史快照外链。GitHub、Gitee、GitLab、Bitbucket 等常见平台会根据 `url` 识别；自建 Gitea、Forgejo 或私有 GitLab 域名无法识别时，可以额外填写 `provider: "gitea"`、`provider: "forgejo"` 或 `provider: "gitlab"`。
+不配置时，页面仍会读取本地 Git 历史，但不会生成提交或历史快照外链。GitHub、Gitee、GitLab、Bitbucket 等常见平台会根据 `url` 识别；自建 Gitea、Forgejo 或私有 GitLab 域名无法识别时，可以额外填写 `provider: "gitea"`、`provider: "forgejo"` 或 `provider: "gitlab"`。
 
 ### RSS 订阅
 
 自动为所有文章生成 `/rss.xml` 订阅源，无需额外配置。
-
-### Mermaid 图表
-
-支持在文章中直接使用 Mermaid 图表：
-
-````markdown
-```mermaid
-graph TD;
-    A[开始] --> B[处理];
-    B --> C{判断};
-```
-````
 
 ### 页面过渡与性能
 
@@ -213,7 +283,7 @@ graph TD;
 
 ## 基础配置
 
-编辑 `src/consts.ts` 配置网站信息：
+编辑 `src/consts.ts` 配置网站必选信息：
 
 ```typescript
 export const SITE_META = {
@@ -241,7 +311,7 @@ export const NAV_STRUCTURE = [
 
 ### 文章过期提醒
 
-在 `src/consts.ts` 中配置：
+默认不启用。需要时从 `src/consts.example.ts` 复制这段可选配置到 `src/consts.ts`：
 
 ```typescript
 export const ARTICLE_EXPIRY_CONFIG = {

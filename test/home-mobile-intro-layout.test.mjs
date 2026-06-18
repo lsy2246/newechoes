@@ -67,7 +67,7 @@ test("mobile intro reads as a centered cover field instead of a large route diag
   assert.ok(mobileStory.includes("ctx.lineDashOffset = -introFlowMotion * 118 * unit;"));
   assert.ok(mobileStory.includes("drawMobileIntroFlow(rect, item, index < 3 ? 1 : -1, flowAmount, index);"));
   assert.equal(mobileIntroMaterial.includes("drawMobileIntroRule(rect, item"), false);
-  assert.ok(mobileStory.includes("const startX = introHeroX - measure(\"lsy\", heroSize, titleFont, 500) / 2;"));
+  assert.ok(mobileStory.includes("const startX = introHeroX - measure(input.title, heroSize, titleFont, 500) / 2;"));
   assert.ok(mobileStory.includes("const startY = introHeroY;"));
   assert.ok(mobileStory.includes("const titleXTravel = phase(amount, 0.02, 0.48);"));
   assert.ok(mobileStory.includes("const titleYTravel = phase(amount, 0.24, 1);"));
@@ -319,9 +319,9 @@ test("mobile today layout separates hero, build index, paired panels, and footer
   assert.ok(mobileStory.includes("const todayPanelW = (todayRect.w - todayPad * 2 - todayPanelGap) / 2;"));
   assert.ok(mobileStory.includes("x: todayRect.x + todayPad + index * (todayPanelW + todayPanelGap),"));
   assert.ok(mobileStory.includes("y: todayBuildRowsTop + index * todayBuildRowGap,"));
-  assert.ok(mobileStory.includes("textFit(\"full-stack & AI engineer\", rect.x + todayPad, todayHeroRoleY, smallSize * 0.62"));
-  assert.ok(mobileStory.includes("wrapText(\"working with AI, writing, and the world\", rect.w - todayPad * 2, todayHeroSummarySize"));
-  assert.ok(mobileStory.includes("textFit(STORY_STATUS, rect.x + todayPad, todayStatusTop + 24 * unit, smallSize * 0.56"));
+  assert.ok(mobileStory.includes("textFit(input.role, rect.x + todayPad, todayHeroRoleY, smallSize * 0.62"));
+  assert.ok(mobileStory.includes("wrapText(input.summary, rect.w - todayPad * 2, todayHeroSummarySize"));
+  assert.ok(mobileStory.includes("textFit(input.status || STORY_STATUS, rect.x + todayPad, todayStatusTop + 24 * unit, smallSize * 0.56"));
   assert.ok(mobileTodayPanel.includes("const panelReveal = phase(amount, 0.22 + index * 0.06, 0.56 + index * 0.06);"));
   assert.ok(mobileTodayPanel.includes("drawMobileRule(rect.x + pad, rect.y + 5 * unit, rect.w * 0.34, index === 0);"));
   assert.ok(mobileTodayPanel.includes("const panelTitleSize = fitSize(title, maxWidth, smallSize * 0.54, smallSize * 0.34"));

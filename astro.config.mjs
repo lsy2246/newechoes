@@ -6,6 +6,7 @@ import mdx from "@astrojs/mdx";
 import react from "@astrojs/react";
 import rehypeExternalLinks from "rehype-external-links";
 import { SITE_META } from "./src/consts";
+import * as siteConfig from "./src/consts";
 import { articleIndexerIntegration } from "./src/plugins/article-index/integration.js";
 import { compressionIntegration } from "./src/plugins/compression-integration.js";
 import { rehypeCodeBlocks } from "./src/plugins/rehype-code-blocks.js";
@@ -23,6 +24,23 @@ import {
 } from "./src/platform/build/astro-config.js";
 
 const DEPLOY_TARGET = process.env.DEPLOY_TARGET || "vercel";
+const DEFAULT_FEATURE_FLAGS = {
+  seo: true,
+  rss: true,
+  sitemap: true,
+  robots: true,
+  llms: true,
+};
+const optionalSiteConfig = /** @type {typeof siteConfig & { FEATURE_FLAGS?: Partial<typeof DEFAULT_FEATURE_FLAGS>, SOURCE_REPOSITORY_CONFIG?: Partial<{ url: string, provider: string }> }} */ (siteConfig);
+const siteFeatureFlags = {
+  ...DEFAULT_FEATURE_FLAGS,
+  ...(optionalSiteConfig.FEATURE_FLAGS ?? {}),
+};
+const siteSourceRepositoryConfig = {
+  url: "",
+  provider: "github",
+  ...(optionalSiteConfig.SOURCE_REPOSITORY_CONFIG ?? {}),
+};
 
 // https://astro.build/config
 export default defineConfig({
@@ -77,15 +95,15 @@ export default defineConfig({
   integrations: [
     mdx(),
     react(),
-    articleIndexerIntegration(),
-    customSitemapIntegration(),
-    robotsIntegration(),
-    rssIntegration(),
-    llmsIntegration(),
+    articleIndexerIntegration({ repositoryConfig: siteSourceRepositoryConfig }),
+    siteFeatureFlags.sitemap ? customSitemapIntegration() : null,
+    siteFeatureFlags.robots ? robotsIntegration() : null,
+    siteFeatureFlags.rss ? rssIntegration() : null,
+    siteFeatureFlags.llms ? llmsIntegration() : null,
     localDevApiIntegration(),
     ...getPlatformIntegrations(DEPLOY_TARGET),
     compressionIntegration(),
-  ],
+  ].filter(Boolean),
 
   markdown: {
     syntaxHighlight: {

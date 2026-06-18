@@ -4,14 +4,30 @@ import HomeDiorama from "@/components/home/HomeDiorama.astro";
 import { SITE_META } from "@/consts";
 
 export const prerender = true;
+
+const homeProfile = {
+  title: SITE_META.title,
+  kicker: "notes, projects, and experiments",
+  description: SITE_META.description,
+  role: "Personal site template",
+  summary: "A calm starter for writing, linking ideas, and showing small projects.",
+  status: "ready to customize",
+  stack: "Astro · TypeScript · Markdown",
+  contact: "hello@example.com",
+  typewriterLines: [
+    "write notes",
+    "collect ideas",
+    "ship small tools",
+  ],
+} as const;
 ---
 
 <Layout
-  title={`lsy | ${SITE_META.title}`}
-  description="记录生活，分享所思"
+  title={`${homeProfile.title} | ${SITE_META.title}`}
+  description={homeProfile.description}
   fullBleed={true}
   hideFooter={true}
   headerMode="overlay"
 >
-  <HomeDiorama />
+  <HomeDiorama profile={homeProfile} />
 </Layout>

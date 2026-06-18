@@ -10,6 +10,11 @@ type StoryInput = {
   revealCenterDiorama?: boolean;
   motion?: number;
   now: string;
+  title: string;
+  kicker: string;
+  role: string;
+  summary: string;
+  status: string;
   stack: string;
   contact: string;
   postsLabel: string;
@@ -123,13 +128,13 @@ const STORY_WORK_ROWS = [
 ] as const;
 
 const STORY_TODAY_PANELS = [
-  ["BUILD", "Ennoia · API Worker · distilledu", "Systems that stay useful under real constraints"],
-  ["WRITE", "blog.lsy22.com", "Notes, essays, and unfinished questions"],
-  ["LIVE", "cinema · travel · books", "A life kept close to perception"],
+  ["BUILD", "components · routes · content", "Small systems that stay easy to adapt"],
+  ["WRITE", "notes · essays · references", "A place for guides, notes, and open questions"],
+  ["LIVE", "projects · books · media", "Personal pages that can be switched on when needed"],
 ] as const;
 
-const STORY_STATUS = "still building · still noticing";
-const STORY_SUMMARY = "Full-stack builder working with AI, writing, and the world outside the screen.";
+const STORY_STATUS = "ready to customize";
+const STORY_SUMMARY = "A public starter for writing, projects, and experiments.";
 
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const lerp = (from: number, to: number, progress: number) => from + (to - from) * progress;
@@ -351,6 +356,7 @@ const drawIntroCover = (
 
 const drawIntro = (
   ctx: CanvasRenderingContext2D,
+  input: StoryInput,
   progress: number,
   device: HomeScreenStoryDevice,
   theme: HomeScreenStoryTheme,
@@ -372,10 +378,10 @@ const drawIntro = (
     ctx.fillStyle = tone.ink;
     ctx.textAlign = "center";
     ctx.font = `500 ${titleSize}px 'Fraunces', 'Noto Serif SC', serif`;
-    ctx.fillText("lsy", 0, 0);
+    ctx.fillText(input.title, 0, 0);
     ctx.font = `700 ${kickerSize}px 'JetBrains Mono', monospace`;
     ctx.fillStyle = tone.muted;
-    ctx.fillText("today in echoes", 0, device === "mobile" ? 50 : 68);
+    ctx.fillText(input.kicker, 0, device === "mobile" ? 50 : 68);
     ctx.restore();
   });
 };
@@ -534,7 +540,7 @@ const drawMobileStory = (
   const drawMobileChapterTitle = (chapter: string, amount: number, nextChapter = chapter, nextAmount = 0) => {
     const heroSize = width * 0.25;
     const titleFont = "'Fraunces', 'Noto Serif SC', serif";
-    const startX = introHeroX - measure("lsy", heroSize, titleFont, 500) / 2;
+    const startX = introHeroX - measure(input.title, heroSize, titleFont, 500) / 2;
     const startY = introHeroY;
     const endX = safe.x;
     const endY = safe.y;
@@ -547,13 +553,13 @@ const drawMobileStory = (
     const chapterSize = smallSize * 1.08;
     const label = ` / ${chapter}`;
     const nextLabel = ` / ${nextChapter}`;
-    const labelX = x + measure("lsy", size, titleFont, 500) + 8 * unit;
+    const labelX = x + measure(input.title, size, titleFont, 500) + 8 * unit;
     const labelReveal = phase(amount, 0.34, 0.72);
     const labelW = measure(label, chapterSize, "'JetBrains Mono', monospace", 700);
     const nextLabelW = measure(nextLabel, chapterSize, "'JetBrains Mono', monospace", 700);
     const handoff = nextChapter === chapter ? 0 : clamp(nextAmount);
 
-    text("lsy", x, y, size, palette.text, titleFont, 500);
+    text(input.title, x, y, size, palette.text, titleFont, 500);
     if (handoff <= 0.001) {
       clipRect({ x: labelX, y: y - chapterSize * 1.2, w: labelW * labelReveal, h: chapterSize * 1.7 }, () => {
         text(label, labelX, y, chapterSize, palette.accent, "'JetBrains Mono', monospace", 700);
@@ -1293,9 +1299,9 @@ const drawMobileStory = (
     clipRect(rect, () => {
       const revealH = rect.h * phase(amount, 0.04, 0.42);
       clipRect({ x: rect.x, y: rect.y, w: rect.w, h: revealH }, () => {
-        text("lsy", rect.x + todayPad, todayHeroNameY, titleSize * 0.82, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-        textFit("full-stack & AI engineer", rect.x + todayPad, todayHeroRoleY, smallSize * 0.62, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.46);
-        wrapText("working with AI, writing, and the world", rect.w - todayPad * 2, todayHeroSummarySize, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
+        text(input.title, rect.x + todayPad, todayHeroNameY, titleSize * 0.82, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+        textFit(input.role, rect.x + todayPad, todayHeroRoleY, smallSize * 0.62, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.46);
+        wrapText(input.summary, rect.w - todayPad * 2, todayHeroSummarySize, "'JetBrains Mono', monospace", 600, 2).forEach((line, lineIndex) => {
           text(line, rect.x + todayPad, todayHeroSummaryY + lineIndex * 19 * unit, todayHeroSummarySize, palette.muted, "'JetBrains Mono', monospace", 600);
         });
       });
@@ -1303,8 +1309,8 @@ const drawMobileStory = (
       const statusReveal = phase(amount, 0.36, 0.82);
       clipRect({ x: rect.x, y: todayStatusTop - 14 * unit, w: rect.w, h: 76 * unit * statusReveal }, () => {
         drawMobileRule(rect.x + todayPad, todayStatusTop - 7 * unit, rect.w - todayPad * 2);
-        textFit(STORY_STATUS, rect.x + todayPad, todayStatusTop + 24 * unit, smallSize * 0.56, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.38);
-        textFit(input.contact || "lsy22@vip.qq.com", rect.x + todayPad, todayStatusTop + 50 * unit, smallSize * 0.52, rect.w - todayPad * 2, palette.muted, "'JetBrains Mono', monospace", 600, smallSize * 0.38);
+        textFit(input.status || STORY_STATUS, rect.x + todayPad, todayStatusTop + 24 * unit, smallSize * 0.56, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, smallSize * 0.38);
+        textFit(input.contact || "hello@example.com", rect.x + todayPad, todayStatusTop + 50 * unit, smallSize * 0.52, rect.w - todayPad * 2, palette.muted, "'JetBrains Mono', monospace", 600, smallSize * 0.38);
       });
     });
   };
@@ -1614,10 +1620,10 @@ const drawDesktopStoryLegacy = (
       ctx.textAlign = "center";
       ctx.fillStyle = palette.text;
       ctx.font = `500 ${184 * unit}px 'Fraunces', 'Noto Serif SC', serif`;
-      ctx.fillText("lsy", centerX, centerY + 24 * unit);
+      ctx.fillText(input.title, centerX, centerY + 24 * unit);
       ctx.font = `700 ${30 * unit}px 'JetBrains Mono', monospace`;
       ctx.fillStyle = palette.muted;
-      ctx.fillText("today in echoes", centerX, centerY + 92 * unit);
+      ctx.fillText(input.kicker, centerX, centerY + 92 * unit);
       ctx.restore();
     });
 
@@ -1769,7 +1775,7 @@ const drawDesktopStoryLegacy = (
     withAlpha(ctx, contentAlpha, () => {
       const pad = Math.max(42 * unit, rect.w * 0.045);
       const top = rect.y + pad;
-      text("today / lsy", rect.x + pad, top, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
+      text(`today / ${input.title}`, rect.x + pad, top, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
       ctx.save();
       ctx.strokeStyle = palette.line;
       ctx.lineWidth = 1.4 * unit;
@@ -1779,9 +1785,9 @@ const drawDesktopStoryLegacy = (
       ctx.stroke();
       ctx.restore();
 
-      text("lsy", rect.x + pad, top + 122 * unit, 142 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+      text(input.title, rect.x + pad, top + 122 * unit, 142 * unit, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
       text("Full-stack builder", rect.x + pad, top + 186 * unit, 39 * unit, palette.text, "'JetBrains Mono', monospace", 700);
-      text(STORY_SUMMARY, rect.x + pad, top + 228 * unit, 24 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+      text(input.summary || STORY_SUMMARY, rect.x + pad, top + 228 * unit, 24 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
 
       const panels = STORY_TODAY_PANELS;
       const panelGap = 14 * unit;
@@ -1807,8 +1813,8 @@ const drawDesktopStoryLegacy = (
         h: 54 * unit,
       };
       rounded(ctx, statusRect, 23 * unit, palette.paper, hairline);
-      text(STORY_STATUS, statusRect.x + 22 * unit, statusRect.y + 33 * unit, 23 * unit, palette.text, "'JetBrains Mono', monospace", 700);
-      const contact = input.contact || "lsy22@vip.qq.com";
+      text(input.status || STORY_STATUS, statusRect.x + 22 * unit, statusRect.y + 33 * unit, 23 * unit, palette.text, "'JetBrains Mono', monospace", 700);
+      const contact = input.contact || "hello@example.com";
       const contactW = measure(contact, 21 * unit, "'JetBrains Mono', monospace", 600);
       text(contact, statusRect.x + statusRect.w - contactW - 22 * unit, statusRect.y + 33 * unit, 21 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
     });
@@ -2379,15 +2385,15 @@ const drawDesktopStory = (
 
     clipRect(rect, () => {
       withAlpha(ctx, todayContentAlpha, () => {
-        text("today / lsy", rect.x + todayPad, todayTop, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
+        text(`today / ${input.title}`, rect.x + todayPad, todayTop, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
         const nowMaxW = Math.min(rect.w * 0.34, 230 * unit);
         textFit(input.now, rect.x + rect.w - todayPad - nowMaxW, todayTop, 22 * unit, nowMaxW, palette.muted, "'JetBrains Mono', monospace", 600, 15 * unit);
         drawEditorialRule(rect.x + todayPad, todayTop + 29 * unit, Math.min(rect.w * 0.22, 176 * unit), true);
 
         const nameSize = clamp(rect.w * 0.14, 108 * unit, 142 * unit);
-        text("lsy", rect.x + todayPad, todayTop + 120 * unit, nameSize, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
-        textFit("Full-stack builder", rect.x + todayPad, todayTop + 184 * unit, 39 * unit, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, 26 * unit);
-        wrapText(STORY_SUMMARY, rect.w - todayPad * 2, 25 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, index) => {
+        text(input.title, rect.x + todayPad, todayTop + 120 * unit, nameSize, palette.text, "'Fraunces', 'Noto Serif SC', serif", 600);
+        textFit(input.role, rect.x + todayPad, todayTop + 184 * unit, 39 * unit, rect.w - todayPad * 2, palette.text, "'JetBrains Mono', monospace", 700, 26 * unit);
+        wrapText(input.summary || STORY_SUMMARY, rect.w - todayPad * 2, 25 * unit, "'JetBrains Mono', monospace", 600, 2).forEach((line, index) => {
           text(line, rect.x + todayPad, todayTop + 224 * unit + index * 30 * unit, 25 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
         });
       });
@@ -2398,8 +2404,8 @@ const drawDesktopStory = (
 
       withAlpha(ctx, todayContentAlpha, () => {
         drawEditorialRule(rect.x + todayPad, todayStatusY - 12 * unit, rect.w - todayPad * 2);
-        textFit(STORY_STATUS, rect.x + todayPad, todayStatusY + 22 * unit, 23 * unit, (rect.w - todayPad * 2) * 0.54, palette.text, "'JetBrains Mono', monospace", 700, 18 * unit);
-        const contact = input.contact || "lsy22@vip.qq.com";
+        textFit(input.status || STORY_STATUS, rect.x + todayPad, todayStatusY + 22 * unit, 23 * unit, (rect.w - todayPad * 2) * 0.54, palette.text, "'JetBrains Mono', monospace", 700, 18 * unit);
+        const contact = input.contact || "hello@example.com";
         textFit(contact, rect.x + rect.w - todayPad - (rect.w - todayPad * 2) * 0.38, todayStatusY + 22 * unit, 20 * unit, (rect.w - todayPad * 2) * 0.38, palette.muted, "'JetBrains Mono', monospace", 600, 15 * unit);
       });
     });
@@ -2438,12 +2444,12 @@ const drawDesktopStory = (
       ctx.shadowColor = input.theme === "dark" ? "rgba(0, 0, 0, 0.24)" : "rgba(16, 16, 16, 0.055)";
       ctx.shadowBlur = 15 * unit;
       ctx.shadowOffsetY = 8 * unit;
-      ctx.fillText("lsy", titleX, dioramaTitleY);
+      ctx.fillText(input.title, titleX, dioramaTitleY);
       ctx.shadowColor = "transparent";
 
       ctx.font = `700 ${19 * unit}px 'JetBrains Mono', monospace`;
       ctx.fillStyle = palette.muted;
-      ctx.fillText("today in echoes", titleX, dioramaTitleY + 84 * unit);
+      ctx.fillText(input.kicker, titleX, dioramaTitleY + 84 * unit);
       ctx.restore();
     });
   };
@@ -2452,7 +2458,7 @@ const drawDesktopStory = (
     if (dioramaMode) {
       drawDioramaCenterFrame((1 - classify) * (1 - phase(progress, 0.56, 0.7)));
     } else {
-      drawIntro(ctx, progress, "desktop", input.theme, width, height);
+      drawIntro(ctx, input, progress, "desktop", input.theme, width, height);
     }
 
     stageHeader("input / things I keep returning to", "cinema · travel · books · code · AI · writing", inputHeaderAlpha, height * 0.265, inputAreaX);

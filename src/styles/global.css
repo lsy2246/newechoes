@@ -3350,7 +3350,18 @@ html[data-theme="dark"],
 }
 
 .timeline-panels {
+  position: relative;
   min-width: 0;
+}
+
+.timeline-panels::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 14px;
+  left: 190px;
+  width: 1px;
+  background: var(--site-line);
 }
 
 .timeline-panel-revisions {
@@ -3451,16 +3462,6 @@ html[data-theme="dark"],
 .timeline-river {
   display: grid;
   gap: 64px;
-}
-
-.timeline-river::before {
-  content: "";
-  position: absolute;
-  top: 12px;
-  bottom: 14px;
-  left: 190px;
-  width: 1px;
-  background: var(--site-line);
 }
 
 .timeline-year-section {
@@ -3906,7 +3907,7 @@ html[data-theme="dark"],
     gap: 50px;
   }
 
-  .timeline-river::before {
+  .timeline-panels::before {
     left: 10px;
   }
 

@@ -19,11 +19,14 @@ const countdown = readFileSync("src/components/Countdown.tsx", "utf8");
 const constsSource = readFileSync("src/consts.ts", "utf8");
 const articleHistorySource = readFileSync("src/lib/article-history/shared.js", "utf8");
 const articleLinksSource = readFileSync("src/lib/article-links.ts", "utf8");
+const articleIndexIntegrationSource = readFileSync("src/plugins/article-index/integration.js", "utf8");
+const astroBuildScript = readFileSync("scripts/astro-build.mjs", "utf8");
 const timelinePath = "src/pages/timeline.astro";
 const oldTimelinePath = "src/pages/articles/timeline.astro";
 const timelinePage = existsSync(timelinePath)
   ? readFileSync(timelinePath, "utf8")
   : "";
+const timelineView = readFileSync("src/components/TimelineView.astro", "utf8");
 const swupInit = readFileSync("src/lib/navigation/swup-init.js", "utf8");
 
 const cssBlock = (source, selector) => {
@@ -242,18 +245,23 @@ test("article history heading is localized and related reading has no extra top 
 test("article history move paths are displayed relative to content root", () => {
   assert.ok(articleDetail.includes("formatArticleHistoryPath(event.previousPath)"));
   assert.ok(articleDetail.includes("formatArticleHistoryPath(event.currentPath)"));
-  assert.ok(timelinePage.includes("formatArticleHistoryPath(event.previousPath)"));
-  assert.ok(timelinePage.includes("formatArticleHistoryPath(event.currentPath)"));
+  assert.ok(timelineView.includes("formatArticleHistoryPath(event.previousPath)"));
+  assert.ok(timelineView.includes("formatArticleHistoryPath(event.currentPath)"));
 });
 
 test("article history external links are controlled by a source repository config", () => {
-  assert.match(constsSource, /export const SOURCE_REPOSITORY_CONFIG\s*=/);
-  assert.match(constsSource, /url:\s*"https:\/\/github\.com\/lsy2246\/newechoes"/);
-  assert.match(constsSource, /provider:\s*"github"/);
-  assert.doesNotMatch(constsSource, /provider:\s*"auto"/);
+  assert.doesNotMatch(constsSource, /export const SOURCE_REPOSITORY_CONFIG\s*=/);
+  assert.ok(articleIndexIntegrationSource.includes("repositoryConfig: options.repositoryConfig"));
+  assert.ok(articleIndexIntegrationSource.includes("options.repositoryConfig"));
+  assert.doesNotMatch(articleIndexIntegrationSource, /SOURCE_REPOSITORY_CONFIG/);
+  assert.ok(astroBuildScript.includes("siteSourceRepositoryConfig"));
+  assert.ok(astroBuildScript.includes("SOURCE_REPOSITORY_CONFIG"));
+  assert.doesNotMatch(constsSource, /sourceRepositoryLinks/);
+  assert.doesNotMatch(constsSource, /FEATURE_FLAGS\.sourceRepositoryLinks/);
+  assert.ok(astroBuildScript.includes('provider: "github"'));
+  assert.doesNotMatch(articleIndexIntegrationSource, /provider:\s*"auto"/);
   assert.ok(articleDetail.includes("getPrebuiltArticleHistory(article)"));
-  assert.ok(timelinePage.includes("getPrebuiltArticleHistoryMap(articles)"));
-  assert.ok(constsSource.includes("SOURCE_REPOSITORY_CONFIG"));
+  assert.ok(timelineView.includes("getPrebuiltArticleHistoryMap(articles)"));
 });
 
 test("article pages expose git updated time for filter indexing", () => {
@@ -272,9 +280,14 @@ test("article expiry warning prefers updated time and uses matching copy", () =>
   assert.ok(articleDetail.includes("const articleWarningDate = articleHistory.updatedAt ?? article.data.date;"));
   assert.ok(articleDetail.includes("(currentDate.getTime() - articleWarningDate.getTime())"));
   assert.match(
-    constsSource,
-    /warningMessage:\s*'这篇文章最近一次更新距离现在已经超过一年了，内容可能已经过时，请谨慎参考。'/,
+    articleDetail,
+    /warningMessage:\s*"这篇文章最近一次更新距离现在已经超过一年了，内容可能已经过时，请谨慎参考。"/,
   );
+  assert.match(articleDetail, /enabled:\s*false/);
+  assert.ok(articleDetail.includes("siteArticleExpiryConfig.enabled"));
+  assert.ok(articleDetail.includes("siteArticleExpiryConfig.expiryDays"));
+  assert.ok(articleDetail.includes("siteArticleExpiryConfig.warningMessage"));
+  assert.doesNotMatch(constsSource, /FEATURE_FLAGS\.articleExpiryWarning/);
 });
 
 test("article detail routes are generated from content-relative paths", () => {
@@ -290,7 +303,8 @@ test("article detail routes are generated from content-relative paths", () => {
   assert.ok(articleLinksSource.includes("getArticleReferenceVariants"));
   assert.ok(articleIndex.includes("getCanonicalArticleUrl(article.id)"));
   assert.ok(articleIndex.includes("getArticleHref(article)"));
-  assert.ok(timelinePage.includes("getCanonicalArticleUrl(article.id)"));
+  assert.ok(timelineView.includes("getCanonicalArticleUrl(article.id)"));
+  assert.equal(timelinePage.includes("getCanonicalArticleUrl(article.id)"), false);
   assert.ok(filteredPage.includes("getCanonicalArticleUrl(article.id)"));
 });
 
@@ -645,57 +659,69 @@ test("article mermaid diagrams do not inherit explorer node hover or crop at svg
 test("timeline page exists and avoids heavy archive explanation blocks", () => {
   assert.equal(existsSync(timelinePath), true);
   assert.equal(existsSync(oldTimelinePath), false);
-  assert.ok(timelinePage.includes("timeline-layout"));
-  assert.ok(timelinePage.includes("timeline-view-switch"));
-  assert.ok(timelinePage.includes("timeline-panel-published"));
-  assert.ok(timelinePage.includes("timeline-panel-revisions"));
-  assert.ok(timelinePage.includes("revisionGroups"));
-  assert.ok(timelinePage.includes("revisionCommitGroups"));
-  assert.ok(timelinePage.includes("revision-commit-group"));
-  assert.ok(timelinePage.includes("revision-commit-head"));
-  assert.ok(timelinePage.includes("revision-article-list"));
-  assert.ok(timelinePage.includes("revision-article-item"));
-  assert.ok(timelinePage.includes("getPrebuiltArticleHistoryMap(articles)"));
-  assert.ok(timelinePage.includes("commit.commitUrl"));
-  assert.ok(timelinePage.includes("event.snapshotUrl"));
-  assert.ok(timelinePage.includes("data-timeline-view"));
-  assert.ok(timelinePage.includes("发布时间轴"));
-  assert.ok(timelinePage.includes("修订记录"));
-  assert.ok(timelinePage.includes("历史快照"));
-  assert.equal(timelinePage.includes(">文件<"), false);
-  assert.ok(timelinePage.includes("year-index"));
-  assert.ok(timelinePage.includes("timeline-year-strip"));
-  assert.ok(timelinePage.includes("timeline-main"));
-  assert.ok(timelinePage.includes("timeline-river"));
-  assert.ok(timelinePage.includes("month-group"));
-  assert.ok(timelinePage.includes("timeline-item"));
-  assert.ok(timelinePage.includes("timeline-icon"));
-  assert.equal(timelinePage.includes('aria-label="时间线路径"'), false);
-  assert.equal(timelinePage.includes('<div class="pathbar">'), false);
+  assert.ok(timelinePage.includes('import TimelineView from "@/components/TimelineView.astro"'));
+  assert.ok(timelinePage.includes("<TimelineView"));
+  assert.equal(timelinePage.includes('import { getCollection } from "astro:content"'), false);
+  assert.equal(timelinePage.includes("getPrebuiltArticleHistoryMap(articles)"), false);
+  assert.equal(timelinePage.includes("revisionGroups"), false);
+  assert.equal(timelinePage.includes("revisionCommitGroups"), false);
+  assert.ok(timelineView.includes('import { getCollection } from "astro:content"'));
+  assert.ok(timelineView.includes("getPrebuiltArticleHistoryMap(articles)"));
+  assert.ok(timelineView.includes("revisionGroups"));
+  assert.ok(timelineView.includes("revisionCommitGroups"));
+  assert.equal(timelinePage.includes("timeline-layout"), false);
+  assert.ok(timelineView.includes("timeline-layout"));
+  assert.ok(timelineView.includes("timeline-view-switch"));
+  assert.ok(timelineView.includes("timeline-panel-published"));
+  assert.ok(timelineView.includes("timeline-panel-revisions"));
+  assert.ok(timelineView.includes("revision-commit-group"));
+  assert.ok(timelineView.includes("revision-commit-head"));
+  assert.ok(timelineView.includes("revision-article-list"));
+  assert.ok(timelineView.includes("revision-article-item"));
+  assert.ok(timelineView.includes("commit.commitUrl"));
+  assert.ok(timelineView.includes("event.snapshotUrl"));
+  assert.ok(timelineView.includes("data-timeline-view"));
+  assert.ok(timelineView.includes("发布时间轴"));
+  assert.ok(timelineView.includes("修订记录"));
+  assert.ok(timelineView.includes("历史快照"));
+  assert.equal(timelineView.includes(">文件<"), false);
+  assert.ok(timelineView.includes("year-index"));
+  assert.ok(timelineView.includes("timeline-year-strip"));
+  assert.ok(timelineView.includes("timeline-main"));
+  assert.ok(timelineView.includes("timeline-river"));
+  assert.equal(timelineView.includes("is-single-entry"), false);
+  assert.ok(timelineView.includes("month-group"));
+  assert.ok(timelineView.includes("timeline-item"));
+  assert.ok(timelineView.includes("timeline-icon"));
+  assert.equal(timelineView.includes('aria-label="时间线路径"'), false);
+  assert.equal(timelineView.includes('<div class="pathbar">'), false);
   assert.match(cssBlock(globalCss, ".timeline-layout"), /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(cssBlock(globalCss, ".timeline-year-strip"), /position:\s*sticky/);
-  assert.match(cssBlock(globalCss, ".timeline-river::before"), /left:\s*190px;/);
+  assert.match(cssBlock(globalCss, ".timeline-panels::before"), /left:\s*190px;/);
+  assert.equal(cssBlock(globalCss, ".timeline-river::before").trim(), "");
   assert.match(cssBlock(globalCss, ".timeline-year-heading"), /grid-template-columns:\s*150px minmax\(0,\s*1fr\)/);
   assert.match(cssBlock(globalCss, ".timeline-year-heading"), /gap:\s*80px;/);
   assert.match(cssBlock(globalCss, ".month-group"), /grid-template-columns:\s*150px minmax\(0,\s*1fr\)/);
   assert.match(cssBlock(globalCss, ".month-group"), /gap:\s*80px;/);
   assert.match(cssBlock(globalCss, ".timeline-year-links a"), /min-width:\s*5\.3rem;/);
+  assert.equal(cssBlock(globalCss, ".timeline-river.is-single-entry::before").trim(), "");
+  assert.equal(cssBlock(globalCss, ".timeline-river.is-single-entry .timeline-item::before").trim(), "");
   assert.match(cssBlock(globalCss, ".timeline-view-switch"), /display:\s*inline-flex;/);
   assert.match(cssBlock(globalCss, ".timeline-view-switch"), /grid-column:\s*1 \/ -1;/);
   assert.match(cssBlock(globalCss, ".revision-commit-head"), /grid-template-columns:\s*minmax\(0,\s*1fr\) auto;/);
   assert.match(cssBlock(globalCss, ".revision-article-item"), /grid-template-columns:\s*minmax\(0,\s*1fr\) auto;/);
-  assert.ok(timelinePage.includes("revision-article-actions"));
+  assert.ok(timelineView.includes("revision-article-actions"));
   assert.ok(hasCssBlock(globalCss, ".timeline-year-links a", /min-width:\s*5\.75rem;/));
   assert.equal(cssBlock(globalCss, ".timeline-year-heading::after").trim(), "");
   assert.equal(cssBlock(globalCss, ".timeline-list::before").trim(), "");
-  assert.ok(timelinePage.includes("data-timeline-year-link"));
-  assert.ok(timelinePage.includes("data-timeline-year-section"));
-  assert.ok(timelinePage.includes("aria-current"));
+  assert.ok(timelineView.includes("data-timeline-year-link"));
+  assert.ok(timelineView.includes("data-timeline-year-section"));
+  assert.ok(timelineView.includes("aria-current"));
   assert.ok(swupInit.includes("IntersectionObserver"));
   assert.ok(swupInit.includes("timelineYearSpy"));
-  assert.ok(timelinePage.includes("timeline-year-index"));
-  assert.equal(timelinePage.includes("inspector"), false);
-  assert.equal(timelinePage.includes("归档规则"), false);
+  assert.ok(timelineView.includes("timeline-year-index"));
+  assert.equal(timelineView.includes("inspector"), false);
+  assert.equal(timelineView.includes("归档规则"), false);
   assert.match(cssBlock(globalCss, ".revision-hash,\n.revision-article-actions a"), /text-decoration-line:\s*underline;/);
   assert.match(cssBlock(globalCss, ".revision-hash,\n.revision-article-actions a"), /text-decoration-color:\s*color-mix\(in oklab,\s*var\(--site-line-strong\) 72%,\s*var\(--site-line\)\);/);
 });

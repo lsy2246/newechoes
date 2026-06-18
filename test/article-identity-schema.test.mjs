@@ -6,6 +6,11 @@ import test from "node:test";
 const contentConfig = readFileSync("src/content.config.ts", "utf8");
 const newPost = readFileSync("src/plugins/new-post.mjs", "utf8");
 const guide = readFileSync("src/content/echoes博客使用说明.md", "utf8");
+const homeDiorama = readFileSync("src/components/home/HomeDiorama.astro", "utf8");
+const homeScreenStory = readFileSync("src/components/home/homeScreenStory.ts", "utf8");
+const timelinePage = readFileSync("src/pages/timeline.astro", "utf8");
+const articleIndexBuild = readFileSync("src/plugins/article-index/build.js", "utf8");
+const llmsIntegration = readFileSync("src/plugins/llms-integration.js", "utf8");
 
 test("article collection uses title as the article identity", () => {
   assert.doesNotMatch(contentConfig, /^\s*id:\s*z\.string\(\)/m);
@@ -16,6 +21,16 @@ test("new post template writes only title metadata for identity", () => {
   assert.equal(newPost.includes("createStableArticleId"), false);
   assert.doesNotMatch(newPost, /`id:\s*/);
   assert.match(newPost, /`title:\s*"\$\{title\}"\\n`/);
+});
+
+test("article system does not support retired article visibility frontmatter", () => {
+  const retiredField = ["dr", "aft"].join("");
+  const retiredChineseLabel = ["草", "稿"].join("");
+
+  for (const source of [contentConfig, newPost, homeDiorama, homeScreenStory, timelinePage, articleIndexBuild, llmsIntegration]) {
+    assert.equal(source.includes(retiredField), false);
+    assert.equal(source.includes(retiredChineseLabel), false);
+  }
 });
 
 test("article guide documents title-backed identity and git-backed history", () => {
@@ -30,7 +45,22 @@ test("article guide documents the source repository config", () => {
   assert.ok(guide.includes("SOURCE_REPOSITORY_CONFIG"));
   assert.ok(guide.includes("url: \"\""));
   assert.equal(guide.includes("provider: \"auto\""), false);
-  assert.ok(guide.includes("未配置 url 时"));
+  assert.ok(guide.includes("不配置时"));
+});
+
+test("article guide documents built-in markdown writing features", () => {
+  assert.ok(guide.includes("Markdown 写作能力"));
+  assert.ok(guide.includes("Mermaid 图表"));
+  assert.ok(guide.includes("```mermaid"));
+  assert.ok(guide.includes("可折叠代码块"));
+  assert.ok(guide.includes("Shiki"));
+  assert.ok(guide.includes("GFM 表格"));
+  assert.ok(guide.includes("| 功能 | 写法 |"));
+  assert.ok(guide.includes("MDX"));
+  assert.ok(guide.includes("外链会自动添加"));
+  assert.ok(guide.includes("summary"));
+  assert.equal(guide.includes(["dr", "aft"].join("")), false);
+  assert.equal(guide.includes(["草", "稿"].join("")), false);
 });
 
 test("all article files omit id and declare unique titles", () => {

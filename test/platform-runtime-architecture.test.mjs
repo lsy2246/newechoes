@@ -10,6 +10,7 @@ const serverRequestLogSource = readFileSync("src/lib/server/request-log.ts", "ut
 const googlePhotosApiSource = readFileSync("src/server/api/google-photos.ts", "utf8");
 const articlePageSource = readFileSync("src/pages/articles/[...id].astro", "utf8");
 const timelinePageSource = readFileSync("src/pages/timeline.astro", "utf8");
+const timelineViewSource = readFileSync("src/components/TimelineView.astro", "utf8");
 const filteredPageSource = readFileSync("src/pages/filtered.astro", "utf8");
 const buildArticleIndexSource = readFileSync("src/plugins/article-index/integration.js", "utf8");
 const sitemapIntegrationSource = readFileSync("src/plugins/sitemap-integration.js", "utf8");
@@ -39,7 +40,9 @@ test("article history bridge keeps node-only helpers out of the public runtime e
 });
 
 test("page consumers read prebuilt article history instead of invoking node git helpers directly", () => {
-  for (const source of [articlePageSource, timelinePageSource, filteredPageSource]) {
+  assert.doesNotMatch(timelinePageSource, /getArticleHistory(Map)?\(/);
+
+  for (const source of [articlePageSource, timelineViewSource, filteredPageSource]) {
     assert.match(source, /prebuilt/);
     assert.doesNotMatch(source, /SOURCE_REPOSITORY_CONFIG/);
     assert.doesNotMatch(source, /getArticleHistory\(/);

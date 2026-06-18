@@ -13,7 +13,8 @@ import {
 } from "@/lib/article-history";
 import { getPrebuiltArticleHistory } from "@/lib/article-history/prebuilt.js";
 import Layout from "@/components/Layout.astro";
-import { ARTICLE_EXPIRY_CONFIG, SITE_META } from "@/consts";
+import { SITE_META } from "@/consts";
+import * as siteConfig from "@/consts";
 import { createCanonicalUrl } from "@/lib/canonical-url.js";
 import "@/styles/articles.css";
 
@@ -229,6 +230,19 @@ function getRelatedTitle(matchType: string) {
 
 const articleHistory = await getPrebuiltArticleHistory(article);
 const articleWarningDate = articleHistory.updatedAt ?? article.data.date;
+const DEFAULT_ARTICLE_EXPIRY_CONFIG = {
+  enabled: false,
+  expiryDays: 365,
+  warningMessage: "这篇文章最近一次更新距离现在已经超过一年了，内容可能已经过时，请谨慎参考。",
+};
+type OptionalSiteConfig = typeof siteConfig & {
+  ARTICLE_EXPIRY_CONFIG?: Partial<typeof DEFAULT_ARTICLE_EXPIRY_CONFIG>;
+};
+const optionalSiteConfig = siteConfig as OptionalSiteConfig;
+const siteArticleExpiryConfig = {
+  ...DEFAULT_ARTICLE_EXPIRY_CONFIG,
+  ...(optionalSiteConfig.ARTICLE_EXPIRY_CONFIG ?? {}),
+};
 
 const shouldShowArticleWarning = (() => {
   const currentDate = new Date();
@@ -238,8 +252,8 @@ const shouldShowArticleWarning = (() => {
   );
 
   return (
-    ARTICLE_EXPIRY_CONFIG.enabled &&
-    daysDiff > ARTICLE_EXPIRY_CONFIG.expiryDays
+    siteArticleExpiryConfig.enabled &&
+    daysDiff > siteArticleExpiryConfig.expiryDays
   );
 })();
 
@@ -542,7 +556,7 @@ const tableOfContents = generateTableOfContents(headings);
           shouldShowArticleWarning && (
             <p class="article-warning">
               <strong>版本提示</strong>
-              <span>{ARTICLE_EXPIRY_CONFIG.warningMessage}</span>
+              <span>{siteArticleExpiryConfig.warningMessage}</span>
             </p>
           )
         }

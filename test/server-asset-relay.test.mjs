@@ -14,10 +14,16 @@ const googlePhotosSource = readSource("src/lib/google-photos/shared.ts");
 const googlePhotosRouteSource = readSource("src/server/api/google-photos.ts");
 const photoAlbumSource = readSource("src/components/PhotoAlbumMasonry.tsx");
 
-test("asset relay template stays in shared consts with encoded headers support", () => {
-  assert.match(constsSource, /export const ASSET_RELAY_URL = "https:\/\/proxy\.u\.cd\/download\?url=\{url\}&headers=\{headers\}"/);
-  assert.match(serverRelaySource, /import \{ ASSET_RELAY_URL \} from "\.\.\/\.\.\/consts(\.js)?"/);
-  assert.doesNotMatch(serverRelaySource, /import \{ ASSET_RELAY_URL \} from "\.\.\/consts(\.js)?"/);
+test("asset relay template is optional and defaults to disabled", () => {
+  assert.doesNotMatch(constsSource, /export const ASSET_RELAY_URL/);
+  assert.match(serverRelaySource, /siteAssetRelayUrl/);
+  assert.match(serverRelaySource, /ASSET_RELAY_URL/);
+  assert.match(serverRelaySource, /const siteAssetRelayUrl = optionalSiteConfig\.ASSET_RELAY_URL \?\? ""/);
+  assert.doesNotMatch(constsSource, /assetRelay:\s*false/);
+  assert.doesNotMatch(constsSource, /FEATURE_FLAGS\.assetRelay/);
+  assert.match(serverRelaySource, /import \* as siteConfig from "\.\.\/\.\.\/consts(\.js)?"/);
+  assert.doesNotMatch(serverRelaySource, /site-options/);
+  assert.doesNotMatch(serverRelaySource, /FEATURE_FLAGS\.assetRelay/);
   assert.doesNotMatch(serverRelaySource, /process\.env\.ASSET_RELAY_URL/);
   assert.doesNotMatch(serverRelaySource, /import\.meta\.env\.PUBLIC_/);
   assert.doesNotMatch(doubanComponentSource, /ASSET_RELAY|server\/asset-relay/);

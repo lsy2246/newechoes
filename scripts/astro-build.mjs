@@ -80,11 +80,21 @@ try {
     buildArticleIndexes,
     writeArticleHistoryIndex,
   } = await import("../src/plugins/article-index/build.js");
+  const siteConfig = await import("../src/consts.ts");
+  const optionalSiteConfig = /** @type {typeof siteConfig & { SOURCE_REPOSITORY_CONFIG?: Partial<{ url: string, provider: string }> }} */ (siteConfig);
+  const siteSourceRepositoryConfig = {
+    url: "",
+    provider: "github",
+    ...(optionalSiteConfig.SOURCE_REPOSITORY_CONFIG ?? {}),
+  };
 
   ensureFullGitHistoryForCloudflareBuild();
   prepareArticleIndexRuntimeArtifacts();
   mkdirSync(prebuiltArticleHistoryDir, { recursive: true });
-  const indexes = buildArticleIndexes(join(process.cwd(), "src", "content"));
+  const indexes = buildArticleIndexes(
+    join(process.cwd(), "src", "content"),
+    siteSourceRepositoryConfig,
+  );
   writeArticleHistoryIndex(prebuiltArticleHistoryDir, indexes.articleHistoryIndex);
   console.log(`[astro-build] wrote prebuilt article history: ${prebuiltArticleHistoryPath}`);
 } catch (error) {

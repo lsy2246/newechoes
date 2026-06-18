@@ -399,9 +399,8 @@ function extractArticleRecord(filePath, contentRootDir) {
 
   const title = parseFrontmatterValue(parsedBlock.frontmatter, "title");
   const rawDate = parseFrontmatterValue(parsedBlock.frontmatter, "date");
-  const draft = parseFrontmatterValue(parsedBlock.frontmatter, "draft").toLowerCase() === "true";
 
-  if (!title || !rawDate || draft) {
+  if (!title || !rawDate) {
     return null;
   }
 

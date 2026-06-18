@@ -1,7 +1,11 @@
-import { ASSET_RELAY_URL } from "../../consts.js";
+import * as siteConfig from "../../consts.js";
 
 const ASSET_RELAY_URL_PLACEHOLDER = "{url}";
 const ASSET_RELAY_HEADERS_PLACEHOLDER = "{headers}";
+const optionalSiteConfig = siteConfig as typeof siteConfig & {
+  ASSET_RELAY_URL?: string;
+};
+const siteAssetRelayUrl = optionalSiteConfig.ASSET_RELAY_URL ?? "";
 
 export type AssetRelayHeaders = Record<string, string>;
 
@@ -9,17 +13,17 @@ export function relayAssetUrl(
   url: string | null | undefined,
   headers?: AssetRelayHeaders,
 ) {
-  if (!url || !ASSET_RELAY_URL) {
+  if (!url || !siteAssetRelayUrl) {
     return null;
   }
 
-  if (!ASSET_RELAY_URL.includes(ASSET_RELAY_URL_PLACEHOLDER)) {
+  if (!siteAssetRelayUrl.includes(ASSET_RELAY_URL_PLACEHOLDER)) {
     return null;
   }
 
   const encodedHeaders = headers ? encodeURIComponent(JSON.stringify(headers)) : "";
 
-  const relayUrl = ASSET_RELAY_URL
+  const relayUrl = siteAssetRelayUrl
     .replaceAll(ASSET_RELAY_URL_PLACEHOLDER, encodeURIComponent(url))
     .replaceAll(ASSET_RELAY_HEADERS_PLACEHOLDER, encodedHeaders);
 
@@ -32,7 +36,7 @@ export async function fetchAssetWithRelayFallback(
 ): Promise<Response> {
   const headers = options.headers;
   const signal = options.signal;
-  const relayUrl = relayAssetUrl(url, headers, options);
+  const relayUrl = relayAssetUrl(url, headers);
 
   if (relayUrl) {
     try {

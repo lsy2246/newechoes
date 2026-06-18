@@ -9,6 +9,42 @@ import {
 } from "./homeScreenStory";
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
+type HomeProfile = {
+  title: string;
+  kicker: string;
+  role: string;
+  summary: string;
+  status: string;
+  stack: string;
+  contact: string;
+  typewriterLines: readonly string[];
+};
+
+const DEFAULT_HOME_PROFILE: HomeProfile = {
+  title: "Echoes",
+  kicker: "notes, projects, and experiments",
+  role: "Personal site template",
+  summary: "A calm starter for writing, linking ideas, and showing small projects.",
+  status: "ready to customize",
+  stack: "Astro · TypeScript · Markdown",
+  contact: "hello@example.com",
+  typewriterLines: [
+    "write notes",
+    "collect ideas",
+    "ship small tools",
+  ],
+};
+
+const getHomeProfile = (): HomeProfile => {
+  const profile = (window as unknown as { __HOME_PROFILE?: Partial<HomeProfile> }).__HOME_PROFILE;
+  return {
+    ...DEFAULT_HOME_PROFILE,
+    ...profile,
+    typewriterLines: profile?.typewriterLines?.length
+      ? [...profile.typewriterLines]
+      : DEFAULT_HOME_PROFILE.typewriterLines,
+  };
+};
 const HOME_DIORAMA_PIXEL_RATIO_CAP = 2;
 const HOME_DIORAMA_RENDERER_DPR_CAP_DESKTOP = 1.5;
 const HOME_DIORAMA_RENDERER_DPR_CAP_MOBILE = 1.35;
@@ -18,15 +54,6 @@ const MOBILE_ROOM_CAMERA_DISTANCE_SCALE = 2.4;
 const STORY_CONNECTOR_MOTION_FPS = 18;
 const getStoryConnectorMotionTick = (motionSeconds: number) => Math.round(motionSeconds * STORY_CONNECTOR_MOTION_FPS);
 const getStoryConnectorMotionValue = (tick: number) => tick / STORY_CONNECTOR_MOTION_FPS;
-const HOME_TYPEWRITER_LINES = [
-  "today in echoes",
-  "local workspace",
-  "updating",
-];
-const HOME_PROFILE_ROWS = {
-  stack: "React · TypeScript · Rust",
-  contact: "lsy22@vip.qq.com",
-};
 const DESK_TOP_FIXED_COLOR = 0xf8f8f6;
 const FLOOR_FIXED_COLOR = DESK_TOP_FIXED_COLOR;
 const DESK_LEG_FIXED_COLOR = 0xc6c9c8;
@@ -234,6 +261,7 @@ export function initDiorama() {
   const cueEl = document.querySelector<HTMLElement>("[data-home-scroll-cue]");
   const cuePercentEl = document.querySelector<HTMLElement>("[data-home-cue-percent]");
   const docEl = document.documentElement;
+  const homeProfile = getHomeProfile();
   const deviceClass = getDeviceClass(window.innerWidth, window.innerHeight);
   const screenPreset = createScreenCarrierPreset(
     deviceClass,
@@ -1598,7 +1626,7 @@ export function initDiorama() {
 
   // ===== Typewriter state (rotating status line at bottom of screen) =====
   type TyperPhase = "typing" | "hold" | "deleting" | "idle";
-  const TYPEWRITER_LINES: string[] = HOME_TYPEWRITER_LINES;
+  const TYPEWRITER_LINES: string[] = [...homeProfile.typewriterLines];
   const TYPER_SPEED_TYPE = 55;    // ms per char while typing
   const TYPER_SPEED_DELETE = 26;  // ms per char while deleting
   const TYPER_HOLD_MS = 1800;     // pause after finishing typing
@@ -1734,8 +1762,13 @@ export function initDiorama() {
       revealCenterDiorama: centerDioramaActive,
       motion: connectorMotionActive ? getStoryConnectorMotionValue(connectorMotionTick) : undefined,
       now: formatNowBeijing(),
-      stack: HOME_PROFILE_ROWS.stack,
-      contact: HOME_PROFILE_ROWS.contact,
+      title: homeProfile.title,
+      kicker: homeProfile.kicker,
+      role: homeProfile.role,
+      summary: homeProfile.summary,
+      status: homeProfile.status,
+      stack: homeProfile.stack,
+      contact: homeProfile.contact,
       postsLabel: storyAutoPosts ?? "ongoing",
     };
 

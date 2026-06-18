@@ -105,9 +105,8 @@ async function scanContentArticles(contentDir = path.join(process.cwd(), "src", 
       const frontmatter = frontmatterMatch[1];
       const title = parseFrontmatterValue(frontmatter, "title");
       const date = parseFrontmatterValue(frontmatter, "date");
-      const draft = parseFrontmatterValue(frontmatter, "draft").toLowerCase() === "true";
 
-      if (!title || draft) {
+      if (!title) {
         continue;
       }
 

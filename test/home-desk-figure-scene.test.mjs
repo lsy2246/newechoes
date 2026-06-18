@@ -129,15 +129,15 @@ test("home 3D desk figure balances the plinth around the desk and seated person"
   assert.doesNotMatch(dioramaTs, /const deskW = 3;/);
 });
 
-test("home first-screen diorama removes the old desk caption and restores the centered lsy hero", () => {
+test("home first-screen diorama removes the old desk caption and restores the centered configured hero", () => {
   assert.doesNotMatch(dioramaTs, /lsyLabel/);
-  assert.match(homeScreenStoryTs, /ctx\.fillText\("lsy", titleX, dioramaTitleY\);/);
+  assert.match(homeScreenStoryTs, /ctx\.fillText\(input\.title, titleX, dioramaTitleY\);/);
   assert.match(homeScreenStoryTs, /ctx\.textAlign = "center";/);
   assert.doesNotMatch(homeScreenStoryTs, /inside the desk/);
   assert.doesNotMatch(homeScreenStoryTs, /drawEditorialRule\(railX/);
 });
 
-test("home first-screen diorama keeps lsy as the centered hero while the model stays subordinate", () => {
+test("home first-screen diorama keeps the configured title as the centered hero while the model stays subordinate", () => {
   assert.match(homeScreenStoryTs, /const dioramaTitleX = centerX \+ stageW \* 0\.015;/);
   assert.match(homeScreenStoryTs, /const dioramaCoreX = dioramaTitleX;/);
   assert.match(homeScreenStoryTs, /const dioramaFocusGuardX = clamp\(stageW \* 0\.15, 158 \* unit, 220 \* unit\);/);
@@ -146,8 +146,8 @@ test("home first-screen diorama keeps lsy as the centered hero while the model s
   assert.match(homeScreenStoryTs, /const drawDioramaIdentityPanel = \(alpha: number\) => \{/);
   assert.doesNotMatch(homeScreenStoryTs, /rawProgress/);
   assert.match(homeScreenStoryTs, /drawDesktopStory\(ctx, input, palette, progress, layoutWidth, layoutHeight\);/);
-  assert.match(homeScreenStoryTs, /ctx\.fillText\("lsy", titleX, dioramaTitleY\);/);
-  assert.match(homeScreenStoryTs, /ctx\.fillText\("today in echoes", titleX, dioramaTitleY \+ 84 \* unit\);/);
+  assert.match(homeScreenStoryTs, /ctx\.fillText\(input\.title, titleX, dioramaTitleY\);/);
+  assert.match(homeScreenStoryTs, /ctx\.fillText\(input\.kicker, titleX, dioramaTitleY \+ 84 \* unit\);/);
   assert.match(homeScreenStoryTs, /ctx\.textAlign = "center";/);
   assert.match(homeScreenStoryTs, /const mindOffsets = \[/);
   assert.match(homeScreenStoryTs, /const dioramaMindOffsets = \[/);
@@ -277,7 +277,7 @@ test("home 3D desk figure presents the final scene from an elevated rear angle",
   assert.doesNotMatch(dioramaTs, /useMobileCarrier \? 4\.0 : 3\.62,/);
 });
 
-test("home first-screen 3D component stays small enough to support the lsy hero", () => {
+test("home first-screen 3D component stays small enough to support the configured hero", () => {
   assert.match(dioramaTs, /const componentFov = useMobileCarrier \? 51 : 49;/);
   assert.match(dioramaTs, /const CENTER_DIORAMA_FADE_START = 0\.08;/);
   assert.match(dioramaTs, /const CENTER_DIORAMA_PROGRESS_END = 0\.24;/);

@@ -119,7 +119,7 @@ function needsIndexRefresh(contentRootDir, outputDirPath) {
   return latestSourceMtime > oldestOutputMtime;
 }
 
-export function articleIndexerIntegration() {
+export function articleIndexerIntegration(options = {}) {
   let devIndexBuildPromise = null;
 
   const ensureDevIndexes = async () => {
@@ -132,6 +132,7 @@ export function articleIndexerIntegration() {
           buildDir: defaultBuildDir,
           contentDir: defaultContentDir,
           outputDir: indexDir,
+          repositoryConfig: options.repositoryConfig,
         }).finally(() => {
           devIndexBuildPromise = null;
         });
@@ -186,6 +187,7 @@ export function articleIndexerIntegration() {
           buildDir: clientDirPath,
           contentDir: defaultContentDir,
           outputDir: outputDirPath,
+          repositoryConfig: options.repositoryConfig,
         });
       },
     },
@@ -212,7 +214,10 @@ export async function generateArticleIndex(options = {}) {
   ensureDirectory(buildDirPath);
   ensureDirectory(outputDirPath);
 
-  const indexes = buildArticleIndexes(contentDirPath, options.repositoryConfig);
+  const indexes = buildArticleIndexes(
+    contentDirPath,
+    options.repositoryConfig,
+  );
   if (indexes.articleCount === 0) {
     const error = new Error("没有找到有效文章");
     console.error("生成文章索引时出错:", error.message);
