@@ -1,6 +1,6 @@
 {
   "buildCommand": "bun run build:edgeone",
-  "installCommand": "bun install --frozen-lockfile && bun run generate:function-wrappers",
+  "installCommand": "bun install --frozen-lockfile && bun run generate:function-wrappers:edgeone",
   "outputDirectory": "dist",
   "devCommand": "bun exec astro dev --host 127.0.0.1",
   "headers": [

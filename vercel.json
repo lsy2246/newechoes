@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "bun run build:vercel",
-  "installCommand": "bun install",
+  "installCommand": "bun install && bun run generate:function-wrappers:vercel",
   "framework": "astro",
   "outputDirectory": "dist",
   "headers": [
