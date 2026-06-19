@@ -20,6 +20,7 @@ import { rehypeMermaid } from "./src/plugins/rehype-mermaid.js";
 import {
   getPlatformIntegrations,
   getPlatformVitePlugins,
+  resolvePlatformAdapter,
   resolvePlatformImageConfig,
 } from "./src/platform/build/astro-config.js";
 
@@ -41,6 +42,7 @@ const siteSourceRepositoryConfig = {
   provider: "github",
   ...(optionalSiteConfig.SOURCE_REPOSITORY_CONFIG ?? {}),
 };
+const platformAdapter = resolvePlatformAdapter(DEPLOY_TARGET);
 
 // https://astro.build/config
 export default defineConfig({
@@ -125,5 +127,6 @@ export default defineConfig({
     ],
     gfm: true,
   },
+  ...(platformAdapter ? { adapter: platformAdapter } : {}),
   image: resolvePlatformImageConfig(DEPLOY_TARGET),
 });

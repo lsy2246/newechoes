@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const requiredWrappers = [
-  "api/douban.ts",
+  "src/pages/api/douban.ts",
   "functions/api/douban.ts",
   "cloud-functions/api/douban.ts",
 ];

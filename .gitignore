@@ -1,8 +1,9 @@
 # build output
-dist/
-api/
-functions/
-cloud-functions/
+/dist/
+/api/
+/functions/
+/cloud-functions/
+/src/pages/api/
 
 # generated types
 .astro/

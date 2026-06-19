@@ -15,14 +15,16 @@ test("frontend build is globally static and does not depend on a server adapter"
     buildConfigHelpers,
     /export function resolvePlatformOutput\(target\)\s*\{\s*return "static";\s*\}/,
   );
-  assert.doesNotMatch(astroConfigSource, /adapter:/);
+  assert.match(astroConfigSource, /resolvePlatformAdapter\(DEPLOY_TARGET\)/);
+  assert.match(buildConfigHelpers, /target === "vercel"/);
+  assert.match(buildConfigHelpers, /return vercel\(\)/);
+  assert.match(buildConfigHelpers, /return undefined/);
   assert.doesNotMatch(buildConfigHelpers, /createAstroApiRouteIntegration/);
-  assert.doesNotMatch(buildConfigHelpers, /resolvePlatformAdapter/);
   assert.doesNotMatch(buildConfigHelpers, /resolvePlatformSsrConfig/);
   assert.doesNotMatch(mirrorHelpers, /deployTarget === "cloudflare"[\s\S]*dist", "server"/);
 });
 
-test("shared API logic moved out of Astro pages and into src/server/api", () => {
+test("shared API logic stays in src/server/api behind generated Astro route wrappers", () => {
   for (const sharedHandlerPath of [
     "src/server/api/douban.ts",
     "src/server/api/weread.ts",
@@ -32,22 +34,25 @@ test("shared API logic moved out of Astro pages and into src/server/api", () => 
     assert.equal(existsSync(sharedHandlerPath), true, `${sharedHandlerPath} should exist`);
   }
 
-  for (const legacyRoutePath of [
+  for (const generatedRoutePath of [
     "src/pages/api/douban.ts",
     "src/pages/api/weread.ts",
     "src/pages/api/git-projects.ts",
     "src/pages/api/google-photos.ts",
   ]) {
-    assert.equal(existsSync(legacyRoutePath), false, `${legacyRoutePath} should not exist`);
+    const generatedSource = readFileSync(generatedRoutePath, "utf8");
+    assert.match(generatedSource, /This file is auto-generated/);
+    assert.match(generatedSource, /export const prerender = false/);
+    assert.match(generatedSource, /from "\.\.\/\.\.\/server\/api\//);
   }
 });
 
 test("platform wrappers exist for every public api route", () => {
   for (const functionPath of [
-    "api/douban.ts",
-    "api/weread.ts",
-    "api/git-projects.ts",
-    "api/google-photos.ts",
+    "src/pages/api/douban.ts",
+    "src/pages/api/weread.ts",
+    "src/pages/api/git-projects.ts",
+    "src/pages/api/google-photos.ts",
     "functions/api/douban.ts",
     "functions/api/weread.ts",
     "functions/api/git-projects.ts",
@@ -65,7 +70,7 @@ test("cloudflare deploy script targets pages instead of worker wrangler output",
   const parsed = JSON.parse(packageJson);
   assert.equal(
     parsed.scripts["deploy:cloudflare"],
-    "pnpm run generate:function-wrappers && pnpm exec wrangler pages deploy dist",
+    "bun run generate:function-wrappers:cloudflare && wrangler pages deploy dist",
   );
 });
 

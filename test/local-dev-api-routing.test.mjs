@@ -18,7 +18,7 @@ test("astro dev registers a local API bridge for shared server handlers", async 
 
   assert.match(astroConfigSource, /localDevApiIntegration/);
   assert.match(astroConfigSource, /localDevApiIntegration\(\)/);
-  assert.equal(packageJson.scripts.dev, "pnpm exec astro dev --host 127.0.0.1 --port 4321");
+  assert.match(packageJson.scripts.dev, /\bastro dev --host 127\.0\.0\.1 --port 4321\b/);
   assert.match(localDevPluginSource, /"astro:config:setup": \(\{ updateConfig \}\) => \{/);
   assert.match(localDevPluginSource, /configureServer\(server\)/);
   assert.match(localDevPluginSource, /server\.middlewares\.use\(async \(req, res, next\) => \{/);
