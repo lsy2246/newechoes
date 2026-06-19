@@ -9,41 +9,63 @@ import {
 } from "./homeScreenStory";
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
-type HomeProfile = {
+type HomeContentCard = {
   title: string;
-  kicker: string;
-  role: string;
-  summary: string;
-  status: string;
-  stack: string;
-  contact: string;
-  typewriterLines: readonly string[];
+  note: string;
 };
 
-const DEFAULT_HOME_PROFILE: HomeProfile = {
-  title: "Echoes",
-  kicker: "notes, projects, and experiments",
-  role: "Personal site template",
-  summary: "A calm starter for writing, linking ideas, and showing small projects.",
-  status: "ready to customize",
-  stack: "Astro · TypeScript · Markdown",
-  contact: "hello@example.com",
-  typewriterLines: [
-    "write notes",
-    "collect ideas",
-    "ship small tools",
-  ],
+type HomeContentGroup = {
+  label: string;
+  title: string;
+  note: string;
 };
 
-const getHomeProfile = (): HomeProfile => {
-  const profile = (window as unknown as { __HOME_PROFILE?: Partial<HomeProfile> }).__HOME_PROFILE;
-  return {
-    ...DEFAULT_HOME_PROFILE,
-    ...profile,
-    typewriterLines: profile?.typewriterLines?.length
-      ? [...profile.typewriterLines]
-      : DEFAULT_HOME_PROFILE.typewriterLines,
+type HomeContentWorkItem = {
+  label: string;
+  title: string;
+  note: string;
+  details: readonly string[];
+};
+
+type HomeContentPanel = {
+  tag: string;
+  title: string;
+  note: string;
+};
+
+type HomeContent = {
+  screenTitle: string;
+  sources: {
+    heading: string;
+    subheading: string;
+    cards: readonly HomeContentCard[];
   };
+  lanes: {
+    heading: string;
+    subheading: string;
+    items: readonly HomeContentGroup[];
+  };
+  projects: {
+    heading: string;
+    subheading: string;
+    items: readonly HomeContentWorkItem[];
+  };
+  current: {
+    role: string;
+    stack: string;
+    summary: string;
+    status: string;
+    contact: string;
+    panels: readonly HomeContentPanel[];
+  };
+};
+
+const getHomeContent = (): HomeContent => {
+  const content = (window as unknown as { __HOME_CONTENT?: HomeContent }).__HOME_CONTENT;
+  if (!content) {
+    throw new Error("Missing home content for diorama");
+  }
+  return content;
 };
 const HOME_DIORAMA_PIXEL_RATIO_CAP = 2;
 const HOME_DIORAMA_RENDERER_DPR_CAP_DESKTOP = 1.5;
@@ -261,7 +283,7 @@ export function initDiorama() {
   const cueEl = document.querySelector<HTMLElement>("[data-home-scroll-cue]");
   const cuePercentEl = document.querySelector<HTMLElement>("[data-home-cue-percent]");
   const docEl = document.documentElement;
-  const homeProfile = getHomeProfile();
+  const homeContent = getHomeContent();
   const deviceClass = getDeviceClass(window.innerWidth, window.innerHeight);
   const screenPreset = createScreenCarrierPreset(
     deviceClass,
@@ -1623,19 +1645,6 @@ export function initDiorama() {
     return `${date} ${timeFmt.format(d)} · ${weekdayFmt.format(d)}`;
   };
   let lastTimeStr = "";
-
-  // ===== Typewriter state (rotating status line at bottom of screen) =====
-  type TyperPhase = "typing" | "hold" | "deleting" | "idle";
-  const TYPEWRITER_LINES: string[] = [...homeProfile.typewriterLines];
-  const TYPER_SPEED_TYPE = 55;    // ms per char while typing
-  const TYPER_SPEED_DELETE = 26;  // ms per char while deleting
-  const TYPER_HOLD_MS = 1800;     // pause after finishing typing
-  const TYPER_IDLE_MS = 250;      // pause after fully deleted before next line
-  let typerIndex = 0;
-  let typerPhase: TyperPhase = "typing";
-  let typerText = "";
-  let typerLastTick = performance.now();
-  let typerHoldUntil = 0;
   let storyCanvasDpr = 1;
   let storyLayoutDpr = 1;
 
@@ -1694,8 +1703,8 @@ export function initDiorama() {
       storyLayoutDpr.toFixed(3),
       storyInput.now,
       storyInput.postsLabel,
-      storyInput.stack,
-      storyInput.contact,
+      storyInput.current.stack,
+      storyInput.current.contact,
       storyInput.revealCenterDiorama ? "center-diorama" : "story",
     ].join("|");
 
@@ -1762,14 +1771,12 @@ export function initDiorama() {
       revealCenterDiorama: centerDioramaActive,
       motion: connectorMotionActive ? getStoryConnectorMotionValue(connectorMotionTick) : undefined,
       now: formatNowBeijing(),
-      title: homeProfile.title,
-      kicker: homeProfile.kicker,
-      role: homeProfile.role,
-      summary: homeProfile.summary,
-      status: homeProfile.status,
-      stack: homeProfile.stack,
-      contact: homeProfile.contact,
+      screenTitle: homeContent.screenTitle,
       postsLabel: storyAutoPosts ?? "ongoing",
+      sources: homeContent.sources,
+      lanes: homeContent.lanes,
+      projects: homeContent.projects,
+      current: homeContent.current,
     };
 
     const textureStoryInput = updateTexture && renderMode === "room"
@@ -2149,43 +2156,6 @@ export function initDiorama() {
       }
       scheduleAnimationFrame();
       return;
-    }
-
-    // Typewriter tick (types → holds → deletes → idle → next line)
-    const typerTarget = TYPEWRITER_LINES[typerIndex];
-    if (typerPhase === "typing") {
-      if (now - typerLastTick >= TYPER_SPEED_TYPE) {
-        typerLastTick = now;
-        if (typerText.length < typerTarget.length) {
-          typerText = typerTarget.slice(0, typerText.length + 1);
-          if (renderMode !== "room") needScreenRedraw = true;
-        } else {
-          typerPhase = "hold";
-          typerHoldUntil = now + TYPER_HOLD_MS;
-        }
-      }
-    } else if (typerPhase === "hold") {
-      if (now >= typerHoldUntil) {
-        typerPhase = "deleting";
-        typerLastTick = now;
-      }
-    } else if (typerPhase === "deleting") {
-      if (now - typerLastTick >= TYPER_SPEED_DELETE) {
-        typerLastTick = now;
-        if (typerText.length > 0) {
-          typerText = typerText.slice(0, -1);
-          if (renderMode !== "room") needScreenRedraw = true;
-        } else {
-          typerPhase = "idle";
-          typerHoldUntil = now + TYPER_IDLE_MS;
-        }
-      }
-    } else if (typerPhase === "idle") {
-      if (now >= typerHoldUntil) {
-        typerIndex = (typerIndex + 1) % TYPEWRITER_LINES.length;
-        typerPhase = "typing";
-        typerLastTick = now;
-      }
     }
     // Time tick — redraw when formatted time string changes (minute change)
     const newTimeStr = formatNowBeijing();

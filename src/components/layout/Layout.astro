@@ -48,7 +48,7 @@ const {
 
 const hasCustomContentLayout = contentLayout === "custom";
 const useOverlayHeader = headerMode === "overlay";
-const pageDescription = description || title || SITE_META.title;
+const pageDescription = description || SITE_META.description || title;
 const canonicalPath = normalizeCanonicalPath(Astro.url.pathname);
 const canonicalHref = createCanonicalUrl(canonicalPath, Astro.site);
 const ogType = pageType === "article" ? "article" : "website";
@@ -111,8 +111,12 @@ const bodyScripts = observability.bodyScripts.map((script) => ({
     />
     <meta
       name="generator"
-      content={Astro.generator}
+      content="Echoes"
     />
+    <meta 
+      name="application-name" 
+      content="Echoes"
+    >
     {
       import.meta.env.DEV && (
         <script type="module" is:inline>

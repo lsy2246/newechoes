@@ -1,33 +1,105 @@
 ---
 import Layout from "@/components/layout/Layout.astro";
 import HomeDiorama from "@/components/home/HomeDiorama.astro";
-import { SITE_META } from "@/consts";
 
 export const prerender = true;
 
-const homeProfile = {
-  title: SITE_META.title,
-  kicker: "notes, projects, and experiments",
-  description: SITE_META.description,
-  role: "Personal site template",
-  summary: "A calm starter for writing, linking ideas, and showing small projects.",
-  status: "ready to customize",
-  stack: "Astro · TypeScript · Markdown",
-  contact: "hello@example.com",
-  typewriterLines: [
-    "write notes",
-    "collect ideas",
-    "ship small tools",
-  ],
+const homeContent = {
+  // 首页首屏的大标题，只影响首页动画里的标题显示
+  screenTitle: "lsy",
+  // 第一幕：输入素材卡片
+  sources: {
+    heading: "input / things I keep returning to",
+    subheading: "cinema · travel · books · code · AI · writing",
+    cards: [
+      { title: "cinema log", note: "A slower way to see the world" },
+      { title: "travel journal", note: "Distance turns into inner weather" },
+      { title: "code sketches", note: "Thoughts that learn to move" },
+      { title: "AI playground", note: "A mirror for unfinished questions" },
+      { title: "reading list", note: "Other minds left open on the desk" },
+      { title: "writing archive", note: "Loose days becoming a shape" },
+    ],
+  },
+  // 第二幕：三条内容分流
+  lanes: {
+    heading: "classify / three inner lanes",
+    subheading: "seeing · making · thinking",
+    items: [
+      {
+        label: "seeing",
+        title: "cinema / travel",
+        note: "Images, places, and the way memory edits them",
+      },
+      {
+        label: "making",
+        title: "code / AI",
+        note: "Tools, systems, and strange new working habits",
+      },
+      {
+        label: "thinking",
+        title: "books / writing",
+        note: "Borrowed thoughts becoming my own language",
+      },
+    ],
+  },
+  // 第三幕：项目/作品展示
+  projects: {
+    heading: "work / systems I shaped",
+    subheading: "Ideas becoming products, agents, and infrastructure",
+    items: [
+      {
+        label: "agent system",
+        title: "Ennoia",
+        note: "A light core for agents, memory, and permissioned tools",
+        details: ["agent scheduling", "memory and tool boundaries"],
+      },
+      {
+        label: "model gateway",
+        title: "API Worker",
+        note: "A resilient bridge across models, streams, and fallbacks",
+        details: ["model routing", "stream fallback paths"],
+      },
+      {
+        label: "study-abroad product",
+        title: "distilledu",
+        note: "A mentor platform shaped around search, booking, and trust",
+        details: ["mentor discovery", "booking and trust loop"],
+      },
+    ],
+  },
+  // 最后一幕：当前状态卡片
+  current: {
+    role: "Full-stack builder",
+    stack: "React · TypeScript · Rust",
+    summary:
+      "Full-stack builder working with AI, writing, and the world outside the screen.",
+    status: "still building · still noticing",
+    contact: "lsy22@vip.qq.com",
+    panels: [
+      {
+        tag: "BUILD",
+        title: "Ennoia · API Worker · distilledu",
+        note: "Systems that stay useful under real constraints",
+      },
+      {
+        tag: "WRITE",
+        title: "blog.lsy22.com",
+        note: "Notes, essays, and unfinished questions",
+      },
+      {
+        tag: "LIVE",
+        title: "cinema · travel · books",
+        note: "A life kept close to perception",
+      },
+    ],
+  },
 } as const;
 ---
 
 <Layout
-  title={`${homeProfile.title} | ${SITE_META.title}`}
-  description={homeProfile.description}
   contentLayout="custom"
   hideFooter={true}
   headerMode="overlay"
 >
-  <HomeDiorama profile={homeProfile} />
+  <HomeDiorama content={homeContent} />
 </Layout>

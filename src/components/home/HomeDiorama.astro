@@ -3,23 +3,62 @@ import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import "./diorama.css";
 
-export type HomeProfile = {
+export type HomeContentCard = {
   title: string;
-  kicker: string;
-  description: string;
-  role: string;
-  summary: string;
-  status: string;
-  stack: string;
-  contact: string;
-  typewriterLines: readonly string[];
+  note: string;
+};
+
+export type HomeContentGroup = {
+  label: string;
+  title: string;
+  note: string;
+};
+
+export type HomeContentWorkItem = {
+  label: string;
+  title: string;
+  note: string;
+  details: readonly string[];
+};
+
+export type HomeContentPanel = {
+  tag: string;
+  title: string;
+  note: string;
+};
+
+export type HomeContent = {
+  screenTitle: string;
+  sources: {
+    heading: string;
+    subheading: string;
+    cards: readonly HomeContentCard[];
+  };
+  lanes: {
+    heading: string;
+    subheading: string;
+    items: readonly HomeContentGroup[];
+  };
+  projects: {
+    heading: string;
+    subheading: string;
+    items: readonly HomeContentWorkItem[];
+  };
+  current: {
+    role: string;
+    stack: string;
+    summary: string;
+    status: string;
+    contact: string;
+    panels: readonly HomeContentPanel[];
+  };
 };
 
 interface Props {
-  profile: HomeProfile;
+  content: HomeContent;
 }
 
-const { profile } = Astro.props;
+const { content } = Astro.props;
 const articles = await getCollection("articles");
 const postCount = articles.length;
 const years = (() => {
@@ -86,8 +125,8 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
   window.__HOME_POSTS_LABEL = autoPostsLabel;
 </script>
 
-<script is:inline define:vars={{ profile }}>
-  window.__HOME_PROFILE = profile;
+<script is:inline define:vars={{ content }}>
+  window.__HOME_CONTENT = content;
 </script>
 
 <script>

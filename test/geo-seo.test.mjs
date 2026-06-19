@@ -38,6 +38,7 @@ test("layout emits GEO-friendly page metadata and JSON-LD", () => {
   assert.ok(layoutSource.includes("personJsonLd"));
   assert.ok(layoutSource.includes('"@type": "WebSite"'));
   assert.ok(layoutSource.includes('"@type": "Person"'));
+  assert.ok(layoutSource.includes("description || SITE_META.description || title"));
 });
 
 test("article pages pass Article and breadcrumb structured data", () => {
