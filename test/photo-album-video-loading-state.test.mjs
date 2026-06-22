@@ -12,62 +12,60 @@ test("PhotoAlbumMasonry keeps the Google Photos preview video button size consis
   assert.match(component, /className="h-6 w-6 translate-x-\[1px\]"/);
 });
 
-test("PhotoAlbumMasonry queues preview video playback from the first click", () => {
+test("PhotoAlbumMasonry adapts preview navigation buttons to dark theme", () => {
   assert.match(
     component,
-    /const \[previewVideoPlayRequested, setPreviewVideoPlayRequested\] = useState\(false\);/,
+    /const previewIconButtonClassName =\s*"z-10 flex h-12 w-12 items-center justify-center rounded-full border border-white\/65 bg-white\/90 text-neutral-900[\s\S]*dark:border-white\/12[\s\S]*dark:bg-neutral-950\/88[\s\S]*dark:text-neutral-50[\s\S]*dark:ring-white\/10/,
   );
-  assert.match(component, /const \[previewVideoStarted, setPreviewVideoStarted\] = useState\(false\);/);
-  assert.match(
-    component,
-    /const \[previewVideoLoadProgress, setPreviewVideoLoadProgress\] = useState<number \| null>\(null\);/,
-  );
-  assert.match(component, /const shouldReloadPreviewVideo =\s*!previewVideoRequested \|\| previewVideoFailed \|\| !video\.currentSrc;/);
-  assert.match(component, /if \(!shouldReloadPreviewVideo\) \{\s*playPreviewVideo\(video\);/s);
-  assert.match(component, /video\.src = selectedPhoto\.videoUrl;/);
-  assert.match(component, /video\.load\(\);/);
-  assert.match(component, /video\.load\(\);\s*playPreviewVideo\(video\);/s);
-  assert.match(component, /setPreviewVideoPlayRequested\(true\);/);
-  assert.match(component, /const markPreviewVideoStarted = useCallback\(\(\) => \{/);
-  assert.match(component, /const resumePreviewVideoPlayback = useCallback\(/);
 });
 
-test("PhotoAlbumMasonry switches the preview flow to click, load, and auto-play", () => {
-  assert.match(component, /const previewVideoStatusText = !previewVideoRequested[\s\S]*"点击播放视频"[\s\S]*"正在开始播放\.\.\."/);
-  assert.match(component, /const isPreviewVideoOverlayVisible = !previewVideoStarted \|\| previewVideoFailed;/);
+test("PhotoAlbumMasonry queues preview video playback from the first click", () => {
+  assert.match(component, /type PreviewVideoPhase = "idle" \| "preloading" \| "ready" \| "playing" \| "buffering" \| "paused" \| "error";/);
   assert.match(
     component,
-    /const isPreviewVideoPlayButtonVisible = !previewVideoPlayRequested \|\| previewVideoFailed;/,
+    /const \[previewVideoPhase, setPreviewVideoPhase\] = useState<PreviewVideoPhase>\("idle"\);/,
   );
+  assert.match(component, /const \[previewVideoPlayRequested, setPreviewVideoPlayRequested\] = useState\(false\);/);
+  assert.match(component, /const shouldReloadPreviewVideo =\s*previewVideoFailed \|\| !video\.currentSrc;/);
+  assert.match(component, /if \(!shouldReloadPreviewVideo\) \{\s*playPreviewVideo\(video\);/s);
+  assert.match(component, /const preloadPreviewVideo = useCallback\(\(\{\s*silent = false\s*\}: \{\s*silent\?: boolean\s*\} = \{\}\) => \{/);
+  assert.match(component, /if \(!silent\) \{\s*setPreviewVideoPhase\("preloading"\);/s);
+  assert.match(component, /video\.preload = "auto";/);
+  assert.match(component, /video\.load\(\);/);
+  assert.match(component, /setPreviewVideoPlayRequested\(true\);/);
+  assert.match(component, /const markPreviewVideoStarted = useCallback\(\(\) => \{[\s\S]*setPreviewVideoPhase\("playing"\);/);
+  assert.match(component, /const resumePreviewVideoPlayback = useCallback\(/);
+  assert.match(component, /preloadPreviewVideo\(\{\s*silent:\s*true\s*\}\);/);
+});
+
+test("PhotoAlbumMasonry switches the preview flow to phase-based playback states", () => {
+  assert.match(component, /const previewVideoStatusText =\s*previewVideoPhase === "error"[\s\S]*"视频加载失败，请重试"[\s\S]*"点击播放视频"/);
+  assert.match(component, /const isPreviewVideoOverlayVisible =\s*!previewVideoPlayRequested \|\| previewVideoPhase === "error";/);
+  assert.match(component, /const isPreviewVideoPlayButtonVisible =\s*!previewVideoPlayRequested \|\| previewVideoPhase === "error";/);
   assert.match(component, /\{isPreviewVideoPlayButtonVisible \? \(/);
   assert.match(
     component,
     /aria-label=\{\s*previewVideoFailed \? "重新加载视频" : "加载并播放视频"\s*\}/,
   );
-  assert.match(component, /controls=\{isPreviewVideoControlsVisible\}/);
-  assert.match(component, /const isPreviewVideoControlsVisible = previewVideoStarted;/);
-  assert.match(component, /!previewVideoStarted \? "opacity-100" : "pointer-events-none opacity-0"/);
-  assert.match(component, /previewVideoStarted \? "opacity-100" : "pointer-events-none opacity-0"/);
-  assert.match(component, /onPlaying=\{\(\) => \{\s*markPreviewVideoStarted\(\);/s);
+  assert.match(component, /controls=\{\s*previewVideoPlayRequested && previewVideoPhase !== "error"\s*\}/);
+  assert.match(component, /previewVideoPlayRequested && previewVideoPhase !== "error"[\s\S]*\? "opacity-100"[\s\S]*: "pointer-events-none opacity-0"/);
+  assert.doesNotMatch(component, /absolute inset-x-0 bottom-6 flex justify-center/);
+  assert.doesNotMatch(component, /const isPreviewVideoSpinnerVisible =/);
 });
 
-test("PhotoAlbumMasonry surfaces preview loading progress and buffering state", () => {
-  assert.match(component, /const getPreviewVideoLoadProgress = \(/);
-  assert.match(component, /const syncPreviewVideoLoadProgress = useCallback\(/);
+test("PhotoAlbumMasonry keeps a single loading UI and real video aspect ratio", () => {
+  assert.match(component, /const \[previewVideoAspectRatio, setPreviewVideoAspectRatio\] = useState<number \| null>\(null\);/);
+  assert.match(component, /const resolvedPreviewVideoAspectRatio =/);
+  assert.match(component, /const syncPreviewVideoAspectRatio = useCallback\(/);
   assert.match(component, /const syncPreviewVideoPlaybackStarted = useCallback\(/);
+  assert.match(component, /onLoadedMetadata=\{\(event\) => \{[\s\S]*syncPreviewVideoAspectRatio\(event\.currentTarget\);/s);
   assert.match(
     component,
-    /const isPreviewVideoSpinnerVisible =\s*previewVideoRequested && !previewVideoFailed && \(!previewVideoStarted \|\| previewVideoBuffering\);/,
-  );
-  assert.match(component, /onLoadedMetadata=\{\(event\) => \{\s*syncPreviewVideoLoadProgress\(event\.currentTarget\);/s);
-  assert.match(component, /onProgress=\{\(event\) => \{\s*syncPreviewVideoLoadProgress\(event\.currentTarget\);/s);
-  assert.match(
-    component,
-    /onCanPlay=\{\(event\) => \{[\s\S]*setPreviewVideoBuffering\(previewVideoPlayRequested && !previewVideoStarted\);[\s\S]*syncPreviewVideoLoadProgress\(event\.currentTarget\);[\s\S]*resumePreviewVideoPlayback\(event\.currentTarget\);/,
+    /onCanPlay=\{\(event\) => \{[\s\S]*setPreviewVideoPhase\(previewVideoPlayRequested \? "ready" : "idle"\);[\s\S]*resumePreviewVideoPlayback\(event\.currentTarget\);/s,
   );
   assert.match(
     component,
-    /onLoadedData=\{\(\) => \{[\s\S]*resumePreviewVideoPlayback\(previewVideoRef\.current\);/s,
+    /onLoadedData=\{\(event\) => \{[\s\S]*if \(previewVideoPlayRequested\) \{\s*setPreviewVideoPhase\("ready"\);[\s\S]*resumePreviewVideoPlayback\(event\.currentTarget\);/s,
   );
   assert.match(
     component,
@@ -75,14 +73,14 @@ test("PhotoAlbumMasonry surfaces preview loading progress and buffering state", 
   );
   assert.match(
     component,
-    /onTimeUpdate=\{\(event\) => \{[\s\S]*syncPreviewVideoPlaybackStarted\(event\.currentTarget\);[\s\S]*syncPreviewVideoLoadProgress\(event\.currentTarget\);/,
+    /onWaiting=\{\(\) => \{[\s\S]*setPreviewVideoPhase\("buffering"\);/s,
   );
   assert.match(
     component,
-    /onSuspend=\{\(\) => \{[\s\S]*previewVideoPlayRequested && !previewVideoStarted[\s\S]*setPreviewVideoBuffering\(true\);/s,
+    /onPause=\{\(event\) => \{[\s\S]*setPreviewVideoPhase\("paused"\);/s,
   );
-  assert.ok(component.includes("已加载 "));
-  assert.ok(component.includes("正在缓冲视频..."));
+  assert.doesNotMatch(component, /已缓冲 /);
+  assert.match(component, /aspectRatio:\s*resolvedPreviewVideoAspectRatio \? String\(resolvedPreviewVideoAspectRatio\) : "16 \/ 9"/);
 });
 
 test("PhotoAlbumMasonry keeps native video seeking available inside the preview modal", () => {
@@ -96,6 +94,6 @@ test("PhotoAlbumMasonry keeps native video seeking available inside the preview 
   );
   assert.match(
     component,
-    /!previewVideoStarted \? "opacity-100" : "pointer-events-none opacity-0"/,
+    /previewVideoPlayRequested && previewVideoPhase !== "error"[\s\S]*\? "opacity-100"[\s\S]*: "pointer-events-none opacity-0"/,
   );
 });
