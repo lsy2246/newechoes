@@ -1,0 +1,15 @@
+{
+  "upstream": "https://github.com/lsy2246/newechoes.git",
+  "branch": "master",
+  "protect": [
+    "src/content/**",
+    "public/images/**",
+    "public/favicon.svg",
+    "src/consts.ts",
+    "README.md",
+    "src/pages/**"
+  ],
+  "update": [
+    "src/pages/articles/**"
+  ]
+}

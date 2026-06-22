@@ -15,6 +15,7 @@
     "deploy:cloudflare": "bun run generate:function-wrappers:cloudflare && wrangler pages deploy dist",
     "preview": "astro preview",
     "astro": "astro",
+    "update": "node scripts/update-template.mjs",
     "newpost": "node src/plugins/new-post.mjs",
     "test": "bun run generate:function-wrappers && node --experimental-strip-types --test --test-concurrency=1"
   },

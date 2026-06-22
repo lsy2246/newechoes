@@ -75,6 +75,50 @@ export const SITE_META = {
 
 完整配置示例见 `src/consts.example.ts`。
 
+## 模板更新
+
+模板仓库推荐通过 `bun run update` 同步，不直接用 `git pull` 覆盖用户博客。
+
+根目录自带 `update.json`：
+
+```json
+{
+  "upstream": "https://github.com/lsy2246/newechoes.git",
+  "branch": "master",
+  "protect": [
+    "src/content/**",
+    "public/images/**",
+    "public/favicon.svg",
+    "src/consts.ts",
+    "README.md",
+    "src/pages/**"
+  ],
+  "update": [
+    "src/pages/articles/**"
+  ]
+}
+```
+
+规则很简单：
+
+- `protect`：命中的文件或目录保留本地版本，不被模板更新覆盖
+- `update`：命中的路径即使落在 `protect` 范围里，也继续接受模板更新
+- 都没命中：默认更新
+
+默认先预览文件列表，再确认是否应用。输出会按“待更新 / 已屏蔽 / 无需更新”分组，只展示前 20 项，其余用摘要收口：
+
+```bash
+bun run update
+```
+
+如果确定直接更新：
+
+```bash
+bun run update -- --apply
+```
+
+`update.json` 本身不会被更新脚本覆盖，方便用户持续维护自己的保护清单。仓库还带了 `.gitattributes`，用来固定文本换行策略，避免 Windows 上因为无意义重写出现一大片假改动。
+
 ## 写文章
 
 创建文章：
@@ -116,6 +160,7 @@ summary: "可选摘要"
 | `bun run build:cloudflare` | 构建 Cloudflare Pages 版本 |
 | `bun run build:edgeone` | 构建 EdgeOne Pages 版本 |
 | `bun run deploy:cloudflare` | 部署到 Cloudflare Pages |
+| `bun run update` | 从模板仓库按 `update.json` 同步更新 |
 | `bun run newpost` | 创建新文章 |
 | `bun run test` | 运行测试 |
 
