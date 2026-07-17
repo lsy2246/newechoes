@@ -72,7 +72,7 @@
 
 .home-diorama-shell {
   position: relative;
-  min-height: 620dvh;
+  min-height: 680dvh;
 }
 
 .home-diorama-stage {
@@ -1672,9 +1672,16 @@
   z-index: 100;
 }
 
+@media (max-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .home-diorama,
+  .home-diorama__canvas {
+    touch-action: none;
+  }
+}
+
 @media (max-width: 900px) {
   .home-diorama-shell {
-    min-height: 620dvh;
+    min-height: 680dvh;
   }
 
   .story-blueprints,

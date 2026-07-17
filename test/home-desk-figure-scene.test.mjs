@@ -343,7 +343,7 @@ test("home 3D loop return camera is scrubbed with the component transform", () =
 });
 
 test("home 3D exits interaction with a camera catchup before the 2D loop", () => {
-  assert.match(dioramaTs, /const LOOP_CAMERA_REJOIN_START = 0\.91;/);
+  assert.match(dioramaTs, /const LOOP_CAMERA_REJOIN_START = 0\.925;/);
   assert.match(
     dioramaTs,
     /const controlsShouldEnable =\s*homeProgress >= INTERACTIVE_PROGRESS &&\s*homeProgress < LOOP_CAMERA_REJOIN_START &&\s*renderMode === "room";/,

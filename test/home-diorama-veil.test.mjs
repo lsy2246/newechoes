@@ -61,7 +61,7 @@ test("home center diorama is limited to the first-screen opening", () => {
 
 test("home diorama handoff pulls back from the screen into the room", () => {
   assert.match(dioramaTs, /const STORY_MODE_END = 0\.7;/);
-  assert.match(dioramaTs, /const HANDOFF_MODE_END = 0\.735;/);
+  assert.match(dioramaTs, /const HANDOFF_MODE_END = 0\.745;/);
   assert.match(
     dioramaTs,
     /const getCameraPull = \(progress: number\) =>\s*easeInOutSine\(clamp\(\(progress - STORY_MODE_END\) \/ \(ROOM_CAMERA_END - STORY_MODE_END\)\)\);/,
@@ -74,7 +74,7 @@ test("home diorama handoff pulls back from the screen into the room", () => {
 });
 
 test("home loop returns to the next opening without reversing the 2D story", () => {
-  assert.match(dioramaTs, /const LOOP_RETURN_START = 0\.94;/);
+  assert.match(dioramaTs, /const LOOP_RETURN_START = 0\.95;/);
   assert.match(
     dioramaTs,
     /const getStoryVisualProgress = \(progress: number\) => \{\s*if \(progress <= LOOP_RETURN_START\) return progress;\s*return 0;\s*\};/,
@@ -89,7 +89,7 @@ test("home loop returns to the next opening without reversing the 2D story", () 
   assert.match(dioramaTs, /primeLoopCameraForBackwardWrap\(\);/);
   assert.match(
     dioramaTs,
-    /window\.addEventListener\("wheel", loopBackwardWheelHandler, \{ passive: false, capture: true \}\);/,
+    /window\.addEventListener\("wheel", homeWheelHandler, \{ passive: false, capture: true \}\);/,
   );
 });
 

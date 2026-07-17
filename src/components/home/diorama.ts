@@ -7,6 +7,11 @@ import {
   drawHomeScreenStory,
   type HomeScreenStoryDevice,
 } from "./homeScreenStory";
+import {
+  getResistedHomeScrollDelta,
+  normalizeWheelDelta,
+  type HomeScrollInputDevice,
+} from "./homeScrollResistance";
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
 type HomeContentCard = {
@@ -1216,8 +1221,8 @@ export function initDiorama() {
   // ===== Scroll-driven homepage state =====
   type RenderMode = "story" | "handoff" | "room" | "loop";
   const STORY_MODE_END = 0.7;
-  const HANDOFF_MODE_END = 0.735;
-  const ROOM_CAMERA_END = 0.88;
+  const HANDOFF_MODE_END = 0.745;
+  const ROOM_CAMERA_END = 0.86;
   const STORY_PROGRESS_END = 0.7;
   const STORY_FRAME_STEPS = useMobileCarrier ? 120 : 140;
   const SCREEN_REDRAW_STEP = 1 / STORY_FRAME_STEPS;
@@ -1232,9 +1237,9 @@ export function initDiorama() {
   const SCENE_FADE_START = 0.708;
   const SCENE_FADE_END = HANDOFF_MODE_END;
   const INTERACTIVE_PROGRESS = ROOM_CAMERA_END;
-  const LOOP_RETURN_START = 0.94;
+  const LOOP_RETURN_START = 0.95;
   const LOOP_RESET_PROGRESS = 0.998;
-  const LOOP_CAMERA_REJOIN_START = 0.91;
+  const LOOP_CAMERA_REJOIN_START = 0.925;
   const MOBILE_LOOP_RETURN_EASE_POWER = 2;
   const LOOP_BACK_WRAP_THRESHOLD = 0.002;
   const LOOP_BACK_WRAP_MIN_PROGRESS = LOOP_RETURN_START + 0.004;
@@ -1490,6 +1495,28 @@ export function initDiorama() {
       ? rawScrollProgress
       : Math.min(rawScrollProgress, STARTUP_GATE_PROGRESS);
   };
+  const isHomeScrollActive = () => {
+    const metrics = getShellScrollMetrics();
+    if (metrics === 1) return false;
+    return metrics.rect.top <= 1 && metrics.rect.bottom >= window.innerHeight - 1;
+  };
+  const applyResistedScrollDelta = (
+    deltaPx: number,
+    elapsedMs: number,
+    device: HomeScrollInputDevice,
+  ) => {
+    const effectiveDelta = getResistedHomeScrollDelta({
+      deltaPx,
+      elapsedMs,
+      progress: scrollTargetProgress,
+      viewportHeight: window.innerHeight,
+      device,
+    });
+    if (Math.abs(effectiveDelta) < 0.001) return 0;
+    window.scrollBy({ top: effectiveDelta, left: 0, behavior: "auto" });
+    syncScrollProgress();
+    return effectiveDelta;
+  };
   const releaseStartupGate = () => {
     if (startupGateReleased) return;
     if (!startupGateForcedOpen && !isStartupReady()) return;
@@ -1559,18 +1586,28 @@ export function initDiorama() {
     syncSceneOverlay();
     return true;
   };
-  const loopBackwardWheelHandler = (e: WheelEvent) => {
-    if (e.deltaY >= -0.5) return;
-    if (!wrapOpeningBackward(e.deltaY)) return;
+  let lastWheelAt = 0;
+  const homeWheelHandler = (e: WheelEvent) => {
+    if (reduceMotion || e.ctrlKey || !e.cancelable || !isHomeScrollActive()) return;
+    const deltaPx = normalizeWheelDelta(e.deltaY, e.deltaMode, window.innerHeight);
+    if (Math.abs(deltaPx) < 0.01) return;
+    if (deltaPx < 0 && wrapOpeningBackward(deltaPx)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
     e.preventDefault();
     e.stopImmediatePropagation();
+    const now = e.timeStamp || performance.now();
+    applyResistedScrollDelta(deltaPx, lastWheelAt ? now - lastWheelAt : 16, "desktop");
+    lastWheelAt = now;
   };
   syncScrollProgress();
   homeProgress = scrollTargetProgress;
   visualProgress = getStoryVisualProgress(homeProgress);
   renderMode = getRenderMode(homeProgress);
   window.addEventListener("scroll", syncScrollProgress, { passive: true });
-  window.addEventListener("wheel", loopBackwardWheelHandler, { passive: false, capture: true });
+  window.addEventListener("wheel", homeWheelHandler, { passive: false, capture: true });
   const handleBreakpointResize = () => {
     syncHomeViewportScale();
     if (isThemeTransitionActive()) return;
@@ -1845,6 +1882,13 @@ export function initDiorama() {
   let canvasCapturesInput = false;
   let controlsConnected = false;
   let sceneCapturesInput = true;
+  type HomeTouchIntent = "pending" | "scroll" | "horizontal";
+  let homeTouchIntent: HomeTouchIntent | null = null;
+  let homeTouchPointerId: number | null = null;
+  let homeTouchStartX = 0;
+  let homeTouchStartY = 0;
+  let homeTouchLastY = 0;
+  let homeTouchLastAt = 0;
   type MobileGestureIntent = "pending" | "scroll" | "orbit";
   let mobileGestureIntent: MobileGestureIntent | null = null;
   let mobileGesturePointerId: number | null = null;
@@ -1852,12 +1896,92 @@ export function initDiorama() {
   let mobileGestureStartY = 0;
   let mobileGestureLastX = 0;
   let mobileGestureLastY = 0;
+  let mobileGestureLastAt = 0;
   const mobileOrbitOffset = new THREE.Vector3();
   const mobileOrbitSpherical = new THREE.Spherical();
+
+  const getTouchByIdentifier = (touches: TouchList, identifier: number) => {
+    for (let index = 0; index < touches.length; index += 1) {
+      const touch = touches.item(index);
+      if (touch?.identifier === identifier) return touch;
+    }
+    return null;
+  };
+
+  const resetHomeTouchGesture = () => {
+    homeTouchIntent = null;
+    homeTouchPointerId = null;
+    homeTouchLastAt = 0;
+  };
+
+  const homeTouchStartHandler = (e: TouchEvent) => {
+    if (
+      !useMobileCarrier ||
+      reduceMotion ||
+      sceneInputActive ||
+      e.touches.length !== 1 ||
+      !isHomeScrollActive()
+    ) return;
+    if (
+      e.target instanceof Element &&
+      e.target.closest("a, button, input, textarea, select, [contenteditable]")
+    ) return;
+
+    const touch = e.touches.item(0);
+    if (!touch) return;
+    homeTouchIntent = "pending";
+    homeTouchPointerId = touch.identifier;
+    homeTouchStartX = touch.clientX;
+    homeTouchStartY = touch.clientY;
+    homeTouchLastY = touch.clientY;
+    homeTouchLastAt = e.timeStamp || performance.now();
+  };
+
+  const homeTouchMoveHandler = (e: TouchEvent) => {
+    if (
+      !useMobileCarrier ||
+      reduceMotion ||
+      sceneInputActive ||
+      homeTouchPointerId === null ||
+      e.touches.length !== 1
+    ) return;
+
+    const touch = getTouchByIdentifier(e.touches, homeTouchPointerId);
+    if (!touch) {
+      resetHomeTouchGesture();
+      return;
+    }
+
+    const dx = touch.clientX - homeTouchStartX;
+    const dy = touch.clientY - homeTouchStartY;
+    if (homeTouchIntent === "pending") {
+      if (Math.hypot(dx, dy) < 8) return;
+      homeTouchIntent = Math.abs(dy) >= Math.abs(dx) * 0.75 ? "scroll" : "horizontal";
+    }
+    if (homeTouchIntent !== "scroll" || !e.cancelable) return;
+
+    e.preventDefault();
+    const now = e.timeStamp || performance.now();
+    applyResistedScrollDelta(
+      homeTouchLastY - touch.clientY,
+      homeTouchLastAt ? now - homeTouchLastAt : 16,
+      "mobile",
+    );
+    homeTouchLastY = touch.clientY;
+    homeTouchLastAt = now;
+  };
+
+  const homeTouchEndHandler = (e: TouchEvent) => {
+    if (
+      homeTouchPointerId !== null &&
+      !getTouchByIdentifier(e.touches, homeTouchPointerId)
+    ) resetHomeTouchGesture();
+  };
 
   const resetMobileGesture = () => {
     mobileGestureIntent = null;
     mobileGesturePointerId = null;
+    mobileGestureLastAt = 0;
     mobileGestureForcesScrollCue = false;
     if (useMobileCarrier && sceneInputActive) canvasEl.style.cursor = "grab";
     applyHomeState(homeProgress);
@@ -1871,6 +1995,7 @@ export function initDiorama() {
     mobileGestureStartY = e.clientY;
     mobileGestureLastX = e.clientX;
     mobileGestureLastY = e.clientY;
+    mobileGestureLastAt = e.timeStamp || performance.now();
   };
 
   const handleMobileGestureMove = (e: PointerEvent) => {
@@ -1891,9 +2016,13 @@ export function initDiorama() {
     }
 
     e.preventDefault();
+    const now = e.timeStamp || performance.now();
     if (mobileGestureIntent === "scroll") {
-      window.scrollBy({ top: mobileGestureLastY - e.clientY, left: 0, behavior: "auto" });
-      syncScrollProgress();
+      applyResistedScrollDelta(
+        mobileGestureLastY - e.clientY,
+        mobileGestureLastAt ? now - mobileGestureLastAt : 16,
+        "mobile",
+      );
     } else if (mobileGestureIntent === "orbit") {
       const deltaX = e.clientX - mobileGestureLastX;
       mobileOrbitOffset.subVectors(camera.position, controls.target);
@@ -1908,6 +2037,7 @@ export function initDiorama() {
 
     mobileGestureLastX = e.clientX;
     mobileGestureLastY = e.clientY;
+    mobileGestureLastAt = now;
     return true;
   };
 
@@ -1915,7 +2045,7 @@ export function initDiorama() {
     if (canvasCapturesInput === interactive) return;
     canvasCapturesInput = interactive;
     canvasEl.style.pointerEvents = interactive ? "auto" : "none";
-    canvasEl.style.touchAction = interactive && useMobileCarrier ? "none" : "pan-y";
+    canvasEl.style.touchAction = useMobileCarrier && !reduceMotion ? "none" : "pan-y";
     if (!interactive) {
       canvasEl.style.cursor = "default";
       resetMobileGesture();
@@ -1927,7 +2057,7 @@ export function initDiorama() {
     if (!sceneEl || sceneCapturesInput === interactive) return;
     sceneCapturesInput = interactive;
     sceneEl.style.pointerEvents = interactive ? "auto" : "none";
-    sceneEl.style.touchAction = interactive && useMobileCarrier ? "none" : "pan-y";
+    sceneEl.style.touchAction = useMobileCarrier && !reduceMotion ? "none" : "pan-y";
   };
   syncSceneInputMode(false);
 
@@ -1964,6 +2094,10 @@ export function initDiorama() {
   };
   canvasEl.addEventListener("pointerup", pointerUpHandler);
   canvasEl.addEventListener("pointercancel", resetMobileGesture);
+  window.addEventListener("touchstart", homeTouchStartHandler, { passive: true, capture: true });
+  window.addEventListener("touchmove", homeTouchMoveHandler, { passive: false, capture: true });
+  window.addEventListener("touchend", homeTouchEndHandler, { passive: true, capture: true });
+  window.addEventListener("touchcancel", homeTouchEndHandler, { passive: true, capture: true });
 
   const passWheelThrough = (e: WheelEvent) => {
     if (!controlsConnected) return;
@@ -2285,13 +2419,18 @@ export function initDiorama() {
     if (startupGateHideTimer) window.clearTimeout(startupGateHideTimer);
     stopAnimationLoop();
     window.removeEventListener("scroll", syncScrollProgress);
-    window.removeEventListener("wheel", loopBackwardWheelHandler, { capture: true });
+    window.removeEventListener("wheel", homeWheelHandler, true);
     window.removeEventListener("resize", handleBreakpointResize);
     canvasEl.removeEventListener("pointermove", pointerMoveHandler);
     canvasEl.removeEventListener("pointerleave", pointerLeaveHandler);
     canvasEl.removeEventListener("pointerdown", pointerDownHandler);
     canvasEl.removeEventListener("pointerup", pointerUpHandler);
     canvasEl.removeEventListener("pointercancel", resetMobileGesture);
+    window.removeEventListener("touchstart", homeTouchStartHandler, true);
+    window.removeEventListener("touchmove", homeTouchMoveHandler, true);
+    window.removeEventListener("touchend", homeTouchEndHandler, true);
+    window.removeEventListener("touchcancel", homeTouchEndHandler, true);
+    resetHomeTouchGesture();
     canvasEl.removeEventListener("wheel", passWheelThrough, { capture: true });
     sceneEl?.removeEventListener("wheel", passWheelThrough, { capture: true });
     window.removeEventListener("theme:changed", syncThemeVisuals);
