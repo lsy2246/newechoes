@@ -1356,7 +1356,8 @@
   -webkit-backdrop-filter: blur(10px);
   opacity: 0;
   pointer-events: none;
-  transform: translate3d(-50%, 0.38rem, 0) scale(0.98);
+  transform: translate3d(-50%, 0.38rem, 0)
+    scale(calc(0.98 * var(--home-viewport-scale, 1)));
   transition:
     opacity 0.24s ease,
     transform 0.24s ease,
@@ -1366,7 +1367,8 @@
 
 .home-scroll-cue[data-home-visible="true"] {
   opacity: 1;
-  transform: translate3d(-50%, 0, 0) scale(1);
+  transform: translate3d(-50%, 0, 0)
+    scale(var(--home-viewport-scale, 1));
 }
 
 [data-theme="dark"] .home-scroll-cue {

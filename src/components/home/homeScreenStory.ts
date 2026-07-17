@@ -7,6 +7,7 @@ type StoryInput = {
   progress: number;
   pixelRatio?: number;
   layoutPixelRatio?: number;
+  viewportScale?: number;
   revealCenterDiorama?: boolean;
   motion?: number;
   now: string;
@@ -1419,7 +1420,13 @@ const drawDesktopStory = (
   width = ctx.canvas.width,
   height = ctx.canvas.height,
 ) => {
-  const unit = clamp(Math.min(width / 1280, height / 760), 0.88, 1.2);
+  const viewportScale = clamp(input.viewportScale ?? 1, 1, 1.25);
+  const largeViewportAmount = (viewportScale - 1) / 0.25;
+  const unit = clamp(
+    Math.min(width / 1280, height / 760),
+    0.88,
+    1.2 * viewportScale,
+  );
   const safeX = Math.max(180 * unit, width * 0.135);
   const tracks = input.lanes.items;
   const materials: StoryMaterial[] = input.sources.cards.map((item, index) => ({
@@ -1436,7 +1443,7 @@ const drawDesktopStory = (
   const todayPanels = input.current.panels;
   const safeRight = width - safeX;
   const safeW = safeRight - safeX;
-  const stageW = Math.min(safeW, height * 1.62);
+  const stageW = Math.min(safeW, height * lerp(1.62, 1.72, largeViewportAmount));
   const centerX = width * 0.5;
   const centerY = height * 0.5;
   const stageX = centerX - stageW * 0.5;
@@ -1582,12 +1589,13 @@ const drawDesktopStory = (
   };
 
   const stageHeader = (label: string, title: string, alpha: number, y = height * 0.265, x = stageX) => {
+    const adjustedY = y + 16 * unit * largeViewportAmount;
     withAlpha(ctx, alpha, () => {
-      text(label, x, y, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
-      drawEditorialRule(x, y + 18 * unit, Math.min(156 * unit, (safeRight - x) * 0.28), true);
+      text(label, x, adjustedY, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
+      drawEditorialRule(x, adjustedY + 18 * unit, Math.min(156 * unit, (safeRight - x) * 0.28), true);
       const titleFont = "'Fraunces', 'Noto Serif SC', serif";
       const titleSize = Math.min(48 * unit, ((safeRight - x) * 0.96) / Math.max(1, measure(title, 1, titleFont, 600)));
-      text(title, x, y + 58 * unit, titleSize, palette.text, titleFont, 600);
+      text(title, x, adjustedY + 58 * unit, titleSize, palette.text, titleFont, 600);
     });
   };
 
@@ -1630,21 +1638,33 @@ const drawDesktopStory = (
   const materialLabelLayout = (rect: Rect, item: StoryMaterial, compact: number) => {
     const pad = lerp(18 * unit, 8 * unit, compact);
     const numberAlpha = phase(compact, 0.16, 0.48);
+    const compactLayout = phase(compact, 0.44, 0.76);
+    const numberSize = 14 * unit;
+    const numberWidth = measure("00", numberSize, "'JetBrains Mono', monospace", 700);
+    const numberGap = 10 * unit;
     const titleOffset = lerp(0, 36 * unit, numberAlpha);
-    const titleMaxW = rect.w - pad * 2 - titleOffset;
+    const normalTitleMaxW = rect.w - pad * 2 - titleOffset;
+    const compactTitleMaxW = Math.max(1, rect.w - numberWidth - numberGap);
+    const titleMaxW = lerp(normalTitleMaxW, compactTitleMaxW, compactLayout);
     const titleSize = fitSize(item.title, titleMaxW, lerp(24 * unit, 18 * unit, compact), 12 * unit, "'JetBrains Mono', monospace", 700);
     const titleWidth = measure(item.title, titleSize, "'JetBrains Mono', monospace", 700);
-    const titleX = compact > 0.58 ? rect.x + titleOffset + (titleMaxW - titleWidth) / 2 : rect.x + pad + titleOffset;
+    const compactContentW = numberWidth + numberGap + titleWidth;
+    const compactNumberX = rect.x;
+    const numberX = lerp(rect.x + pad, compactNumberX, compactLayout);
+    const normalTitleX = rect.x + pad + titleOffset;
+    const compactTitleX = compactNumberX + numberWidth + numberGap;
+    const titleX = lerp(normalTitleX, compactTitleX, compactLayout);
     const compactTitleY = rect.y + rect.h * 0.64;
     const titleY = compact > 0.58 ? compactTitleY : rect.y + 40 * unit;
     const numberY = titleY;
-    const materialRuleW = 104 * unit;
+    const compactRuleW = Math.max(28 * unit, Math.min(104 * unit, compactContentW - 16 * unit));
+    const materialRuleW = lerp(104 * unit, compactRuleW, compactLayout);
     const dotPadding = 18 * unit;
-    const ruleX = titleX;
+    const ruleX = lerp(titleX, compactNumberX, compactLayout);
     const ruleY = titleY - 24 * unit;
     const connectorGap = 30 * unit;
-    const labelLeft = Math.min(titleX, ruleX);
-    const labelRight = Math.max(titleX + titleWidth, ruleX + materialRuleW + dotPadding);
+    const labelLeft = Math.min(numberX, titleX, ruleX);
+    const labelRight = Math.max(numberX + numberWidth, titleX + titleWidth, ruleX + materialRuleW + dotPadding);
     const labelCenterY = (ruleY + titleY) / 2;
 
     return {
@@ -1654,6 +1674,7 @@ const drawDesktopStory = (
       titleMaxW,
       titleSize,
       titleWidth,
+      numberX,
       titleX,
       titleY,
       numberY,
@@ -1747,15 +1768,20 @@ const drawDesktopStory = (
     const track = trackRects[groupOrders[index]];
     const pairIndexes = materials.map((item, itemIndex) => (item.group === groupOrders[index] ? itemIndex : -1)).filter((itemIndex) => itemIndex >= 0);
     const column = Math.max(0, pairIndexes.indexOf(index));
-    const targetTagSize = 19 * unit;
-    const tagWidths = pairIndexes.map((itemIndex) => measure(materials[itemIndex].title, targetTagSize) + 42 * unit);
+    const targetTagSize = 18 * unit;
+    const targetNumberSize = 14 * unit;
+    const targetNumberW = measure("00", targetNumberSize, "'JetBrains Mono', monospace", 700);
+    const tagWidths = pairIndexes.map((itemIndex) => (
+      targetNumberW + 10 * unit + measure(materials[itemIndex].title, targetTagSize, "'JetBrains Mono', monospace", 700)
+    ));
     const gap = 18 * unit;
     const totalTagW = tagWidths.reduce((sum, width) => sum + width, 0);
-    const maxTagW = track.w - 42 * unit - gap * Math.max(0, pairIndexes.length - 1);
+    const trackPad = 24 * unit;
+    const maxTagW = track.w - trackPad * 2 - gap * Math.max(0, pairIndexes.length - 1);
     const fitScale = Math.min(1, Math.max(0.74, maxTagW / Math.max(1, totalTagW)));
     const visibleWidths = tagWidths.map((width) => width * fitScale);
     const totalW = visibleWidths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, pairIndexes.length - 1);
-    const startX = track.x + (track.w - totalW) / 2;
+    const startX = track.x + trackPad;
     const x = startX + visibleWidths.slice(0, column).reduce((sum, width) => sum + width + gap, 0);
     const slotH = 54 * unit;
     return {
@@ -1845,7 +1871,7 @@ const drawDesktopStory = (
         drawMaterialRule(layout.ruleX, layout.ruleY, layout.ruleW, item.active);
         withAlpha(ctx, layout.numberAlpha, () => {
           const materialNumber = String(index + 1).padStart(2, "0");
-          text(materialNumber, rect.x + layout.pad, layout.numberY, 14 * unit, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
+          text(materialNumber, layout.numberX, layout.numberY, 14 * unit, item.active ? palette.aiAccent : palette.quiet, "'JetBrains Mono', monospace", 700);
         });
           text(item.title, layout.titleX, layout.titleY, layout.titleSize, item.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700);
 
