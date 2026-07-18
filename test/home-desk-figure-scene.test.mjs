@@ -131,7 +131,7 @@ test("home 3D desk figure balances the plinth around the desk and seated person"
 
 test("home first-screen diorama removes the old desk caption and restores the centered configured hero", () => {
   assert.doesNotMatch(dioramaTs, /lsyLabel/);
-  assert.match(homeScreenStoryTs, /ctx\.fillText\(input\.title, titleX, dioramaTitleY\);/);
+  assert.match(homeScreenStoryTs, /ctx\.fillText\(input\.screenTitle, titleX, dioramaTitleY\);/);
   assert.match(homeScreenStoryTs, /ctx\.textAlign = "center";/);
   assert.doesNotMatch(homeScreenStoryTs, /inside the desk/);
   assert.doesNotMatch(homeScreenStoryTs, /drawEditorialRule\(railX/);
@@ -146,8 +146,8 @@ test("home first-screen diorama keeps the configured title as the centered hero 
   assert.match(homeScreenStoryTs, /const drawDioramaIdentityPanel = \(alpha: number\) => \{/);
   assert.doesNotMatch(homeScreenStoryTs, /rawProgress/);
   assert.match(homeScreenStoryTs, /drawDesktopStory\(ctx, input, palette, progress, layoutWidth, layoutHeight\);/);
-  assert.match(homeScreenStoryTs, /ctx\.fillText\(input\.title, titleX, dioramaTitleY\);/);
-  assert.match(homeScreenStoryTs, /ctx\.fillText\(input\.kicker, titleX, dioramaTitleY \+ 84 \* unit\);/);
+  assert.match(homeScreenStoryTs, /ctx\.fillText\(input\.screenTitle, titleX, dioramaTitleY\);/);
+  assert.doesNotMatch(homeScreenStoryTs, /input\.kicker/);
   assert.match(homeScreenStoryTs, /ctx\.textAlign = "center";/);
   assert.match(homeScreenStoryTs, /const mindOffsets = \[/);
   assert.match(homeScreenStoryTs, /const dioramaMindOffsets = \[/);

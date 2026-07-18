@@ -328,6 +328,7 @@ const ROUTE_STYLESHEET_SELECTOR = 'link[rel="stylesheet"][href]';
 const PERSISTED_STYLESHEET_ATTRIBUTE = 'data-swup-persisted-stylesheet';
 const VITE_DEV_STYLE_SELECTOR = 'style[data-vite-dev-id]';
 let articleMermaidBootPromise = null;
+let articleMediaViewerBootPromise = null;
 
 function hasArticleMermaidDiagrams(root = document) {
   return Boolean(root.querySelector?.('pre.mermaid'));
@@ -357,6 +358,41 @@ function scheduleArticleMermaidBoot() {
   window.requestAnimationFrame(() => {
     void bootArticleMermaidForCurrentPage().catch((error) => {
       console.error('文章 Mermaid 初始化失败:', error);
+    });
+  });
+}
+
+function hasArticleMediaViewerContent(root = document) {
+  return Boolean(root.querySelector?.('.article-prose'));
+}
+
+async function bootArticleMediaViewerForCurrentPage() {
+  if (
+    !hasArticleMediaViewerContent()
+    || typeof window.__articleMediaViewerCleanup === 'function'
+  ) {
+    return;
+  }
+
+  if (!articleMediaViewerBootPromise) {
+    articleMediaViewerBootPromise = import('../lib/article-media-viewer.ts')
+      .finally(() => {
+        articleMediaViewerBootPromise = null;
+      });
+  }
+
+  const { initArticleMediaViewer } = await articleMediaViewerBootPromise;
+  initArticleMediaViewer();
+}
+
+function scheduleArticleMediaViewerBoot() {
+  if (!hasArticleMediaViewerContent()) {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    void bootArticleMediaViewerForCurrentPage().catch((error) => {
+      console.error('文章媒体查看器初始化失败:', error);
     });
   });
 }
@@ -904,6 +940,7 @@ document.addEventListener('DOMContentLoaded', () => {
     syncPageShellState();
     timelineYearSpy.init();
     scheduleArticleMermaidBoot();
+    scheduleArticleMediaViewerBoot();
     dispatchAstroNavigationLifecycle(visit);
   });
   

@@ -68,7 +68,7 @@ test("seo and discovery integrations are gated by feature flags", () => {
   assert.equal(footerSource.includes("site-options"), false);
 });
 
-test("public template content keeps only the guide article", () => {
+test("public template content keeps the guide article", () => {
   const files = [];
   const queue = ["src/content"];
 
@@ -84,5 +84,7 @@ test("public template content keeps only the guide article", () => {
     }
   }
 
-  assert.deepEqual(files.sort(), ["src/content/echoes博客使用说明.md"]);
+  assert.deepEqual(files.sort(), [
+    "src/content/echoes博客使用说明.md",
+  ]);
 });

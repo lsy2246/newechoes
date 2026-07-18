@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const homeStory = readFileSync("src/components/home/homeScreenStory.ts", "utf8");
-const mobileStory = homeStory.match(/const drawMobileStory =[\s\S]*?const drawDesktopStoryLegacy/)?.[0] ?? "";
+const mobileStory = homeStory.match(/const drawMobileStory =[\s\S]*?const drawDesktopStory =/)?.[0] ?? "";
 const mobileRule = mobileStory.match(/const drawMobileRule =[\s\S]*?const introHeroX/)?.[0] ?? "";
 const mobileIntroRule = mobileStory.match(/const drawMobileIntroRule =[\s\S]*?const drawMobileIntroFlow/)?.[0] ?? "";
 const mobileIntroFlow = mobileStory.match(/const drawMobileIntroFlow =[\s\S]*?const drawMobileIntroMaterial/)?.[0] ?? "";
@@ -36,13 +36,13 @@ test("mobile intro reads as a centered cover field instead of a large route diag
   assert.ok(mobileStory.includes("x: introHeroX - introSingleW / 2, y: introTopSingleY"));
   assert.ok(mobileStory.includes("x: introHeroX - introSingleW / 2, y: introBottomSingleY"));
   assert.ok(mobileStory.includes("const mobileIntroSlots = introLabelRects.map((rect) => ({ ...rect }));"));
-  assert.ok(mobileStory.includes("const drawMobileIntroRule = (rect: Rect, item: (typeof STORY_MATERIALS)[number], amount: number) => {"));
+  assert.ok(mobileStory.includes("const drawMobileIntroRule = (rect: Rect, item: StoryMaterial, amount: number) => {"));
   assert.ok(mobileStory.includes("const introRuleColor = item.active ? palette.aiAccent : palette.muted;"));
   assert.ok(mobileStory.includes("const introRuleW = 60 * unit;"));
   assert.ok(mobileStory.includes("const introRuleDotGap = 10 * unit;"));
   assert.ok(mobileIntroRule.includes("ctx.lineWidth = 1.35 * unit;"));
   assert.ok(mobileStory.includes("ctx.arc(rect.x + introRuleW + introRuleDotGap, rect.y + 2 * unit, 3.2 * unit, 0, Math.PI * 2);"));
-  assert.ok(mobileStory.includes("const drawMobileIntroFlow = (rect: Rect, item: (typeof STORY_MATERIALS)[number], toward: 1 | -1, amount: number, index: number) => {"));
+  assert.ok(mobileStory.includes("const drawMobileIntroFlow = (rect: Rect, item: StoryMaterial, toward: 1 | -1, amount: number, index: number) => {"));
   assert.ok(mobileStory.includes("const introFlowGap = 10 * unit;"));
   assert.ok(mobileStory.includes("const introLabelTopY = rect.y + 2 * unit;"));
   assert.ok(mobileStory.includes("const introLabelBottomY = rect.y + 39 * unit;"));
@@ -67,7 +67,7 @@ test("mobile intro reads as a centered cover field instead of a large route diag
   assert.ok(mobileStory.includes("ctx.lineDashOffset = -introFlowMotion * 118 * unit;"));
   assert.ok(mobileStory.includes("drawMobileIntroFlow(rect, item, index < 3 ? 1 : -1, flowAmount, index);"));
   assert.equal(mobileIntroMaterial.includes("drawMobileIntroRule(rect, item"), false);
-  assert.ok(mobileStory.includes("const startX = introHeroX - measure(input.title, heroSize, titleFont, 500) / 2;"));
+  assert.ok(mobileStory.includes("const startX = introHeroX - measure(input.screenTitle, heroSize, titleFont, 500) / 2;"));
   assert.ok(mobileStory.includes("const startY = introHeroY;"));
   assert.ok(mobileStory.includes("const titleXTravel = phase(amount, 0.02, 0.48);"));
   assert.ok(mobileStory.includes("const titleYTravel = phase(amount, 0.24, 1);"));
@@ -94,7 +94,7 @@ test("mobile intro reads as a centered cover field instead of a large route diag
   assert.ok(mobileStory.includes("const ruleStroke = item.active ? palette.aiAccent : palette.muted;"));
   assert.ok(mobileIntroMaterial.includes("const numberW = lerp(0, mobileInputNumberW, numberAlpha);"));
   assert.ok(mobileIntroMaterial.includes("mobileInputTitleMinSize"));
-  assert.ok(mobileIntroMaterial.includes("wrapText(item.body, mobileInputBodyWidth"));
+  assert.ok(mobileIntroMaterial.includes("wrapText(item.note, mobileInputBodyWidth"));
   assert.ok(mobileStory.includes("ctx.moveTo(rect.x + pad, ruleY);"));
   assert.ok(mobileStory.includes("ctx.lineTo(rect.x + pad + ruleW, ruleY);"));
   assert.ok(mobileStory.includes("ctx.arc(rect.x + pad + ruleW + ruleDotGap, ruleY, ruleDotRadius, 0, Math.PI * 2);"));
@@ -102,7 +102,7 @@ test("mobile intro reads as a centered cover field instead of a large route diag
   assert.ok(mobileStory.includes("withAlpha(ctx, 1, () => {"));
   assert.ok(mobileStory.includes("if (flowAmount > 0.01) {"));
   assert.ok(mobileStory.includes("drawMobileIntroFlow(rect, item, index < 3 ? 1 : -1, flowAmount, index);"));
-  assert.equal([...mobileIntroMaterial.matchAll(/textFit\(item\.tag/g)].length, 1);
+  assert.equal([...mobileIntroMaterial.matchAll(/textFit\(item\.title/g)].length, 1);
   assert.equal(mobileStory.includes("const introHeroY = height * 0.43;"), false);
   assert.equal(mobileStory.includes("const introSlotTop = safe.y + 82 * unit;"), false);
   assert.equal(mobileStory.includes("const introLabelAmount ="), false);
@@ -148,12 +148,12 @@ test("mobile input renderer begins from the intro material end state", () => {
 });
 
 test("mobile input to classify rewrites the same moving groups instead of crossfading scenes", () => {
-  assert.ok(mobileStory.includes("const mobileClassifyMaterialSlots = STORY_MATERIALS.map((item, index) => {"));
-  assert.ok(mobileStory.includes("const pairIndexes = STORY_MATERIALS.map((candidate, candidateIndex) => (candidate.group === item.group ? candidateIndex : -1)).filter((candidateIndex) => candidateIndex >= 0);"));
+  assert.ok(mobileStory.includes("const mobileClassifyMaterialSlots = materials.map((item, index) => {"));
+  assert.ok(mobileStory.includes("const pairIndexes = materials.map((candidate, candidateIndex) => (candidate.group === item.group ? candidateIndex : -1)).filter((candidateIndex) => candidateIndex >= 0);"));
   assert.ok(mobileStory.includes("const inputToClassify = clamp((progress - 0.36) / 0.2);"));
-  assert.ok(mobileStory.includes("const groupPairs = STORY_TRACKS.map((_, group) =>"));
-  assert.ok(mobileInputClassifyScene.includes("STORY_MATERIALS.map((item, index) => {"));
-  assert.equal(mobileInputClassifyScene.includes("STORY_MATERIALS.forEach((item, index) => {\n      if (item.group !== group) return null;"), false);
+  assert.ok(mobileStory.includes("const groupPairs = tracks.map((_, group) =>"));
+  assert.ok(mobileInputClassifyScene.includes("materials.map((item, index) => {"));
+  assert.equal(mobileInputClassifyScene.includes("materials.forEach((item, index) => {\n      if (item.group !== group) return null;"), false);
   assert.ok(mobileStory.includes("const drawMobileClassifyMorphGroup = ("));
   assert.ok(mobileClassifyMorphGroup.includes("const pairTravel = phase(amount, 0.02, 0.56);"));
   assert.ok(mobileClassifyMorphGroup.includes("const pairFusion = phase(amount, 0.28, 0.66);"));
@@ -319,19 +319,19 @@ test("mobile today layout separates hero, build index, paired panels, and footer
   assert.ok(mobileStory.includes("const todayPanelW = (todayRect.w - todayPad * 2 - todayPanelGap) / 2;"));
   assert.ok(mobileStory.includes("x: todayRect.x + todayPad + index * (todayPanelW + todayPanelGap),"));
   assert.ok(mobileStory.includes("y: todayBuildRowsTop + index * todayBuildRowGap,"));
-  assert.ok(mobileStory.includes("textFit(input.role, rect.x + todayPad, todayHeroRoleY, smallSize * 0.62"));
-  assert.ok(mobileStory.includes("wrapText(input.summary, rect.w - todayPad * 2, todayHeroSummarySize"));
-  assert.ok(mobileStory.includes("textFit(input.status || STORY_STATUS, rect.x + todayPad, todayStatusTop + 24 * unit, smallSize * 0.56"));
+  assert.ok(mobileStory.includes("textFit(input.current.role, rect.x + todayPad, todayHeroRoleY, smallSize * 0.62"));
+  assert.ok(mobileStory.includes("wrapText(input.current.summary, rect.w - todayPad * 2, todayHeroSummarySize"));
+  assert.ok(mobileStory.includes("textFit(input.current.status, rect.x + todayPad, todayStatusTop + 24 * unit, smallSize * 0.56"));
   assert.ok(mobileTodayPanel.includes("const panelReveal = phase(amount, 0.22 + index * 0.06, 0.56 + index * 0.06);"));
   assert.ok(mobileTodayPanel.includes("drawMobileRule(rect.x + pad, rect.y + 5 * unit, rect.w * 0.34, index === 0);"));
-  assert.ok(mobileTodayPanel.includes("const panelTitleSize = fitSize(title, maxWidth, smallSize * 0.54, smallSize * 0.34"));
-  assert.ok(mobileTodayPanel.includes("const compactTitleLines = title.includes(\" · \") && measure(title, panelTitleSize, \"'JetBrains Mono', monospace\", 700) > maxWidth"));
-  assert.ok(mobileTodayPanel.includes("? title.split(\" · \")"));
-  assert.ok(mobileTodayPanel.includes(": wrapText(title, maxWidth, panelTitleSize, \"'JetBrains Mono', monospace\", 700, 3);"));
+  assert.ok(mobileTodayPanel.includes("const panelTitleSize = fitSize(panel.title, maxWidth, smallSize * 0.54, smallSize * 0.34"));
+  assert.ok(mobileTodayPanel.includes("const compactTitleLines = panel.title.includes(\" · \") && measure(panel.title, panelTitleSize, \"'JetBrains Mono', monospace\", 700) > maxWidth"));
+  assert.ok(mobileTodayPanel.includes("? panel.title.split(\" · \")"));
+  assert.ok(mobileTodayPanel.includes(": wrapText(panel.title, maxWidth, panelTitleSize, \"'JetBrains Mono', monospace\", 700, 3);"));
   assert.ok(mobileTodayPanel.includes("const titleLines = compactTitleLines.slice(0, 3);"));
   assert.ok(mobileTodayPanel.includes("const panelTitleY = rect.y + 49 * unit;"));
   assert.ok(mobileTodayPanel.includes("const panelLineGap = titleLines.length > 2 ? 13 * unit : 16 * unit;"));
-  assert.ok(mobileTodayPanel.includes("const [label, title] = panel;"));
+  assert.ok(mobileTodayPanel.includes("text(panel.tag, rect.x + pad, rect.y + 27 * unit"));
   assert.equal(mobileTodayPanel.includes("wrapText(body"), false);
   assert.equal(mobileTodayPanel.includes("rect.y + rect.h - 9 * unit"), false);
   assert.equal(mobileStory.includes("const todayBuildTop = todayTop + 228 * unit;"), false);

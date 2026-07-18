@@ -1,6 +1,7 @@
 @import "./articles-table.css";
 @import "./articles-code.css";
 @import "./articles-mermaid.css";
+@import "./articles-media-viewer.css";
 
 :root {
   --article-bg: var(--site-bg);

@@ -59,7 +59,7 @@ type StoryTodayPanel = StoryInput["current"]["panels"][number];
 type StoryMaterial = {
   title: string;
   note: string;
-  group: number;
+  group: 0 | 1 | 2;
   active: boolean;
   angle: number;
 };
@@ -402,7 +402,7 @@ const drawMobileStory = (
   const tracks = input.lanes.items;
   const materials: StoryMaterial[] = input.sources.cards.map((item, index) => ({
     ...item,
-    group: Math.min(2, Math.floor(index / 2)),
+    group: Math.min(2, Math.floor(index / 2)) as 0 | 1 | 2,
     active: index === 3,
     angle: [-2.65, -1.55, 1.9, 0.85, -0.35, 2.75][index] ?? 0,
   }));
@@ -1431,7 +1431,7 @@ const drawDesktopStory = (
   const tracks = input.lanes.items;
   const materials: StoryMaterial[] = input.sources.cards.map((item, index) => ({
     ...item,
-    group: Math.min(2, Math.floor(index / 2)),
+    group: Math.min(2, Math.floor(index / 2)) as 0 | 1 | 2,
     active: index === 3,
     angle: [-2.65, -1.55, 1.9, 0.85, -0.35, 2.75][index] ?? 0,
   }));

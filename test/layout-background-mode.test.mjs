@@ -8,7 +8,7 @@ const header = readFileSync("src/components/layout/Header.astro", "utf8");
 const layout = readFileSync("src/components/layout/Layout.astro", "utf8");
 const search = readFileSync("src/components/search/Search.tsx", "utf8");
 const swupInit = readFileSync("src/components/swup.js", "utf8");
-const staticServer = readFileSync("tmp/static-server.mjs", "utf8");
+const staticServer = readFileSync("scripts/static-server.mjs", "utf8");
 const swupLifecycleFiles = [
   "src/components/swup.js",
   "src/components/layout/Layout.astro",
@@ -313,7 +313,10 @@ test("local static server stubs the vercel speed insights script to avoid 404 no
 test("local static server returns a harmless empty payload for google photos api requests during offline verification", () => {
   assert.ok(staticServer.includes("cleanPath === \"/api/google-photos\""));
   assert.ok(staticServer.includes('\"Content-Type\": \"application/json; charset=utf-8\"'));
-  assert.ok(staticServer.includes('JSON.stringify({ album: { title: null }, photos: [], nextCursor: null })'));
+  assert.match(
+    staticServer,
+    /JSON\.stringify\(\{\s*album: \{ title: null \},\s*photos: \[\],\s*nextCursor: null,?\s*\}\)/,
+  );
 });
 
 test("article grid and detail navigation use swup history instead of same-path replacement", () => {

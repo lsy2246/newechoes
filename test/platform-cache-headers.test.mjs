@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+const normalizeText = (value) => value.replace(/\r\n/g, "\n").trim();
+
 test("shared cache header policy renders Cloudflare, Vercel, and EdgeOne outputs", async () => {
   const {
     CACHE_HEADER_RULES,
@@ -27,7 +29,10 @@ test("platform config files stay in sync with shared cache header policy", async
   const vercelConfig = JSON.parse(readFileSync("vercel.json", "utf8"));
   const edgeoneConfig = JSON.parse(readFileSync("edgeone.json", "utf8"));
 
-  assert.equal(readFileSync("public/_headers", "utf8").trim(), renderCloudflareHeadersFile().trim());
+  assert.equal(
+    normalizeText(readFileSync("public/_headers", "utf8")),
+    normalizeText(renderCloudflareHeadersFile()),
+  );
   assert.deepEqual(vercelConfig.headers, buildVercelHeaders());
   assert.deepEqual(edgeoneConfig.headers, buildEdgeoneHeaders());
   assert.equal("public" in vercelConfig, false);

@@ -6,9 +6,9 @@ const homeStory = readFileSync("src/components/home/homeScreenStory.ts", "utf8")
 const desktopStory = homeStory.match(/const drawDesktopStory =[\s\S]*?export const drawHomeScreenStory/)?.[0] ?? "";
 
 test("desktop story preserves stage headers while reducing transition overlap", () => {
-  assert.ok(desktopStory.includes("stageHeader(\"input / things I keep returning to\""));
-  assert.ok(desktopStory.includes("stageHeader(\"classify / three inner lanes\""));
-  assert.ok(desktopStory.includes("stageHeader(\"work / systems I shaped\""));
+  assert.ok(desktopStory.includes("stageHeader(input.sources.heading, input.sources.subheading"));
+  assert.ok(desktopStory.includes("stageHeader(input.lanes.heading, input.lanes.subheading"));
+  assert.ok(desktopStory.includes("stageHeader(input.projects.heading, input.projects.subheading"));
 
   assert.ok(desktopStory.includes("const inputHeaderReadability = 1 - phase(progress, 0.34, 0.4);"));
   assert.ok(desktopStory.includes("const classifyHeaderReadability = 1 - phase(progress, 0.6, 0.66);"));
