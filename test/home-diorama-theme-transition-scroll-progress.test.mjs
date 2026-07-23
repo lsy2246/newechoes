@@ -23,7 +23,7 @@ test("home diorama preserves scroll-driven story progress during theme transitio
 
   assert.match(
     dioramaTs,
-    /const handleBreakpointResize = \(\) => \{\s*syncHomeViewportScale\(\);\s*if \(isThemeTransitionActive\(\)\) return;/,
+    /const handleBreakpointResize = \(\) => \{\s*if \(isThemeTransitionActive\(\)\) return;/,
   );
 
   assert.match(

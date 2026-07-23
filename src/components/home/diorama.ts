@@ -288,12 +288,6 @@ export function initDiorama() {
   const cueEl = document.querySelector<HTMLElement>("[data-home-scroll-cue]");
   const cuePercentEl = document.querySelector<HTMLElement>("[data-home-cue-percent]");
   const docEl = document.documentElement;
-  let homeViewportScale = 1;
-  const syncHomeViewportScale = () => {
-    homeViewportScale = clamp(window.innerWidth / 2048, 1, 1.25);
-    docEl.style.setProperty("--home-viewport-scale", homeViewportScale.toFixed(4));
-  };
-  syncHomeViewportScale();
   const homeContent = getHomeContent();
   const deviceClass = getDeviceClass(window.innerWidth, window.innerHeight);
   const screenPreset = createScreenCarrierPreset(
@@ -1609,7 +1603,6 @@ export function initDiorama() {
   window.addEventListener("scroll", syncScrollProgress, { passive: true });
   window.addEventListener("wheel", homeWheelHandler, { passive: false, capture: true });
   const handleBreakpointResize = () => {
-    syncHomeViewportScale();
     if (isThemeTransitionActive()) return;
     const nextDevice = getDeviceClass(window.innerWidth, window.innerHeight);
     if (nextDevice !== deviceClass) {
@@ -1744,7 +1737,6 @@ export function initDiorama() {
       cacheMotionKey,
       sourceW,
       sourceH,
-      homeViewportScale.toFixed(4),
       storyLayoutDpr.toFixed(3),
       storyInput.now,
       storyInput.postsLabel,
@@ -1771,7 +1763,6 @@ export function initDiorama() {
         progress: cachedProgress,
         pixelRatio: storyCanvasDpr,
         layoutPixelRatio: storyLayoutDpr,
-        viewportScale: homeViewportScale,
       });
       storyFrameCache.set(cacheKey, cachedFrame);
       while (storyFrameCache.size > STORY_FRAME_CACHE_LIMIT) {
@@ -2453,7 +2444,6 @@ export function initDiorama() {
     screenTexture.dispose();
     introBackdropTexture?.dispose();
     renderer.dispose();
-    docEl.style.removeProperty("--home-viewport-scale");
     docEl.style.removeProperty("--home-progress");
     docEl.removeAttribute("data-home-header-phase");
     docEl.style.removeProperty("--scene-opacity");

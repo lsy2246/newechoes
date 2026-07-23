@@ -7,7 +7,6 @@ type StoryInput = {
   progress: number;
   pixelRatio?: number;
   layoutPixelRatio?: number;
-  viewportScale?: number;
   revealCenterDiorama?: boolean;
   motion?: number;
   now: string;
@@ -1420,13 +1419,7 @@ const drawDesktopStory = (
   width = ctx.canvas.width,
   height = ctx.canvas.height,
 ) => {
-  const viewportScale = clamp(input.viewportScale ?? 1, 1, 1.25);
-  const largeViewportAmount = (viewportScale - 1) / 0.25;
-  const unit = clamp(
-    Math.min(width / 1280, height / 760),
-    0.88,
-    1.2 * viewportScale,
-  );
+  const unit = clamp(Math.min(width / 1280, height / 760), 0.88, 1.2);
   const safeX = Math.max(180 * unit, width * 0.135);
   const tracks = input.lanes.items;
   const materials: StoryMaterial[] = input.sources.cards.map((item, index) => ({
@@ -1443,7 +1436,17 @@ const drawDesktopStory = (
   const todayPanels = input.current.panels;
   const safeRight = width - safeX;
   const safeW = safeRight - safeX;
-  const stageW = Math.min(safeW, height * lerp(1.62, 1.72, largeViewportAmount));
+  // Anchor the editorial stage to the shared max-w-7xl header frame while
+  // allowing a small cinematic overscan on both sides. Canvas layout
+  // coordinates include layout DPR, so scale both values before drawing.
+  const layoutScale = Math.max(1, input.layoutPixelRatio ?? 1);
+  const sharedFrameW = 1280 * layoutScale;
+  const stageOverscan = 160 * layoutScale;
+  const stageW = Math.min(
+    safeW,
+    height * 1.62,
+    sharedFrameW + stageOverscan * 2,
+  );
   const centerX = width * 0.5;
   const centerY = height * 0.5;
   const stageX = centerX - stageW * 0.5;
@@ -1589,13 +1592,12 @@ const drawDesktopStory = (
   };
 
   const stageHeader = (label: string, title: string, alpha: number, y = height * 0.265, x = stageX) => {
-    const adjustedY = y + 16 * unit * largeViewportAmount;
     withAlpha(ctx, alpha, () => {
-      text(label, x, adjustedY, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
-      drawEditorialRule(x, adjustedY + 18 * unit, Math.min(156 * unit, (safeRight - x) * 0.28), true);
+      text(label, x, y, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
+      drawEditorialRule(x, y + 18 * unit, Math.min(156 * unit, (safeRight - x) * 0.28), true);
       const titleFont = "'Fraunces', 'Noto Serif SC', serif";
       const titleSize = Math.min(48 * unit, ((safeRight - x) * 0.96) / Math.max(1, measure(title, 1, titleFont, 600)));
-      text(title, x, adjustedY + 58 * unit, titleSize, palette.text, titleFont, 600);
+      text(title, x, y + 58 * unit, titleSize, palette.text, titleFont, 600);
     });
   };
 

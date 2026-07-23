@@ -72,12 +72,6 @@
   gap: 0.5rem;
 }
 
-/* Keep the home header at the same perceived size on large desktop viewports. */
-#main-header[data-home-header] .header-content-frame {
-  transform: scale(var(--home-viewport-scale, 1));
-  transform-origin: center top;
-}
-
 .nav-icon-button {
   color: var(--nav-muted);
 }
