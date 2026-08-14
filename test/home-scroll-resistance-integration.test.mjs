@@ -5,10 +5,14 @@ import test from "node:test";
 const dioramaTs = readFileSync("src/components/home/diorama.ts", "utf8");
 const dioramaCss = readFileSync("src/components/home/diorama.css", "utf8");
 
-test("home wheel input uses velocity and phase aware resistance", () => {
+test("home wheel input uses one consistent speed-aware pacing rule", () => {
   assert.match(dioramaTs, /from "\.\/homeScrollResistance";/);
   assert.match(dioramaTs, /normalizeWheelDelta\(e\.deltaY, e\.deltaMode, window\.innerHeight\)/);
   assert.match(dioramaTs, /getResistedHomeScrollDelta\(\{/);
+  assert.match(dioramaTs, /getPacedHomeScrollDelta\(\{/);
+  assert.match(dioramaTs, /getClassifyTo3dScrollMultiplier/);
+  assert.match(dioramaTs, /HOME_MOTION_TIMING\.scroll\.classifyTo3dBoost/);
+  assert.doesNotMatch(dioramaTs, /isFastHomeScrollInput/);
   assert.match(dioramaTs, /if \(reduceMotion \|\| e\.ctrlKey \|\| !e\.cancelable/);
   assert.match(
     dioramaTs,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  getHomeScrollZoneResistance,
+  getPacedHomeScrollDelta,
   getResistedHomeScrollDelta,
   normalizeWheelDelta,
 } from "../src/components/home/homeScrollResistance.ts";
@@ -23,7 +23,7 @@ test("preserves gentle precision input", () => {
   }), 8);
 });
 
-test("compresses fast input and applies stronger resistance in the interactive room", () => {
+test("compresses fast input consistently across story phases", () => {
   const neutral = getResistedHomeScrollDelta({
     deltaPx: 900,
     elapsedMs: 8,
@@ -40,9 +40,8 @@ test("compresses fast input and applies stronger resistance in the interactive r
   });
 
   assert.ok(neutral > 0 && neutral < 900);
-  assert.ok(interactive > 0 && interactive < neutral);
+  assert.equal(interactive, neutral);
   assert.ok(neutral >= 98 && neutral <= 100);
-  assert.ok(interactive >= 45 && interactive <= 47);
   assert.ok(neutral <= 720 * 0.1375);
 });
 
@@ -59,17 +58,42 @@ test("preserves direction and uses a smaller mobile step cap", () => {
   assert.ok(Math.abs(reverse) <= 800 * 0.085);
 });
 
-test("assigns the strongest zone resistance to the interactive room", () => {
-  assert.ok(getHomeScrollZoneResistance(0.88) > getHomeScrollZoneResistance(0.30));
-  assert.ok(getHomeScrollZoneResistance(0.30) > 1);
-  assert.equal(getHomeScrollZoneResistance(0.18), 1);
+test("uses the same maximum speed throughout a fast gesture", () => {
+  const deltas = [];
+  for (let index = 0; index < 12; index += 1) {
+    deltas.push(getPacedHomeScrollDelta({
+      deltaPx: 100,
+      elapsedMs: 8,
+      viewportHeight: 800,
+      device: "desktop",
+    }));
+  }
+  assert.ok(deltas[0] > 0);
+  assert.ok(deltas.every((delta) => delta === deltas[0]));
+  assert.ok(deltas[0] > 17 && deltas[0] < 18);
+
+  const afterIdle = getPacedHomeScrollDelta({
+    deltaPx: -100,
+    elapsedMs: 180,
+    viewportHeight: 800,
+    device: "desktop",
+  });
+  assert.equal(afterIdle, -100);
 });
 
-test("keeps resistance continuous across adjacent story phase boundaries", () => {
-  for (const boundary of [0.70, 0.86, 0.925, 0.95]) {
-    assert.ok(
-      getHomeScrollZoneResistance(boundary) > 1.3,
-      `expected story boundary ${boundary} to remain resisted`,
-    );
-  }
+test("allows an explicit sequence multiplier without introducing state", () => {
+  const base = getPacedHomeScrollDelta({
+    deltaPx: 100,
+    elapsedMs: 8,
+    viewportHeight: 800,
+    device: "desktop",
+  });
+  const boosted = getPacedHomeScrollDelta({
+    deltaPx: 100,
+    elapsedMs: 8,
+    viewportHeight: 800,
+    device: "desktop",
+    speedMultiplier: 1.35,
+  });
+  assert.ok(Math.abs(boosted / base - 1.35) < 1e-9);
 });

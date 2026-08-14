@@ -3,15 +3,22 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import {
+  clearHomeScreenTransitionCache,
   drawHomeScreenBackdrop,
   drawHomeScreenStory,
   type HomeScreenStoryDevice,
 } from "./homeScreenStory";
 import {
+  installHomeTransitionRuntime,
+  type HomeTransitionConfig,
+} from "./homeTransitionRuntime";
+import {
+  getPacedHomeScrollDelta,
   getResistedHomeScrollDelta,
   normalizeWheelDelta,
   type HomeScrollInputDevice,
 } from "./homeScrollResistance";
+import { HOME_MOTION_TIMING } from "./homeMotionTiming.ts";
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
 type HomeContentCard = {
@@ -278,6 +285,17 @@ export function initDiorama() {
   if (!canvasEl) return () => {};
 
   const shellEl = document.querySelector<HTMLElement>("[data-home-shell]");
+  const motionEl = document.querySelector<HTMLElement>("[data-home-motion]");
+  const evidenceEl = document.querySelector<HTMLElement>("[data-home-evidence]");
+  const lastEvidenceItemEl = evidenceEl?.querySelector<HTMLElement>(
+    '[data-home-beat="work-distilledu"]',
+  );
+  const workPushFrameEl = lastEvidenceItemEl?.querySelector<HTMLElement>(
+    "[data-home-work-push-frame]",
+  );
+  const evidenceReleaseEl = evidenceEl?.querySelector<HTMLElement>(
+    '[data-home-beat="work-release"]',
+  );
   const sceneEl = document.querySelector<HTMLElement>("[data-home-scene]");
   const storyEl = document.querySelector<HTMLElement>("[data-home-story]");
   const storyCanvasEl = document.querySelector<HTMLCanvasElement>("[data-story-canvas]");
@@ -1237,6 +1255,11 @@ export function initDiorama() {
   const MOBILE_LOOP_RETURN_EASE_POWER = 2;
   const LOOP_BACK_WRAP_THRESHOLD = 0.002;
   const LOOP_BACK_WRAP_MIN_PROGRESS = LOOP_RETURN_START + 0.004;
+  // The DOM work chapter covers classify→work before the Canvas work becomes
+  // visible, then hands directly to the authored work→today edge. Work is
+  // therefore presented once, as normal document flow.
+  const WORK_FLOW_START_PROGRESS = STORY_MODE_END * 0.58;
+  const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END * 0.82;
   const STARTUP_GATE_PROGRESS = 0.08;
   const STARTUP_GATE_TIMEOUT_MS = 1400;
   const CAMERA_REJOIN_START = 0.82;
@@ -1460,22 +1483,179 @@ export function initDiorama() {
   };
 
   const getShellScrollMetrics = () => {
-    if (!shellEl) return 1;
-    const rect = shellEl.getBoundingClientRect();
-    const total = Math.max(1, rect.height - window.innerHeight);
+    const scrollRangeEl = motionEl ?? shellEl;
+    if (!scrollRangeEl) return 1;
+    const rect = scrollRangeEl.getBoundingClientRect();
+    const physicalTotal = Math.max(1, rect.height - window.innerHeight);
     const shellTop = window.scrollY + rect.top;
-    return { rect, shellTop, total };
+    const flowSpan = evidenceEl && motionEl?.contains(evidenceEl)
+      ? evidenceEl.offsetHeight
+      : 0;
+    const total = Math.max(1, physicalTotal - flowSpan);
+    const flowStart = flowSpan > 0
+      ? Math.max(0, evidenceEl!.offsetTop - window.innerHeight)
+      : Number.POSITIVE_INFINITY;
+    const flowEnd = flowStart + flowSpan;
+    const measuredFlowStartProgress = clamp(flowStart / total);
+    const flowStartProgress = flowSpan > 0
+      ? WORK_FLOW_START_PROGRESS
+      : measuredFlowStartProgress;
+    const flowEndProgress = flowSpan > 0
+      ? WORK_FLOW_RESUME_PROGRESS
+      : flowStartProgress;
+    return {
+      rect,
+      shellTop,
+      total,
+      physicalTotal,
+      flowStart,
+      flowEnd,
+      flowSpan,
+      flowStartProgress,
+      flowEndProgress,
+    };
   };
   const getScrollProgress = () => {
     const metrics = getShellScrollMetrics();
     if (metrics === 1) return 1;
-    return clamp((window.scrollY - metrics.shellTop) / metrics.total);
+    const physicalScroll = window.scrollY - metrics.shellTop;
+    if (physicalScroll <= metrics.flowStart) {
+      // The authored work flow starts earlier than its measured share of the
+      // enlarged document. Scale the pre-flow range to the authored entry so
+      // crossing into native scrolling cannot skip a story transition.
+      return metrics.flowSpan > 0
+        ? lerp(
+            0,
+            metrics.flowStartProgress,
+            clamp(physicalScroll / Math.max(1, metrics.flowStart)),
+          )
+        : clamp(physicalScroll / metrics.total);
+    }
+    if (physicalScroll < metrics.flowEnd) {
+      return lerp(
+        metrics.flowStartProgress,
+        metrics.flowEndProgress,
+        clamp((physicalScroll - metrics.flowStart) / Math.max(1, metrics.flowSpan)),
+      );
+    }
+    return clamp(lerp(
+      metrics.flowEndProgress,
+      1,
+      clamp(
+        (physicalScroll - metrics.flowEnd) /
+          Math.max(1, metrics.physicalTotal - metrics.flowEnd),
+      ),
+    ));
+  };
+  const getWorkTodayPushState = () => {
+    const metrics = getShellScrollMetrics();
+    if (
+      metrics === 1 ||
+      metrics.flowSpan <= 0 ||
+      !evidenceEl ||
+      !lastEvidenceItemEl ||
+      !evidenceReleaseEl
+    ) {
+      return {
+        landed: false,
+        started: false,
+        active: false,
+        progress: 0,
+      };
+    }
+    const physicalScroll = window.scrollY - metrics.shellTop;
+    // A sticky element's offsetTop follows its stuck position in Chromium.
+    // Derive the natural start from the static release runway instead.
+    const lastEvidenceNaturalTop =
+      evidenceReleaseEl.offsetTop - lastEvidenceItemEl.offsetHeight;
+    const holdDistance = Math.min(
+      evidenceReleaseEl.offsetHeight * 0.28,
+      window.innerHeight * HOME_MOTION_TIMING.workToday.holdBeforeViewport,
+    );
+    const landedAt = Math.max(
+      metrics.flowStart,
+      evidenceEl.offsetTop + lastEvidenceNaturalTop,
+    );
+    const pushStart = landedAt + holdDistance;
+    // The runway has two reading beats: 22% of a viewport before the
+    // horizontal move and 22% after it. Only the middle interval changes X.
+    const settleDistance = Math.min(
+      evidenceReleaseEl.offsetHeight * 0.28,
+      window.innerHeight * HOME_MOTION_TIMING.workToday.holdAfterViewport,
+    );
+    const pushEnd = Math.max(
+      pushStart + 1,
+      metrics.flowEnd - settleDistance,
+    );
+    const pushRatio = clamp(
+      (physicalScroll - pushStart) / (pushEnd - pushStart),
+    );
+    const progress = reduceMotion
+      ? pushRatio >= 1 ? 1 : 0
+      : pushRatio;
+    return {
+      landed: physicalScroll >= landedAt,
+      started: physicalScroll >= pushStart,
+      active: physicalScroll >= pushStart && physicalScroll < pushEnd,
+      progress,
+    };
+  };
+  const getRenderedStoryProgress = () => {
+    if (reduceMotion) return 1;
+    // The horizontal work→today handoff owns the forward story, but the loop
+    // must restore the authored opening frame for the 3D→2D return.
+    if (renderMode !== "loop" && getWorkTodayPushState().landed) return 1;
+    return clamp(visualProgress / STORY_PROGRESS_END);
+  };
+  const applyWorkTodayPushTransforms = () => {
+    const workTodayPush = getWorkTodayPushState();
+    const workTodayPushVisible = workTodayPush.started;
+    evidenceEl?.toggleAttribute("data-work-push-active", workTodayPushVisible);
+    if (workTodayPushVisible && workPushFrameEl && storyEl) {
+      const horizontalTravel = workTodayPush.progress * window.innerWidth;
+      workPushFrameEl.style.transform = `translate3d(${-horizontalTravel}px, 0, 0)`;
+      storyEl.style.transform = `translate3d(${window.innerWidth - horizontalTravel}px, 0, 0)`;
+    } else {
+      if (workPushFrameEl) workPushFrameEl.style.transform = "";
+      if (storyEl) {
+        storyEl.style.transform = workTodayPush.landed
+          ? `translate3d(${window.innerWidth}px, 0, 0)`
+          : "";
+      }
+    }
+    // Clear the previous whole-section compensation when rehydrating over an
+    // older build. The sticky work page now owns vertical positioning in CSS.
+    if (evidenceEl) evidenceEl.style.transform = "";
   };
   const scrollToProgress = (progress: number) => {
     const metrics = getShellScrollMetrics();
     if (metrics === 1) return false;
+    const targetProgress = clamp(progress);
+    const physicalScroll = targetProgress <= metrics.flowStartProgress
+      ? metrics.flowSpan > 0
+        ? metrics.flowStart * clamp(
+            targetProgress / Math.max(Number.EPSILON, metrics.flowStartProgress),
+          )
+        : metrics.total * targetProgress
+      : targetProgress < metrics.flowEndProgress
+        ? lerp(
+            metrics.flowStart,
+            metrics.flowEnd,
+            clamp(
+              (targetProgress - metrics.flowStartProgress) /
+                Math.max(Number.EPSILON, metrics.flowEndProgress - metrics.flowStartProgress),
+            ),
+          )
+        : lerp(
+            metrics.flowEnd,
+            metrics.physicalTotal,
+            clamp(
+              (targetProgress - metrics.flowEndProgress) /
+                Math.max(Number.EPSILON, 1 - metrics.flowEndProgress),
+            ),
+          );
     window.scrollTo({
-      top: Math.max(0, metrics.shellTop + metrics.total * clamp(progress)),
+      top: Math.max(0, metrics.shellTop + physicalScroll),
       left: 0,
       behavior: "auto",
     });
@@ -1494,6 +1674,30 @@ export function initDiorama() {
     if (metrics === 1) return false;
     return metrics.rect.top <= 1 && metrics.rect.bottom >= window.innerHeight - 1;
   };
+  const isEvidenceFlowActive = () => {
+    const metrics = getShellScrollMetrics();
+    if (metrics === 1 || metrics.flowSpan <= 0) return false;
+    const physicalScroll = window.scrollY - metrics.shellTop;
+    return physicalScroll >= metrics.flowStart && physicalScroll < metrics.flowEnd;
+  };
+  const getClassifyTo3dScrollMultiplier = () => {
+    const start = STORY_PROGRESS_END * 0.56;
+    const enter = easeInOutSine(clamp(
+      (scrollTargetProgress - start) /
+        HOME_MOTION_TIMING.scroll.classifyEntryFeather,
+    ));
+    // Hold the faster editorial sequence through today, then return to the
+    // base pace while the 2D page settles into the 3D room.
+    const exit = 1 - easeInOutSine(clamp(
+      (scrollTargetProgress - STORY_MODE_END) /
+        (HANDOFF_MODE_END - STORY_MODE_END),
+    ));
+    return lerp(
+      1,
+      HOME_MOTION_TIMING.scroll.classifyTo3dBoost,
+      Math.min(enter, exit),
+    );
+  };
   const applyResistedScrollDelta = (
     deltaPx: number,
     elapsedMs: number,
@@ -1506,10 +1710,17 @@ export function initDiorama() {
       viewportHeight: window.innerHeight,
       device,
     });
-    if (Math.abs(effectiveDelta) < 0.001) return 0;
-    window.scrollBy({ top: effectiveDelta, left: 0, behavior: "auto" });
+    const pacedDelta = getPacedHomeScrollDelta({
+      deltaPx: effectiveDelta,
+      elapsedMs,
+      viewportHeight: window.innerHeight,
+      device,
+      speedMultiplier: getClassifyTo3dScrollMultiplier(),
+    });
+    if (Math.abs(pacedDelta) < 0.001) return 0;
+    window.scrollBy({ top: pacedDelta, left: 0, behavior: "auto" });
     syncScrollProgress();
-    return effectiveDelta;
+    return pacedDelta;
   };
   const releaseStartupGate = () => {
     if (startupGateReleased) return;
@@ -1585,6 +1796,9 @@ export function initDiorama() {
     if (reduceMotion || e.ctrlKey || !e.cancelable || !isHomeScrollActive()) return;
     const deltaPx = normalizeWheelDelta(e.deltaY, e.deltaMode, window.innerHeight);
     if (Math.abs(deltaPx) < 0.01) return;
+    const now = e.timeStamp || performance.now();
+    const elapsedMs = lastWheelAt ? now - lastWheelAt : 16;
+    lastWheelAt = now;
     if (deltaPx < 0 && wrapOpeningBackward(deltaPx)) {
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -1592,9 +1806,7 @@ export function initDiorama() {
     }
     e.preventDefault();
     e.stopImmediatePropagation();
-    const now = e.timeStamp || performance.now();
-    applyResistedScrollDelta(deltaPx, lastWheelAt ? now - lastWheelAt : 16, "desktop");
-    lastWheelAt = now;
+    applyResistedScrollDelta(deltaPx, elapsedMs, "desktop");
   };
   syncScrollProgress();
   homeProgress = scrollTargetProgress;
@@ -1629,6 +1841,7 @@ export function initDiorama() {
     sceneEl?.style.setProperty("--home-progress", value);
     storyEl?.style.setProperty("--story-progress", storyProgress.toFixed(4));
     storyEl?.style.setProperty("--story-local", storyProgress.toFixed(4));
+    applyWorkTodayPushTransforms();
     sceneEl?.setAttribute("data-home-phase", progress > 0.76 ? "room" : "page");
     const controlsCueActive =
       progress >= INTERACTIVE_PROGRESS &&
@@ -1648,7 +1861,12 @@ export function initDiorama() {
       ? 1 - getLoopReturnAmount(progress)
       : clamp(progress / LOOP_RETURN_START);
     cueEl?.style.setProperty("--cue-progress", cueProgress.toFixed(4));
-    cueEl?.setAttribute("data-home-visible", startupGateReleased ? "true" : "false");
+    const evidenceFlowActive = isEvidenceFlowActive();
+    docEl.toggleAttribute("data-home-flow-active", evidenceFlowActive);
+    cueEl?.setAttribute(
+      "data-home-visible",
+      startupGateReleased && !evidenceFlowActive ? "true" : "false",
+    );
     cueEl?.setAttribute("data-cue-mode", cueMode);
     if (cuePercentEl) cuePercentEl.textContent = cueMode === "loading" ? "..." : `${Math.round(cueProgress * 100)}%`;
   };
@@ -1657,6 +1875,20 @@ export function initDiorama() {
   let lastConnectorMotionTick = -1;
   let cursorOn = true;
   let cursorLastToggle = performance.now();
+  let transitionConfig: HomeTransitionConfig;
+
+  const transitionRuntime = installHomeTransitionRuntime((nextConfig) => {
+    transitionConfig = nextConfig;
+    clearHomeScreenTransitionCache();
+    storyFrameCache.clear();
+    lastStoryOverlayKey = "";
+    lastDrawnStoryProgress = -1;
+    lastTexturedStoryProgress = -1;
+    lastConnectorMotionTick = -1;
+    needScreenRedraw = true;
+    if (!disposed) renderBootFrame();
+  });
+  transitionConfig = transitionRuntime.getConfig();
 
   // ===== Time formatter (Beijing: YYYY-MM-DD HH:mm · 周X) =====
   const dateFmt = new Intl.DateTimeFormat("zh-CN", {
@@ -1743,6 +1975,9 @@ export function initDiorama() {
       storyInput.current.stack,
       storyInput.current.contact,
       storyInput.revealCenterDiorama ? "center-diorama" : "story",
+      storyInput.transitionMode,
+      storyInput.transitionRevision,
+      JSON.stringify(storyInput.transitionOverrides ?? {}),
     ].join("|");
 
     if (cacheKey === lastStoryOverlayKey) return;
@@ -1796,7 +2031,7 @@ export function initDiorama() {
     const ctx = screenCtx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const storyAutoPosts = (window as unknown as { __HOME_POSTS_LABEL?: string }).__HOME_POSTS_LABEL;
-    const storyProgress = reduceMotion ? 1 : clamp(visualProgress / STORY_PROGRESS_END);
+    const storyProgress = getRenderedStoryProgress();
     const connectorMotionActive = storyProgress < 0.22 && !reduceMotion && !themeTransitionActive;
     const connectorMotionTick = connectorMotionActive ? getStoryConnectorMotionTick(now * 0.001) : -1;
     const storyInput: Parameters<typeof drawHomeScreenStory>[1] = {
@@ -1807,6 +2042,10 @@ export function initDiorama() {
       layoutPixelRatio: 1,
       revealCenterDiorama: centerDioramaActive,
       motion: connectorMotionActive ? getStoryConnectorMotionValue(connectorMotionTick) : undefined,
+      transitionMode: transitionConfig.mode,
+      transitionOverrides: transitionConfig.edges,
+      transitionRevision: transitionConfig.revision,
+      reducedMotion: reduceMotion,
       now: formatNowBeijing(),
       screenTitle: homeContent.screenTitle,
       postsLabel: storyAutoPosts ?? "ongoing",
@@ -2138,7 +2377,7 @@ export function initDiorama() {
     homeProgress = nextProgress;
     renderMode = getRenderMode(homeProgress);
     visualProgress = getStoryVisualProgress(homeProgress);
-    const storyProgress = reduceMotion ? 1 : clamp(visualProgress / STORY_PROGRESS_END);
+    const storyProgress = getRenderedStoryProgress();
     const progressChanged = Math.abs(prevProgress - homeProgress) > 0.0005;
     const modeChanged = prevMode !== renderMode;
     if (
@@ -2250,16 +2489,17 @@ export function initDiorama() {
       homeProgress >= INTERACTIVE_PROGRESS &&
       homeProgress < LOOP_CAMERA_REJOIN_START &&
       renderMode === "room";
-    if (!controlsShouldEnable) sceneControlActivated = false;
+    const controlsCaptureEnabled = controlsShouldEnable && !isEvidenceFlowActive();
+    if (!controlsCaptureEnabled) sceneControlActivated = false;
     syncSceneOverlay();
-    syncSceneInputMode(controlsShouldEnable);
-    syncCanvasInputMode(controlsShouldEnable);
-    syncControlsConnection(controlsShouldEnable);
-    sceneInputActive = controlsShouldEnable;
+    syncSceneInputMode(controlsCaptureEnabled);
+    syncCanvasInputMode(controlsCaptureEnabled);
+    syncControlsConnection(controlsCaptureEnabled);
+    sceneInputActive = controlsCaptureEnabled;
 
-    if (controls.enabled !== controlsShouldEnable) {
-      controls.enabled = controlsShouldEnable;
-      if (!controlsShouldEnable) {
+    if (controls.enabled !== controlsCaptureEnabled) {
+      controls.enabled = controlsCaptureEnabled;
+      if (!controlsCaptureEnabled) {
         canvasEl.style.cursor = "default";
       } else {
         if (!sceneControlActivated) {
@@ -2383,6 +2623,7 @@ export function initDiorama() {
       document.fonts.load("400 64px 'Noto Serif SC'"),
     ]).then(() => {
       storyFrameCache.clear();
+      clearHomeScreenTransitionCache();
       lastStoryOverlayKey = "";
       drawScreen();
       renderBootFrame();
@@ -2431,6 +2672,8 @@ export function initDiorama() {
     resizeObs.disconnect();
     controls.dispose();
     storyFrameCache.clear();
+    clearHomeScreenTransitionCache();
+    transitionRuntime.dispose();
 
     scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
@@ -2445,6 +2688,7 @@ export function initDiorama() {
     introBackdropTexture?.dispose();
     renderer.dispose();
     docEl.style.removeProperty("--home-progress");
+    docEl.removeAttribute("data-home-flow-active");
     docEl.removeAttribute("data-home-header-phase");
     docEl.style.removeProperty("--scene-opacity");
     docEl.style.removeProperty("--component-scene-opacity");
@@ -2462,6 +2706,10 @@ export function initDiorama() {
     storyEl?.removeAttribute("data-story-step");
     storyEl?.style.removeProperty("--story-progress");
     storyEl?.style.removeProperty("--story-local");
+    if (storyEl) storyEl.style.transform = "";
+    if (workPushFrameEl) workPushFrameEl.style.transform = "";
+    if (evidenceEl) evidenceEl.style.transform = "";
+    evidenceEl?.removeAttribute("data-work-push-active");
     cueEl?.style.removeProperty("--cue-progress");
     cueEl?.removeAttribute("data-home-visible");
     cueEl?.removeAttribute("data-cue-mode");

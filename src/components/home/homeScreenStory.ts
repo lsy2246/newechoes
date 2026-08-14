@@ -1,3 +1,17 @@
+import {
+  resolveHomeTransition,
+  type TransitionAdapter,
+  type TransitionContext2D,
+  type TransitionPrepareInput,
+  type TransitionSnapshot,
+} from "./transitions/index.ts";
+import {
+  isHomeStoryTransitionSegment,
+  resolveHomeStoryTimeline,
+  type HomeStoryTransitionMode,
+} from "./timeline.ts";
+import { motionPlanGlyphs, type HomeMotionPlan } from "./homeMotionPlan.ts";
+
 export type HomeScreenStoryDevice = "desktop" | "mobile";
 export type HomeScreenStoryTheme = "light" | "dark";
 
@@ -7,8 +21,14 @@ type StoryInput = {
   progress: number;
   pixelRatio?: number;
   layoutPixelRatio?: number;
+  designLayoutScale?: number;
   revealCenterDiorama?: boolean;
   motion?: number;
+  transitionMode?: HomeStoryTransitionMode;
+  transitionOverrides?: Readonly<Record<string, HomeStoryTransitionMode | undefined>>;
+  reducedMotion?: boolean;
+  transitionRevision?: number;
+  snapshotScene?: "work";
   now: string;
   screenTitle: string;
   postsLabel: string;
@@ -1373,41 +1393,51 @@ const drawMobileStory = (
     }).filter((pair): pair is MobileClassifyMorphPair => pair !== null)
   );
 
-  if (progress < 0.36) {
-    materials.forEach((item, index) => {
-      const rect = moveRect(mobileIntroSlots[index], inputRects[index], introToInput);
-      drawMobileIntroMaterial(rect, item, index, introToInput);
-    });
-  } else if (!buildBridgeActive) {
-    if (classifyToWork > 0.001) {
-      drawMobileClassifyToWorkMorph(classifyToWork);
-    } else {
-      tracks.forEach((track, index) => {
-        const trackRect = mobileTrackRects[index];
-        drawMobileClassifyMorphGroup(trackRect, track, index, inputToClassify, groupPairs[index]);
+  if (input.snapshotScene === "work") {
+    drawMobileClassifyToWorkMorph(1);
+  } else {
+    if (progress < 0.36) {
+      materials.forEach((item, index) => {
+        const rect = moveRect(mobileIntroSlots[index], inputRects[index], introToInput);
+        drawMobileIntroMaterial(rect, item, index, introToInput);
+      });
+    } else if (!buildBridgeActive) {
+      if (classifyToWork > 0.001) {
+        drawMobileClassifyToWorkMorph(classifyToWork);
+      } else {
+        tracks.forEach((track, index) => {
+          const trackRect = mobileTrackRects[index];
+          drawMobileClassifyMorphGroup(trackRect, track, index, inputToClassify, groupPairs[index]);
+        });
+      }
+    }
+  }
+
+  if (input.snapshotScene !== "work") {
+    if (buildBridge > 0.001) {
+      workRows.forEach((row, index) => {
+        const rect = moveRect(workRects[index], mobileBuildIndexRects[index], buildBridge);
+        drawMobileBuildIndexRow(rect, row, index, buildBridge);
+      });
+    }
+
+    if (progress >= 0.84) {
+      drawMobileTodayFrame(todayRect, todayMorph);
+      drawMobileTodayBuildHeading(todayMorph);
+      todayPanels.slice(1).forEach((panel, index) => {
+        const panelIndex = index + 1;
+        const sourceRect = mobileBuildIndexRects[Math.min(panelIndex, mobileBuildIndexRects.length - 1)];
+        const panelRect = moveRect(sourceRect, todayPanelRects[index], phase(todayMorph, 0.12 + index * 0.08, 0.68 + index * 0.08));
+        drawMobileTodayPanel(panelRect, panel, index, todayMorph);
       });
     }
   }
 
-  if (buildBridge > 0.001) {
-    workRows.forEach((row, index) => {
-      const rect = moveRect(workRects[index], mobileBuildIndexRects[index], buildBridge);
-      drawMobileBuildIndexRow(rect, row, index, buildBridge);
-    });
+  if (input.snapshotScene === "work") {
+    drawMobileChapterTitle("work", titleMorph, "work", 0);
+  } else {
+    drawMobileChapterTitle(chapter, titleMorph, nextChapter, chapterHandoff);
   }
-
-  if (progress >= 0.84) {
-    drawMobileTodayFrame(todayRect, todayMorph);
-    drawMobileTodayBuildHeading(todayMorph);
-    todayPanels.slice(1).forEach((panel, index) => {
-      const panelIndex = index + 1;
-      const sourceRect = mobileBuildIndexRects[Math.min(panelIndex, mobileBuildIndexRects.length - 1)];
-      const panelRect = moveRect(sourceRect, todayPanelRects[index], phase(todayMorph, 0.12 + index * 0.08, 0.68 + index * 0.08));
-      drawMobileTodayPanel(panelRect, panel, index, todayMorph);
-    });
-  }
-
-  drawMobileChapterTitle(chapter, titleMorph, nextChapter, chapterHandoff);
 
 };
 
@@ -1439,7 +1469,10 @@ const drawDesktopStory = (
   // Anchor the editorial stage to the shared max-w-7xl header frame while
   // allowing a small cinematic overscan on both sides. Canvas layout
   // coordinates include layout DPR, so scale both values before drawing.
-  const layoutScale = Math.max(1, input.layoutPixelRatio ?? 1);
+  const layoutScale = Math.max(
+    1,
+    input.designLayoutScale ?? input.layoutPixelRatio ?? 1,
+  );
   const sharedFrameW = 1280 * layoutScale;
   const stageOverscan = 160 * layoutScale;
   const stageW = Math.min(
@@ -2158,9 +2191,13 @@ const drawDesktopStory = (
 
 };
 
-export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryInput) => {
+const drawCanonicalHomeScreenStory = (
+  ctx: CanvasRenderingContext2D,
+  input: StoryInput,
+  forcedProgress = input.progress,
+) => {
   const palette = PALETTES[input.theme];
-  const progress = clamp(input.progress);
+  const progress = clamp(forcedProgress);
   const pixelRatio = Math.max(1, input.pixelRatio ?? 1);
   const layoutPixelRatio = Math.max(1, input.layoutPixelRatio ?? pixelRatio);
   const layoutWidth = (ctx.canvas.width / pixelRatio) * layoutPixelRatio;
@@ -2184,6 +2221,254 @@ export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryI
   }
   drawDesktopStory(ctx, input, palette, progress, layoutWidth, layoutHeight);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+};
+
+type PreparedHomeTransition = {
+  key: string;
+  from: TransitionSnapshot;
+  to: TransitionSnapshot;
+  adapter: TransitionAdapter;
+  state: unknown;
+  width: number;
+  height: number;
+};
+
+const preparedHomeTransitions = new Map<string, PreparedHomeTransition>();
+// Keep only the texture and overlay snapshot pair for the active edge. The
+// existing outer frame cache already owns the final composited frames.
+const HOME_TRANSITION_CACHE_LIMIT = 2;
+const HOME_TRANSITION_SNAPSHOT_MAX_DESKTOP = 1920;
+const HOME_TRANSITION_SNAPSHOT_MAX_MOBILE = 1440;
+
+const createTransitionCanvas = (width: number, height: number): TransitionSnapshot => {
+  if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(width, height);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+};
+
+const getTransitionContext = (
+  canvas: TransitionSnapshot,
+): TransitionContext2D | null => {
+  if (typeof OffscreenCanvas !== "undefined" && canvas instanceof OffscreenCanvas) {
+    return canvas.getContext("2d");
+  }
+  return (canvas as HTMLCanvasElement).getContext("2d");
+};
+
+const drawSnapshot = (
+  ctx: TransitionContext2D,
+  input: StoryInput,
+  progress: number,
+) => {
+  // Both Canvas 2D implementations expose the same drawing surface used by
+  // the canonical renderer; keep that renderer single-sourced.
+  drawCanonicalHomeScreenStory(
+    ctx as unknown as CanvasRenderingContext2D,
+    input,
+    progress,
+  );
+};
+
+const snapshotSizeFor = (
+  ctx: CanvasRenderingContext2D,
+  device: HomeScreenStoryDevice,
+) => {
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+  const maxDimension = device === "mobile"
+    ? HOME_TRANSITION_SNAPSHOT_MAX_MOBILE
+    : HOME_TRANSITION_SNAPSHOT_MAX_DESKTOP;
+  const scale = Math.min(1, maxDimension / Math.max(1, width, height));
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+};
+
+const snapshotStoryInput = (
+  input: StoryInput,
+  targetWidth: number,
+  targetHeight: number,
+  snapshotWidth: number,
+  snapshotHeight: number,
+): StoryInput => {
+  const pixelRatio = Math.max(1, input.pixelRatio ?? 1);
+  const layoutPixelRatio = Math.max(1, input.layoutPixelRatio ?? pixelRatio);
+  const targetLayoutWidth = (targetWidth / pixelRatio) * layoutPixelRatio;
+  const targetLayoutHeight = (targetHeight / pixelRatio) * layoutPixelRatio;
+  const snapshotLayoutRatio = Math.max(
+    1,
+    Math.min(targetLayoutWidth / snapshotWidth, targetLayoutHeight / snapshotHeight),
+  );
+  return {
+    ...input,
+    pixelRatio: 1,
+    layoutPixelRatio: snapshotLayoutRatio,
+    designLayoutScale: Math.max(
+      1,
+      input.designLayoutScale ?? input.layoutPixelRatio ?? 1,
+    ),
+  };
+};
+
+const prepareHomeTransition = (
+  ctx: CanvasRenderingContext2D,
+  input: StoryInput,
+  segment: Extract<ReturnType<typeof resolveHomeStoryTimeline>["segment"], { kind: "transition" }>,
+  adapter: TransitionAdapter,
+) => {
+  const size = snapshotSizeFor(ctx, input.device);
+  const motionPlan = segment.motionPlans[input.device];
+  const planGlyphs = motionPlanGlyphs(motionPlan).map((glyph) => ({
+    ...glyph,
+    from: { x: glyph.from.x * size.width, y: glyph.from.y * size.height },
+    to: { x: glyph.to.x * size.width, y: glyph.to.y * size.height },
+  }));
+  const glyphs = planGlyphs.length > 0 ? planGlyphs : segment.glyphs;
+  const planSignature = motionPlan.operations
+    .map((operation) => `${operation.id}:${operation.kind}:${operation.path}`)
+    .join(",");
+  const key = [
+    segment.id,
+    adapter.id,
+    input.device,
+    input.theme,
+    ctx.canvas.width,
+    ctx.canvas.height,
+    input.pixelRatio ?? 1,
+    input.layoutPixelRatio ?? input.pixelRatio ?? 1,
+    input.designLayoutScale ?? input.layoutPixelRatio ?? 1,
+    size.width,
+    size.height,
+    input.revealCenterDiorama ? "center" : "story",
+    input.transitionRevision ?? 0,
+    input.now,
+    input.postsLabel,
+    input.current.stack,
+    input.current.contact,
+    motionPlan.recommendedTransition,
+    motionPlan.axis,
+    motionPlan.direction,
+    planSignature,
+  ].join("|");
+  const cached = preparedHomeTransitions.get(key);
+  if (cached) {
+    preparedHomeTransitions.delete(key);
+    preparedHomeTransitions.set(key, cached);
+    return cached;
+  }
+
+  const from = createTransitionCanvas(size.width, size.height);
+  const to = createTransitionCanvas(size.width, size.height);
+  const fromCtx = getTransitionContext(from);
+  const toCtx = getTransitionContext(to);
+  if (!fromCtx || !toCtx) return null;
+  const snapshotInput = snapshotStoryInput(
+    input,
+    ctx.canvas.width,
+    ctx.canvas.height,
+    size.width,
+    size.height,
+  );
+  drawSnapshot(
+    fromCtx,
+    segment.from.id === "work" ? { ...snapshotInput, snapshotScene: "work" } : snapshotInput,
+    segment.fromProgress,
+  );
+  drawSnapshot(
+    toCtx,
+    segment.to.id === "work" ? { ...snapshotInput, snapshotScene: "work" } : snapshotInput,
+    segment.toProgress,
+  );
+  const transitionInput: TransitionPrepareInput = {
+    from,
+    to,
+    ctx: fromCtx,
+    width: size.width,
+    height: size.height,
+    device: input.device,
+    theme: input.theme,
+    seed: `${segment.id}:${input.screenTitle}`,
+    glyphs,
+    motionPlan,
+  };
+  const prepared: PreparedHomeTransition = {
+    key,
+    from,
+    to,
+    adapter,
+    state: adapter.prepare(transitionInput),
+    width: size.width,
+    height: size.height,
+  };
+  preparedHomeTransitions.set(key, prepared);
+  while (preparedHomeTransitions.size > HOME_TRANSITION_CACHE_LIMIT) {
+    const oldestKey = preparedHomeTransitions.keys().next().value;
+    if (!oldestKey) break;
+    preparedHomeTransitions.delete(oldestKey);
+  }
+  return prepared;
+};
+
+export const clearHomeScreenTransitionCache = () => {
+  preparedHomeTransitions.clear();
+};
+
+export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryInput) => {
+  const progress = clamp(input.progress);
+  const resolved = resolveHomeStoryTimeline(progress);
+  if (!isHomeStoryTransitionSegment(resolved.segment)) {
+    const canonicalInput = input.device === "mobile" && resolved.segment.id === "work"
+      ? { ...input, snapshotScene: "work" as const }
+      : input;
+    drawCanonicalHomeScreenStory(ctx, canonicalInput, progress);
+    return;
+  }
+
+  const requestedMode = input.transitionOverrides?.[resolved.segment.id]
+    ?? input.transitionMode
+    ?? resolved.segment.edge.mode;
+  const motionPlan: HomeMotionPlan = resolved.segment.motionPlans[input.device];
+  const adapter = resolveHomeTransition({
+    edge: { ...resolved.segment.edge, mode: requestedMode },
+    from: resolved.segment.from,
+    to: resolved.segment.to,
+    seed: `${resolved.segment.id}:${input.screenTitle}`,
+    reducedMotion: input.reducedMotion === true,
+    motionPlan,
+  });
+  const prepared = prepareHomeTransition(ctx, input, resolved.segment, adapter);
+  if (!prepared) {
+    drawCanonicalHomeScreenStory(ctx, input, lerp(resolved.segment.fromProgress, resolved.segment.toProgress, resolved.localProgress));
+    return;
+  }
+
+  adapter.render({
+    from: prepared.from,
+    to: prepared.to,
+    ctx,
+    width: ctx.canvas.width,
+    height: ctx.canvas.height,
+    device: input.device,
+    theme: input.theme,
+    seed: `${resolved.segment.id}:${input.screenTitle}`,
+    glyphs: motionPlanGlyphs(motionPlan).map((glyph) => ({
+      ...glyph,
+      from: {
+        x: glyph.from.x * ctx.canvas.width,
+        y: glyph.from.y * ctx.canvas.height,
+      },
+      to: {
+        x: glyph.to.x * ctx.canvas.width,
+        y: glyph.to.y * ctx.canvas.height,
+      },
+    })),
+    motionPlan,
+    state: prepared.state,
+    progress: resolved.localProgress,
+  });
 };
 
 export const drawHomeScreenBackdrop = (
