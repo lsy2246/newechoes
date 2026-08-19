@@ -150,6 +150,10 @@ summary: "可选摘要"
 
 更详细的写作、页面和数据接入说明见 [echoes 博客使用说明](./src/content/echoes博客使用说明.md)。
 
+## Echoes Studio
+
+[Echoes Studio](https://github.com/lsy2246/echoes-studio) 是 New Echoes 的独立内容后台。它连接 GitHub 或 Gitee 上的博客仓库，在网页中完成 Markdown / MDX 文章的编辑、版本管理与发布，再以 Git commit 将内容送回原有仓库。
+
 ## 常用命令
 
 | Command | Description |
