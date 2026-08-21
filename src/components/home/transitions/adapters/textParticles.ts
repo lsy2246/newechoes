@@ -12,7 +12,7 @@ import {
   type TransitionTheme,
 } from "../types.ts";
 import type { HomeMotionOperation } from "../../homeMotionPlan.ts";
-import type { HomeStorySceneRect } from "../../homeStoryScenes.ts";
+import type { HomeStorySceneRect } from "../../homeStoryTypes.ts";
 
 export const TEXT_PARTICLE_BUDGET_DESKTOP = 2_400;
 export const TEXT_PARTICLE_BUDGET_MOBILE = 720;

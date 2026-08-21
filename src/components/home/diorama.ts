@@ -12,6 +12,8 @@ import {
   installHomeTransitionRuntime,
   type HomeTransitionConfig,
 } from "./homeTransitionRuntime";
+import type { HomeStoryScene } from "./homeStoryTypes.ts";
+import { createHomeStoryTimeline } from "./timeline.ts";
 import {
   getPacedHomeScrollDelta,
   getResistedHomeScrollDelta,
@@ -78,6 +80,16 @@ const getHomeContent = (): HomeContent => {
     throw new Error("Missing home content for diorama");
   }
   return content;
+};
+
+const getHomeStoryScenes = (): readonly HomeStoryScene[] => {
+  const scenes = (window as unknown as {
+    __HOME_STORY_SCENES?: readonly HomeStoryScene[];
+  }).__HOME_STORY_SCENES;
+  if (!scenes?.length) {
+    throw new Error("Missing home story scenes for diorama");
+  }
+  return scenes;
 };
 const HOME_DIORAMA_PIXEL_RATIO_CAP = 2;
 const HOME_DIORAMA_RENDERER_DPR_CAP_DESKTOP = 1.5;
@@ -288,7 +300,7 @@ export function initDiorama() {
   const motionEl = document.querySelector<HTMLElement>("[data-home-motion]");
   const evidenceEl = document.querySelector<HTMLElement>("[data-home-evidence]");
   const lastEvidenceItemEl = evidenceEl?.querySelector<HTMLElement>(
-    '[data-home-beat="work-distilledu"]',
+    "[data-home-work-last]",
   );
   const workPushFrameEl = lastEvidenceItemEl?.querySelector<HTMLElement>(
     "[data-home-work-push-frame]",
@@ -307,6 +319,7 @@ export function initDiorama() {
   const cuePercentEl = document.querySelector<HTMLElement>("[data-home-cue-percent]");
   const docEl = document.documentElement;
   const homeContent = getHomeContent();
+  const homeStoryTimeline = createHomeStoryTimeline(getHomeStoryScenes());
   const deviceClass = getDeviceClass(window.innerWidth, window.innerHeight);
   const screenPreset = createScreenCarrierPreset(
     deviceClass,
@@ -1877,7 +1890,7 @@ export function initDiorama() {
   let cursorLastToggle = performance.now();
   let transitionConfig: HomeTransitionConfig;
 
-  const transitionRuntime = installHomeTransitionRuntime((nextConfig) => {
+  const transitionRuntime = installHomeTransitionRuntime(homeStoryTimeline, (nextConfig) => {
     transitionConfig = nextConfig;
     clearHomeScreenTransitionCache();
     storyFrameCache.clear();
@@ -2046,6 +2059,7 @@ export function initDiorama() {
       transitionOverrides: transitionConfig.edges,
       transitionRevision: transitionConfig.revision,
       reducedMotion: reduceMotion,
+      timeline: homeStoryTimeline,
       now: formatNowBeijing(),
       screenTitle: homeContent.screenTitle,
       postsLabel: storyAutoPosts ?? "ongoing",

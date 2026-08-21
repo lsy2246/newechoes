@@ -3,7 +3,7 @@ import type {
   HomeStorySceneDevice,
   HomeStorySceneElement,
   HomeStorySceneRect,
-} from "./homeStoryScenes.ts";
+} from "./homeStoryTypes.ts";
 
 export type HomeMotionOperationKind = "hold" | "move" | "replace" | "enter" | "exit";
 export type HomeMotionPath = "linear" | "orthogonal" | "arc";

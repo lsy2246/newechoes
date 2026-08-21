@@ -1,6 +1,7 @@
 ---
 import { getCollection } from "astro:content";
 import type { CollectionEntry } from "astro:content";
+import type { HomeStoryScene } from "./homeStoryTypes.ts";
 import "./diorama.css";
 
 export type HomeContentCard = {
@@ -56,9 +57,10 @@ export type HomeContent = {
 
 interface Props {
   content: HomeContent;
+  storyScenes: readonly HomeStoryScene[];
 }
 
-const { content } = Astro.props;
+const { content, storyScenes } = Astro.props;
 const articles = await getCollection("articles");
 const postCount = articles.length;
 const years = (() => {
@@ -72,7 +74,6 @@ const years = (() => {
 })();
 
 const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
-const workBeatIds = ["work-ennoia", "work-api-worker", "work-distilledu"] as const;
 ---
 
 <section class="home-diorama-shell" data-home-shell>
@@ -130,7 +131,11 @@ const workBeatIds = ["work-ennoia", "work-api-worker", "work-distilledu"] as con
 
     <div class="home-evidence__list">
       {content.projects.items.map((project, index) => (
-        <article class="home-evidence__item" data-home-beat={workBeatIds[index]}>
+        <article
+          class="home-evidence__item"
+          data-home-beat={`work-item-${index + 1}`}
+          data-home-work-last={index === content.projects.items.length - 1 ? "" : undefined}
+        >
           <div
             class="home-evidence__item-frame"
             data-home-work-push-frame={index === content.projects.items.length - 1 ? "" : undefined}
@@ -161,8 +166,9 @@ const workBeatIds = ["work-ennoia", "work-api-worker", "work-distilledu"] as con
   window.__HOME_POSTS_LABEL = autoPostsLabel;
 </script>
 
-<script is:inline define:vars={{ content }}>
+<script is:inline define:vars={{ content, storyScenes }}>
   window.__HOME_CONTENT = content;
+  window.__HOME_STORY_SCENES = storyScenes;
 </script>
 
 <script>

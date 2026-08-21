@@ -1,13 +1,12 @@
 import type {
+  HomeStoryTimelineSegment,
   HomeStoryTransitionMode,
 } from "./timeline.ts";
 import {
-  homeStoryTimeline,
-  homeStoryTransitionIds,
   isHomeStoryTransitionSegment,
 } from "./timeline.ts";
 import type { HomeMotionPlan } from "./homeMotionPlan.ts";
-import type { HomeStorySceneDevice } from "./homeStoryScenes.ts";
+import type { HomeStorySceneDevice } from "./homeStoryTypes.ts";
 
 export type HomeTransitionConfig = {
   mode: HomeStoryTransitionMode;
@@ -46,21 +45,6 @@ const MODES = Object.freeze([
 const isMode = (value: unknown): value is HomeStoryTransitionMode =>
   typeof value === "string" && (MODES as readonly string[]).includes(value);
 
-const isEdge = (value: unknown): value is string =>
-  typeof value === "string" && homeStoryTransitionIds.includes(value);
-
-const getMotionPlan = (
-  edge: string,
-  device: HomeStorySceneDevice = "desktop",
-) => {
-  const segment = homeStoryTimeline.find(
-    (item) => isHomeStoryTransitionSegment(item) && item.id === edge,
-  );
-  return segment && isHomeStoryTransitionSegment(segment)
-    ? segment.motionPlans[device]
-    : null;
-};
-
 const copyConfig = (config: HomeTransitionConfig): HomeTransitionConfig => ({
   mode: config.mode,
   edges: { ...config.edges },
@@ -74,8 +58,27 @@ const initialMode = (): HomeStoryTransitionMode => {
 };
 
 export const installHomeTransitionRuntime = (
+  timeline: readonly HomeStoryTimelineSegment[],
   onChange: (config: HomeTransitionConfig) => void,
 ) => {
+  const transitionIds = Object.freeze(
+    timeline
+      .filter(isHomeStoryTransitionSegment)
+      .map((segment) => segment.id),
+  );
+  const isEdge = (value: unknown): value is string =>
+    typeof value === "string" && transitionIds.includes(value);
+  const getMotionPlan = (
+    edge: string,
+    device: HomeStorySceneDevice = "desktop",
+  ) => {
+    const segment = timeline.find(
+      (item) => isHomeStoryTransitionSegment(item) && item.id === edge,
+    );
+    return segment && isHomeStoryTransitionSegment(segment)
+      ? segment.motionPlans[device]
+      : null;
+  };
   let config: HomeTransitionConfig = {
     mode: initialMode(),
     edges: {},
@@ -94,7 +97,7 @@ export const installHomeTransitionRuntime = (
 
   const api: HomeTransitionRuntimeApi = {
     list: () => MODES,
-    edges: () => homeStoryTransitionIds,
+    edges: () => transitionIds,
     getPlan: getMotionPlan,
     getConfig: () => copyConfig(config),
     setMode: (mode) => {

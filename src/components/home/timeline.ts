@@ -3,10 +3,7 @@ import {
   motionPlanGlyphs,
   type HomeMotionPlan,
 } from "./homeMotionPlan.ts";
-import {
-  homeStoryScenes,
-  type HomeStoryScene,
-} from "./homeStoryScenes.ts";
+import type { HomeStoryScene } from "./homeStoryTypes.ts";
 
 export type HomeStoryChapter = HomeStoryScene;
 
@@ -62,7 +59,7 @@ const normalizeWeight = (value: number) =>
  * second hard-coded timeline.
  */
 export const createHomeStoryTimeline = (
-  scenes: readonly HomeStoryScene[] = homeStoryScenes,
+  scenes: readonly HomeStoryScene[],
 ): readonly HomeStoryTimelineSegment[] => {
   if (scenes.length === 0) {
     throw new Error("The home story needs at least one scene");
@@ -133,17 +130,9 @@ export const createHomeStoryTimeline = (
   return Object.freeze(timeline);
 };
 
-export const homeStoryTimeline = createHomeStoryTimeline();
-
-export const homeStoryTransitionIds = Object.freeze(
-  homeStoryTimeline
-    .filter(isHomeStoryTransitionSegment)
-    .map((segment) => segment.id),
-);
-
 export const resolveHomeStoryTimeline = (
   progress: number,
-  timeline: readonly HomeStoryTimelineSegment[] = homeStoryTimeline,
+  timeline: readonly HomeStoryTimelineSegment[],
 ) => {
   if (timeline.length === 0) {
     throw new Error("The home story timeline needs at least one segment");

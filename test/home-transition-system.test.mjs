@@ -8,18 +8,37 @@ import {
 } from "../src/components/home/transitions/registry.ts";
 import {
   createHomeStoryTimeline,
-  homeStoryTimeline,
-  homeStoryTransitionIds,
   isHomeStoryTransitionSegment,
   resolveHomeStoryTimeline,
 } from "../src/components/home/timeline.ts";
 import { installHomeTransitionRuntime } from "../src/components/home/homeTransitionRuntime.ts";
-import { homeStoryScenes } from "../src/components/home/homeStoryScenes.ts";
 import {
   createHomeMotionPlan,
   motionPlanGlyphs,
 } from "../src/components/home/homeMotionPlan.ts";
 import { textParticleScanProgress } from "../src/components/home/transitions/adapters/textParticles.ts";
+
+const rect = (desktop, mobile) => ({
+  desktop: {
+    x: desktop[0],
+    y: desktop[1],
+    width: desktop[2],
+    height: desktop[3],
+  },
+  mobile: {
+    x: mobile[0],
+    y: mobile[1],
+    width: mobile[2],
+    height: mobile[3],
+  },
+});
+
+const element = (id, kind, bounds, options = {}) => ({
+  id,
+  kind,
+  bounds,
+  ...options,
+});
 
 const EXPECTED_TRANSITIONS = [
   "blinds",
@@ -41,6 +60,71 @@ const textParticleAdapterSource = readFileSync(
 const dioramaSource = readFileSync("src/components/home/diorama.ts", "utf8");
 const dioramaMarkup = readFileSync("src/components/home/HomeDiorama.astro", "utf8");
 const dioramaStyles = readFileSync("src/components/home/diorama.css", "utf8");
+
+const homeStoryScenes = [
+  {
+    id: "input",
+    tags: ["layer", "view", "reveal"],
+    snapshotProgress: 0.36,
+    canonicalWeight: 0.36,
+    transitionWeight: 0.2,
+    elements: [
+      element("chapter-heading", "heading", rect([0.17, 0.18, 0.66, 0.08], [0.08, 0.12, 0.84, 0.08]), { priority: 1 }),
+      element("chapter-statement", "statement", rect([0.17, 0.27, 0.66, 0.1], [0.08, 0.22, 0.84, 0.12]), { priority: 1 }),
+      element("theme-1", "material", rect([0.12, 0.43, 0.22, 0.25], [0.1, 0.39, 0.8, 0.13]), { role: "track-1", motionText: "signal" }),
+      element("theme-2", "material", rect([0.39, 0.39, 0.22, 0.29], [0.1, 0.54, 0.8, 0.13]), { role: "track-2", motionText: "route" }),
+      element("theme-3", "material", rect([0.66, 0.43, 0.22, 0.25], [0.1, 0.69, 0.8, 0.13]), { role: "track-3", motionText: "group" }),
+    ],
+  },
+  {
+    id: "classify",
+    tags: ["parallel", "protocol", "text"],
+    snapshotProgress: 0.57,
+    canonicalWeight: 0.02,
+    transitionWeight: 0.2,
+    elements: [
+      element("chapter-heading", "heading", rect([0.17, 0.18, 0.66, 0.08], [0.08, 0.1, 0.84, 0.08]), { priority: 1 }),
+      element("chapter-statement", "statement", rect([0.17, 0.27, 0.66, 0.1], [0.08, 0.2, 0.84, 0.12]), { priority: 1 }),
+      element("theme-1", "lane", rect([0.17, 0.43, 0.2, 0.27], [0.09, 0.38, 0.82, 0.15]), { role: "track-1", motionText: "seeing" }),
+      element("theme-2", "lane", rect([0.4, 0.43, 0.2, 0.27], [0.09, 0.55, 0.82, 0.15]), { role: "track-2", motionText: "making" }),
+      element("theme-3", "lane", rect([0.63, 0.43, 0.2, 0.27], [0.09, 0.72, 0.82, 0.15]), { role: "track-3", motionText: "thinking" }),
+    ],
+  },
+  {
+    id: "work",
+    tags: ["code", "writing", "network", "migrate"],
+    snapshotProgress: 0.78,
+    canonicalWeight: 0.04,
+    transitionWeight: 0.16,
+    elements: [
+      element("chapter-heading", "heading", rect([0.17, 0.18, 0.66, 0.08], [0.08, 0.1, 0.84, 0.08]), { priority: 1 }),
+      element("chapter-statement", "statement", rect([0.17, 0.27, 0.66, 0.1], [0.08, 0.2, 0.84, 0.12]), { priority: 1 }),
+      element("project-1", "project", rect([0.17, 0.43, 0.2, 0.29], [0.09, 0.36, 0.82, 0.16]), { role: "track-1", motionText: "agent system", priority: 0.9 }),
+      element("project-2", "project", rect([0.4, 0.4, 0.2, 0.32], [0.09, 0.54, 0.82, 0.16]), { role: "track-2", motionText: "model gateway", priority: 1 }),
+      element("project-3", "project", rect([0.63, 0.43, 0.2, 0.29], [0.09, 0.72, 0.82, 0.16]), { role: "track-3", motionText: "production AI platform", priority: 0.9 }),
+    ],
+  },
+  {
+    id: "today",
+    tags: ["assemble", "emergence"],
+    snapshotProgress: 1,
+    canonicalWeight: 0.02,
+    transitionWeight: 0,
+    elements: [
+      element("chapter-heading", "heading", rect([0.19, 0.15, 0.3, 0.06], [0.1, 0.1, 0.8, 0.06]), { priority: 1 }),
+      element("chapter-statement", "statement", rect([0.19, 0.23, 0.48, 0.12], [0.1, 0.18, 0.8, 0.16]), { priority: 1 }),
+      element("project-1", "project", rect([0.19, 0.43, 0.19, 0.22], [0.1, 0.4, 0.8, 0.13]), { role: "track-1", motionText: "trace", priority: 0.9 }),
+      element("project-2", "project", rect([0.405, 0.43, 0.19, 0.22], [0.1, 0.55, 0.8, 0.13]), { role: "track-2", motionText: "tool", priority: 1 }),
+      element("project-3", "project", rect([0.62, 0.43, 0.19, 0.22], [0.1, 0.7, 0.8, 0.13]), { role: "track-3", motionText: "platform", priority: 0.9 }),
+      element("current-status", "status", rect([0.19, 0.73, 0.36, 0.05], [0.1, 0.86, 0.48, 0.05]), { motionText: "ongoing" }),
+      element("current-contact", "contact", rect([0.6, 0.73, 0.21, 0.05], [0.6, 0.86, 0.3, 0.05]), { motionText: "today" }),
+    ],
+  },
+];
+const homeStoryTimeline = createHomeStoryTimeline(homeStoryScenes);
+const homeStoryTransitionIds = homeStoryTimeline
+  .filter(isHomeStoryTransitionSegment)
+  .map((segment) => segment.id);
 
 const chapter = (id, tags) => ({ id, tags });
 
@@ -186,9 +270,9 @@ test("motion plans match stable identities before role-based replacements", () =
       .map((operation) => `${operation.fromId}->${operation.toId}`)
       .sort(),
     [
-      "theme-making->project-api-worker",
-      "theme-seeing->project-ennoia",
-      "theme-thinking->project-distilledu",
+      "theme-1->project-1",
+      "theme-2->project-2",
+      "theme-3->project-3",
     ],
   );
   assert.deepEqual(
@@ -196,7 +280,7 @@ test("motion plans match stable identities before role-based replacements", () =
     [
       "making->model gateway",
       "seeing->agent system",
-      "thinking->study-abroad product",
+      "thinking->production AI platform",
     ],
   );
   assert.deepEqual(
@@ -274,7 +358,10 @@ test("the runtime switches global and per-edge modes without reloading", () => {
   globalThis.window = fakeWindow;
 
   try {
-    const runtime = installHomeTransitionRuntime((config) => changes.push(config));
+    const runtime = installHomeTransitionRuntime(
+      homeStoryTimeline,
+      (config) => changes.push(config),
+    );
     assert.equal(runtime.api.getConfig().mode, "blinds");
     assert.ok(runtime.api.list().includes("auto"));
     assert.deepEqual(runtime.api.edges(), homeStoryTransitionIds);
@@ -358,7 +445,9 @@ test("the evidence chapter is real document content with consistent paced input"
   assert.match(dioramaMarkup, /data-home-motion/);
   assert.match(dioramaMarkup, /home-evidence__item/);
   assert.match(dioramaMarkup, /data-home-beat="work-overview"/);
-  assert.match(dioramaMarkup, /data-home-beat=\{workBeatIds\[index\]\}/);
+  assert.ok(dioramaMarkup.includes('data-home-beat={`work-item-${index + 1}`}'));
+  assert.match(dioramaMarkup, /data-home-work-last=\{index === content\.projects\.items\.length - 1/);
+  assert.doesNotMatch(dioramaMarkup, /workBeatIds/);
   assert.match(dioramaMarkup, /data-home-beat="work-release"/);
   assert.match(dioramaStyles, /\.home-diorama-motion\s*\{[\s\S]*?min-height:\s*680dvh/);
   assert.match(dioramaStyles, /\.home-diorama-motion--with-flow\s*\{[\s\S]*?min-height:\s*1036dvh/);
@@ -378,12 +467,14 @@ test("the evidence chapter is real document content with consistent paced input"
   assert.doesNotMatch(dioramaSource, /isEvidenceFlowActive\(\) &&[\s\S]*?isFastHomeScrollInput/);
   assert.match(dioramaSource, /startupGateReleased && !evidenceFlowActive/);
   assert.match(dioramaSource, /const getWorkTodayPushState = \(\) =>/);
-  assert.match(dioramaStyles, /\.home-evidence__item\[data-home-beat="work-distilledu"\]\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*0[\s\S]*?min-height:\s*100dvh/);
+  assert.match(dioramaStyles, /\.home-evidence__item\[data-home-work-last\]\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*0[\s\S]*?min-height:\s*100dvh/);
   assert.match(dioramaStyles, /\.home-evidence__release\s*\{[\s\S]*?min-height:\s*118dvh/);
   assert.match(dioramaMarkup, /data-home-work-push-frame/);
   assert.match(dioramaStyles, /data-work-push-active[\s\S]*?\.home-evidence__item-frame\s*\{[\s\S]*?position:\s*fixed[\s\S]*?inset:\s*0/);
-  assert.match(dioramaStyles, /data-work-push-active[\s\S]*?\.home-evidence__item\[data-home-beat="work-distilledu"\]\s*\{[\s\S]*?background:\s*transparent[\s\S]*?border-bottom-color:\s*transparent/);
-  assert.match(dioramaStyles, /\.home-evidence__item\[data-home-beat="work-distilledu"\] \.home-evidence__item-frame\s*\{[\s\S]*?transition:\s*transform 120ms/);
+  assert.match(dioramaStyles, /data-work-push-active[\s\S]*?\.home-evidence__item\[data-home-work-last\]\s*\{[\s\S]*?background:\s*transparent[\s\S]*?border-bottom-color:\s*transparent/);
+  assert.match(dioramaStyles, /\.home-evidence__item\[data-home-work-last\] \.home-evidence__item-frame\s*\{[\s\S]*?transition:\s*transform 120ms/);
+  assert.doesNotMatch(dioramaStyles, /data-home-beat="work-/);
+  assert.match(dioramaSource, /querySelector<HTMLElement>\(\s*"\[data-home-work-last\]"/);
   assert.match(dioramaSource, /evidenceReleaseEl\.offsetTop - lastEvidenceItemEl\.offsetHeight/);
   assert.match(dioramaSource, /const pushStart = landedAt \+ holdDistance/);
   assert.match(dioramaSource, /HOME_MOTION_TIMING\.workToday\.holdBeforeViewport/);

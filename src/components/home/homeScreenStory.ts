@@ -8,6 +8,7 @@ import {
 import {
   isHomeStoryTransitionSegment,
   resolveHomeStoryTimeline,
+  type HomeStoryTimelineSegment,
   type HomeStoryTransitionMode,
 } from "./timeline.ts";
 import { motionPlanGlyphs, type HomeMotionPlan } from "./homeMotionPlan.ts";
@@ -29,6 +30,7 @@ type StoryInput = {
   reducedMotion?: boolean;
   transitionRevision?: number;
   snapshotScene?: "work";
+  timeline: readonly HomeStoryTimelineSegment[];
   now: string;
   screenTitle: string;
   postsLabel: string;
@@ -2316,7 +2318,7 @@ const snapshotStoryInput = (
 const prepareHomeTransition = (
   ctx: CanvasRenderingContext2D,
   input: StoryInput,
-  segment: Extract<ReturnType<typeof resolveHomeStoryTimeline>["segment"], { kind: "transition" }>,
+  segment: Extract<HomeStoryTimelineSegment, { kind: "transition" }>,
   adapter: TransitionAdapter,
 ) => {
   const size = snapshotSizeFor(ctx, input.device);
@@ -2418,7 +2420,7 @@ export const clearHomeScreenTransitionCache = () => {
 
 export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryInput) => {
   const progress = clamp(input.progress);
-  const resolved = resolveHomeStoryTimeline(progress);
+  const resolved = resolveHomeStoryTimeline(progress, input.timeline);
   if (!isHomeStoryTransitionSegment(resolved.segment)) {
     const canonicalInput = input.device === "mobile" && resolved.segment.id === "work"
       ? { ...input, snapshotScene: "work" as const }

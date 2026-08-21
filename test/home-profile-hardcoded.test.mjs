@@ -5,6 +5,7 @@ import test from "node:test";
 const consts = readFileSync("src/consts.ts", "utf8");
 const diorama = readFileSync("src/components/home/diorama.ts", "utf8");
 const homeDiorama = readFileSync("src/components/home/HomeDiorama.astro", "utf8");
+const homeStoryTypes = readFileSync("src/components/home/homeStoryTypes.ts", "utf8");
 const homeScreenStory = readFileSync("src/components/home/homeScreenStory.ts", "utf8");
 const indexPage = readFileSync("src/pages/index.astro", "utf8");
 
@@ -16,7 +17,9 @@ test("home page copy is passed at the home component call site", () => {
   assert.equal(diorama.includes("kicker:"), false);
   assert.equal(homeScreenStory.includes("kicker:"), false);
   assert.ok(homeDiorama.includes("content: HomeContent"));
+  assert.ok(homeDiorama.includes("storyScenes: readonly HomeStoryScene[]"));
   assert.ok(homeDiorama.includes("window.__HOME_CONTENT = content"));
+  assert.ok(homeDiorama.includes("window.__HOME_STORY_SCENES = storyScenes"));
   assert.equal(diorama.includes("const HOME_TYPEWRITER_LINES"), false);
   assert.equal(diorama.includes("const HOME_PROFILE_ROWS"), false);
   assert.equal(diorama.includes("Full-stack builder"), false);
@@ -35,6 +38,16 @@ test("home page copy is passed at the home component call site", () => {
   assert.ok(indexPage.includes("lanes: {"));
   assert.ok(indexPage.includes("projects: {"));
   assert.ok(indexPage.includes("current: {"));
+  assert.ok(indexPage.includes("satisfies readonly HomeStoryScene[]"));
+  assert.ok(indexPage.includes("storyScenes={homeStoryScenes}"));
+  assert.equal(homeStoryTypes.includes("Ennoia"), false);
+  assert.equal(homeStoryTypes.includes("API Worker"), false);
+  assert.equal(homeStoryTypes.includes("AI Platform"), false);
+  assert.equal(homeStoryTypes.includes("agent system"), false);
+  assert.equal(homeStoryTypes.includes("model gateway"), false);
+  assert.equal(homeStoryTypes.includes("production AI platform"), false);
+  assert.equal(homeStoryTypes.includes("snapshotProgress: 0.36"), false);
+  assert.ok(indexPage.includes("snapshotProgress: 0.36"));
   assert.equal(indexPage.includes("title={`${"), false);
   assert.equal(indexPage.includes("description={SITE_META.description}"), false);
   assert.ok(indexPage.includes("content={homeContent}"));
