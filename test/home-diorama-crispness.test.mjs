@@ -27,7 +27,7 @@ test("home 3D renderer uses a gentler DPR cap while the 2D story canvas stays cr
   );
 });
 
-test("home story overlay composites cached desktop frames at a native 1:1 pixel scale", () => {
+test("home story overlay composites every desktop frame at a native 1:1 pixel scale", () => {
   assert.match(
     dioramaTs,
     /const overlaySourceAspect = screenCanvas\.width \/ screenCanvas\.height;/,
@@ -46,7 +46,7 @@ test("home story overlay composites cached desktop frames at a native 1:1 pixel 
   );
   assert.doesNotMatch(dioramaTs, /Math\.max\(screenCanvas\.(?:width|height), [WH]\)/);
   assert.match(dioramaTs, /storyCtx\.drawImage\(cachedFrame, drawX, drawY\);/);
-  assert.doesNotMatch(dioramaTs, /const scale = Math\.max\(W \/ cachedFrame\.width/);
+  assert.doesNotMatch(dioramaTs, /renderScale/);
 });
 
 test("home story overlay uses high quality resampling when scaling", () => {

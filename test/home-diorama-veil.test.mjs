@@ -13,7 +13,7 @@ const cssBlock = (selector) => {
 test("home diorama keeps the veil transparent", () => {
   assert.match(
     dioramaTs,
-    /setAttribute\("data-home-phase",\s*progress > 0\.76 \? "room" : "page"\)/,
+    /setAttribute\("data-home-phase",\s*progress >= STORY_MODE_END \? "room" : "page"\)/,
   );
 
   assert.match(
@@ -50,9 +50,9 @@ test("home center diorama is limited to the first-screen opening", () => {
   assert.match(dioramaTs, /const SCREEN_TEXTURE_PROGRESS_END = STORY_MODE_END;/);
   assert.match(dioramaTs, /const isCenterDioramaActive = \(progress: number\) => progress < CENTER_DIORAMA_PROGRESS_END;/);
   assert.match(dioramaTs, /const shouldUpdateScreenTexture = \(progress: number\) => !useMobileCarrier && progress <= SCREEN_TEXTURE_PROGRESS_END;/);
-  assert.match(dioramaTs, /const STORY_FADE_START = 0\.695;/);
-  assert.match(dioramaTs, /const STORY_FADE_END = 0\.71;/);
-  assert.match(dioramaTs, /const SCENE_FADE_START = 0\.708;/);
+  assert.match(dioramaTs, /const STORY_FADE_START = 0\.775;/);
+  assert.match(dioramaTs, /const STORY_FADE_END = 0\.79;/);
+  assert.match(dioramaTs, /const SCENE_FADE_START = 0\.788;/);
   assert.match(dioramaTs, /const SCENE_FADE_END = HANDOFF_MODE_END;/);
   assert.match(dioramaTs, /revealCenterDiorama: centerDioramaActive,/);
   assert.match(dioramaTs, /storyInput\.revealCenterDiorama \? "center-diorama" : "story"/);
@@ -60,8 +60,8 @@ test("home center diorama is limited to the first-screen opening", () => {
 });
 
 test("home diorama handoff pulls back from the screen into the room", () => {
-  assert.match(dioramaTs, /const STORY_MODE_END = 0\.7;/);
-  assert.match(dioramaTs, /const HANDOFF_MODE_END = 0\.745;/);
+  assert.match(dioramaTs, /const STORY_MODE_END = 0\.78;/);
+  assert.match(dioramaTs, /const HANDOFF_MODE_END = 0\.795;/);
   assert.match(
     dioramaTs,
     /const getCameraPull = \(progress: number\) =>\s*easeInOutSine\(clamp\(\(progress - STORY_MODE_END\) \/ \(ROOM_CAMERA_END - STORY_MODE_END\)\)\);/,
@@ -74,7 +74,7 @@ test("home diorama handoff pulls back from the screen into the room", () => {
 });
 
 test("home loop returns to the next opening without reversing the 2D story", () => {
-  assert.match(dioramaTs, /const LOOP_RETURN_START = 0\.95;/);
+  assert.match(dioramaTs, /const LOOP_RETURN_START = 0\.885;/);
   assert.match(
     dioramaTs,
     /const getStoryVisualProgress = \(progress: number\) => \{\s*if \(progress <= LOOP_RETURN_START\) return progress;\s*return 0;\s*\};/,

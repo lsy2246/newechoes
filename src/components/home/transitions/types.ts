@@ -3,6 +3,7 @@ export const TRANSITION_KINDS = [
   "blinds",
   "glyph-stream",
   "particles",
+  "scan",
   "text-particles",
 ] as const;
 

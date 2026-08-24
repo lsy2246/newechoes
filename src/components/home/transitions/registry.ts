@@ -2,6 +2,7 @@ import { blindsAdapter } from "./adapters/blinds.ts";
 import { crossfadeAdapter } from "./adapters/crossfade.ts";
 import { glyphStreamAdapter } from "./adapters/glyphStream.ts";
 import { particlesAdapter } from "./adapters/particles.ts";
+import { scanAdapter } from "./adapters/scan.ts";
 import { textParticlesAdapter } from "./adapters/textParticles.ts";
 import {
   TRANSITION_KINDS,
@@ -35,7 +36,7 @@ export type HomeTransitionResolutionInput = Readonly<{
   motionPlan?: HomeMotionPlan;
 }>;
 
-type AutomaticTransitionKind = Exclude<TransitionKind, "crossfade" | "blinds">;
+type AutomaticTransitionKind = Exclude<TransitionKind, "crossfade" | "blinds" | "scan">;
 
 const HOME_TRANSITION_SEMANTICS = {
   "text-particles": new Set([
@@ -172,6 +173,7 @@ export const transitionRegistry = new TransitionRegistry([
   blindsAdapter,
   glyphStreamAdapter,
   particlesAdapter,
+  scanAdapter,
   textParticlesAdapter,
 ]);
 

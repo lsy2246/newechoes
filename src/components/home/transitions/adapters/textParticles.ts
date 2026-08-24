@@ -14,8 +14,8 @@ import {
 import type { HomeMotionOperation } from "../../homeMotionPlan.ts";
 import type { HomeStorySceneRect } from "../../homeStoryTypes.ts";
 
-export const TEXT_PARTICLE_BUDGET_DESKTOP = 2_400;
-export const TEXT_PARTICLE_BUDGET_MOBILE = 720;
+export const TEXT_PARTICLE_BUDGET_DESKTOP = 960;
+export const TEXT_PARTICLE_BUDGET_MOBILE = 420;
 export const TEXT_PARTICLE_SCAN_START = 0.06;
 export const TEXT_PARTICLE_SCAN_END = 0.94;
 export const TEXT_PARTICLE_SCAN_LINE_WIDTH_DESKTOP = 1.4;
@@ -264,13 +264,48 @@ const drawFeatherStrip = (
   const left = Math.max(0, x);
   const right = Math.min(width, x + stripWidth);
   if (right <= left || alpha <= 0) return;
+  const sourceLeft = (left / Math.max(1, width)) * snapshot.width;
+  const sourceWidth = ((right - left) / Math.max(1, width)) * snapshot.width;
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(left, 0, right - left, height);
-  ctx.clip();
   ctx.globalAlpha *= alpha;
-  ctx.drawImage(snapshot, 0, 0, width, height);
+  ctx.drawImage(
+    snapshot,
+    sourceLeft,
+    0,
+    sourceWidth,
+    snapshot.height,
+    left,
+    0,
+    right - left,
+    height,
+  );
   ctx.restore();
+};
+
+const drawSnapshotSlice = (
+  ctx: TransitionContext2D,
+  snapshot: TransitionSnapshot,
+  width: number,
+  height: number,
+  x: number,
+  sliceWidth: number,
+) => {
+  const left = Math.max(0, x);
+  const right = Math.min(width, x + sliceWidth);
+  if (right <= left) return;
+  const sourceLeft = (left / Math.max(1, width)) * snapshot.width;
+  const sourceWidth = ((right - left) / Math.max(1, width)) * snapshot.width;
+  ctx.drawImage(
+    snapshot,
+    sourceLeft,
+    0,
+    sourceWidth,
+    snapshot.height,
+    left,
+    0,
+    right - left,
+    height,
+  );
 };
 
 const drawTextParticleScanLine = (
@@ -422,34 +457,24 @@ export const textParticlesAdapter: TransitionAdapter<TextParticlesTransitionStat
     const rebuiltEdge = state.direction > 0 ? frontier - band : frontier + band;
     const sourceEdge = state.direction > 0 ? frontier + band : frontier - band;
 
-    ctx.save();
-    ctx.beginPath();
     if (state.direction > 0) {
-      ctx.rect(0, 0, Math.max(0, Math.min(width, rebuiltEdge)), height);
+      drawSnapshotSlice(ctx, input.to, width, height, 0, rebuiltEdge);
     } else {
       const x = Math.max(0, Math.min(width, rebuiltEdge));
-      ctx.rect(x, 0, width - x, height);
+      drawSnapshotSlice(ctx, input.to, width, height, x, width - x);
     }
-    ctx.clip();
-    ctx.drawImage(input.to, 0, 0, width, height);
-    ctx.restore();
 
-    ctx.save();
-    ctx.beginPath();
     if (state.direction > 0) {
       const x = Math.max(0, Math.min(width, sourceEdge));
-      ctx.rect(x, 0, width - x, height);
+      drawSnapshotSlice(ctx, input.from, width, height, x, width - x);
     } else {
-      ctx.rect(0, 0, Math.max(0, Math.min(width, sourceEdge)), height);
+      drawSnapshotSlice(ctx, input.from, width, height, 0, sourceEdge);
     }
-    ctx.clip();
-    ctx.drawImage(input.from, 0, 0, width, height);
-    ctx.restore();
 
-    // Four local opacity steps dissolve intact source pixels into the scan and
+    // Two local opacity steps dissolve intact source pixels into the scan and
     // condense target pixels out of it. The feather is confined to the band;
     // complete page snapshots never overlap.
-    const featherSteps = 4;
+    const featherSteps = 2;
     const stripWidth = band / featherSteps;
     for (let step = 0; step < featherSteps; step += 1) {
       const lowToHigh = (step + 0.5) / featherSteps;

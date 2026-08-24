@@ -25,11 +25,21 @@ export type HomeStorySceneElement = Readonly<{
   priority?: number;
 }>;
 
+export type HomeStorySceneTransitionMode =
+  | "auto"
+  | "blinds"
+  | "crossfade"
+  | "glyph-stream"
+  | "particles"
+  | "scan"
+  | "text-particles";
+
 export type HomeStoryScene = Readonly<{
   id: string;
   tags: readonly string[];
   snapshotProgress: number;
   canonicalWeight: number;
   transitionWeight: number;
+  transitionMode?: HomeStorySceneTransitionMode;
   elements: readonly HomeStorySceneElement[];
 }>;

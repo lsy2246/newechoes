@@ -24,7 +24,7 @@ export const HOME_MOTION_TIMING = Object.freeze({
     }),
   }),
   workToday: Object.freeze({
-    holdBeforeViewport: 0.22,
-    holdAfterViewport: 0.22,
+    holdBeforeViewport: 0.98,
+    holdAfterViewport: 0.02,
   }),
 });

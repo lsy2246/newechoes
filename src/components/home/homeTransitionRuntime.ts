@@ -39,6 +39,7 @@ const MODES = Object.freeze([
   "crossfade",
   "glyph-stream",
   "particles",
+  "scan",
   "text-particles",
 ] as const);
 

@@ -6,6 +6,7 @@ import {
   clearHomeScreenTransitionCache,
   drawHomeScreenBackdrop,
   drawHomeScreenStory,
+  resolveRequestedHomeTransitionMode,
   type HomeScreenStoryDevice,
 } from "./homeScreenStory";
 import {
@@ -13,13 +14,21 @@ import {
   type HomeTransitionConfig,
 } from "./homeTransitionRuntime";
 import type { HomeStoryScene } from "./homeStoryTypes.ts";
-import { createHomeStoryTimeline } from "./timeline.ts";
 import {
-  getPacedHomeScrollDelta,
+  createHomeStoryTimeline,
+  isHomeStoryTransitionSegment,
+  resolveHomeStoryTimeline,
+} from "./timeline.ts";
+import {
   getResistedHomeScrollDelta,
   normalizeWheelDelta,
   type HomeScrollInputDevice,
 } from "./homeScrollResistance";
+import {
+  getAdjacentHomeChapterStop,
+  getHomeScrollMomentumLeadLimit,
+  stepHomeScrollMomentum,
+} from "./homeScrollMomentum.ts";
 import { HOME_MOTION_TIMING } from "./homeMotionTiming.ts";
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
@@ -1245,10 +1254,10 @@ export function initDiorama() {
 
   // ===== Scroll-driven homepage state =====
   type RenderMode = "story" | "handoff" | "room" | "loop";
-  const STORY_MODE_END = 0.7;
-  const HANDOFF_MODE_END = 0.745;
-  const ROOM_CAMERA_END = 0.86;
-  const STORY_PROGRESS_END = 0.7;
+  const STORY_MODE_END = 0.78;
+  const HANDOFF_MODE_END = 0.795;
+  const ROOM_CAMERA_END = 0.835;
+  const STORY_PROGRESS_END = STORY_MODE_END;
   const STORY_FRAME_STEPS = useMobileCarrier ? 120 : 140;
   const SCREEN_REDRAW_STEP = 1 / STORY_FRAME_STEPS;
   const STORY_FRAME_CACHE_LIMIT = useMobileCarrier ? 3 : 5;
@@ -1257,22 +1266,23 @@ export function initDiorama() {
   const CENTER_DIORAMA_FADE_START = 0.08;
   const CENTER_DIORAMA_PROGRESS_END = 0.24;
   const SCREEN_TEXTURE_PROGRESS_END = STORY_MODE_END;
-  const STORY_FADE_START = 0.695;
-  const STORY_FADE_END = 0.71;
-  const SCENE_FADE_START = 0.708;
+  const STORY_FADE_START = 0.775;
+  const STORY_FADE_END = 0.79;
+  const SCENE_FADE_START = 0.788;
   const SCENE_FADE_END = HANDOFF_MODE_END;
   const INTERACTIVE_PROGRESS = ROOM_CAMERA_END;
-  const LOOP_RETURN_START = 0.95;
-  const LOOP_RESET_PROGRESS = 0.998;
-  const LOOP_CAMERA_REJOIN_START = 0.925;
+  const LOOP_RETURN_START = 0.885;
+  const LOOP_RESET_PROGRESS = 0.93;
+  const LOOP_CAMERA_REJOIN_START = 0.86;
   const MOBILE_LOOP_RETURN_EASE_POWER = 2;
   const LOOP_BACK_WRAP_THRESHOLD = 0.002;
   const LOOP_BACK_WRAP_MIN_PROGRESS = LOOP_RETURN_START + 0.004;
   // The DOM work chapter covers classify→work before the Canvas work becomes
   // visible, then hands directly to the authored work→today edge. Work is
-  // therefore presented once, as normal document flow.
+  // therefore presented once, as normal document flow. Resume close to the
+  // end of the story so the settled today frame is a short closing beat.
   const WORK_FLOW_START_PROGRESS = STORY_MODE_END * 0.58;
-  const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END * 0.82;
+  const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END * 0.96;
   const STARTUP_GATE_PROGRESS = 0.08;
   const STARTUP_GATE_TIMEOUT_MS = 1400;
   const CAMERA_REJOIN_START = 0.82;
@@ -1582,7 +1592,7 @@ export function initDiorama() {
     const lastEvidenceNaturalTop =
       evidenceReleaseEl.offsetTop - lastEvidenceItemEl.offsetHeight;
     const holdDistance = Math.min(
-      evidenceReleaseEl.offsetHeight * 0.28,
+      evidenceReleaseEl.offsetHeight * 0.98,
       window.innerHeight * HOME_MOTION_TIMING.workToday.holdBeforeViewport,
     );
     const landedAt = Math.max(
@@ -1590,10 +1600,10 @@ export function initDiorama() {
       evidenceEl.offsetTop + lastEvidenceNaturalTop,
     );
     const pushStart = landedAt + holdDistance;
-    // The runway has two reading beats: 22% of a viewport before the
-    // horizontal move and 22% after it. Only the middle interval changes X.
+    // Most of the runway is reserved for reading before and after the brief
+    // horizontal handoff. Only the compact middle interval changes X.
     const settleDistance = Math.min(
-      evidenceReleaseEl.offsetHeight * 0.28,
+      evidenceReleaseEl.offsetHeight * 0.02,
       window.innerHeight * HOME_MOTION_TIMING.workToday.holdAfterViewport,
     );
     const pushEnd = Math.max(
@@ -1640,9 +1650,9 @@ export function initDiorama() {
     // older build. The sticky work page now owns vertical positioning in CSS.
     if (evidenceEl) evidenceEl.style.transform = "";
   };
-  const scrollToProgress = (progress: number) => {
+  const getScrollYForProgress = (progress: number) => {
     const metrics = getShellScrollMetrics();
-    if (metrics === 1) return false;
+    if (metrics === 1) return null;
     const targetProgress = clamp(progress);
     const physicalScroll = targetProgress <= metrics.flowStartProgress
       ? metrics.flowSpan > 0
@@ -1667,8 +1677,13 @@ export function initDiorama() {
                 Math.max(Number.EPSILON, 1 - metrics.flowEndProgress),
             ),
           );
+    return Math.max(0, metrics.shellTop + physicalScroll);
+  };
+  const scrollToProgress = (progress: number) => {
+    const targetY = getScrollYForProgress(progress);
+    if (targetY === null) return false;
     window.scrollTo({
-      top: Math.max(0, metrics.shellTop + physicalScroll),
+      top: targetY,
       left: 0,
       behavior: "auto",
     });
@@ -1711,7 +1726,58 @@ export function initDiorama() {
       Math.min(enter, exit),
     );
   };
-  const applyResistedScrollDelta = (
+  const homeChapterStops = Object.freeze([
+    0,
+    ...homeStoryTimeline
+      .filter((segment) => segment.kind === "canonical")
+      .map((segment) => segment.end * STORY_PROGRESS_END),
+    ROOM_CAMERA_END,
+    LOOP_RETURN_START,
+    LOOP_RESET_PROGRESS,
+    1,
+  ].filter((stop, index, stops) => index === 0 || stop > stops[index - 1]! + 0.0001));
+  const HOME_SCROLL_GESTURE_IDLE_MS = 140;
+  let homeScrollMomentumPositionY = window.scrollY;
+  let homeScrollMomentumTargetY = window.scrollY;
+  let homeScrollMomentumVelocity = 0;
+  let homeScrollMomentumActive = false;
+  let homeScrollGestureDirection: -1 | 0 | 1 = 0;
+  let homeScrollGestureBoundaryY = window.scrollY;
+  let homeScrollGestureLastInputAt = 0;
+
+  const cancelHomeScrollMomentum = (positionY = window.scrollY) => {
+    homeScrollMomentumPositionY = positionY;
+    homeScrollMomentumTargetY = positionY;
+    homeScrollMomentumVelocity = 0;
+    homeScrollMomentumActive = false;
+    homeScrollGestureDirection = 0;
+    homeScrollGestureBoundaryY = positionY;
+    homeScrollGestureLastInputAt = 0;
+  };
+  const getHomeScrollBounds = () => {
+    const metrics = getShellScrollMetrics();
+    const documentEnd = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    if (metrics === 1) return { min: 0, max: documentEnd };
+    return {
+      min: Math.max(0, metrics.shellTop),
+      max: Math.min(documentEnd, metrics.shellTop + metrics.physicalTotal),
+    };
+  };
+  const beginHomeScrollGesture = (direction: -1 | 1, inputAt: number) => {
+    const adjacentStop = getAdjacentHomeChapterStop(
+      getScrollProgress(),
+      direction,
+      homeChapterStops,
+    );
+    const bounds = getHomeScrollBounds();
+    const boundaryY = getScrollYForProgress(adjacentStop);
+    homeScrollGestureDirection = direction;
+    homeScrollGestureBoundaryY = boundaryY === null
+      ? direction > 0 ? bounds.max : bounds.min
+      : clamp(boundaryY, bounds.min, bounds.max);
+    homeScrollGestureLastInputAt = inputAt;
+  };
+  const queueHomeScrollMomentum = (
     deltaPx: number,
     elapsedMs: number,
     device: HomeScrollInputDevice,
@@ -1723,17 +1789,63 @@ export function initDiorama() {
       viewportHeight: window.innerHeight,
       device,
     });
-    const pacedDelta = getPacedHomeScrollDelta({
-      deltaPx: effectiveDelta,
-      elapsedMs,
-      viewportHeight: window.innerHeight,
-      device,
-      speedMultiplier: getClassifyTo3dScrollMultiplier(),
-    });
-    if (Math.abs(pacedDelta) < 0.001) return 0;
-    window.scrollBy({ top: pacedDelta, left: 0, behavior: "auto" });
+    if (Math.abs(effectiveDelta) < 0.001) return 0;
+
+    const inputAt = performance.now();
+    const direction = Math.sign(effectiveDelta) as -1 | 1;
+    const startsNewGesture =
+      homeScrollGestureDirection !== direction ||
+      inputAt - homeScrollGestureLastInputAt > HOME_SCROLL_GESTURE_IDLE_MS;
+    if (!homeScrollMomentumActive) {
+      cancelHomeScrollMomentum(window.scrollY);
+    } else if (homeScrollGestureDirection !== direction) {
+      // A deliberate reversal should respond immediately instead of spending
+      // the first frames cancelling a stale forward target and velocity.
+      homeScrollMomentumTargetY = homeScrollMomentumPositionY;
+      homeScrollMomentumVelocity = 0;
+    }
+    if (startsNewGesture) beginHomeScrollGesture(direction, inputAt);
+    homeScrollGestureLastInputAt = inputAt;
+
+    const bounds = getHomeScrollBounds();
+    const leadLimit = getHomeScrollMomentumLeadLimit(window.innerHeight, device);
+    const lowerLead = Math.max(bounds.min, homeScrollMomentumPositionY - leadLimit);
+    const upperLead = Math.min(bounds.max, homeScrollMomentumPositionY + leadLimit);
+    const lowerBoundary = direction < 0 ? homeScrollGestureBoundaryY : bounds.min;
+    const upperBoundary = direction > 0 ? homeScrollGestureBoundaryY : bounds.max;
+    const desiredTarget = homeScrollMomentumTargetY +
+      effectiveDelta * getClassifyTo3dScrollMultiplier();
+    homeScrollMomentumTargetY = clamp(
+      desiredTarget,
+      Math.max(lowerLead, lowerBoundary),
+      Math.min(upperLead, upperBoundary),
+    );
+    homeScrollMomentumActive = true;
+    return effectiveDelta;
+  };
+  const advanceHomeScrollMomentum = (elapsedMs: number) => {
+    if (!homeScrollMomentumActive) return;
+    // Keyboard navigation, scrollbar drags and history restoration stay
+    // authoritative; never pull them back toward an old wheel target.
+    if (Math.abs(window.scrollY - homeScrollMomentumPositionY) > 2) {
+      cancelHomeScrollMomentum(window.scrollY);
+      return;
+    }
+    const device: HomeScrollInputDevice = useMobileCarrier ? "mobile" : "desktop";
+    const frame = stepHomeScrollMomentum({
+      positionPx: homeScrollMomentumPositionY,
+      targetPx: homeScrollMomentumTargetY,
+      velocityPxPerSecond: homeScrollMomentumVelocity,
+    }, elapsedMs, device);
+    homeScrollMomentumPositionY = frame.positionPx;
+    homeScrollMomentumTargetY = frame.targetPx;
+    homeScrollMomentumVelocity = frame.velocityPxPerSecond;
+    window.scrollTo({ top: frame.positionPx, left: 0, behavior: "auto" });
     syncScrollProgress();
-    return pacedDelta;
+    if (frame.settled) {
+      homeScrollMomentumActive = false;
+      homeScrollMomentumVelocity = 0;
+    }
   };
   const releaseStartupGate = () => {
     if (startupGateReleased) return;
@@ -1756,6 +1868,7 @@ export function initDiorama() {
     requestAnimationFrame(() => {
       if (disposed) return;
       scrollToProgress(0);
+      cancelHomeScrollMomentum(window.scrollY);
       scrollTargetProgress = 0;
       homeProgress = 0;
       visualProgress = 0;
@@ -1790,7 +1903,9 @@ export function initDiorama() {
       LOOP_RESET_PROGRESS - 0.001,
     );
     primeLoopCameraForBackwardWrap();
+    cancelHomeScrollMomentum(window.scrollY);
     scrollToProgress(targetProgress);
+    cancelHomeScrollMomentum(window.scrollY);
     scrollTargetProgress = targetProgress;
     homeProgress = targetProgress;
     renderMode = getRenderMode(homeProgress);
@@ -1819,7 +1934,7 @@ export function initDiorama() {
     }
     e.preventDefault();
     e.stopImmediatePropagation();
-    applyResistedScrollDelta(deltaPx, elapsedMs, "desktop");
+    queueHomeScrollMomentum(deltaPx, elapsedMs, "desktop");
   };
   syncScrollProgress();
   homeProgress = scrollTargetProgress;
@@ -1855,7 +1970,7 @@ export function initDiorama() {
     storyEl?.style.setProperty("--story-progress", storyProgress.toFixed(4));
     storyEl?.style.setProperty("--story-local", storyProgress.toFixed(4));
     applyWorkTodayPushTransforms();
-    sceneEl?.setAttribute("data-home-phase", progress > 0.76 ? "room" : "page");
+    sceneEl?.setAttribute("data-home-phase", progress >= STORY_MODE_END ? "room" : "page");
     const controlsCueActive =
       progress >= INTERACTIVE_PROGRESS &&
       progress < LOOP_CAMERA_REJOIN_START &&
@@ -1876,10 +1991,7 @@ export function initDiorama() {
     cueEl?.style.setProperty("--cue-progress", cueProgress.toFixed(4));
     const evidenceFlowActive = isEvidenceFlowActive();
     docEl.toggleAttribute("data-home-flow-active", evidenceFlowActive);
-    cueEl?.setAttribute(
-      "data-home-visible",
-      startupGateReleased && !evidenceFlowActive ? "true" : "false",
-    );
+    cueEl?.setAttribute("data-home-visible", startupGateReleased ? "true" : "false");
     cueEl?.setAttribute("data-cue-mode", cueMode);
     if (cuePercentEl) cuePercentEl.textContent = cueMode === "loading" ? "..." : `${Math.round(cueProgress * 100)}%`;
   };
@@ -1902,6 +2014,21 @@ export function initDiorama() {
     if (!disposed) renderBootFrame();
   });
   transitionConfig = transitionRuntime.getConfig();
+
+  const usesContinuousScanProgress = (
+    progress: number,
+    mode = transitionConfig.mode,
+    overrides = transitionConfig.edges,
+  ) => {
+    if (reduceMotion) return false;
+    const resolved = resolveHomeStoryTimeline(progress, homeStoryTimeline);
+    if (!isHomeStoryTransitionSegment(resolved.segment)) return false;
+    return resolveRequestedHomeTransitionMode(
+      resolved.segment.edge.mode,
+      mode,
+      overrides?.[resolved.segment.id],
+    ) === "scan";
+  };
 
   // ===== Time formatter (Beijing: YYYY-MM-DD HH:mm · 周X) =====
   const dateFmt = new Intl.DateTimeFormat("zh-CN", {
@@ -1960,7 +2087,15 @@ export function initDiorama() {
     const isWideOverlay = W > H;
     const overlayDevice = isWideOverlay ? storyInput.device : "mobile";
     const frameIndex = Math.round(clamp(storyInput.progress) * STORY_FRAME_STEPS);
-    const cachedProgress = frameIndex / STORY_FRAME_STEPS;
+    const continuousScan = usesContinuousScanProgress(
+      storyInput.progress,
+      storyInput.transitionMode,
+      storyInput.transitionOverrides,
+    );
+    const cachedProgress = continuousScan
+      ? clamp(storyInput.progress)
+      : frameIndex / STORY_FRAME_STEPS;
+    const frameKey = continuousScan ? cachedProgress.toFixed(5) : String(frameIndex);
     const connectorMotionActive = storyInput.progress < 0.22 && !reduceMotion;
     const cacheMotionKey = connectorMotionActive ? storyInput.motion?.toFixed(3) : "static";
     const overlaySourceAspect = screenCanvas.width / screenCanvas.height;
@@ -1978,7 +2113,7 @@ export function initDiorama() {
     const cacheKey = [
       overlayDevice,
       theme,
-      frameIndex,
+      frameKey,
       cacheMotionKey,
       sourceW,
       sourceH,
@@ -2025,11 +2160,11 @@ export function initDiorama() {
     storyCtx.imageSmoothingEnabled = true;
     storyCtx.imageSmoothingQuality = "high";
     if (isWideOverlay) {
-      const drawX = Math.round((W - cachedFrame.width) / 2);
-      const drawY = Math.round((H - cachedFrame.height) / 2);
+      const drawX = Math.round((W - sourceW) / 2);
+      const drawY = Math.round((H - sourceH) / 2);
       storyCtx.drawImage(cachedFrame, drawX, drawY);
     } else {
-      storyCtx.drawImage(cachedFrame, 0, 0);
+      storyCtx.drawImage(cachedFrame, 0, 0, W, H);
     }
     lastStoryOverlayKey = cacheKey;
   };
@@ -2205,7 +2340,7 @@ export function initDiorama() {
 
     e.preventDefault();
     const now = e.timeStamp || performance.now();
-    applyResistedScrollDelta(
+    queueHomeScrollMomentum(
       homeTouchLastY - touch.clientY,
       homeTouchLastAt ? now - homeTouchLastAt : 16,
       "mobile",
@@ -2261,7 +2396,7 @@ export function initDiorama() {
     e.preventDefault();
     const now = e.timeStamp || performance.now();
     if (mobileGestureIntent === "scroll") {
-      applyResistedScrollDelta(
+      queueHomeScrollMomentum(
         mobileGestureLastY - e.clientY,
         mobileGestureLastAt ? now - mobileGestureLastAt : 16,
         "mobile",
@@ -2384,6 +2519,8 @@ export function initDiorama() {
     const dt = Math.min(64, now - lastFrame);
     lastFrame = now;
 
+    advanceHomeScrollMomentum(dt);
+
     const nextProgress = scrollTargetProgress;
     const prevProgress = homeProgress;
     const prevMode = renderMode;
@@ -2393,10 +2530,12 @@ export function initDiorama() {
     const storyProgress = getRenderedStoryProgress();
     const progressChanged = Math.abs(prevProgress - homeProgress) > 0.0005;
     const modeChanged = prevMode !== renderMode;
+    const continuousScan = usesContinuousScanProgress(storyProgress);
     if (
       modeChanged ||
       (progressChanged &&
-        Math.abs(storyProgress - lastDrawnStoryProgress) >= SCREEN_REDRAW_STEP)
+        (continuousScan ||
+          Math.abs(storyProgress - lastDrawnStoryProgress) >= SCREEN_REDRAW_STEP))
     ) {
       needScreenRedraw = true;
     }

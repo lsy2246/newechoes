@@ -1586,10 +1586,10 @@
 
 .home-scroll-cue {
   --cue-ink-rgb: 111 95 166;
-  position: absolute;
+  position: fixed;
   left: 50%;
   bottom: max(2.1rem, calc(env(safe-area-inset-bottom) + 1.2rem));
-  z-index: 8;
+  z-index: 20;
   display: grid;
   grid-template-columns: 3.05rem minmax(6.8rem, 10.5rem) auto;
   align-items: center;

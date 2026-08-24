@@ -2389,6 +2389,12 @@ export const clearHomeScreenTransitionCache = () => {
   preparedHomeTransitions.clear();
 };
 
+export const resolveRequestedHomeTransitionMode = (
+  edgeMode: HomeStoryTransitionMode,
+  runtimeMode?: HomeStoryTransitionMode,
+  edgeOverride?: HomeStoryTransitionMode,
+) => edgeOverride ?? (runtimeMode && runtimeMode !== "auto" ? runtimeMode : edgeMode);
+
 export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryInput) => {
   const progress = clamp(input.progress);
   const resolved = resolveHomeStoryTimeline(progress, input.timeline);
@@ -2400,9 +2406,11 @@ export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryI
     return;
   }
 
-  const requestedMode = input.transitionOverrides?.[resolved.segment.id]
-    ?? input.transitionMode
-    ?? resolved.segment.edge.mode;
+  const requestedMode = resolveRequestedHomeTransitionMode(
+    resolved.segment.edge.mode,
+    input.transitionMode,
+    input.transitionOverrides?.[resolved.segment.id],
+  );
   const motionPlan: HomeMotionPlan = resolved.segment.motionPlans[input.device];
   const adapter = resolveHomeTransition({
     edge: { ...resolved.segment.edge, mode: requestedMode },

@@ -12,6 +12,7 @@ import {
   resolveHomeStoryTimeline,
 } from "../src/components/home/timeline.ts";
 import { installHomeTransitionRuntime } from "../src/components/home/homeTransitionRuntime.ts";
+import { resolveRequestedHomeTransitionMode } from "../src/components/home/homeScreenStory.ts";
 import {
   createHomeMotionPlan,
   motionPlanGlyphs,
@@ -45,6 +46,7 @@ const EXPECTED_TRANSITIONS = [
   "crossfade",
   "glyph-stream",
   "particles",
+  "scan",
   "text-particles",
 ];
 
@@ -55,6 +57,10 @@ const glyphAdapterSource = readFileSync(
 );
 const textParticleAdapterSource = readFileSync(
   "src/components/home/transitions/adapters/textParticles.ts",
+  "utf8",
+);
+const scanAdapterSource = readFileSync(
+  "src/components/home/transitions/adapters/scan.ts",
   "utf8",
 );
 const dioramaSource = readFileSync("src/components/home/diorama.ts", "utf8");
@@ -170,12 +176,32 @@ const resolvedFingerprint = (progress) => {
   };
 };
 
-test("registers the five built-in home transition adapters", () => {
+test("registers the six built-in home transition adapters", () => {
   const registered = homeTransitionRegistry.list();
   const ids = registered.map((adapter) => adapter.id).sort();
 
-  assert.equal(registered.length, 5);
+  assert.equal(registered.length, 6);
   assert.deepEqual(ids, EXPECTED_TRANSITIONS);
+});
+
+test("plain scan is a native-resolution wipe without particle work", () => {
+  const scan = resolveEdge({
+    from: chapter("input", ["layer"]),
+    to: chapter("classify", ["parallel"]),
+    mode: "scan",
+  });
+
+  assert.equal(scan.id, "scan");
+  assert.match(scanAdapterSource, /drawSnapshotSlice/);
+  assert.match(scanAdapterSource, /drawScanLine/);
+  assert.match(scanAdapterSource, /const featherSteps = 2/);
+  assert.doesNotMatch(scanAdapterSource, /getImageData|particles|Math\.random/);
+});
+
+test("authored scan survives the default auto runtime mode", () => {
+  assert.equal(resolveRequestedHomeTransitionMode("scan", "auto"), "scan");
+  assert.equal(resolveRequestedHomeTransitionMode("scan", "particles"), "particles");
+  assert.equal(resolveRequestedHomeTransitionMode("scan", "particles", "auto"), "auto");
 });
 
 test("auto mode selects a transition from chapter semantics", () => {
@@ -236,8 +262,12 @@ test("text particles sample real canvas typography without inventing labels", ()
   assert.doesNotMatch(textParticleAdapterSource, /\.fillText\s*\(/);
   assert.doesNotMatch(textParticleAdapterSource, /Math\.random/);
   assert.match(textParticleAdapterSource, /real reaction band/);
-  assert.match(textParticleAdapterSource, /const featherSteps = 4/);
+  assert.match(textParticleAdapterSource, /const featherSteps = 2/);
+  assert.match(textParticleAdapterSource, /TEXT_PARTICLE_BUDGET_DESKTOP = 960/);
   assert.match(textParticleAdapterSource, /drawFeatherStrip/);
+  assert.match(textParticleAdapterSource, /drawSnapshotSlice/);
+  assert.match(textParticleAdapterSource, /sourceLeft/);
+  assert.doesNotMatch(textParticleAdapterSource, /ctx\.clip\(\);\s*ctx\.drawImage\(snapshot, 0, 0, width, height\)/);
   assert.match(textParticleAdapterSource, /drawTextParticleScanLine/);
   assert.match(textParticleAdapterSource, /scanLineRange/);
   assert.match(textParticleAdapterSource, /ctx\.moveTo\(frontier, lineTop\)/);
@@ -255,7 +285,7 @@ test("text particle scan remains normalized and reversible", () => {
   assert.equal(textParticleScanProgress(0), 0);
   assert.equal(textParticleScanProgress(1), 1);
   assert.match(textParticleAdapterSource, /real reaction band/);
-  assert.match(textParticleAdapterSource, /ctx\.drawImage\(input\.to[\s\S]*?ctx\.drawImage\(input\.from/);
+  assert.match(textParticleAdapterSource, /drawSnapshotSlice\(ctx, input\.to[\s\S]*?drawSnapshotSlice\(ctx, input\.from/);
   assert.doesNotMatch(textParticleAdapterSource, /fillRect\(frontier/);
 });
 
@@ -458,7 +488,7 @@ test("the evidence chapter is real document content with consistent paced input"
   assert.match(dioramaStyles, /\.home-evidence\s*\{[\s\S]*?position:\s*absolute[\s\S]*?top:\s*277dvh[\s\S]*?min-height:\s*348dvh/);
   assert.match(dioramaSource, /const scrollRangeEl = motionEl \?\? shellEl/);
   assert.match(dioramaSource, /const WORK_FLOW_START_PROGRESS = STORY_MODE_END \* 0\.58/);
-  assert.match(dioramaSource, /const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END \* 0\.82/);
+  assert.match(dioramaSource, /const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END \* 0\.96/);
   assert.match(
     dioramaSource,
     /physicalScroll <= metrics\.flowStart[\s\S]*?metrics\.flowStartProgress[\s\S]*?physicalScroll \/ Math\.max\(1, metrics\.flowStart\)/,
@@ -469,7 +499,10 @@ test("the evidence chapter is real document content with consistent paced input"
   );
   assert.match(dioramaSource, /physicalScroll < metrics\.flowEnd[\s\S]*?metrics\.flowEndProgress/);
   assert.doesNotMatch(dioramaSource, /isEvidenceFlowActive\(\) &&[\s\S]*?isFastHomeScrollInput/);
-  assert.match(dioramaSource, /startupGateReleased && !evidenceFlowActive/);
+  assert.match(
+    dioramaSource,
+    /cueEl\?\.setAttribute\("data-home-visible", startupGateReleased \? "true" : "false"\)/,
+  );
   assert.match(dioramaSource, /const getWorkTodayPushState = \(\) =>/);
   assert.match(dioramaStyles, /\.home-evidence__item\[data-home-work-last\]\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*0[\s\S]*?min-height:\s*100dvh/);
   assert.match(dioramaStyles, /\.home-evidence__release\s*\{[\s\S]*?min-height:\s*118dvh/);
@@ -482,6 +515,8 @@ test("the evidence chapter is real document content with consistent paced input"
   assert.match(dioramaSource, /evidenceReleaseEl\.offsetTop - lastEvidenceItemEl\.offsetHeight/);
   assert.match(dioramaSource, /const pushStart = landedAt \+ holdDistance/);
   assert.match(dioramaSource, /HOME_MOTION_TIMING\.workToday\.holdBeforeViewport/);
+  assert.match(dioramaSource, /evidenceReleaseEl\.offsetHeight \* 0\.98/);
+  assert.match(dioramaSource, /evidenceReleaseEl\.offsetHeight \* 0\.02/);
   assert.match(dioramaSource, /landed:\s*physicalScroll >= landedAt/);
   assert.match(dioramaSource, /workTodayPush\.landed[\s\S]*?translate3d\(\$\{window\.innerWidth\}px, 0, 0\)/);
   assert.match(dioramaSource, /metrics\.flowEnd - settleDistance/);

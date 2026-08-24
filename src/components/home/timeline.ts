@@ -3,17 +3,14 @@ import {
   motionPlanGlyphs,
   type HomeMotionPlan,
 } from "./homeMotionPlan.ts";
-import type { HomeStoryScene } from "./homeStoryTypes.ts";
+import type {
+  HomeStoryScene,
+  HomeStorySceneTransitionMode,
+} from "./homeStoryTypes.ts";
 
 export type HomeStoryChapter = HomeStoryScene;
 
-export type HomeStoryTransitionMode =
-  | "auto"
-  | "blinds"
-  | "crossfade"
-  | "glyph-stream"
-  | "particles"
-  | "text-particles";
+export type HomeStoryTransitionMode = HomeStorySceneTransitionMode;
 
 export type HomeStoryEdge = {
   id: string;
@@ -113,7 +110,7 @@ export const createHomeStoryTimeline = (
         id: `${scene.id}->${next.id}`,
         from: scene.id,
         to: next.id,
-        mode: "auto",
+        mode: scene.transitionMode ?? "auto",
       },
       from: scene,
       to: next,
