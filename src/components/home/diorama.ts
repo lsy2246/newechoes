@@ -1967,13 +1967,13 @@ export function initDiorama() {
     const overlayTargetAspect = W / H;
     const sourceW = isWideOverlay
       ? overlayTargetAspect >= overlaySourceAspect
-        ? Math.max(screenCanvas.width, W)
-        : Math.round(Math.max(screenCanvas.height, H) * overlaySourceAspect)
+        ? W
+        : Math.round(H * overlaySourceAspect)
       : W;
     const sourceH = isWideOverlay
       ? overlayTargetAspect >= overlaySourceAspect
-        ? Math.round(Math.max(screenCanvas.width, W) / overlaySourceAspect)
-        : Math.max(screenCanvas.height, H)
+        ? Math.round(W / overlaySourceAspect)
+        : H
       : H;
     const cacheKey = [
       overlayDevice,
@@ -2025,10 +2025,9 @@ export function initDiorama() {
     storyCtx.imageSmoothingEnabled = true;
     storyCtx.imageSmoothingQuality = "high";
     if (isWideOverlay) {
-      const scale = Math.max(W / cachedFrame.width, H / cachedFrame.height);
-      const drawW = cachedFrame.width * scale;
-      const drawH = cachedFrame.height * scale;
-      storyCtx.drawImage(cachedFrame, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
+      const drawX = Math.round((W - cachedFrame.width) / 2);
+      const drawY = Math.round((H - cachedFrame.height) / 2);
+      storyCtx.drawImage(cachedFrame, drawX, drawY);
     } else {
       storyCtx.drawImage(cachedFrame, 0, 0);
     }

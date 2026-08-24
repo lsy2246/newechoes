@@ -396,7 +396,7 @@ test("mobile keeps the completed work snapshot stable between transition edges",
   );
 });
 
-test("prepared snapshots keep texture and overlay layout metrics separate", () => {
+test("prepared snapshots preserve the destination pixel and layout ratios", () => {
   const cacheKey = storySource.match(/const key = \[[\s\S]*?\]\.join\("\|"\);/)?.[0] ?? "";
 
   assert.ok(cacheKey.includes("ctx.canvas.width"));
@@ -408,6 +408,10 @@ test("prepared snapshots keep texture and overlay layout metrics separate", () =
     storySource,
     /designLayoutScale: Math\.max\([\s\S]*?input\.designLayoutScale \?\? input\.layoutPixelRatio \?\? 1/,
   );
+  assert.match(storySource, /pixelRatio: input\.pixelRatio,/);
+  assert.match(storySource, /layoutPixelRatio: input\.layoutPixelRatio,/);
+  assert.match(storySource, /const snapshotInput = snapshotStoryInput\(input\);/);
+  assert.doesNotMatch(storySource, /pixelRatio: 1,\s*layoutPixelRatio: snapshotLayoutRatio/);
 });
 
 test("the home story timeline covers every boundary without gaps", () => {

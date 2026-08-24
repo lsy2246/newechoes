@@ -2236,11 +2236,11 @@ type PreparedHomeTransition = {
 };
 
 const preparedHomeTransitions = new Map<string, PreparedHomeTransition>();
-// Keep only the texture and overlay snapshot pair for the active edge. The
-// existing outer frame cache already owns the final composited frames.
-const HOME_TRANSITION_CACHE_LIMIT = 2;
-const HOME_TRANSITION_SNAPSHOT_MAX_DESKTOP = 1920;
-const HOME_TRANSITION_SNAPSHOT_MAX_MOBILE = 1440;
+// Transition snapshots contain text, so they must match the destination
+// canvas pixel-for-pixel. A smaller intermediate surface is always enlarged
+// by the adapters and permanently softens every glyph during the handoff.
+// Keep only the active edge pair to bound the extra full-resolution memory.
+const HOME_TRANSITION_CACHE_LIMIT = 1;
 
 const createTransitionCanvas = (width: number, height: number): TransitionSnapshot => {
   if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(width, height);
@@ -2275,45 +2275,22 @@ const drawSnapshot = (
 
 const snapshotSizeFor = (
   ctx: CanvasRenderingContext2D,
-  device: HomeScreenStoryDevice,
-) => {
-  const width = ctx.canvas.width;
-  const height = ctx.canvas.height;
-  const maxDimension = device === "mobile"
-    ? HOME_TRANSITION_SNAPSHOT_MAX_MOBILE
-    : HOME_TRANSITION_SNAPSHOT_MAX_DESKTOP;
-  const scale = Math.min(1, maxDimension / Math.max(1, width, height));
-  return {
-    width: Math.max(1, Math.round(width * scale)),
-    height: Math.max(1, Math.round(height * scale)),
-  };
-};
+) => ({
+  width: Math.max(1, ctx.canvas.width),
+  height: Math.max(1, ctx.canvas.height),
+});
 
 const snapshotStoryInput = (
   input: StoryInput,
-  targetWidth: number,
-  targetHeight: number,
-  snapshotWidth: number,
-  snapshotHeight: number,
-): StoryInput => {
-  const pixelRatio = Math.max(1, input.pixelRatio ?? 1);
-  const layoutPixelRatio = Math.max(1, input.layoutPixelRatio ?? pixelRatio);
-  const targetLayoutWidth = (targetWidth / pixelRatio) * layoutPixelRatio;
-  const targetLayoutHeight = (targetHeight / pixelRatio) * layoutPixelRatio;
-  const snapshotLayoutRatio = Math.max(
+): StoryInput => ({
+  ...input,
+  pixelRatio: input.pixelRatio,
+  layoutPixelRatio: input.layoutPixelRatio,
+  designLayoutScale: Math.max(
     1,
-    Math.min(targetLayoutWidth / snapshotWidth, targetLayoutHeight / snapshotHeight),
-  );
-  return {
-    ...input,
-    pixelRatio: 1,
-    layoutPixelRatio: snapshotLayoutRatio,
-    designLayoutScale: Math.max(
-      1,
-      input.designLayoutScale ?? input.layoutPixelRatio ?? 1,
-    ),
-  };
-};
+    input.designLayoutScale ?? input.layoutPixelRatio ?? 1,
+  ),
+});
 
 const prepareHomeTransition = (
   ctx: CanvasRenderingContext2D,
@@ -2321,7 +2298,7 @@ const prepareHomeTransition = (
   segment: Extract<HomeStoryTimelineSegment, { kind: "transition" }>,
   adapter: TransitionAdapter,
 ) => {
-  const size = snapshotSizeFor(ctx, input.device);
+  const size = snapshotSizeFor(ctx);
   const motionPlan = segment.motionPlans[input.device];
   const planGlyphs = motionPlanGlyphs(motionPlan).map((glyph) => ({
     ...glyph,
@@ -2367,13 +2344,7 @@ const prepareHomeTransition = (
   const fromCtx = getTransitionContext(from);
   const toCtx = getTransitionContext(to);
   if (!fromCtx || !toCtx) return null;
-  const snapshotInput = snapshotStoryInput(
-    input,
-    ctx.canvas.width,
-    ctx.canvas.height,
-    size.width,
-    size.height,
-  );
+  const snapshotInput = snapshotStoryInput(input);
   drawSnapshot(
     fromCtx,
     segment.from.id === "work" ? { ...snapshotInput, snapshotScene: "work" } : snapshotInput,

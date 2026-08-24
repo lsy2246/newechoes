@@ -27,7 +27,7 @@ test("home 3D renderer uses a gentler DPR cap while the 2D story canvas stays cr
   );
 });
 
-test("home story overlay avoids upscaling cached desktop frames", () => {
+test("home story overlay composites cached desktop frames at a native 1:1 pixel scale", () => {
   assert.match(
     dioramaTs,
     /const overlaySourceAspect = screenCanvas\.width \/ screenCanvas\.height;/,
@@ -38,25 +38,30 @@ test("home story overlay avoids upscaling cached desktop frames", () => {
   );
   assert.match(
     dioramaTs,
-    /const sourceW = isWideOverlay\s*\?\s*overlayTargetAspect >= overlaySourceAspect\s*\?\s*Math\.max\(screenCanvas\.width, W\)/,
+    /const sourceW = isWideOverlay\s*\?\s*overlayTargetAspect >= overlaySourceAspect\s*\?\s*W\s*:\s*Math\.round\(H \* overlaySourceAspect\)\s*:\s*W;/,
   );
   assert.match(
     dioramaTs,
-    /:\s*Math\.round\(Math\.max\(screenCanvas\.height, H\) \* overlaySourceAspect\)\s*:\s*W;/,
+    /const sourceH = isWideOverlay\s*\?\s*overlayTargetAspect >= overlaySourceAspect\s*\?\s*Math\.round\(W \/ overlaySourceAspect\)\s*:\s*H\s*:\s*H;/,
   );
-  assert.match(
-    dioramaTs,
-    /const sourceH = isWideOverlay\s*\?\s*overlayTargetAspect >= overlaySourceAspect\s*\?\s*Math\.round\(Math\.max\(screenCanvas\.width, W\) \/ overlaySourceAspect\)/,
-  );
-  assert.match(
-    dioramaTs,
-    /:\s*Math\.max\(screenCanvas\.height, H\)\s*:\s*H;/,
-  );
+  assert.doesNotMatch(dioramaTs, /Math\.max\(screenCanvas\.(?:width|height), [WH]\)/);
+  assert.match(dioramaTs, /storyCtx\.drawImage\(cachedFrame, drawX, drawY\);/);
+  assert.doesNotMatch(dioramaTs, /const scale = Math\.max\(W \/ cachedFrame\.width/);
 });
 
 test("home story overlay uses high quality resampling when scaling", () => {
   assert.match(dioramaTs, /storyCtx\.imageSmoothingEnabled = true;/);
   assert.match(dioramaTs, /storyCtx\.imageSmoothingQuality = "high";/);
+});
+
+test("home transition text snapshots stay at the destination canvas resolution", () => {
+  assert.match(homeStoryTs, /const HOME_TRANSITION_CACHE_LIMIT = 1;/);
+  assert.doesNotMatch(homeStoryTs, /HOME_TRANSITION_SNAPSHOT_MAX_/);
+  assert.match(
+    homeStoryTs,
+    /const snapshotSizeFor = \(\s*ctx: CanvasRenderingContext2D,\s*\) => \(\{\s*width: Math\.max\(1, ctx\.canvas\.width\),\s*height: Math\.max\(1, ctx\.canvas\.height\),\s*\}\);/,
+  );
+  assert.match(homeStoryTs, /const size = snapshotSizeFor\(ctx\);/);
 });
 
 test("home story drawing preserves the old visual scale after DPR scaling", () => {
