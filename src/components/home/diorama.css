@@ -117,23 +117,46 @@
 }
 
 .home-evidence__intro {
+  --home-evidence-intro-inset: clamp(1.5rem, 4.5vw, 4rem);
   min-height: 60dvh;
   display: grid;
   align-content: center;
-  grid-template-columns: minmax(11rem, 0.34fr) minmax(0, 1fr);
-  gap: clamp(2rem, 6vw, 8rem);
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: clamp(1rem, 1.6vw, 1.5rem);
   padding-block: clamp(6rem, 14vh, 11rem);
+  padding-inline: var(--home-evidence-intro-inset);
 }
 
+.home-evidence__intro-copy {
+  min-width: 0;
+  display: grid;
+  gap: clamp(1.5rem, 2.5vw, 2.5rem);
+}
+
+.home-evidence__intro-number,
 .home-evidence__eyebrow,
 .home-evidence__number,
-.home-evidence__identity p,
+.home-evidence__item-kicker,
+.home-evidence__item-label,
 .home-evidence__item li {
   margin: 0;
   font-family: "JetBrains Mono", ui-monospace, monospace;
 }
 
+.home-evidence__intro-number {
+  padding-top: 0.6rem;
+  color: #6f5fa6;
+  font-size: clamp(0.72rem, 1vw, 0.86rem);
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+[data-theme="dark"] .home-evidence__intro-number {
+  color: #b8aadf;
+}
+
 .home-evidence__eyebrow {
+  max-width: 38rem;
   padding-top: 0.6rem;
   font-size: clamp(0.72rem, 1vw, 0.86rem);
   font-weight: 600;
@@ -143,13 +166,13 @@
 }
 
 .home-evidence__intro h2 {
-  max-width: 17ch;
+  max-width: 12ch;
   margin: 0;
   font-family: "Fraunces", "Noto Serif SC", serif;
-  font-size: clamp(3.1rem, 7vw, 7.4rem);
+  font-size: clamp(3.1rem, 5.4vw, 6rem);
   font-weight: 500;
-  line-height: 0.93;
-  letter-spacing: -0.055em;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
 }
 
 .home-evidence__list {
@@ -164,7 +187,7 @@
   min-height: 48dvh;
   display: grid;
   align-content: center;
-  grid-template-columns: 4rem minmax(12rem, 0.72fr) minmax(15rem, 1fr) minmax(12rem, 0.72fr);
+  grid-template-columns: minmax(16rem, 0.86fr) minmax(15rem, 1fr) minmax(12rem, 0.72fr);
   gap: clamp(1.5rem, 4vw, 5rem);
   padding-block: clamp(4rem, 10vh, 8rem);
   border-bottom: 1px solid rgba(16, 16, 16, 0.16);
@@ -198,7 +221,7 @@
   z-index: 10;
   display: grid;
   align-content: center;
-  grid-template-columns: 4rem minmax(12rem, 0.72fr) minmax(15rem, 1fr) minmax(12rem, 0.72fr);
+  grid-template-columns: minmax(16rem, 0.86fr) minmax(15rem, 1fr) minmax(12rem, 0.72fr);
   gap: clamp(1.5rem, 4vw, 5rem);
   padding-block: clamp(4rem, 10vh, 8rem);
   padding-inline: var(--home-evidence-gutter);
@@ -237,32 +260,48 @@
   border-bottom-color: rgba(245, 247, 250, 0.16);
 }
 
-.home-evidence__number {
-  align-self: start;
-  padding-top: 0.48rem;
-  color: #6f5fa6;
-  font-size: 0.78rem;
+.home-evidence__item-heading {
+  min-width: 0;
+}
+
+.home-evidence__item-kicker {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.76rem;
   font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.home-evidence__number {
+  color: #6f5fa6;
 }
 
 [data-theme="dark"] .home-evidence__number {
   color: #b8aadf;
 }
 
-.home-evidence__identity p {
-  margin-bottom: 0.7rem;
-  color: rgba(16, 16, 16, 0.58);
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.home-evidence__item-kicker > span {
+  color: rgba(16, 16, 16, 0.3);
 }
 
-[data-theme="dark"] .home-evidence__identity p {
+.home-evidence__item-label {
+  margin: 0;
+  color: rgba(16, 16, 16, 0.58);
+}
+
+[data-theme="dark"] .home-evidence__item-kicker > span {
+  color: rgba(245, 247, 250, 0.3);
+}
+
+[data-theme="dark"] .home-evidence__item-label {
   color: rgba(245, 247, 250, 0.58);
 }
 
-.home-evidence__identity h3 {
+.home-evidence__item-heading h3 {
   margin: 0;
   font-family: "Fraunces", "Noto Serif SC", serif;
   font-size: clamp(2.4rem, 4.7vw, 5.2rem);
@@ -1948,10 +1987,11 @@
   }
 
   .home-evidence__intro {
+    --home-evidence-intro-inset: 0rem;
     min-height: 54dvh;
-    grid-template-columns: 1fr;
+    grid-template-columns: 2.2rem minmax(0, 1fr);
     align-content: end;
-    gap: 1.5rem;
+    gap: 1rem;
     padding-block: 7rem 4rem;
   }
 
@@ -1962,26 +2002,25 @@
 
   .home-evidence__item {
     min-height: 50dvh;
-    grid-template-columns: 2.2rem minmax(0, 1fr);
-    gap: 1rem 1.3rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
     padding-block: 4rem;
   }
 
   .home-evidence[data-work-push-active]
     .home-evidence__item[data-home-work-last]
     .home-evidence__item-frame {
-    grid-template-columns: 2.2rem minmax(0, 1fr);
-    gap: 1rem 1.3rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
     padding-block: 4rem;
   }
 
-  .home-evidence__identity,
   .home-evidence__note,
   .home-evidence__item ul {
-    grid-column: 2;
+    grid-column: 1;
   }
 
-  .home-evidence__identity h3 {
+  .home-evidence__item-heading h3 {
     font-size: clamp(2.6rem, 14vw, 4.8rem);
   }
 

@@ -541,6 +541,40 @@ test("the evidence chapter is real document content with consistent paced input"
   );
 });
 
+test("the work overview keeps its number attached to the title group", () => {
+  assert.match(
+    dioramaMarkup,
+    /home-evidence__intro-number[\s\S]*?>03<[\s\S]*?home-evidence__intro-copy[\s\S]*?home-evidence__eyebrow/,
+  );
+  assert.match(
+    dioramaStyles,
+    /\.home-evidence__intro\s*\{[\s\S]*?grid-template-columns:\s*2\.5rem minmax\(0, 1fr\);[\s\S]*?gap:\s*clamp\(1rem, 1\.6vw, 1\.5rem\);[\s\S]*?padding-inline:\s*var\(--home-evidence-intro-inset\);/,
+  );
+  assert.match(
+    dioramaStyles,
+    /\.home-evidence__intro h2\s*\{[\s\S]*?max-width:\s*12ch;[\s\S]*?font-size:\s*clamp\(3\.1rem, 5\.4vw, 6rem\);/,
+  );
+  assert.doesNotMatch(
+    dioramaStyles,
+    /\.home-evidence__intro\s*\{[\s\S]*?grid-template-columns:\s*minmax\(11rem, 0\.34fr\)/,
+  );
+});
+
+test("each work item keeps its number inside the project kicker", () => {
+  assert.match(
+    dioramaMarkup,
+    /home-evidence__item-heading[\s\S]*?home-evidence__item-kicker[\s\S]*?home-evidence__number[\s\S]*?<span aria-hidden="true">\/<\/span>[\s\S]*?home-evidence__item-label/,
+  );
+  assert.match(
+    dioramaStyles,
+    /\.home-evidence__item-kicker\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*baseline;[\s\S]*?gap:\s*0\.65rem;/,
+  );
+  assert.doesNotMatch(
+    dioramaStyles,
+    /\.home-evidence__item-heading\s*\{[^}]*grid-template-columns:/,
+  );
+});
+
 test("timeline resolution is reversible on both sides of every boundary", () => {
   const checkpoints = new Set([0, 1]);
 

@@ -105,8 +105,11 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
 
     <section class="home-evidence" data-home-evidence aria-labelledby="home-evidence-title">
     <header class="home-evidence__intro" data-home-beat="work-overview">
-      <p class="home-evidence__eyebrow">03 / {content.projects.heading}</p>
-      <h2 id="home-evidence-title">{content.projects.subheading}</h2>
+      <p class="home-evidence__intro-number" aria-hidden="true">03</p>
+      <div class="home-evidence__intro-copy">
+        <p class="home-evidence__eyebrow">{content.projects.heading}</p>
+        <h2 id="home-evidence-title">{content.projects.subheading}</h2>
+      </div>
     </header>
 
     <div class="home-evidence__list">
@@ -120,9 +123,12 @@ const autoPostsLabel = `${postCount} 篇 · 近 ${years} 年`;
             class="home-evidence__item-frame"
             data-home-work-push-frame={index === content.projects.items.length - 1 ? "" : undefined}
           >
-            <p class="home-evidence__number">{String(index + 1).padStart(2, "0")}</p>
-            <div class="home-evidence__identity">
-              <p>{project.label}</p>
+            <div class="home-evidence__item-heading">
+              <div class="home-evidence__item-kicker">
+                <p class="home-evidence__number">{String(index + 1).padStart(2, "0")}</p>
+                <span aria-hidden="true">/</span>
+                <p class="home-evidence__item-label">{project.label}</p>
+              </div>
               <h3>{project.title}</h3>
             </div>
             <p class="home-evidence__note">{project.note}</p>
