@@ -45,7 +45,10 @@ test("home story gives earlier handoffs more time and makes today a brief beat",
   assert.match(homeIndex, /id: "classify",[\s\S]*?transitionWeight: 0\.31,/);
   assert.match(homeIndex, /id: "work",[\s\S]*?transitionWeight: 0\.025,/);
   assert.match(homeIndex, /id: "today",[\s\S]*?canonicalWeight: 0\.005,/);
-  assert.match(dioramaTs, /const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END \* 0\.96;/);
+  assert.match(
+    dioramaTs,
+    /const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END \* \(workTodayEdge\?\.start \?\? 0\.97\);/,
+  );
   assert.match(dioramaTs, /evidenceReleaseEl\.offsetHeight \* 0\.98/);
   assert.match(dioramaTs, /evidenceReleaseEl\.offsetHeight \* 0\.02/);
 });

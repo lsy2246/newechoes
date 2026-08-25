@@ -30,6 +30,7 @@ type StoryInput = {
   reducedMotion?: boolean;
   transitionRevision?: number;
   snapshotScene?: "work";
+  nativeWorkFlow?: boolean;
   timeline: readonly HomeStoryTimelineSegment[];
   now: string;
   screenTitle: string;
@@ -415,9 +416,13 @@ const drawMobileStory = (
   const safeW = width - safeX * 2;
   const safeH = height - safeTop - safeBottom;
   const safe: Rect = { x: safeX, y: safeTop, w: safeW, h: safeH };
-  const titleSize = clamp(width * 0.125, 140, 184);
-  const bodySize = clamp(width * 0.045, 50, 68);
-  const smallSize = clamp(width * 0.034, 38, 50);
+  // These values are authored against the 390 × 844 mobile layout. Narrow
+  // full-screen canvases get a readability lift, while the 1120 × 2400
+  // device texture keeps its original visual scale.
+  const overlayTypographyScale = width < 700 ? 1.45 : 1;
+  const titleSize = 49 * unit * overlayTypographyScale;
+  const bodySize = 20 * unit * overlayTypographyScale;
+  const smallSize = 17 * unit * overlayTypographyScale;
   const mobileInputNumberW = 34 * unit;
   const mobileInputTitleMinSize = 9.2 * unit;
   const tracks = input.lanes.items;
@@ -466,19 +471,19 @@ const drawMobileStory = (
     weight = 600,
     maxLines = 2,
   ) => {
-    const words = value.split(" ");
+    const characters = Array.from(value);
     const lines: string[] = [];
     let current = "";
-    words.forEach((word) => {
-      const next = current ? `${current} ${word}` : word;
+    characters.forEach((character) => {
+      const next = `${current}${character}`;
       if (measure(next, size, font, weight) <= maxWidth || !current) {
         current = next;
         return;
       }
-      lines.push(current);
-      current = word;
+      lines.push(current.trimEnd());
+      current = character.trimStart();
     });
-    if (current) lines.push(current);
+    if (current) lines.push(current.trimEnd());
     return lines.slice(0, maxLines);
   };
 
@@ -564,7 +569,17 @@ const drawMobileStory = (
   ];
   const mobileIntroSlots = introLabelRects.map((rect) => ({ ...rect }));
 
-  const drawMobileChapterTitle = (chapter: string, amount: number, nextChapter = chapter, nextAmount = 0) => {
+  type MobileChapterCopy = {
+    heading: string;
+    statement: string;
+  };
+
+  const drawMobileChapterTitle = (
+    chapter: MobileChapterCopy,
+    amount: number,
+    nextChapter = chapter,
+    nextAmount = 0,
+  ) => {
     const heroSize = width * 0.25;
     const titleFont = "'Fraunces', 'Noto Serif SC', serif";
     const startX = introHeroX - measure(input.screenTitle, heroSize, titleFont, 500) / 2;
@@ -577,35 +592,47 @@ const drawMobileStory = (
     const size = lerp(heroSize, smallSize * 1.08, titleSizeTravel);
     const x = lerp(startX, endX, titleXTravel);
     const y = lerp(startY, endY, titleYTravel);
-    const chapterSize = smallSize * 1.08;
-    const label = ` / ${chapter}`;
-    const nextLabel = ` / ${nextChapter}`;
-    const labelX = x + measure(input.screenTitle, size, titleFont, 500) + 8 * unit;
-    const labelReveal = phase(amount, 0.34, 0.72);
-    const labelW = measure(label, chapterSize, "'JetBrains Mono', monospace", 700);
-    const nextLabelW = measure(nextLabel, chapterSize, "'JetBrains Mono', monospace", 700);
+    const heroAlpha = 1 - phase(amount, 0.28, 0.66);
+    const copyAlpha = phase(amount, 0.34, 0.72);
+    const headingSize = smallSize;
+    const statementSize = bodySize * 0.86;
+    const statementY = endY + 29 * unit;
     const handoff = nextChapter === chapter ? 0 : clamp(nextAmount);
+    const currentCopyAlpha = 1 - phase(handoff, 0.16, 0.5);
+    const nextCopyAlpha = phase(handoff, 0.24, 0.58);
 
-    text(input.screenTitle, x, y, size, palette.text, titleFont, 500);
-    if (handoff <= 0.001) {
-      clipRect({ x: labelX, y: y - chapterSize * 1.2, w: labelW * labelReveal, h: chapterSize * 1.7 }, () => {
-        text(label, labelX, y, chapterSize, palette.accent, "'JetBrains Mono', monospace", 700);
+    const drawChapterCopy = (copy: MobileChapterCopy, alpha: number) => {
+      withAlpha(ctx, copyAlpha * alpha, () => {
+        textFit(
+          copy.heading,
+          endX,
+          endY,
+          headingSize,
+          safe.w,
+          palette.accent,
+          "'JetBrains Mono', monospace",
+          700,
+          headingSize * 0.72,
+        );
+        textFit(
+          copy.statement,
+          endX,
+          statementY,
+          statementSize,
+          safe.w,
+          palette.text,
+          titleFont,
+          600,
+          statementSize * 0.58,
+        );
       });
-      return;
-    }
+    };
 
-    const labelClipW = Math.max(labelW, nextLabelW) * labelReveal;
-    const currentLabelAlpha = 1 - phase(handoff, 0.16, 0.5);
-    const nextLabelAlpha = phase(handoff, 0.24, 0.58);
-
-    clipRect({ x: labelX, y: y - chapterSize * 1.2, w: labelClipW, h: chapterSize * 1.7 }, () => {
-      withAlpha(ctx, currentLabelAlpha, () => {
-        text(label, labelX, y, chapterSize, palette.accent, "'JetBrains Mono', monospace", 700);
-      });
-      withAlpha(ctx, nextLabelAlpha, () => {
-        text(nextLabel, labelX, y, chapterSize, palette.accent, "'JetBrains Mono', monospace", 700);
-      });
+    withAlpha(ctx, heroAlpha, () => {
+      text(input.screenTitle, x, y, size, palette.text, titleFont, 500);
     });
+    drawChapterCopy(chapter, currentCopyAlpha);
+    drawChapterCopy(nextChapter, nextCopyAlpha);
   };
 
   const drawMobileIntroRule = (rect: Rect, item: StoryMaterial, amount: number) => {
@@ -1060,7 +1087,10 @@ const drawMobileStory = (
     detailReveal = 1,
     textReveal = amount,
   ) => {
-    const pad = lerp(7 * unit, 8 * unit, amount);
+    // Keep the source copy on the exact classify grid while the surrounding
+    // cards move into the work layout. Interpolating this inset made every
+    // glyph drift horizontally at the renderer handoff.
+    const pad = 8 * unit;
     const maxWidth = rect.w - pad * 2;
     const sourceTrack = tracks[row.from];
     const textAmount = showSourceText ? amount : textReveal;
@@ -1072,6 +1102,27 @@ const drawMobileStory = (
     const headerNumberAlpha = Math.max(headerSourceAlpha, headerWorkAlpha, handoffHeaderAlpha);
     const workTitleSize = bodySize * lerp(0.62, 0.68, amount);
     const workBodyY = Math.min(rect.y + 132 * unit, rect.y + rect.h - 16 * unit);
+    const sourceTitleFont = "'Fraunces', 'Noto Serif SC', serif";
+    const sourceTitleSize = fitSize(sourceTrack.title, maxWidth, bodySize * 0.64, bodySize * 0.48, sourceTitleFont, 600);
+    const sourceTitleParts = sourceTrack.title.split(" / ");
+    const drawSourceTrackTitle = () => {
+      const titleX = rect.x + pad;
+      const titleY = rect.y + 79 * unit;
+      if (!row.active || sourceTitleParts.length < 2) {
+        text(sourceTrack.title, titleX, titleY, sourceTitleSize, palette.text, sourceTitleFont, 600);
+        return;
+      }
+
+      const neutralTitle = sourceTitleParts[0] ?? "";
+      const accentTitle = sourceTitleParts.slice(1).join(" / ");
+      const neutralWidth = measure(neutralTitle, sourceTitleSize, sourceTitleFont, 600);
+      const slashGap = 8 * unit;
+      const slashX = titleX + neutralWidth + slashGap;
+      const slashWidth = measure("/", sourceTitleSize, sourceTitleFont, 600);
+      text(neutralTitle, titleX, titleY, sourceTitleSize, palette.text, sourceTitleFont, 600);
+      text("/", slashX, titleY, sourceTitleSize, palette.aiAccent, sourceTitleFont, 600);
+      text(accentTitle, slashX + slashWidth + slashGap, titleY, sourceTitleSize, palette.aiAccent, sourceTitleFont, 600);
+    };
     const clip: Rect = {
       x: rect.x - 8 * unit,
       y: rect.y - 10 * unit,
@@ -1095,7 +1146,7 @@ const drawMobileStory = (
       }
 
       withAlpha(ctx, sourceTextAlpha, () => {
-        textFit(sourceTrack.title, rect.x + pad, rect.y + 79 * unit, bodySize * 0.64, maxWidth, row.active ? palette.aiAccent : palette.text, "'Fraunces', 'Noto Serif SC', serif", 600, bodySize * 0.48);
+        drawSourceTrackTitle();
         wrapText(sourceTrack.note, maxWidth, smallSize * 0.54, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
           text(line, rect.x + pad, rect.y + 108 * unit, smallSize * 0.54, palette.muted, "'JetBrains Mono', monospace", 600);
         });
@@ -1378,6 +1429,12 @@ const drawMobileStory = (
   const todayMorph = phase(progress, 0.88, 0.98);
   const inputChapterHandoff = phase(inputToClassify, 0.66, 0.94);
   const workChapterHandoff = phase(classifyToWork, 0.18, 0.58);
+  const chapterCopies = {
+    input: { heading: input.sources.heading, statement: input.sources.subheading },
+    classify: { heading: input.lanes.heading, statement: input.lanes.subheading },
+    work: { heading: input.projects.heading, statement: input.projects.subheading },
+    today: { heading: `today / ${input.screenTitle}`, statement: input.current.role },
+  } as const;
   const chapter = inputToClassify < 0.94 ? "input" : todayMorph < 0.08 ? classifyToWork < 0.9 ? "classify" : "work" : "today";
   const nextChapter = chapter === "input" ? "classify" : chapter === "classify" && classifyToWork > 0.08 ? "work" : chapter;
   const chapterHandoff = chapter === "input" ? inputChapterHandoff : chapter === "classify" ? workChapterHandoff : 0;
@@ -1436,9 +1493,9 @@ const drawMobileStory = (
   }
 
   if (input.snapshotScene === "work") {
-    drawMobileChapterTitle("work", titleMorph, "work", 0);
+    drawMobileChapterTitle(chapterCopies.work, titleMorph, chapterCopies.work, 0);
   } else {
-    drawMobileChapterTitle(chapter, titleMorph, nextChapter, chapterHandoff);
+    drawMobileChapterTitle(chapterCopies[chapter], titleMorph, chapterCopies[nextChapter], chapterHandoff);
   }
 
 };
@@ -1451,8 +1508,15 @@ const drawDesktopStory = (
   width = ctx.canvas.width,
   height = ctx.canvas.height,
 ) => {
+  const layoutScale = Math.max(
+    1,
+    input.designLayoutScale ?? input.layoutPixelRatio ?? 1,
+  );
+  const compactLandscape = width / layoutScale <= 700;
   const unit = clamp(Math.min(width / 1280, height / 760), 0.88, 1.2);
-  const safeX = Math.max(180 * unit, width * 0.135);
+  const safeX = compactLandscape
+    ? Math.max(32 * unit, width * 0.045)
+    : Math.max(180 * unit, width * 0.135);
   const tracks = input.lanes.items;
   const materials: StoryMaterial[] = input.sources.cards.map((item, index) => ({
     ...item,
@@ -1471,10 +1535,6 @@ const drawDesktopStory = (
   // Anchor the editorial stage to the shared max-w-7xl header frame while
   // allowing a small cinematic overscan on both sides. Canvas layout
   // coordinates include layout DPR, so scale both values before drawing.
-  const layoutScale = Math.max(
-    1,
-    input.designLayoutScale ?? input.layoutPixelRatio ?? 1,
-  );
   const sharedFrameW = 1280 * layoutScale;
   const stageOverscan = 160 * layoutScale;
   const stageW = Math.min(
@@ -1532,19 +1592,19 @@ const drawDesktopStory = (
     weight = 600,
     maxLines = 2,
   ) => {
-    const words = value.split(" ");
+    const characters = Array.from(value);
     const lines: string[] = [];
     let current = "";
-    words.forEach((word) => {
-      const next = current ? `${current} ${word}` : word;
+    characters.forEach((character) => {
+      const next = `${current}${character}`;
       if (measure(next, size, font, weight) <= maxWidth || !current) {
         current = next;
         return;
       }
-      lines.push(current);
-      current = word;
+      lines.push(current.trimEnd());
+      current = character.trimStart();
     });
-    if (current) lines.push(current);
+    if (current) lines.push(current.trimEnd());
     return lines.slice(0, maxLines);
   };
 
@@ -1631,7 +1691,8 @@ const drawDesktopStory = (
       text(label, x, y, 29 * unit, palette.accent, "'JetBrains Mono', monospace", 700);
       drawEditorialRule(x, y + 18 * unit, Math.min(156 * unit, (safeRight - x) * 0.28), true);
       const titleFont = "'Fraunces', 'Noto Serif SC', serif";
-      const titleSize = Math.min(48 * unit, ((safeRight - x) * 0.96) / Math.max(1, measure(title, 1, titleFont, 600)));
+      const titleMaxWidth = Math.max(1, (safeRight - x) * 0.96);
+      const titleSize = fitSize(title, titleMaxWidth, 48 * unit, 20 * unit, titleFont, 600);
       text(title, x, y + 58 * unit, titleSize, palette.text, titleFont, 600);
     });
   };
@@ -1770,10 +1831,10 @@ const drawDesktopStory = (
   ];
 
   const inputCardW = stageW * 0.34;
-  const inputCardH = 112 * unit;
+  const inputCardH = (compactLandscape ? 94 : 112) * unit;
   const inputGapX = stageW * 0.075;
-  const inputGapY = 26 * unit;
-  const inputTop = centerY - 126 * unit;
+  const inputGapY = (compactLandscape ? 18 : 26) * unit;
+  const inputTop = centerY - (compactLandscape ? 88 : 126) * unit;
   const inputAreaW = inputCardW * 2 + inputGapX;
   const inputAreaX = centerX - inputAreaW / 2;
   const inputRects = materials.map((_, index) => {
@@ -1792,7 +1853,7 @@ const drawDesktopStory = (
   const trackX = centerX - trackAreaW / 2;
   const trackW = (trackAreaW - trackGap * 2) / 3;
   const trackH = 230 * unit;
-  const trackY = centerY - 118 * unit;
+  const trackY = centerY - (compactLandscape ? 70 : 118) * unit;
   const trackRects = tracks.map((_, index) => ({
     x: trackX + index * (trackW + trackGap),
     y: trackY,
@@ -1836,7 +1897,7 @@ const drawDesktopStory = (
   const workH = clamp(height * 0.3, 245 * unit, 300 * unit);
   const workRects = workRows.map((_, index) => ({
     x: workX + index * (workW + workGap),
-    y: centerY - workH * 0.47,
+    y: centerY - workH * (compactLandscape ? 0.32 : 0.47),
     w: workW,
     h: workH,
   }));
@@ -1913,8 +1974,20 @@ const drawDesktopStory = (
           text(item.title, layout.titleX, layout.titleY, layout.titleSize, item.active ? palette.aiAccent : palette.text, "'JetBrains Mono', monospace", 700);
 
         withAlpha(ctx, detailAlpha, () => {
-          wrapText(item.note, rect.w - layout.pad * 2, 17 * unit, "'JetBrains Mono', monospace", 600, 1).forEach((line) => {
-            text(line, rect.x + layout.pad, rect.y + rect.h - 22 * unit, 17 * unit, palette.muted, "'JetBrains Mono', monospace", 600);
+          const noteSize = (compactLandscape ? 15 : 17) * unit;
+          const noteLineHeight = (compactLandscape ? 17 : 20) * unit;
+          const noteBottomInset = (compactLandscape ? 18 : 22) * unit;
+          const noteLines = wrapText(
+            item.note,
+            rect.w - layout.pad * 2,
+            noteSize,
+            "'JetBrains Mono', monospace",
+            600,
+            compactLandscape ? 2 : 1,
+          );
+          const noteStartY = rect.y + rect.h - noteBottomInset - (noteLines.length - 1) * noteLineHeight;
+          noteLines.forEach((line, lineIndex) => {
+            text(line, rect.x + layout.pad, noteStartY + lineIndex * noteLineHeight, noteSize, palette.muted, "'JetBrains Mono', monospace", 600);
           });
         });
       });
@@ -2399,10 +2472,22 @@ export const drawHomeScreenStory = (ctx: CanvasRenderingContext2D, input: StoryI
   const progress = clamp(input.progress);
   const resolved = resolveHomeStoryTimeline(progress, input.timeline);
   if (!isHomeStoryTransitionSegment(resolved.segment)) {
+    const firstCanonical = input.timeline.find((segment) => segment.kind === "canonical");
+    const canonicalProgress = resolved.segment === firstCanonical
+      ? progress
+      : resolved.segment.scene.snapshotProgress;
     const canonicalInput = input.device === "mobile" && resolved.segment.id === "work"
       ? { ...input, snapshotScene: "work" as const }
       : input;
-    drawCanonicalHomeScreenStory(ctx, canonicalInput, progress);
+    drawCanonicalHomeScreenStory(ctx, canonicalInput, canonicalProgress);
+    return;
+  }
+
+  // The document-flow work chapter owns classify→work. Keep the Canvas on
+  // the settled classify snapshot underneath it so the old spatial morph and
+  // the native chapter entrance can never run at the same time.
+  if (input.nativeWorkFlow && resolved.segment.edge.id === "classify->work") {
+    drawCanonicalHomeScreenStory(ctx, input, resolved.segment.fromProgress);
     return;
   }
 

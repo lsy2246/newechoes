@@ -426,6 +426,15 @@ test("mobile keeps the completed work snapshot stable between transition edges",
   );
 });
 
+test("canonical holds and native work flow never run a second transition", () => {
+  assert.match(storySource, /const firstCanonical = input\.timeline\.find\(\(segment\) => segment\.kind === "canonical"\);/);
+  assert.match(storySource, /const canonicalProgress = resolved\.segment === firstCanonical[\s\S]*?resolved\.segment\.scene\.snapshotProgress;/);
+  assert.match(storySource, /drawCanonicalHomeScreenStory\(ctx, canonicalInput, canonicalProgress\);/);
+  assert.match(storySource, /input\.nativeWorkFlow && resolved\.segment\.edge\.id === "classify->work"/);
+  assert.match(storySource, /drawCanonicalHomeScreenStory\(ctx, input, resolved\.segment\.fromProgress\);/);
+  assert.match(dioramaSource, /if \(evidenceEl && resolved\.segment\.edge\.id === "classify->work"\) return false;/);
+});
+
 test("prepared snapshots preserve the destination pixel and layout ratios", () => {
   const cacheKey = storySource.match(/const key = \[[\s\S]*?\]\.join\("\|"\);/)?.[0] ?? "";
 
@@ -487,8 +496,11 @@ test("the evidence chapter is real document content with consistent paced input"
   assert.match(dioramaStyles, /\.home-diorama-motion--with-flow\s*\{[\s\S]*?min-height:\s*1036dvh/);
   assert.match(dioramaStyles, /\.home-evidence\s*\{[\s\S]*?position:\s*absolute[\s\S]*?top:\s*277dvh[\s\S]*?min-height:\s*348dvh/);
   assert.match(dioramaSource, /const scrollRangeEl = motionEl \?\? shellEl/);
-  assert.match(dioramaSource, /const WORK_FLOW_START_PROGRESS = STORY_MODE_END \* 0\.58/);
-  assert.match(dioramaSource, /const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END \* 0\.96/);
+  assert.match(dioramaSource, /segment\.edge\.id === "classify->work"/);
+  assert.match(dioramaSource, /segment\.edge\.id === "work->today"/);
+  assert.match(dioramaSource, /const WORK_FLOW_START_PROGRESS = STORY_MODE_END \* \(classifyWorkEdge\?\.start \?\? 0\.62\)/);
+  assert.match(dioramaSource, /const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END \* \(workTodayEdge\?\.start \?\? 0\.97\)/);
+  assert.match(dioramaSource, /nativeWorkFlow: Boolean\(evidenceEl\)/);
   assert.match(
     dioramaSource,
     /physicalScroll <= metrics\.flowStart[\s\S]*?metrics\.flowStartProgress[\s\S]*?physicalScroll \/ Math\.max\(1, metrics\.flowStart\)/,
@@ -561,4 +573,3 @@ test("timeline resolution is reversible on both sides of every boundary", () => 
 
   assert.deepEqual(backward, forward);
 });
-  assert.match(dioramaSource, /const WORK_FLOW_START_PROGRESS = STORY_MODE_END \* 0\.58/);

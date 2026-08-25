@@ -28,6 +28,12 @@ test("home 3D renderer uses a gentler DPR cap while the 2D story canvas stays cr
 });
 
 test("home story overlay composites every desktop frame at a native 1:1 pixel scale", () => {
+  assert.match(dioramaTs, /const HOME_STORY_COVER_OVERLAY_MIN_WIDTH = 700;/);
+  assert.match(dioramaTs, /const overlayCssWidth = W \/ storyCanvasDpr;/);
+  assert.match(
+    dioramaTs,
+    /const useDesktopCoverFrame = isWideOverlay && overlayCssWidth > HOME_STORY_COVER_OVERLAY_MIN_WIDTH;/,
+  );
   assert.match(
     dioramaTs,
     /const overlaySourceAspect = screenCanvas\.width \/ screenCanvas\.height;/,
@@ -38,15 +44,53 @@ test("home story overlay composites every desktop frame at a native 1:1 pixel sc
   );
   assert.match(
     dioramaTs,
-    /const sourceW = isWideOverlay\s*\?\s*overlayTargetAspect >= overlaySourceAspect\s*\?\s*W\s*:\s*Math\.round\(H \* overlaySourceAspect\)\s*:\s*W;/,
+    /const sourceW = useDesktopCoverFrame\s*\?\s*overlayTargetAspect >= overlaySourceAspect\s*\?\s*W\s*:\s*Math\.round\(H \* overlaySourceAspect\)\s*:\s*W;/,
   );
   assert.match(
     dioramaTs,
-    /const sourceH = isWideOverlay\s*\?\s*overlayTargetAspect >= overlaySourceAspect\s*\?\s*Math\.round\(W \/ overlaySourceAspect\)\s*:\s*H\s*:\s*H;/,
+    /const sourceH = useDesktopCoverFrame\s*\?\s*overlayTargetAspect >= overlaySourceAspect\s*\?\s*Math\.round\(W \/ overlaySourceAspect\)\s*:\s*H\s*:\s*H;/,
   );
   assert.doesNotMatch(dioramaTs, /Math\.max\(screenCanvas\.(?:width|height), [WH]\)/);
   assert.match(dioramaTs, /storyCtx\.drawImage\(cachedFrame, drawX, drawY\);/);
   assert.doesNotMatch(dioramaTs, /renderScale/);
+});
+
+test("mobile story typography scales from the 390 by 844 layout", () => {
+  assert.match(homeStoryTs, /const unit = Math\.min\(width \/ 390, height \/ 844\);/);
+  assert.match(homeStoryTs, /const overlayTypographyScale = width < 700 \? 1\.45 : 1;/);
+  assert.match(homeStoryTs, /const titleSize = 49 \* unit \* overlayTypographyScale;/);
+  assert.match(homeStoryTs, /const bodySize = 20 \* unit \* overlayTypographyScale;/);
+  assert.match(homeStoryTs, /const smallSize = 17 \* unit \* overlayTypographyScale;/);
+  assert.doesNotMatch(homeStoryTs, /const titleSize = clamp\(width \* 0\.125, 140, 184\);/);
+});
+
+test("desktop story headings fit inside narrow landscape canvases", () => {
+  assert.match(homeStoryTs, /const compactLandscape = width \/ layoutScale <= 700;/);
+  assert.match(
+    homeStoryTs,
+    /const safeX = compactLandscape\s*\? Math\.max\(32 \* unit, width \* 0\.045\)\s*:\s*Math\.max\(180 \* unit, width \* 0\.135\);/,
+  );
+  assert.match(homeStoryTs, /const titleMaxWidth = Math\.max\(1, \(safeRight - x\) \* 0\.96\);/);
+  assert.match(
+    homeStoryTs,
+    /const titleSize = fitSize\(title, titleMaxWidth, 48 \* unit, 20 \* unit, titleFont, 600\);/,
+  );
+  assert.match(homeStoryTs, /const inputCardH = \(compactLandscape \? 94 : 112\) \* unit;/);
+  assert.match(homeStoryTs, /const inputGapY = \(compactLandscape \? 18 : 26\) \* unit;/);
+  assert.match(homeStoryTs, /const inputTop = centerY - \(compactLandscape \? 88 : 126\) \* unit;/);
+  assert.match(homeStoryTs, /const trackY = centerY - \(compactLandscape \? 70 : 118\) \* unit;/);
+  assert.match(homeStoryTs, /y: centerY - workH \* \(compactLandscape \? 0\.32 : 0\.47\),/);
+  assert.match(homeStoryTs, /compactLandscape \? 2 : 1,/);
+  assert.match(homeStoryTs, /const noteSize = \(compactLandscape \? 15 : 17\) \* unit;/);
+  assert.match(homeStoryTs, /const noteLineHeight = \(compactLandscape \? 17 : 20\) \* unit;/);
+  assert.match(homeStoryTs, /const noteBottomInset = \(compactLandscape \? 18 : 22\) \* unit;/);
+  assert.doesNotMatch(homeStoryTs, /measure\(title, 1, titleFont, 600\)/);
+});
+
+test("story copy wraps CJK text without requiring spaces", () => {
+  assert.equal(homeStoryTs.match(/const characters = Array\.from\(value\);/g)?.length, 2);
+  assert.equal(homeStoryTs.match(/lines\.push\(current\.trimEnd\(\)\);/g)?.length, 4);
+  assert.doesNotMatch(homeStoryTs, /const words = value\.split\(" "\);/);
 });
 
 test("home story overlay uses high quality resampling when scaling", () => {

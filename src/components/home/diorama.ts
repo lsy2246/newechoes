@@ -32,6 +32,7 @@ import {
 import { HOME_MOTION_TIMING } from "./homeMotionTiming.ts";
 
 const CLEANUP_KEY = "__homeDioramaCleanup";
+const HOME_STORY_COVER_OVERLAY_MIN_WIDTH = 700;
 type HomeContentCard = {
   title: string;
   note: string;
@@ -1277,12 +1278,17 @@ export function initDiorama() {
   const MOBILE_LOOP_RETURN_EASE_POWER = 2;
   const LOOP_BACK_WRAP_THRESHOLD = 0.002;
   const LOOP_BACK_WRAP_MIN_PROGRESS = LOOP_RETURN_START + 0.004;
-  // The DOM work chapter covers classify→work before the Canvas work becomes
-  // visible, then hands directly to the authored work→today edge. Work is
-  // therefore presented once, as normal document flow. Resume close to the
-  // end of the story so the settled today frame is a short closing beat.
-  const WORK_FLOW_START_PROGRESS = STORY_MODE_END * 0.58;
-  const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END * 0.96;
+  // The DOM work chapter is the only classify→work transition. Derive its
+  // boundaries from the authored timeline so it starts exactly at that edge
+  // and hands directly to work→today without exposing an old Canvas morph.
+  const classifyWorkEdge = homeStoryTimeline.find(
+    (segment) => segment.kind === "transition" && segment.edge.id === "classify->work",
+  );
+  const workTodayEdge = homeStoryTimeline.find(
+    (segment) => segment.kind === "transition" && segment.edge.id === "work->today",
+  );
+  const WORK_FLOW_START_PROGRESS = STORY_MODE_END * (classifyWorkEdge?.start ?? 0.62);
+  const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END * (workTodayEdge?.start ?? 0.97);
   const STARTUP_GATE_PROGRESS = 0.08;
   const STARTUP_GATE_TIMEOUT_MS = 1400;
   const CAMERA_REJOIN_START = 0.82;
@@ -2023,6 +2029,7 @@ export function initDiorama() {
     if (reduceMotion) return false;
     const resolved = resolveHomeStoryTimeline(progress, homeStoryTimeline);
     if (!isHomeStoryTransitionSegment(resolved.segment)) return false;
+    if (evidenceEl && resolved.segment.edge.id === "classify->work") return false;
     return resolveRequestedHomeTransitionMode(
       resolved.segment.edge.mode,
       mode,
@@ -2086,6 +2093,8 @@ export function initDiorama() {
     const H = storyCanvasEl.height;
     const isWideOverlay = W > H;
     const overlayDevice = isWideOverlay ? storyInput.device : "mobile";
+    const overlayCssWidth = W / storyCanvasDpr;
+    const useDesktopCoverFrame = isWideOverlay && overlayCssWidth > HOME_STORY_COVER_OVERLAY_MIN_WIDTH;
     const frameIndex = Math.round(clamp(storyInput.progress) * STORY_FRAME_STEPS);
     const continuousScan = usesContinuousScanProgress(
       storyInput.progress,
@@ -2100,12 +2109,12 @@ export function initDiorama() {
     const cacheMotionKey = connectorMotionActive ? storyInput.motion?.toFixed(3) : "static";
     const overlaySourceAspect = screenCanvas.width / screenCanvas.height;
     const overlayTargetAspect = W / H;
-    const sourceW = isWideOverlay
+    const sourceW = useDesktopCoverFrame
       ? overlayTargetAspect >= overlaySourceAspect
         ? W
         : Math.round(H * overlaySourceAspect)
       : W;
-    const sourceH = isWideOverlay
+    const sourceH = useDesktopCoverFrame
       ? overlayTargetAspect >= overlaySourceAspect
         ? Math.round(W / overlaySourceAspect)
         : H
@@ -2125,6 +2134,7 @@ export function initDiorama() {
       storyInput.revealCenterDiorama ? "center-diorama" : "story",
       storyInput.transitionMode,
       storyInput.transitionRevision,
+      storyInput.nativeWorkFlow ? "native-work-flow" : "canvas-work-flow",
       JSON.stringify(storyInput.transitionOverrides ?? {}),
     ].join("|");
 
@@ -2159,7 +2169,7 @@ export function initDiorama() {
     storyCtx.clearRect(0, 0, W, H);
     storyCtx.imageSmoothingEnabled = true;
     storyCtx.imageSmoothingQuality = "high";
-    if (isWideOverlay) {
+    if (useDesktopCoverFrame) {
       const drawX = Math.round((W - sourceW) / 2);
       const drawY = Math.round((H - sourceH) / 2);
       storyCtx.drawImage(cachedFrame, drawX, drawY);
@@ -2193,6 +2203,7 @@ export function initDiorama() {
       transitionOverrides: transitionConfig.edges,
       transitionRevision: transitionConfig.revision,
       reducedMotion: reduceMotion,
+      nativeWorkFlow: Boolean(evidenceEl),
       timeline: homeStoryTimeline,
       now: formatNowBeijing(),
       screenTitle: homeContent.screenTitle,
