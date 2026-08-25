@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   getAdjacentHomeChapterStop,
   getHomeScrollMomentumLeadLimit,
+  getHomeTouchReleaseLead,
   stepHomeScrollMomentum,
 } from "../src/components/home/homeScrollMomentum.ts";
 
@@ -50,5 +51,12 @@ test("one gesture resolves only to its adjacent chapter boundary", () => {
 
 test("buffered input stays close to the rendered page", () => {
   assert.equal(getHomeScrollMomentumLeadLimit(800, "desktop"), 400);
-  assert.equal(getHomeScrollMomentumLeadLimit(800, "mobile"), 320);
+  assert.equal(getHomeScrollMomentumLeadLimit(800, "mobile"), 352);
+});
+
+test("mobile release velocity adds a short bounded continuation", () => {
+  assert.equal(getHomeTouchReleaseLead(60, 800), 0);
+  assert.equal(getHomeTouchReleaseLead(900, 800), 90);
+  assert.equal(getHomeTouchReleaseLead(-900, 800), -90);
+  assert.equal(getHomeTouchReleaseLead(2_000, 800), 144);
 });

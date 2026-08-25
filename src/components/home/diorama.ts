@@ -27,6 +27,7 @@ import {
 import {
   getAdjacentHomeChapterStop,
   getHomeScrollMomentumLeadLimit,
+  getHomeTouchReleaseLead,
   stepHomeScrollMomentum,
 } from "./homeScrollMomentum.ts";
 import { HOME_MOTION_TIMING } from "./homeMotionTiming.ts";
@@ -1289,6 +1290,7 @@ export function initDiorama() {
   );
   const WORK_FLOW_START_PROGRESS = STORY_MODE_END * (classifyWorkEdge?.start ?? 0.62);
   const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END * (workTodayEdge?.start ?? 0.97);
+  const TODAY_HOLD_PROGRESS = STORY_MODE_END * (workTodayEdge?.end ?? 0.995);
   const STARTUP_GATE_PROGRESS = 0.08;
   const STARTUP_GATE_TIMEOUT_MS = 1400;
   const CAMERA_REJOIN_START = 0.82;
@@ -1695,7 +1697,30 @@ export function initDiorama() {
     });
     return true;
   };
+  type EvidenceNativeScrollGuard = {
+    minY: number;
+    maxY: number;
+    touchIdentifier: number | null;
+    releaseUntil: number;
+  };
+  let evidenceNativeScrollGuard: EvidenceNativeScrollGuard | null = null;
+  const clearEvidenceNativeScrollGuard = () => {
+    evidenceNativeScrollGuard = null;
+  };
+  const clampEvidenceNativeScroll = () => {
+    const guard = evidenceNativeScrollGuard;
+    if (!guard) return;
+    if (guard.touchIdentifier === null && performance.now() > guard.releaseUntil) {
+      clearEvidenceNativeScrollGuard();
+      return;
+    }
+    const boundedY = clamp(window.scrollY, guard.minY, guard.maxY);
+    if (Math.abs(boundedY - window.scrollY) > 0.5) {
+      window.scrollTo({ top: boundedY, left: 0, behavior: "auto" });
+    }
+  };
   const syncScrollProgress = () => {
+    clampEvidenceNativeScroll();
     if (isThemeTransitionActive()) return;
     const rawScrollProgress = getScrollProgress();
     startupGatePendingScroll = !startupGateReleased && rawScrollProgress > STARTUP_GATE_PROGRESS + 0.002;
@@ -1712,7 +1737,7 @@ export function initDiorama() {
     const metrics = getShellScrollMetrics();
     if (metrics === 1 || metrics.flowSpan <= 0) return false;
     const physicalScroll = window.scrollY - metrics.shellTop;
-    return physicalScroll >= metrics.flowStart && physicalScroll < metrics.flowEnd;
+    return physicalScroll > metrics.flowStart + 1 && physicalScroll < metrics.flowEnd - 1;
   };
   const getClassifyTo3dScrollMultiplier = () => {
     const start = STORY_PROGRESS_END * 0.56;
@@ -1737,11 +1762,14 @@ export function initDiorama() {
     ...homeStoryTimeline
       .filter((segment) => segment.kind === "canonical")
       .map((segment) => segment.end * STORY_PROGRESS_END),
+    TODAY_HOLD_PROGRESS,
     ROOM_CAMERA_END,
     LOOP_RETURN_START,
     LOOP_RESET_PROGRESS,
     1,
-  ].filter((stop, index, stops) => index === 0 || stop > stops[index - 1]! + 0.0001));
+  ]
+    .sort((a, b) => a - b)
+    .filter((stop, index, stops) => index === 0 || stop > stops[index - 1]! + 0.0001));
   const HOME_SCROLL_GESTURE_IDLE_MS = 140;
   let homeScrollMomentumPositionY = window.scrollY;
   let homeScrollMomentumTargetY = window.scrollY;
@@ -1787,21 +1815,26 @@ export function initDiorama() {
     deltaPx: number,
     elapsedMs: number,
     device: HomeScrollInputDevice,
+    inputMode: "resisted" | "touch-start" | "touch" | "release" = "resisted",
   ) => {
-    const effectiveDelta = getResistedHomeScrollDelta({
-      deltaPx,
-      elapsedMs,
-      progress: scrollTargetProgress,
-      viewportHeight: window.innerHeight,
-      device,
-    });
+    const effectiveDelta = inputMode === "resisted"
+      ? getResistedHomeScrollDelta({
+          deltaPx,
+          elapsedMs,
+          progress: scrollTargetProgress,
+          viewportHeight: window.innerHeight,
+          device,
+        })
+      : clamp(deltaPx, window.innerHeight * -0.34, window.innerHeight * 0.34);
     if (Math.abs(effectiveDelta) < 0.001) return 0;
 
     const inputAt = performance.now();
     const direction = Math.sign(effectiveDelta) as -1 | 1;
     const startsNewGesture =
+      inputMode === "touch-start" ||
       homeScrollGestureDirection !== direction ||
-      inputAt - homeScrollGestureLastInputAt > HOME_SCROLL_GESTURE_IDLE_MS;
+      (inputMode === "resisted" &&
+        inputAt - homeScrollGestureLastInputAt > HOME_SCROLL_GESTURE_IDLE_MS);
     if (!homeScrollMomentumActive) {
       cancelHomeScrollMomentum(window.scrollY);
     } else if (homeScrollGestureDirection !== direction) {
@@ -1826,6 +1859,16 @@ export function initDiorama() {
       Math.max(lowerLead, lowerBoundary),
       Math.min(upperLead, upperBoundary),
     );
+    if (inputMode === "touch" || inputMode === "touch-start") {
+      homeScrollMomentumPositionY = lerp(
+        homeScrollMomentumPositionY,
+        homeScrollMomentumTargetY,
+        mobileTouchFollow,
+      );
+      homeScrollMomentumVelocity *= 0.35;
+      window.scrollTo({ top: homeScrollMomentumPositionY, left: 0, behavior: "auto" });
+      syncScrollProgress();
+    }
     homeScrollMomentumActive = true;
     return effectiveDelta;
   };
@@ -2278,6 +2321,10 @@ export function initDiorama() {
   let homeTouchStartY = 0;
   let homeTouchLastY = 0;
   let homeTouchLastAt = 0;
+  let homeTouchVelocityY = 0;
+  let homeTouchBoundaryLocked = false;
+  const mobileTouchScrollGain = 0.72;
+  const mobileTouchFollow = 0.74;
   type MobileGestureIntent = "pending" | "scroll" | "orbit";
   let mobileGestureIntent: MobileGestureIntent | null = null;
   let mobileGesturePointerId: number | null = null;
@@ -2286,6 +2333,8 @@ export function initDiorama() {
   let mobileGestureLastX = 0;
   let mobileGestureLastY = 0;
   let mobileGestureLastAt = 0;
+  let mobileGestureVelocityY = 0;
+  let mobileGestureBoundaryLocked = false;
   const mobileOrbitOffset = new THREE.Vector3();
   const mobileOrbitSpherical = new THREE.Spherical();
 
@@ -2301,6 +2350,8 @@ export function initDiorama() {
     homeTouchIntent = null;
     homeTouchPointerId = null;
     homeTouchLastAt = 0;
+    homeTouchVelocityY = 0;
+    homeTouchBoundaryLocked = false;
   };
 
   const homeTouchStartHandler = (e: TouchEvent) => {
@@ -2311,6 +2362,22 @@ export function initDiorama() {
       e.touches.length !== 1 ||
       !isHomeScrollActive()
     ) return;
+    if (isEvidenceFlowActive()) {
+      const metrics = getShellScrollMetrics();
+      const touch = e.touches.item(0);
+      if (metrics !== 1 && touch) {
+        evidenceNativeScrollGuard = {
+          minY: metrics.shellTop + metrics.flowStart,
+          maxY: metrics.shellTop + metrics.flowEnd,
+          touchIdentifier: touch.identifier,
+          releaseUntil: Number.POSITIVE_INFINITY,
+        };
+      }
+      cancelHomeScrollMomentum(window.scrollY);
+      resetHomeTouchGesture();
+      return;
+    }
+    clearEvidenceNativeScrollGuard();
     if (
       e.target instanceof Element &&
       e.target.closest("a, button, input, textarea, select, [contenteditable]")
@@ -2324,6 +2391,7 @@ export function initDiorama() {
     homeTouchStartY = touch.clientY;
     homeTouchLastY = touch.clientY;
     homeTouchLastAt = e.timeStamp || performance.now();
+    homeTouchVelocityY = 0;
   };
 
   const homeTouchMoveHandler = (e: TouchEvent) => {
@@ -2340,37 +2408,68 @@ export function initDiorama() {
       resetHomeTouchGesture();
       return;
     }
+    if (isEvidenceFlowActive()) {
+      cancelHomeScrollMomentum(window.scrollY);
+      resetHomeTouchGesture();
+      return;
+    }
 
     const dx = touch.clientX - homeTouchStartX;
     const dy = touch.clientY - homeTouchStartY;
     if (homeTouchIntent === "pending") {
-      if (Math.hypot(dx, dy) < 8) return;
+      if (Math.hypot(dx, dy) < 5) return;
       homeTouchIntent = Math.abs(dy) >= Math.abs(dx) * 0.75 ? "scroll" : "horizontal";
     }
     if (homeTouchIntent !== "scroll" || !e.cancelable) return;
 
     e.preventDefault();
     const now = e.timeStamp || performance.now();
+    const elapsedMs = homeTouchLastAt ? Math.max(8, now - homeTouchLastAt) : 16;
+    const directDelta = (homeTouchLastY - touch.clientY) * mobileTouchScrollGain;
+    const instantVelocity = directDelta / elapsedMs * 1_000;
+    homeTouchVelocityY = homeTouchVelocityY === 0
+      ? instantVelocity
+      : lerp(homeTouchVelocityY, instantVelocity, 0.4);
     queueHomeScrollMomentum(
-      homeTouchLastY - touch.clientY,
-      homeTouchLastAt ? now - homeTouchLastAt : 16,
+      directDelta,
+      elapsedMs,
       "mobile",
+      homeTouchBoundaryLocked ? "touch" : "touch-start",
     );
+    homeTouchBoundaryLocked = true;
     homeTouchLastY = touch.clientY;
     homeTouchLastAt = now;
   };
 
   const homeTouchEndHandler = (e: TouchEvent) => {
     if (
-      homeTouchPointerId !== null &&
-      !getTouchByIdentifier(e.touches, homeTouchPointerId)
-    ) resetHomeTouchGesture();
+      evidenceNativeScrollGuard &&
+      evidenceNativeScrollGuard.touchIdentifier !== null &&
+      !getTouchByIdentifier(e.touches, evidenceNativeScrollGuard.touchIdentifier)
+    ) {
+      evidenceNativeScrollGuard.touchIdentifier = null;
+      evidenceNativeScrollGuard.releaseUntil = performance.now() + 1_800;
+      clampEvidenceNativeScroll();
+    }
+    if (
+      homeTouchPointerId === null ||
+      getTouchByIdentifier(e.touches, homeTouchPointerId)
+    ) return;
+    if (e.type === "touchend" && homeTouchIntent === "scroll" && !isEvidenceFlowActive()) {
+      const releaseLead = getHomeTouchReleaseLead(homeTouchVelocityY, window.innerHeight);
+      if (Math.abs(releaseLead) >= 1) {
+        queueHomeScrollMomentum(releaseLead, 16, "mobile", "release");
+      }
+    }
+    resetHomeTouchGesture();
   };
 
   const resetMobileGesture = () => {
     mobileGestureIntent = null;
     mobileGesturePointerId = null;
     mobileGestureLastAt = 0;
+    mobileGestureVelocityY = 0;
+    mobileGestureBoundaryLocked = false;
     mobileGestureForcesScrollCue = false;
     if (useMobileCarrier && sceneInputActive) canvasEl.style.cursor = "grab";
     applyHomeState(homeProgress);
@@ -2385,6 +2484,7 @@ export function initDiorama() {
     mobileGestureLastX = e.clientX;
     mobileGestureLastY = e.clientY;
     mobileGestureLastAt = e.timeStamp || performance.now();
+    mobileGestureVelocityY = 0;
   };
 
   const handleMobileGestureMove = (e: PointerEvent) => {
@@ -2397,7 +2497,7 @@ export function initDiorama() {
     const dx = e.clientX - mobileGestureStartX;
     const dy = e.clientY - mobileGestureStartY;
     if (mobileGestureIntent === "pending") {
-      if (Math.hypot(dx, dy) < 9) return true;
+      if (Math.hypot(dx, dy) < 6) return true;
       mobileGestureIntent = Math.abs(dy) >= Math.abs(dx) * 0.75 ? "scroll" : "orbit";
       mobileGestureForcesScrollCue = mobileGestureIntent === "scroll";
       canvasEl.style.cursor = mobileGestureIntent === "orbit" ? "grabbing" : "default";
@@ -2407,11 +2507,19 @@ export function initDiorama() {
     e.preventDefault();
     const now = e.timeStamp || performance.now();
     if (mobileGestureIntent === "scroll") {
+      const elapsedMs = mobileGestureLastAt ? Math.max(8, now - mobileGestureLastAt) : 16;
+      const directDelta = (mobileGestureLastY - e.clientY) * mobileTouchScrollGain;
+      const instantVelocity = directDelta / elapsedMs * 1_000;
+      mobileGestureVelocityY = mobileGestureVelocityY === 0
+        ? instantVelocity
+        : lerp(mobileGestureVelocityY, instantVelocity, 0.4);
       queueHomeScrollMomentum(
-        mobileGestureLastY - e.clientY,
-        mobileGestureLastAt ? now - mobileGestureLastAt : 16,
+        directDelta,
+        elapsedMs,
         "mobile",
+        mobileGestureBoundaryLocked ? "touch" : "touch-start",
       );
+      mobileGestureBoundaryLocked = true;
     } else if (mobileGestureIntent === "orbit") {
       const deltaX = e.clientX - mobileGestureLastX;
       mobileOrbitOffset.subVectors(camera.position, controls.target);
@@ -2479,7 +2587,15 @@ export function initDiorama() {
   canvasEl.addEventListener("pointerdown", pointerDownHandler);
 
   const pointerUpHandler = (e: PointerEvent) => {
-    if (useMobileCarrier && e.pointerType === "touch" && mobileGestureIntent !== null) resetMobileGesture();
+    if (useMobileCarrier && e.pointerType === "touch" && mobileGestureIntent !== null) {
+      if (mobileGestureIntent === "scroll") {
+        const releaseLead = getHomeTouchReleaseLead(mobileGestureVelocityY, window.innerHeight);
+        if (Math.abs(releaseLead) >= 1) {
+          queueHomeScrollMomentum(releaseLead, 16, "mobile", "release");
+        }
+      }
+      resetMobileGesture();
+    }
   };
   canvasEl.addEventListener("pointerup", pointerUpHandler);
   canvasEl.addEventListener("pointercancel", resetMobileGesture);

@@ -49,6 +49,11 @@ test("home story gives earlier handoffs more time and makes today a brief beat",
     dioramaTs,
     /const WORK_FLOW_RESUME_PROGRESS = STORY_MODE_END \* \(workTodayEdge\?\.start \?\? 0\.97\);/,
   );
+  assert.match(
+    dioramaTs,
+    /const TODAY_HOLD_PROGRESS = STORY_MODE_END \* \(workTodayEdge\?\.end \?\? 0\.995\);/,
+  );
+  assert.match(dioramaTs, /homeChapterStops[\s\S]*?TODAY_HOLD_PROGRESS,/);
   assert.match(dioramaTs, /evidenceReleaseEl\.offsetHeight \* 0\.98/);
   assert.match(dioramaTs, /evidenceReleaseEl\.offsetHeight \* 0\.02/);
 });
@@ -85,7 +90,7 @@ test("the authored scan redraws from continuous scroll progress", () => {
   );
 });
 
-test("mobile vertical gestures use resistance while horizontal gestures keep orbit control", () => {
+test("mobile vertical gestures stay direct while horizontal gestures keep orbit control", () => {
   assert.match(
     dioramaCss,
     /@media \(max-width: 900px\) and \(prefers-reduced-motion: no-preference\)[\s\S]*?\.home-diorama__canvas[\s\S]*?touch-action: none;/,
@@ -100,12 +105,31 @@ test("mobile vertical gestures use resistance while horizontal gestures keep orb
   );
   assert.match(
     dioramaTs,
-    /queueHomeScrollMomentum\([\s\S]*?homeTouchLastY - touch\.clientY,[\s\S]*?"mobile",\s*\);/,
+    /const directDelta = \(homeTouchLastY - touch\.clientY\) \* mobileTouchScrollGain;[\s\S]*?queueHomeScrollMomentum\([\s\S]*?directDelta,[\s\S]*?"mobile",[\s\S]*?homeTouchBoundaryLocked \? "touch" : "touch-start",\s*\);/,
   );
   assert.match(
     dioramaTs,
-    /queueHomeScrollMomentum\([\s\S]*?mobileGestureLastY - e\.clientY,[\s\S]*?"mobile",\s*\);/,
+    /const directDelta = \(mobileGestureLastY - e\.clientY\) \* mobileTouchScrollGain;[\s\S]*?queueHomeScrollMomentum\([\s\S]*?directDelta,[\s\S]*?"mobile",[\s\S]*?mobileGestureBoundaryLocked \? "touch" : "touch-start",\s*\);/,
   );
+  assert.match(
+    dioramaTs,
+    /inputMode === "touch-start" \|\|[\s\S]*?\(inputMode === "resisted" &&[\s\S]*?HOME_SCROLL_GESTURE_IDLE_MS\)/,
+  );
+  assert.match(dioramaTs, /homeScrollMomentumTargetY,[\s\S]*?mobileTouchFollow,/);
+  assert.match(dioramaTs, /queueHomeScrollMomentum\(releaseLead, 16, "mobile", "release"\);/);
+  assert.match(dioramaTs, /Math\.hypot\(dx, dy\) < 5/);
+  assert.match(dioramaTs, /getHomeTouchReleaseLead\(homeTouchVelocityY, window\.innerHeight\)/);
+  assert.match(dioramaTs, /getHomeTouchReleaseLead\(mobileGestureVelocityY, window\.innerHeight\)/);
+  assert.match(
+    dioramaTs,
+    /if \(isEvidenceFlowActive\(\)\) \{[\s\S]*?cancelHomeScrollMomentum\(window\.scrollY\);[\s\S]*?resetHomeTouchGesture\(\);[\s\S]*?return;/,
+  );
+  assert.match(
+    dioramaTs,
+    /return physicalScroll > metrics\.flowStart \+ 1 && physicalScroll < metrics\.flowEnd - 1;/,
+  );
+  assert.match(dioramaTs, /const clampEvidenceNativeScroll = \(\) => \{/);
+  assert.match(dioramaTs, /releaseUntil = performance\.now\(\) \+ 1_800;/);
   assert.match(dioramaTs, /mobileGestureIntent === "scroll"/);
   assert.match(dioramaTs, /mobileGestureIntent === "orbit"/);
   assert.match(

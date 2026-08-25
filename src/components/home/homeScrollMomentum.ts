@@ -18,12 +18,16 @@ const DEVICE_MOMENTUM = Object.freeze({
     maxTargetViewportLead: 0.5,
   }),
   mobile: Object.freeze({
-    angularFrequency: 17,
+    angularFrequency: 13.2,
     settlePositionPx: 0.35,
     settleVelocityPxPerSecond: 3,
-    maxTargetViewportLead: 0.4,
+    maxTargetViewportLead: 0.44,
   }),
 });
+
+const MOBILE_RELEASE_MIN_VELOCITY = 120;
+const MOBILE_RELEASE_PROJECTION_SECONDS = 0.1;
+const MOBILE_RELEASE_MAX_VIEWPORT_LEAD = 0.18;
 
 /**
  * Advances a critically damped scroll spring. A wheel burst moves the target,
@@ -69,6 +73,18 @@ export const getHomeScrollMomentumLeadLimit = (
   viewportHeight: number,
   device: HomeScrollInputDevice,
 ) => Math.max(1, viewportHeight) * DEVICE_MOMENTUM[device].maxTargetViewportLead;
+
+/** Projects a short, bounded continuation from the final touch velocity. */
+export const getHomeTouchReleaseLead = (
+  velocityPxPerSecond: number,
+  viewportHeight: number,
+) => {
+  if (!Number.isFinite(velocityPxPerSecond)) return 0;
+  if (Math.abs(velocityPxPerSecond) < MOBILE_RELEASE_MIN_VELOCITY) return 0;
+  const maxLead = Math.max(1, viewportHeight) * MOBILE_RELEASE_MAX_VIEWPORT_LEAD;
+  const projected = velocityPxPerSecond * MOBILE_RELEASE_PROJECTION_SECONDS;
+  return Math.min(maxLead, Math.max(-maxLead, projected));
+};
 
 /** Returns the closest chapter stop in the requested direction. */
 export const getAdjacentHomeChapterStop = (
